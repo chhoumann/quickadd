@@ -11,7 +11,7 @@ import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { getExistingNoteAction } from "src/template/fileExistsPolicy";
 import { commandListOf, isCommandLike } from "src/utils/macroUtils";
-import { getActiveEditorSelection } from "src/utils/activeMarkdownEditor";
+import { currentSelection } from "src/utils/currentFile";
 import { classifyStep } from "./macroCommandRole";
 import { buildFormRoster, type FormRosterEntry } from "./macroFormRoster";
 import { collectChoiceRequirements, getUnresolvedRequirements } from "./collectChoiceRequirements";
@@ -179,7 +179,7 @@ export async function buildDiscoveryFormPlan(
 		}
 		const captureSelection = child && isCaptureChoice(child) &&
 			(child.useSelectionAsCaptureValue ?? plugin.settings.useSelectionAsCaptureValue ?? true)
-			? getActiveEditorSelection(app)
+			? currentSelection(app, executor)
 			: "";
 		for (const requirement of collected) {
 			if (discovery && requirement.id === "value") continue;

@@ -89,7 +89,7 @@ vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
 }));
 vi.mock("../utils/editorInsertion", () => ({
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 }));
 vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
@@ -115,7 +115,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
-import { insertFileLinkToActiveView } from "../utils/editorInsertion";
+import { insertFileLinkToCurrentNote } from "../utils/editorInsertion";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -224,7 +224,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		copyFileLinkToClipboardMock.mockResolvedValue(true);
 		getAppendLinkDestinationFileMock.mockReset();
 		getAppendLinkDestinationFileMock.mockReturnValue(null);
-		vi.mocked(insertFileLinkToActiveView).mockReset();
+		vi.mocked(insertFileLinkToCurrentNote).mockReset();
 		formatFileNameMock.mockReset();
 		formatFileContentMock.mockReset();
 		formatFileContentMock.mockResolvedValue("");
@@ -662,19 +662,21 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 				createFileWithTemplate: () => Promise<TFile | null>;
 			}
 		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
-		vi.mocked(insertFileLinkToActiveView).mockRejectedValueOnce(
+		vi.mocked(insertFileLinkToCurrentNote).mockRejectedValueOnce(
 			new Error("frontmatter property is missing"),
 		);
 
 		await engine.run();
 
-		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
+		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(
 			app,
 			createdFile,
+			null,
 			expect.objectContaining({
 				...(engine.choice.appendLink as object),
 				destination: { type: "activeFile" },
 			}),
+			undefined,
 		);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",

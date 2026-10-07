@@ -1,8 +1,9 @@
 import type { App, TFile, WorkspaceLeaf } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { currentFile } from "../utils/currentFile";
 import { log } from "../logger/logManager";
 import { type normalizeAppendLinkOptions, type AppendLinkOptions, placementSupportsFrontmatter } from "../types/linkPlacement";
-import { insertFileLinkToActiveView } from "../utils/editorInsertion";
+import { insertFileLinkToCurrentNote } from "../utils/editorInsertion";
 import { openExistingFileTab, openFile } from "../utils/fileOpening";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { appendFileLinkToDestinationFile, copyFileLinkToClipboard, getAppendLinkDestinationFile } from "../utils/fileLinks";
@@ -19,17 +20,17 @@ export function appendLinkDestinationError(app: App, options: LinkOptions): stri
 
 export async function insertChoiceFileLink(
 	app: App, file: TFile, options: AppendLinkOptions,
-	focusedProperty: IChoiceExecutor["focusedProperty"],
+	executor: IChoiceExecutor,
 	onEditorTextMutation?: EditorTextMutationObserver,
 ): Promise<void> {
 	if (!options.enabled) return;
+	const focusedProperty = executor.focusedProperty;
 	if (options.destination?.type === "specifiedFile") {
 		await appendFileLinkToDestinationFile(app, file, options, onEditorTextMutation);
 	} else if (focusedProperty && !placementSupportsFrontmatter(options.placement)) {
 		await appendLinkToFrontmatterProperty(app, focusedProperty, file);
 	} else {
-		if (onEditorTextMutation) await insertFileLinkToActiveView(app, file, options, onEditorTextMutation);
-		else await insertFileLinkToActiveView(app, file, options);
+		await insertFileLinkToCurrentNote(app, file, currentFile(app, executor), options, onEditorTextMutation);
 	}
 }
 

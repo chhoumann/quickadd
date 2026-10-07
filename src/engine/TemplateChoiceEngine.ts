@@ -30,6 +30,7 @@ import {
 import { getAllFolderPathsInVault } from "../utils/vaultQueries";
 import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
+import { currentFile } from "../utils/currentFile";
 import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,
@@ -251,7 +252,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				// Report it as a non-fatal warning that names the created file.
 				try {
 					await insertChoiceFileLink(this.app, createdFile, linkOptions,
-						this.choiceExecutor.focusedProperty, this.cursorPlacement ? mutation => {
+						this.choiceExecutor, this.cursorPlacement ? mutation => {
 							if (this.cursorPlacement && mutation.filePath === createdFile?.path) {
 								this.cursorPlacement = mapEditorCursorPlacement(this.cursorPlacement, mutation);
 							}
@@ -352,7 +353,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		} else {
 			// Respect Obsidian's "Default location for new notes" setting
 			const parent = this.app.fileManager.getNewFileParent(
-				this.app.workspace.getActiveFile()?.path ?? "",
+				currentFile(this.app, this.choiceExecutor)?.path ?? "",
 			);
 			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
 		}
@@ -688,7 +689,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			destinations = sortFolderPathsByTree(getAllFolderPathsInVault(this.app));
 			allowedRoots = undefined;
 		} else if (config?.createInSameFolderAsActiveFile) {
-			const activeFile = this.app.workspace.getActiveFile();
+			const activeFile = currentFile(this.app, this.choiceExecutor);
 			if (!activeFile || !activeFile.parent) {
 				log.logWarning(
 					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
@@ -711,7 +712,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	private getCurrentFolderSuggestion():
 		| { path: string; label: string }
 		| null {
-		const activeFile = this.app.workspace.getActiveFile();
+		const activeFile = currentFile(this.app, this.choiceExecutor);
 		const parent = activeFile?.parent;
 		if (!activeFile || !parent) return null;
 		const path = parent.path ?? "";

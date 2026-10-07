@@ -3,9 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { App, Editor, TFile } from "obsidian";
 import { prepareCapture } from "../formatters/helpers/capturePlacement";
 import {
+	appendToCurrentLine,
 	insertCaptureInBoundEditor,
-	insertFileLinkToActiveView,
+	insertFileLinkToCurrentNote,
 	insertLinkWithPlacement,
+	insertOnNewLineBelow,
 	setMarkdownCursorAtOffset,
 } from "./editorInsertion";
 
@@ -125,10 +127,10 @@ describe("setMarkdownCursorAtOffset", () => {
 	});
 });
 
-describe("insertFileLinkToActiveView", () => {
+describe("insertFileLinkToCurrentNote", () => {
 	it("appends configured frontmatter links through the active file", async () => {
 		const frontmatter: Record<string, unknown> = {};
-		const activeFile = { path: "Folder/Host.md" } as TFile;
+		const activeFile = { path: "Folder/Host.md", extension: "md" } as TFile;
 		const createdFile = { path: "Folder/Created.md" } as TFile;
 		const editor = {
 			listSelections: vi.fn(),
@@ -147,7 +149,7 @@ describe("insertFileLinkToActiveView", () => {
 		} as unknown as App;
 
 		await expect(
-			insertFileLinkToActiveView(app, createdFile, {
+			insertFileLinkToCurrentNote(app, createdFile, activeFile, {
 				enabled: true,
 				placement: "inFrontmatter",
 				requireActiveFile: true,
@@ -171,7 +173,7 @@ describe("insertFileLinkToActiveView", () => {
 
 	it("uses create-or-convert handling by default for frontmatter links", async () => {
 		const frontmatter: Record<string, unknown> = { related: "[[Existing]]" };
-		const activeFile = { path: "Folder/Host.md" } as TFile;
+		const activeFile = { path: "Folder/Host.md", extension: "md" } as TFile;
 		const createdFile = { path: "Folder/Created.md" } as TFile;
 		const app = {
 			workspace: {
@@ -185,7 +187,7 @@ describe("insertFileLinkToActiveView", () => {
 		} as unknown as App;
 
 		await expect(
-			insertFileLinkToActiveView(app, createdFile, {
+			insertFileLinkToCurrentNote(app, createdFile, activeFile, {
 				enabled: true,
 				placement: "inFrontmatter",
 				requireActiveFile: true,
@@ -197,7 +199,7 @@ describe("insertFileLinkToActiveView", () => {
 	});
 
 	it("inserts an embed on a new line for newLine placement", async () => {
-		const activeFile = { path: "Host.md" } as TFile;
+		const activeFile = { path: "Host.md", extension: "md" } as TFile;
 		const createdFile = { path: "Notes/Created.md" } as TFile;
 		const replaceRange = vi.fn();
 		const editor = {
@@ -225,7 +227,7 @@ describe("insertFileLinkToActiveView", () => {
 		} as unknown as App;
 
 		await expect(
-			insertFileLinkToActiveView(app, createdFile, {
+			insertFileLinkToCurrentNote(app, createdFile, activeFile, {
 				enabled: true,
 				placement: "newLine",
 				requireActiveFile: false,
@@ -247,7 +249,7 @@ describe("insertFileLinkToActiveView", () => {
 		// Thino-style Markdown-masquerading view: has a file, but editor is null.
 		// The frontmatter placement never touches the editor and must keep working.
 		const frontmatter: Record<string, unknown> = {};
-		const activeFile = { path: "Folder/Host.md" } as TFile;
+		const activeFile = { path: "Folder/Host.md", extension: "md" } as TFile;
 		const app = {
 			workspace: {
 				getLeavesOfType: vi.fn(() => []),
@@ -260,7 +262,7 @@ describe("insertFileLinkToActiveView", () => {
 		} as unknown as App;
 
 		await expect(
-			insertFileLinkToActiveView(app, { path: "Folder/Created.md" } as TFile, {
+			insertFileLinkToCurrentNote(app, { path: "Folder/Created.md" } as TFile, activeFile, {
 				enabled: true,
 				placement: "inFrontmatter",
 				requireActiveFile: true,
@@ -272,38 +274,59 @@ describe("insertFileLinkToActiveView", () => {
 		expect(frontmatter.related).toEqual(["[[Created]]"]);
 	});
 
-	it("treats an editor-less view like no view for text placements (#1536)", async () => {
+	it("writes a text-placement link through the vault when no editor shows the current note", async () => {
+		const currentNote = { path: "Host.md", extension: "md" } as TFile;
+		const otherEditor = { replaceSelection: vi.fn(), listSelections: vi.fn(() => []) };
+		const process = vi.fn(async (_file: TFile, fn: (content: string) => string) => fn("Host body"));
 		const app = {
 			workspace: {
 				getLeavesOfType: vi.fn(() => []),
-				getActiveViewOfType: vi.fn(() => ({
-					file: { path: "Host.md" },
-					editor: null,
-				})),
+				getActiveViewOfType: vi.fn(() => ({ file: { path: "Other.md" }, editor: otherEditor })),
 			},
+			vault: { process },
 			fileManager: {
 				generateMarkdownLink: vi.fn(() => "[[Created]]"),
 			},
 		} as unknown as App;
-		const createdFile = { path: "Created.md" } as TFile;
+		const mutations: unknown[] = [];
 
 		await expect(
-			insertFileLinkToActiveView(app, createdFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, currentNote, {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+			}, (mutation) => mutations.push(mutation)),
+		).resolves.toBe(true);
+
+		expect(process).toHaveBeenCalledWith(currentNote, expect.any(Function));
+		await expect(process.mock.results[0].value).resolves.toBe("Host body\n[[Created]]");
+		expect(mutations).toEqual([{
+			filePath: "Host.md", before: "Host body", after: "Host body\n[[Created]]",
+			edits: [{ from: 9, to: 9, text: "\n[[Created]]" }],
+		}]);
+		expect(otherEditor.replaceSelection).not.toHaveBeenCalled();
+	});
+
+	it("refuses a non-Markdown current note like no note at all", async () => {
+		const app = {
+			workspace: { getActiveViewOfType: vi.fn(() => null), getLeavesOfType: vi.fn(() => []) },
+		} as unknown as App;
+		const canvas = { path: "Board.canvas", extension: "canvas" } as TFile;
+
+		await expect(
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, canvas, {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: false,
 			}),
 		).resolves.toBe(false);
-
 		await expect(
-			insertFileLinkToActiveView(app, createdFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, canvas, {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
 			}),
-		).rejects.toThrow(
-			"Cannot append link because no active Markdown view is available.",
-		);
+		).rejects.toThrow("Cannot append link because no active Markdown view is available.");
 	});
 
 	it("propagates configured frontmatter insertion failures", async () => {
@@ -327,7 +350,7 @@ describe("insertFileLinkToActiveView", () => {
 		} as unknown as App;
 
 		await expect(
-			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, { path: "Host.md", extension: "md" } as TFile, {
 				enabled: true,
 				placement: "inFrontmatter",
 				requireActiveFile: true,
@@ -657,7 +680,9 @@ describe("insertLinkWithPlacement with textForSelection", () => {
 	});
 });
 
-describe("insertFileLinkToActiveView displayText", () => {
+const DAILY = { path: "Daily.md", extension: "md" } as TFile;
+
+describe("insertFileLinkToCurrentNote displayText", () => {
 	it("keeps the selection as the link alias when displayText is 'selection'", async () => {
 		const harness = createSelectionEditor("Meeting with Mark", [
 			{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 17 } },
@@ -665,7 +690,7 @@ describe("insertFileLinkToActiveView displayText", () => {
 		const app = createSelectionApp(harness);
 
 		await expect(
-			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, DAILY, {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
@@ -685,7 +710,7 @@ describe("insertFileLinkToActiveView displayText", () => {
 		const app = createSelectionApp(harness);
 
 		await expect(
-			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, DAILY, {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
@@ -705,7 +730,7 @@ describe("insertFileLinkToActiveView displayText", () => {
 		const app = createSelectionApp(harness);
 
 		await expect(
-			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, DAILY, {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
@@ -722,8 +747,8 @@ describe("insertFileLinkToActiveView displayText", () => {
 	});
 });
 
-describe("insertFileLinkToActiveView raw-caller guard semantics", () => {
-	it("skips silently when a partial options object omits requireActiveFile and no view is active", async () => {
+describe("insertFileLinkToCurrentNote raw-caller guard semantics", () => {
+	it("skips silently when a partial options object omits requireActiveFile and there is no current note", async () => {
 		const app = {
 			workspace: { getActiveViewOfType: vi.fn(() => null), getLeavesOfType: vi.fn(() => []) },
 		} as unknown as App;
@@ -732,19 +757,19 @@ describe("insertFileLinkToActiveView raw-caller guard semantics", () => {
 		// and default requireActiveFile to true. The guard must keep reading the
 		// raw value so this stays a silent skip, as before the displayText work.
 		await expect(
-			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, null, {
 				enabled: true,
 			} as never),
 		).resolves.toBe(false);
 	});
 
-	it("still throws for strict callers when no view is active", async () => {
+	it("still throws for strict callers when there is no current note", async () => {
 		const app = {
 			workspace: { getActiveViewOfType: vi.fn(() => null), getLeavesOfType: vi.fn(() => []) },
 		} as unknown as App;
 
 		await expect(
-			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+			insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, null, {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
@@ -762,5 +787,36 @@ describe("insertFileLinkToActiveView raw-caller guard semantics", () => {
 
 		expect(harness.editor.replaceSelection).toHaveBeenCalledWith("[[X]]");
 		expect(harness.editor.transaction).not.toHaveBeenCalled();
+	});
+});
+
+describe("appendToCurrentLine and insertOnNewLine target the given note", () => {
+	function appShowing(path: string) {
+		const editor = {
+			replaceSelection: vi.fn(),
+			replaceRange: vi.fn(),
+			setCursor: vi.fn(),
+			getCursor: vi.fn(() => ({ line: 0, ch: 0 })),
+			getLine: vi.fn(() => "first"),
+		};
+		const app = { workspace: { getActiveViewOfType: vi.fn(() => ({ file: { path }, editor })) } } as unknown as App;
+		return { app, editor };
+	}
+	const today = { path: "Daily/Today.md", extension: "md" } as TFile;
+
+	it("inserts when the active editor shows the note", () => {
+		const { app, editor } = appShowing(today.path);
+		expect(appendToCurrentLine("text", app, today)).toBe(true);
+		expect(editor.replaceSelection).toHaveBeenCalledWith("text");
+		expect(insertOnNewLineBelow("more", app, today)).toBe(true);
+		expect(editor.replaceRange).toHaveBeenCalledWith("\nmore", { line: 0, ch: 5 });
+	});
+
+	it("refuses when the active editor shows another note", () => {
+		const { app, editor } = appShowing("Other.md");
+		expect(appendToCurrentLine("text", app, today)).toBe(false);
+		expect(insertOnNewLineBelow("more", app, today)).toBe(false);
+		expect(editor.replaceSelection).not.toHaveBeenCalled();
+		expect(editor.replaceRange).not.toHaveBeenCalled();
 	});
 });

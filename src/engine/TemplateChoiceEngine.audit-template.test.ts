@@ -76,8 +76,8 @@ vi.mock("../formatters/completeFormatter", () => {
 	return { CompleteFormatter: CompleteFormatterMock };
 });
 
-const { insertFileLinkToActiveViewMock } = vi.hoisted(() => ({
-	insertFileLinkToActiveViewMock: vi.fn(),
+const { insertFileLinkToCurrentNoteMock } = vi.hoisted(() => ({
+	insertFileLinkToCurrentNoteMock: vi.fn(),
 }));
 
 vi.mock("../utils/fileLinks", () => ({
@@ -95,7 +95,7 @@ vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
 }));
 vi.mock("../utils/editorInsertion", () => ({
-	insertFileLinkToActiveView: insertFileLinkToActiveViewMock,
+	insertFileLinkToCurrentNote: insertFileLinkToCurrentNoteMock,
 }));
 vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
@@ -211,7 +211,7 @@ beforeEach(() => {
 	formatFileNameMock.mockReset();
 	formatFileContentMock.mockReset();
 	formatFileContentMock.mockResolvedValue("");
-	insertFileLinkToActiveViewMock.mockReset();
+	insertFileLinkToCurrentNoteMock.mockReset();
 });
 
 describe("TemplateChoiceEngine post-commit link failure (audit)", () => {
@@ -231,7 +231,7 @@ describe("TemplateChoiceEngine post-commit link failure (audit)", () => {
 				createFileWithTemplate: () => Promise<TFile | null>;
 			}
 		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
-		insertFileLinkToActiveViewMock.mockRejectedValueOnce(
+		insertFileLinkToCurrentNoteMock.mockRejectedValueOnce(
 			new Error("Cannot append link because no active Markdown view is available."),
 		);
 		const logErrorSpy = vi.spyOn(log, "logError").mockImplementation(() => "");

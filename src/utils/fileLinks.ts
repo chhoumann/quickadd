@@ -158,11 +158,20 @@ export async function appendFileLinkToDestinationFile(
 		);
 	}
 
-	const linkText = buildFileLinkText(app, file, {
+	await appendLinkLineToNote(app, targetFile, buildFileLinkText(app, file, {
 		sourcePath: targetFile.path,
 		linkType: "link",
-	});
+	}), onEditorTextMutation);
+	return true;
+}
 
+/** Appends `linkText` as the last line of `targetFile`. */
+export async function appendLinkLineToNote(
+	app: App,
+	targetFile: TFile,
+	linkText: string,
+	onEditorTextMutation?: EditorTextMutationObserver,
+): Promise<void> {
 	let mutation: EditorTextMutation | undefined;
 	await processNote(app, targetFile, (before) => {
 		const after = appendLine(before, linkText);
@@ -173,7 +182,6 @@ export async function appendFileLinkToDestinationFile(
 		return after;
 	});
 	if (mutation) onEditorTextMutation?.(mutation);
-	return true;
 }
 
 export async function writeTextToClipboard(text: string): Promise<boolean> {

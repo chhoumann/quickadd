@@ -3,7 +3,7 @@ import { getQuickAddScriptInputs, toFieldRequirement } from "./scriptInputRequir
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
-import { getActiveEditorSelection } from "src/utils/activeMarkdownEditor";
+import { currentSelection } from "src/utils/currentFile";
 import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
@@ -386,7 +386,7 @@ async function collectForCaptureChoice(
 		if (useSelectionAsCaptureValue) {
 			const existingValue = choiceExecutor.variables.get("value");
 			if (existingValue === undefined || existingValue === null) {
-				const selectedText = getActiveEditorSelection(app);
+				const selectedText = currentSelection(app, choiceExecutor);
 				if (selectedText.trim().length > 0) {
 					choiceExecutor.variables.set("value", selectedText);
 				}

@@ -22,7 +22,7 @@ import { type FieldFilter } from "../utils/FieldSuggestionParser";
 import { type ParsedFileToken } from "../utils/fileSyntax";
 import { normalizeNumericValue } from "../utils/valueSyntax";
 import { collectFieldValuesRaw, generateFieldCacheKey } from "../utils/FieldValueCollector";
-import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
+import { currentFile, currentSelection } from "../utils/currentFile";
 import { Formatter, type PromptContext } from "./formatter";
 import {
 	buildPromptContextLine,
@@ -379,50 +379,43 @@ export class CompleteFormatter extends Formatter {
 
 	protected getCurrentFileLink(): string | null {
 		if (this.includer) return this.includer.getCurrentFileLink();
-		const currentFile = this.app.workspace.getActiveFile();
-		if (!currentFile) return null;
+		const file = currentFile(this.app, this.choiceExecutor);
+		if (!file) return null;
 
-		return this.app.fileManager.generateMarkdownLink(currentFile, "");
+		return this.app.fileManager.generateMarkdownLink(file, "");
 	}
 
 	protected getCurrentFileName(): string | null {
-		const currentFile = this.app.workspace.getActiveFile();
-		if (!currentFile) return null;
-
-		return currentFile.basename;
+		return currentFile(this.app, this.choiceExecutor)?.basename ?? null;
 	}
 
-	/** Active folder path without edge slashes; null means unavailable, empty means vault root. */
+	/** Current folder path without edge slashes; null means unavailable, empty means vault root. */
 	protected getCurrentFolderPath(): string | null {
-		const currentFile = this.app.workspace.getActiveFile();
-		if (!currentFile) return null;
+		const file = currentFile(this.app, this.choiceExecutor);
+		if (!file) return null;
 
-		const parentPath = currentFile.parent?.path ?? "";
+		const parentPath = file.parent?.path ?? "";
 		return parentPath === "/" ? "" : parentPath;
 	}
 
 	/** Resolve the cursor heading link only when present, honoring required/optional behavior. */
 	protected getCurrentFileLinkToSection(): string | null {
-		const currentFile = this.app.workspace.getActiveFile();
-		if (!currentFile) return null;
+		const file = currentFile(this.app, this.choiceExecutor);
+		if (!file) return null;
 
 		const sourcePath = this.getLinkSourcePath() ?? "";
 		// Never let section resolution throw out of a capture/template run — fall
 		// back to a whole-file link if anything goes wrong.
 		let subpath: string | null = null;
 		try {
-			subpath = this.getActiveHeadingSubpath(currentFile);
+			subpath = this.getActiveHeadingSubpath(file);
 		} catch {
 			subpath = null;
 		}
 
 		return subpath
-			? this.app.fileManager.generateMarkdownLink(
-					currentFile,
-					sourcePath,
-					subpath,
-				)
-			: this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
+			? this.app.fileManager.generateMarkdownLink(file, sourcePath, subpath)
+			: this.app.fileManager.generateMarkdownLink(file, sourcePath);
 	}
 
 	/** Build a heading subpath, including parents where needed to disambiguate duplicate headings. */
@@ -827,10 +820,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async getSelectedText(): Promise<string> {
-		const activeView = getActiveMarkdownEditorView(this.app);
-		if (!activeView) return "";
-
-		return activeView.editor.getSelection();
+		return currentSelection(this.app, this.choiceExecutor);
 	}
 
 	protected async getClipboardContent(): Promise<string> {

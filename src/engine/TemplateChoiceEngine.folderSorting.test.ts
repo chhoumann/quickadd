@@ -46,6 +46,7 @@ import { Notice } from "../../tests/obsidian-stub";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import type { QuickAddTriggerContext } from "../types/QuickAddTriggerContext";
 
 function createFolder(path: string): TFolder {
 	const folder = new TFolder();
@@ -98,6 +99,7 @@ function createEngine(
 	choice: ITemplateChoice,
 	folders: string[],
 	activeFile: TFile | null = null,
+	triggerContext?: QuickAddTriggerContext,
 ) {
 	const app = {
 		plugins: {
@@ -127,6 +129,7 @@ function createEngine(
 		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
+		triggerContext,
 	};
 
 	return new TemplateChoiceEngine(app, plugin, choice, choiceExecutor);
@@ -392,5 +395,39 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 
 		expect(inputSuggestMock).not.toHaveBeenCalled();
 		expect(setTargetFolderPath).toHaveBeenCalledWith("Current");
+	});
+});
+
+describe("TemplateChoiceEngine same folder as the current note", () => {
+	beforeEach(() => {
+		inputSuggestMock.mockReset();
+		setTargetFolderPath.mockReset();
+	});
+
+	it("creates next to the run's current note, not next to the active tab", async () => {
+		const engine = createEngine(
+			createChoice({ createInSameFolderAsActiveFile: true }),
+			["Projects", "Other"],
+			createActiveFile("Other"),
+			{ activeFile: createActiveFile("Projects") },
+		);
+
+		await expect(engine.run()).resolves.toBeUndefined();
+
+		expect(setTargetFolderPath).toHaveBeenCalledWith("Projects");
+		expect(inputSuggestMock).not.toHaveBeenCalled();
+	});
+
+	it("falls back to the vault root when the run has no current note", async () => {
+		const engine = createEngine(
+			createChoice({ createInSameFolderAsActiveFile: true }),
+			["Other"],
+			createActiveFile("Other"),
+			{ activeFile: null },
+		);
+
+		await expect(engine.run()).resolves.toBeUndefined();
+
+		expect(setTargetFolderPath).toHaveBeenCalledWith("");
 	});
 });
