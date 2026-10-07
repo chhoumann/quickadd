@@ -73,7 +73,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, isEditorAction, withoutCursorPosition, type CaptureAction } from "./captureAction";
-import { currentEditorView, currentFile } from "../utils/currentFile";
+import { currentEditorView, currentFile, namesCurrentNote } from "../utils/currentFile";
 import {
 	getCanvasTextCaptureContent,
 	resolveActiveCanvasCaptureTarget,
@@ -274,9 +274,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		return !!currentFile(this.app, this.choiceExecutor) && !!getActiveMarkdownEditorView(this.app);
 	}
 
-	/** The current note is Markdown but no active editor shows it: a cursor write cannot land, a vault write can. */
-	private currentNoteHasNoEditor(): boolean {
-		return currentFile(this.app, this.choiceExecutor)?.extension === "md"
+	/** A note named with `current=` is Markdown but no active editor shows it: a cursor write cannot land, a vault write can. */
+	private namedNoteHasNoEditor(): boolean {
+		return namesCurrentNote(this.choiceExecutor)
+			&& currentFile(this.app, this.choiceExecutor)?.extension === "md"
 			&& !currentEditorView(this.app, this.choiceExecutor);
 	}
 
@@ -496,7 +497,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			const propertyCapture = this.choice.propertyCapture === undefined
 				? undefined
 				: parsePropertyCapture(this.choice.propertyCapture);
-			if (!propertyCapture && isEditorAction(getCaptureAction(this.choice)) && this.currentNoteHasNoEditor()) {
+			if (!propertyCapture && isEditorAction(getCaptureAction(this.choice)) && this.namedNoteHasNoEditor()) {
 				this.choice = withoutCursorPosition(this.choice);
 			}
 			const action = propertyCapture ? "append" : getCaptureAction(this.choice);

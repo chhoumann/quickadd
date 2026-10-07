@@ -3,6 +3,15 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getActiveMarkdownEditorView } from "./activeMarkdownEditor";
 
 /**
+ * Whether the caller named the run's current note with `current=`. Only then
+ * does the run keep that note, and write to it when no editor shows it.
+ * Otherwise the current note is the active tab, as it was before `current=`.
+ */
+export function namesCurrentNote(executor: IChoiceExecutor | undefined): boolean {
+	return executor?.triggerContext?.named === true;
+}
+
+/**
  * The note a run treats as current: the note the caller named with `current=`,
  * or else the active file, read live so a macro step that opens a note hands it
  * to the next step.
