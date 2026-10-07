@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { collectUnhandledRejections } from "../../../tests/helpers/unhandledRejections";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";

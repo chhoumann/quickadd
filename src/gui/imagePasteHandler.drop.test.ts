@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import {
 	makeApp,
 	makeFile,

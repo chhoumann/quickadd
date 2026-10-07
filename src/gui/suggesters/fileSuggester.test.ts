@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { installObsidianDomHelpers } from "../../../tests/vitest-setup";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { App, TFile, Vault, MetadataCache, Workspace, Plugin } from 'obsidian';

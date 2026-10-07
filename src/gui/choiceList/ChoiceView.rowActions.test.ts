@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { renderChoiceView } from "../../../tests/helpers/settings/choiceView";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

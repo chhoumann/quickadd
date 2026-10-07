@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi, afterEach } from "vitest";
 
 // The builder page, held open: the deferred stands in for the user configuring

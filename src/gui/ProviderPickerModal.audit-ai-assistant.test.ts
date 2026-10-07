@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeAll, describe, expect, it } from "vitest";
 import { App } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";

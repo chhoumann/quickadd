@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Platform, Scope } from "obsidian";
 import { InputPromptPeek, PEEK_HIDDEN_CLASS } from "./InputPromptPeek";

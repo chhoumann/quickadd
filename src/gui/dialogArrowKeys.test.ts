@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import type { App } from "obsidian";
 import { afterEach, describe, expect, it } from "vitest";
 import { ButtonComponent } from "obsidian";

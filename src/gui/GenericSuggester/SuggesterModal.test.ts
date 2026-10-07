@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { App } from "obsidian";
 import { describe, expect, it } from "vitest";
 import { UserCancelError } from "../../errors/UserCancelError";

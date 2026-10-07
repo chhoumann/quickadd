@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { CommandType } from "../../types/macros/CommandType";

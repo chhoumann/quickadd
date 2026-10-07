@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App, type Plugin, SettingPage } from "obsidian";
 import { BuilderPage } from "../gui/ChoiceBuilder/builderPage";

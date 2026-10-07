@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Notice, prepareFuzzySearch, TFile, TFolder, View, type App, type SearchMatches } from "obsidian";

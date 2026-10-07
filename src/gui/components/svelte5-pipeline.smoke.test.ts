@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Slice 1 smoke gate for the Svelte 5 rewrite.
  *

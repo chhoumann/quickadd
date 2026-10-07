@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import Fuse from "fuse.js";
 import { renderMath } from "obsidian";
 import { describe, expect, it, vi } from "vitest";

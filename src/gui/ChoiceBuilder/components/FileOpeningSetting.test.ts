@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { settingNames } from "../../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";

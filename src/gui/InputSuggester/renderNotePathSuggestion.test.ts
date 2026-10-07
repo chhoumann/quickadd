@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { App, TFile } from "obsidian";
 import { describe, expect, it } from "vitest";
 import { renderNotePathSuggestion } from "./renderNotePathSuggestion";

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import * as vm from "node:vm";
 import { Notice, type App, TFile } from "obsidian";
 import { describe, expect, it, vi } from "vitest";

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ai-tools-agent-generate-text: a multi-step agent run must surface start/step/finish

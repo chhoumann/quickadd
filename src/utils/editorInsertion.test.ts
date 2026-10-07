@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { frontmatterManager } from "../../tests/helpers/utilities/obsidianFixtures";
 import { describe, expect, it, vi } from "vitest";
 import type { App, Editor, TFile } from "obsidian";

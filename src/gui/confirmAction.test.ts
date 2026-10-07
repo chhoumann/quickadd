@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import type { App } from "obsidian";
 import { ConfirmationModal } from "obsidian";
 import { afterEach, describe, expect, it, vi } from "vitest";

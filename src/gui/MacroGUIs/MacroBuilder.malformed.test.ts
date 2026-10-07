@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { afterEach, describe, expect, it } from "vitest";
 

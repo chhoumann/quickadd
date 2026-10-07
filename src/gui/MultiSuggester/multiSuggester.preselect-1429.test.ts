@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { Modal } from "obsidian";
 import { UserCancelError } from "../../errors/UserCancelError";
