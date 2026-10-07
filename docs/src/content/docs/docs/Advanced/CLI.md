@@ -42,8 +42,8 @@ obsidian vault=dev quickadd:run choice="Weekly review" date=lw
 `current=` names the run's current note (QuickAdd 2.32.0 or later). By default
 that is the active tab, which a run started from outside Obsidian cannot see.
 Pass a vault path (`.md` may be omitted) and every part of the run that reads
-the current note uses that note instead: **Capture to active file**, **Append
-link**, `{{LINKCURRENT}}`, `{{LINKSECTION}}`, `{{FILENAMECURRENT}}`,
+the current note uses that note instead: **Capture to active file**, **Link to
+captured file** (**Link to created file** in a Template), `{{LINKCURRENT}}`, `{{LINKSECTION}}`, `{{FILENAMECURRENT}}`,
 `{{FOLDERCURRENT}}`, `{{SELECTED}}`, and a Template's **Same folder as current
 file**. Pass `none` to run without a current note.
 
@@ -89,10 +89,10 @@ choices apart without opening them:
 Every choice also carries `currentNote` (QuickAdd 2.32.0 or later), which says
 whether the choice uses the current note, so a caller knows when to pass
 `current=`: `required` when the run fails, or lands somewhere else, without one
-(**Capture to active file**, a required **Append link**, a `{{LINKCURRENT}}`-style
+(**Capture to active file**, a link set to **Enabled (strict)**, a `{{LINKCURRENT}}`-style
 token, **Same folder as current file**, or no folder setting while Obsidian
 creates new notes in the current file's folder), `optional` when something is left empty without
-one (an optional **Append link** and the tokens it makes optional,
+one (a link set to **Enabled (skip if unavailable)** and the tokens it makes optional,
 `{{SELECTED}}`, a `{{FIELD:…|default-from:active}}` default), and `none` otherwise. The tokens
 are read from every text the run formats, including the template a Capture
 creates its target with and the files a template includes. Macros and Multis
