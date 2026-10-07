@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { makeProps } from "../../../tests/helpers/settings/commands";
 import { describe, expect, it } from "vitest";
 import { flushSync } from "svelte";

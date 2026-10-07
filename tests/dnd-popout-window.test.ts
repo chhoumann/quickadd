@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Regression coverage for issue #1730, fixed upstream in svelte-dnd-action
  * 0.9.80 (isaacHagoel/svelte-dnd-action#708).

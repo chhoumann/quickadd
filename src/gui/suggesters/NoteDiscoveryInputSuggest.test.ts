@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
 import { TemplateChoice } from "src/types/choices/TemplateChoice";

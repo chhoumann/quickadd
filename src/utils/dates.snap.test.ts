@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import realMoment from "moment";
 import {
 	afterAll,

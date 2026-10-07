@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, it, expect } from "vitest";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";

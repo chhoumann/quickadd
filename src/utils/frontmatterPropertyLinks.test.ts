@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { markdownFile as makeFile } from "../../tests/helpers/utilities/obsidianFixtures";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TFile, App } from "obsidian";

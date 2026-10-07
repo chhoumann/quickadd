@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import type { App } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";

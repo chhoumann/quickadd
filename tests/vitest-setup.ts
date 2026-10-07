@@ -121,9 +121,9 @@ export function installObsidianDomHelpers(window: Window): void {
 	}
 }
 
-installObsidianDomHelpers(window);
+if (typeof window !== "undefined") installObsidianDomHelpers(window);
 
 // Obsidian's globals for the document and window that have focus.
-if (!("activeDocument" in globalThis)) {
+if (typeof window !== "undefined" && !("activeDocument" in globalThis)) {
 	Object.defineProperty(globalThis, "activeDocument", { configurable: true, get: () => window.document });
 }

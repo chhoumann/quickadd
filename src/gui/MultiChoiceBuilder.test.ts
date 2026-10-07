@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { fireEvent } from "@testing-library/svelte";

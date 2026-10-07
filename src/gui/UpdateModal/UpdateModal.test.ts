@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { App, MarkdownRenderer } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {

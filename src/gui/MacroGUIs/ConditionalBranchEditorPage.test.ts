@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import type QuickAdd from "../../main";

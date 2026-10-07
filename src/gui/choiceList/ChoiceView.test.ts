@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { App } from "obsidian";
 import type QuickAdd from "../../main";
 import ChoiceView from "./ChoiceView.svelte";

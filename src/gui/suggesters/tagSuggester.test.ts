@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";

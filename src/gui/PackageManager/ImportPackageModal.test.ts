@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { packageAsset } from "../../../tests/helpers/packages/fixtures";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, waitFor } from "@testing-library/svelte";

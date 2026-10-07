@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type IChoice from "./types/choices/IChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";

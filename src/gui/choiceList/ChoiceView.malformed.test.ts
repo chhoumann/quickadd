@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { render } from "@testing-library/svelte";
 import { App } from "obsidian";
 import type QuickAdd from "../../main";

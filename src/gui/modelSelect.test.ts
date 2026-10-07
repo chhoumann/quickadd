@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DropdownComponent } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";

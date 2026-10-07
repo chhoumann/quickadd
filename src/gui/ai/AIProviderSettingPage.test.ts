@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { App, Notice } from "obsidian";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AIProvider, Model } from "src/ai/Provider";

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi, afterEach } from "vitest";
 
 const { editorChoices } = vi.hoisted(() => ({ editorChoices: { names: [] as string[] } }));

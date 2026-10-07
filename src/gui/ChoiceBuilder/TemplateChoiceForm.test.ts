@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { templateChoice } from "../../../tests/helpers/settings/choices";
 import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";

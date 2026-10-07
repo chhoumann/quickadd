@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { actionsSpy } from "../../../tests/helpers/settings/choiceActions";
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";

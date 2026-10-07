@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "svelte";
 import { fireEvent, render, screen } from "@testing-library/svelte";

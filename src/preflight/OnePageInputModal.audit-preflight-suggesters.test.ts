@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { ensureObsidianDomPolyfills, modalButton } from "../../tests/helpers/preflight/modal";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";

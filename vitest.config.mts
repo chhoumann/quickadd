@@ -30,15 +30,9 @@ export default defineConfig({
 		// Undo vi.stubGlobal before every test, so a stubbed navigator or
 		// window property never leaks into the next test.
 		unstubGlobals: true,
-		environment: "jsdom",
+		// Files that need a DOM opt in with `// @vitest-environment jsdom`.
+		// jsdom setup per file is the suite's largest cost, so it is not the default.
 		setupFiles: ["./tests/vitest-setup.ts"],
-		deps: {
-			optimizer: {
-				client: {
-					include: ["obsidian"],
-				},
-			},
-		},
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.ts"],
