@@ -7,49 +7,85 @@ import { CURRENT_FOLDER_TOKEN_REGEX, CURRENT_NOTE_TOKEN_REGEX } from "../formatt
 import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
+import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 
 /** Whether a choice needs the current note: `required` fails without one, `optional` leaves something empty. */
 export type CurrentNoteUse = "none" | "optional" | "required";
+
+/** What the classification reads beyond the choice's own settings. */
+export interface CurrentNoteUseContext {
+	/**
+	 * The text of every template the run formats: a Template's file, a Capture's
+	 * create-with-template file, and the files they include with `{{TEMPLATE:...}}`.
+	 */
+	templates: string[];
+}
 
 type Link = ReturnType<typeof normalizeAppendLinkOptions>;
 
 /**
  * How a choice uses the current note, read from its settings with the rules
- * the engines enforce. A Template's file content is passed in, since reading it
- * needs the vault (see {@link describeCurrentNoteUse}). Macros and Multis are
- * `none`: QuickAdd cannot know what a script reads.
+ * the engines enforce. The vault reads are passed in (see
+ * {@link describeCurrentNoteUse}). Macros and Multis are `none`: QuickAdd
+ * cannot know what a script reads.
  */
-export function currentNoteUse(choice: IChoice, templateContent = ""): CurrentNoteUse {
-	if (choice.type === "Capture") return strongest(captureUses(choice as ICaptureChoice));
-	if (choice.type === "Template") return strongest(templateUses(choice as ITemplateChoice, templateContent));
+export function currentNoteUse(choice: IChoice, context: CurrentNoteUseContext): CurrentNoteUse {
+	if (choice.type === "Capture") return strongest(captureUses(choice as ICaptureChoice, context));
+	if (choice.type === "Template") return strongest(templateUses(choice as ITemplateChoice, context));
 	return "none";
 }
 
-/** {@link currentNoteUse} with the Template's file read from the vault. */
+/** {@link currentNoteUse} with the templates the run formats read from the vault. */
 export async function describeCurrentNoteUse(app: App, choice: IChoice): Promise<CurrentNoteUse> {
-	const template = choice.type === "Template"
-		? getTemplateFile(app, (choice as ITemplateChoice).templatePath ?? "")
-		: null;
-	return currentNoteUse(choice, template ? await app.vault.cachedRead(template) : "");
+	return currentNoteUse(choice, { templates: await readTemplates(app, templatePaths(choice)) });
 }
 
-function captureUses(capture: ICaptureChoice): CurrentNoteUse[] {
+/** The template files a choice formats, and the includes of its own format. */
+function templatePaths(choice: IChoice): string[] {
+	if (choice.type === "Template") return [(choice as ITemplateChoice).templatePath ?? ""];
+	if (choice.type !== "Capture") return [];
+	const capture = choice as ICaptureChoice;
+	const creation = capture.createFileIfItDoesntExist;
+	return [
+		...(creation?.enabled && creation.createWithTemplate ? [creation.template] : []),
+		...collectTemplateIncludePaths(capture.format?.enabled ? capture.format.format : ""),
+	];
+}
+
+/** The text of each template at `paths` and of every template they include, each read once. */
+async function readTemplates(app: App, paths: string[]): Promise<string[]> {
+	const queue = [...paths];
+	const read = new Set<string>();
+	const texts: string[] = [];
+	for (let path = queue.shift(); path !== undefined; path = queue.shift()) {
+		const file = getTemplateFile(app, path);
+		if (!file || read.has(file.path)) continue;
+		read.add(file.path);
+		const text = await app.vault.cachedRead(file);
+		texts.push(text);
+		queue.push(...collectTemplateIncludePaths(text));
+	}
+	return texts;
+}
+
+function captureUses(capture: ICaptureChoice, { templates }: CurrentNoteUseContext): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(capture.appendLink);
 	const format = capture.format?.enabled ? capture.format.format : "{{VALUE}}";
 	const property = capture.propertyCapture?.property;
+	const contents = [format, ...templates];
 	return [
 		capture.captureToActiveFile ? "required" : "none",
 		linkUse(link),
-		tokenUse(format, "content", link),
+		...contents.map((text) => tokenUse(text, "content", link)),
 		capture.captureToActiveFile ? "none" : tokenUse(capture.captureTo ?? "", "path", link),
 		capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? tokenUse(capture.insertAfter.after, "line", link) : "none",
 		capture.insertBefore?.enabled ? tokenUse(capture.insertBefore.before, "line", link) : "none",
 		property?.kind === "named" ? tokenUse(property.format, "property", link) : "none",
-		SELECTED_REGEX.test(format) ? "optional" : "none",
+		contents.some((text) => SELECTED_REGEX.test(text)) ? "optional" : "none",
 	];
 }
 
-function templateUses(template: ITemplateChoice, templateContent: string): CurrentNoteUse[] {
+function templateUses(template: ITemplateChoice, { templates }: CurrentNoteUseContext): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(template.appendLink);
 	// A list must not fail on one hand-edited choice, so read defensively.
 	const folder = template.folder ?? { enabled: false, folders: [] };
@@ -59,8 +95,8 @@ function templateUses(template: ITemplateChoice, templateContent: string): Curre
 		deriveFolderMode(folder) === "specified" ? tokenUse((folder.folders ?? []).join("\n"), "path", link) : "none",
 		linkUse(link),
 		tokenUse(fileName, "path", link),
-		tokenUse(templateContent, "content", link),
-		SELECTED_REGEX.test(templateContent) ? "optional" : "none",
+		...templates.map((text) => tokenUse(text, "content", link)),
+		templates.some((text) => SELECTED_REGEX.test(text)) ? "optional" : "none",
 	];
 }
 
