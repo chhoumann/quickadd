@@ -81,8 +81,12 @@ export default class QuickAdd extends Plugin {
 	 * into the store after that result has already been (or is about to be) saved.
 	 */
 	private suppressSettingsSave = false;
-	/** Serialize persist calls so overlapping debounced/immediate saves cannot race. */
-	private persistChain: Promise<void> = Promise.resolve();
+	/**
+	 * Serialize persist calls so overlapping debounced/immediate saves cannot
+	 * race. Null when nothing is queued, so quit can tell there is nothing to
+	 * wait for.
+	 */
+	private persistChain: Promise<void> | null = null;
 	// Debounced disk write for the store subscriber. saveSettings() stays immediate
 	// (migrations await it) and cancels this; onunload flushes it.
 	//
@@ -324,10 +328,23 @@ export default class QuickAdd extends Plugin {
 		this.lastPersistedSettings = deepClone(settings);
 	}
 
-	/** Start the pending debounced settings write now. Returns the write. */
-	private flushPendingSave(): Promise<void> {
+	/**
+	 * Start the pending debounced settings write now. Returns the queued
+	 * settings work, or null when there is none to wait for.
+	 */
+	private flushPendingSave(): Promise<void> | null {
 		this.requestSave.run();
 		return this.persistChain;
+	}
+
+	private queuePersistRun(run: () => Promise<void>): Promise<void> {
+		const chain: Promise<void> = (this.persistChain ?? Promise.resolve())
+			.then(run, run)
+			.finally(() => {
+				if (this.persistChain === chain) this.persistChain = null;
+			});
+		this.persistChain = chain;
+		return chain;
 	}
 
 	async saveSettings() {
@@ -439,8 +456,7 @@ export default class QuickAdd extends Plugin {
 			this.lastPersistedSettings = deepClone(toWrite);
 		};
 
-		this.persistChain = this.persistChain.then(run, run);
-		return this.persistChain;
+		return this.queuePersistRun(run);
 	}
 
 	/**
@@ -486,8 +502,7 @@ export default class QuickAdd extends Plugin {
 			log.logMessage("[Settings] Applied settings that changed outside this Obsidian instance.");
 		};
 
-		this.persistChain = this.persistChain.then(run, run);
-		await this.persistChain;
+		await this.queuePersistRun(run);
 	}
 
 	/**
