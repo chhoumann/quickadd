@@ -323,6 +323,15 @@ describe("ChunkedPrompt", () => {
 		expect(mocks.makeRequest).not.toHaveBeenCalled();
 	});
 
+	it("accepts a chunk token whose option pipe is escaped in a table cell (#2197)", async () => {
+		await ChunkedPrompt(makeApp(), makeSettings({
+			promptTemplate: "| Text |\n| --- |\n| {{VALUE:chunk\\|case:upper}} |",
+			shouldMerge: false,
+		}), chunkFormatter);
+
+		expect(mocks.makeRequest).toHaveBeenCalled();
+	});
+
 	it.each([
 		["allows a dynamic token when rendering injects the chunk value", false, ["Dynamic: alpha", "Dynamic: beta"]],
 		["allows a dynamic token when rendering injects a transformed chunk value", true, ["Dynamic: ALPHA", "Dynamic: BETA"]],

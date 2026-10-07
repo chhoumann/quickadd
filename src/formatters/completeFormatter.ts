@@ -111,7 +111,7 @@ export class CompleteFormatter extends Formatter {
 			this.includingText = outerIncludingText;
 		}
 		// Expand global variables early so injected snippets can be further formatted
-		return unescapePipesInTokens(await this.replaceGlobalVarInString(output));
+		return this.replaceGlobalVarInString(output);
 	}
 
 	protected async formatScalarTokens(input: string): Promise<string> {
@@ -333,7 +333,7 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
-		let output = input;
+		let output = unescapePipesInTokens(input);
 		// Expand globals first so an injected snippet's path-safe tokens resolve.
 		output = await this.replaceGlobalVarInString(output);
 

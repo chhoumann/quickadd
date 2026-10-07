@@ -13,6 +13,7 @@ import {
 	VARIABLE_REGEX,
 } from "src/constants";
 import { findInlineScriptSpans } from "src/formatters/helpers/inlineScriptSpans";
+import { unescapePipesInTokens } from "src/formatters/helpers/pipeEscapes";
 import { transformCase } from "src/utils/caseTransform";
 import { outputVariables, trackPrompt } from "./promptProgress";
 
@@ -161,8 +162,9 @@ function splitChunkNearMiddle(chunk: string): [string, string] | null {
 // first `|`, so {{VALUE:chunk-id}} / {{VALUE:chunk,other}} are correctly excluded.
 function templateReferencesChunk(template: string): boolean {
 	const regex = new RegExp(VARIABLE_REGEX.source, "gi");
+	const decoded = unescapePipesInTokens(template);
 	let match: RegExpExecArray | null;
-	while ((match = regex.exec(template)) !== null) {
+	while ((match = regex.exec(decoded)) !== null) {
 		const variableName = match[1].split("|")[0].trim().toLowerCase();
 		if (variableName === "chunk") return true;
 	}
