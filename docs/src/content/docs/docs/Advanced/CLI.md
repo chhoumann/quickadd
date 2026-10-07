@@ -88,10 +88,10 @@ choices apart without opening them:
 
 Every choice also carries `currentNote` (QuickAdd 2.32.0 or later), which says
 whether the choice uses the current note, so a caller knows when to pass
-`current=`: `required` when the run fails without one (**Capture to active
-file**, a required **Append link**, a `{{LINKCURRENT}}`-style token, **Same
-folder as current file**, or no folder setting while Obsidian creates new notes
-in the current file's folder), `optional` when something is left empty without
+`current=`: `required` when the run fails, or lands somewhere else, without one
+(**Capture to active file**, a required **Append link**, a `{{LINKCURRENT}}`-style
+token, **Same folder as current file**, or no folder setting while Obsidian
+creates new notes in the current file's folder), `optional` when something is left empty without
 one (an optional **Append link** and the tokens it makes optional,
 `{{SELECTED}}`, a `{{VALUE}}` that takes the selection, a
 `{{FIELD:…|default-from:active}}` default), and `none` otherwise. The tokens
