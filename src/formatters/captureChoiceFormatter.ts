@@ -686,7 +686,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			case CREATE_IF_NOT_FOUND_CURSOR: {
 				const view = this.file ? getMarkdownEditorViewForFile(this.app, this.file) : getActiveMarkdownEditorView(this.app);
 				if (!view) throw new ChoiceAbortError(
-					`Unable to insert line '${rawTarget}' at cursor position: no active markdown editor.`,
+					`Unable to insert line '${rawTarget}' at cursor position: ${this.file ? `'${this.file.path}' isn't open in the editor` : "no active markdown editor"}.`,
 				);
 				try {
 					return insertAtCursor(view.editor.getCursor().line);

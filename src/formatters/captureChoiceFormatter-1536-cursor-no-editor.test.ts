@@ -109,7 +109,7 @@ describe("#1536 — create-if-not-found at cursor without an active editor", () 
 			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()).then(({ content }) => content),
 		).rejects.toThrow(
 			new ChoiceAbortError(
-				"Unable to insert line '## Log' at cursor position: no active markdown editor.",
+				"Unable to insert line '## Log' at cursor position: 'Target.md' isn't open in the editor.",
 			),
 		);
 	});
@@ -119,7 +119,7 @@ describe("#1536 — create-if-not-found at cursor without an active editor", () 
 		const formatter = createFormatter({ editor: null });
 		await expect(
 			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()).then(({ content }) => content),
-		).rejects.toThrow("no active markdown editor");
+		).rejects.toThrow("'Target.md' isn't open in the editor");
 	});
 
 	it("aborts with the missing-editor diagnostic when the active editor shows another note", async () => {
@@ -129,7 +129,7 @@ describe("#1536 — create-if-not-found at cursor without an active editor", () 
 		});
 		await expect(
 			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()).then(({ content }) => content),
-		).rejects.toThrow("no active markdown editor");
+		).rejects.toThrow("'Target.md' isn't open in the editor");
 	});
 
 	it("inserts at the cursor line when a real editor shows the target (control)", async () => {
