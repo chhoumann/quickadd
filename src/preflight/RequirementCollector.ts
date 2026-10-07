@@ -1,4 +1,5 @@
 import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
+import { unescapePipesInTokens } from "src/formatters/helpers/pipeEscapes";
 import { normalizeVaultPath } from "../utils/pathUtils";
 import type { App } from "obsidian";
 import {
@@ -143,7 +144,9 @@ export class RequirementCollector extends Formatter {
 		this.scanPositions = new Map();
 		try {
 			// Expand global variables first so we can detect inner requirements
-			const expanded = await this.replaceGlobalVarInString(input);
+			const expanded = unescapePipesInTokens(
+				await this.replaceGlobalVarInString(input),
+			);
 			// Run a safe formatting pass that collects variables but avoids side-effects.
 			// Dates first, as the run replaces VDATEs before named VALUEs: a
 			// {{VALUE:<name>}} reuse of a VDATE answer keeps the field a date.

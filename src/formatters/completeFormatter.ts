@@ -3,6 +3,7 @@ import { protectUserText, restoreUserText } from "./helpers/userText";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
+import { unescapePipesInTokens } from "./helpers/pipeEscapes";
 import { findNextInlineScript, inlineScriptRescanFrom } from "./helpers/inlineScriptSpans";
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
@@ -96,7 +97,8 @@ export class CompleteFormatter extends Formatter {
 
 	/** The stage that runs code: inline scripts, macros, included templates, and global snippets. */
 	protected async expandCodeAndIncludes(input: string): Promise<string> {
-		let output: string = input;
+		// {{MACRO:}} is read in this stage, so its options must be decoded first.
+		let output = unescapePipesInTokens(input);
 
 		output = await this.replaceInlineJavascriptInString(output);
 		output = await this.replaceMacrosInString(output);
@@ -331,7 +333,7 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
-		let output = input;
+		let output = unescapePipesInTokens(input);
 		// Expand globals first so an injected snippet's path-safe tokens resolve.
 		output = await this.replaceGlobalVarInString(output);
 

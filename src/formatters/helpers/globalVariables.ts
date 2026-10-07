@@ -1,4 +1,5 @@
 import { GLOBAL_VAR_REGEX } from "../../constants";
+import { unescapePipesInTokens } from "./pipeEscapes";
 
 /** Globals may nest, but expansion stops after five passes, including cycles. */
 export function expandGlobalVariables(
@@ -14,7 +15,9 @@ export function expandGlobalVariables(
 			const name = String(rawName ?? "").trim();
 			if (!name) return match;
 			const snippet = variables?.[name];
-			return typeof snippet === "string" ? snippet : "";
+			return typeof snippet === "string"
+				? unescapePipesInTokens(snippet)
+				: "";
 		});
 	}
 	return output;

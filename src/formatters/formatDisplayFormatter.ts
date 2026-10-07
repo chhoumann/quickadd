@@ -1,6 +1,7 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
+import { unescapePipesInTokens } from "./helpers/pipeEscapes";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -56,6 +57,7 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		let output: string = input;
 		// Expand global variables first so previews include their content
 		output = await this.replaceGlobalVarInString(output);
+		output = unescapePipesInTokens(output);
 		// Mirror CaptureChoiceFormatter: linebreak escapes are format-template
 		// material (including global snippets) and expand before token
 		// substitution, never on substituted content (issue #527).
