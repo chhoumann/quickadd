@@ -93,8 +93,7 @@ whether the choice uses the current note, so a caller knows when to pass
 token, **Same folder as current file**, or no folder setting while Obsidian
 creates new notes in the current file's folder), `optional` when something is left empty without
 one (an optional **Append link** and the tokens it makes optional,
-`{{SELECTED}}`, a `{{VALUE}}` that takes the selection, a
-`{{FIELD:…|default-from:active}}` default), and `none` otherwise. The tokens
+`{{SELECTED}}`, a `{{FIELD:…|default-from:active}}` default), and `none` otherwise. The tokens
 are read from every text the run formats, including the template a Capture
 creates its target with and the files a template includes. Macros and Multis
 are always `none`. The same key is in the `choice` summary that

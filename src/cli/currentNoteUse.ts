@@ -3,7 +3,7 @@ import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { NAME_VALUE_REGEX, SELECTED_REGEX } from "../constants";
+import { SELECTED_REGEX } from "../constants";
 import { CURRENT_FOLDER_TOKEN_REGEX, CURRENT_NOTE_TOKEN_REGEX } from "../formatters/helpers/currentFileTokens";
 import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
@@ -28,11 +28,6 @@ export interface CurrentNoteUseContext {
 	 * setting becomes.
 	 */
 	templates: Formatted[];
-	/**
-	 * The global "Use selection as capture value" setting, which a Capture may
-	 * override. A template's own `{{VALUE}}` prompt always takes the selection.
-	 */
-	selectionAsCaptureValue: boolean;
 	/**
 	 * Obsidian's "Default location for new notes" is "Same folder as current
 	 * file", which a Template with its folder setting off follows.
@@ -60,7 +55,6 @@ export async function describeCurrentNoteUse(plugin: QuickAdd, choice: IChoice):
 	const vault = plugin.app.vault as App["vault"] & { getConfig?: (key: string) => unknown };
 	return currentNoteUse(choice, {
 		templates: await readTemplates(plugin.app, templatePaths(choice)),
-		selectionAsCaptureValue: plugin.settings.useSelectionAsCaptureValue ?? true,
 		newNotesInCurrentFolder: vault.getConfig?.("newFileLocation") === "current",
 	});
 }
@@ -128,7 +122,7 @@ function templateFolder(template: ITemplateChoice): ITemplateChoice["folder"] {
 	return template.folder ?? { enabled: false, folders: [] };
 }
 
-function captureUses(capture: ICaptureChoice, { templates, selectionAsCaptureValue }: CurrentNoteUseContext): CurrentNoteUse[] {
+function captureUses(capture: ICaptureChoice, { templates }: CurrentNoteUseContext): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(capture.appendLink);
 	const formatted = [...formattedSettings(capture), ...templates];
 	return [
@@ -136,8 +130,7 @@ function captureUses(capture: ICaptureChoice, { templates, selectionAsCaptureVal
 		linkUse(link),
 		...formatted.map(([text, context]) => tokenUse(text, context, link)),
 		...formatted.map(([text]) => activeDefaultUse(text)),
-		selectionUse(captureFormat(capture), capture.useSelectionAsCaptureValue ?? selectionAsCaptureValue),
-		...templates.map(([text]) => selectionUse(text, true)),
+		...formatted.map(([text]) => selectionUse(text)),
 	];
 }
 
@@ -150,7 +143,7 @@ function templateUses(template: ITemplateChoice, { templates, newNotesInCurrentF
 		linkUse(link),
 		...formatted.map(([text, context]) => tokenUse(text, context, link)),
 		...formatted.map(([text]) => activeDefaultUse(text)),
-		...formatted.map(([text]) => selectionUse(text, true)),
+		...formatted.map(([text]) => selectionUse(text)),
 	];
 }
 
@@ -184,9 +177,13 @@ function activeDefaultUse(text: string): CurrentNoteUse {
 	return ACTIVE_DEFAULT_REGEX.test(text) ? "optional" : "none";
 }
 
-/** `{{SELECTED}}`, and `{{VALUE}}` when the formatter fills it from the selection, are empty without a current note. */
-function selectionUse(text: string, valueFromSelection: boolean): CurrentNoteUse {
-	return SELECTED_REGEX.test(text) || (valueFromSelection && NAME_VALUE_REGEX.test(text)) ? "optional" : "none";
+/**
+ * `{{SELECTED}}` is empty without a current note. A `{{VALUE}}` filled from the
+ * selection is not counted: a note named by the caller has no editor, so asking
+ * for one could never supply the selection, and the caller provides the value.
+ */
+function selectionUse(text: string): CurrentNoteUse {
+	return SELECTED_REGEX.test(text) ? "optional" : "none";
 }
 
 function strongest(uses: CurrentNoteUse[]): CurrentNoteUse {

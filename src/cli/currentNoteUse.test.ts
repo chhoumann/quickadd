@@ -8,7 +8,7 @@ import { MultiChoice } from "../types/choices/MultiChoice";
 import type IChoice from "../types/choices/IChoice";
 import { currentNoteUse, describeCurrentNoteUse, type CurrentNoteUseContext } from "./currentNoteUse";
 
-const base: CurrentNoteUseContext = { templates: [], selectionAsCaptureValue: false, newNotesInCurrentFolder: false };
+const base: CurrentNoteUseContext = { templates: [], newNotesInCurrentFolder: false };
 /** `templates` are the texts of the templates the run formats as note content. */
 const use = (choice: IChoice, ...templates: string[]) =>
 	currentNoteUse(choice, { ...base, templates: templates.map((text) => [text, "content"]) });
@@ -130,21 +130,10 @@ describe("currentNoteUse", () => {
 		expect(use(template(), "> {{selected}}")).toBe("optional");
 	});
 
-	it("treats {{VALUE}} as optional when the engine fills it from the selection", () => {
-		const selection = (choice: IChoice, selectionAsCaptureValue: boolean) =>
-			currentNoteUse(choice, { ...base, selectionAsCaptureValue });
-		const plain = capture((c) => { c.format = { enabled: true, format: "- {{VALUE}}" }; });
-		expect(selection(plain, true)).toBe("optional");
-		expect(selection(plain, false)).toBe("none");
-		expect(selection(capture((c) => { c.useSelectionAsCaptureValue = true; }), false)).toBe("optional");
-		expect(selection(capture((c) => { c.useSelectionAsCaptureValue = false; }), true)).toBe("none");
-		expect(selection(capture((c) => { c.format = { enabled: true, format: "- {{VALUE:topic}}" }; }), true)).toBe("none");
-		// A template's own prompt reads the selection whatever the capture setting says.
-		expect(selection(capture((c) => { c.useSelectionAsCaptureValue = false; }), false)).toBe("none");
-		expect(currentNoteUse(capture((c) => { c.useSelectionAsCaptureValue = false; }), { ...base, templates: [["{{VALUE}}", "content"]] })).toBe("optional");
-		expect(use(template((t) => { t.fileNameFormat = { enabled: false, format: "" }; }))).toBe("optional");
-		expect(use(template(), "# {{VALUE}}")).toBe("optional");
-		expect(use(template(), "# {{VALUE:topic}}")).toBe("none");
+	it("does not ask for a note on behalf of a {{VALUE}} filled from the selection", () => {
+		// A note named by the caller has no editor, so a pick could never supply the selection.
+		expect(use(capture((c) => { c.useSelectionAsCaptureValue = true; c.format = { enabled: true, format: "- {{VALUE}}" }; }))).toBe("none");
+		expect(use(template((t) => { t.fileNameFormat = { enabled: false, format: "" }; }))).toBe("none");
 	});
 
 	it("treats {{FIELD:…|default-from:active}} as optional wherever it is formatted", () => {
