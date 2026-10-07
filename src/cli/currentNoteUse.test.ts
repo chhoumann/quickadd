@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
+import type QuickAdd from "../main";
 import { TFile } from "obsidian";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
@@ -8,17 +8,20 @@ import { MultiChoice } from "../types/choices/MultiChoice";
 import type IChoice from "../types/choices/IChoice";
 import { currentNoteUse, describeCurrentNoteUse } from "./currentNoteUse";
 
-const use = (choice: IChoice, ...templates: string[]) => currentNoteUse(choice, { templates });
+const use = (choice: IChoice, ...templates: string[]) => currentNoteUse(choice, { templates, selectionAsCaptureValue: false });
 
-/** An app whose vault holds `files`, path to text. */
-function vault(files: Record<string, string>): App {
+/** A plugin whose vault holds `files`, path to text, with selection as value off. */
+function plugin(files: Record<string, string>): QuickAdd {
 	const byPath = new Map(Object.entries(files).map(([path, text]) => [path, Object.assign(new TFile(), { path, text })]));
 	return {
-		vault: {
-			getAbstractFileByPath: vi.fn((path: string) => byPath.get(path) ?? null),
-			cachedRead: vi.fn(async (file: TFile & { text: string }) => file.text),
+		app: {
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) => byPath.get(path) ?? null),
+				cachedRead: vi.fn(async (file: TFile & { text: string }) => file.text),
+			},
 		},
-	} as unknown as App;
+		settings: { useSelectionAsCaptureValue: false },
+	} as unknown as QuickAdd;
 }
 
 const optionalLink = { enabled: true, placement: "replaceSelection", requireActiveFile: false } as const;
@@ -34,6 +37,8 @@ function capture(configure: (choice: CaptureChoice) => void = () => {}): IChoice
 function template(configure: (choice: TemplateChoice) => void = () => {}): IChoice {
 	const choice = new TemplateChoice("Template");
 	choice.templatePath = "Templates/Note.md";
+	// Named without {{VALUE}}, which reads the selection (see the {{VALUE}} test).
+	choice.fileNameFormat = { enabled: true, format: "{{DATE}}" };
 	configure(choice);
 	return choice;
 }
@@ -121,6 +126,23 @@ describe("currentNoteUse", () => {
 		expect(use(template(), "> {{selected}}")).toBe("optional");
 	});
 
+	it("treats {{VALUE}} as optional when the engine fills it from the selection", () => {
+		const selection = (choice: IChoice, selectionAsCaptureValue: boolean) =>
+			currentNoteUse(choice, { templates: [], selectionAsCaptureValue });
+		const plain = capture((c) => { c.format = { enabled: true, format: "- {{VALUE}}" }; });
+		expect(selection(plain, true)).toBe("optional");
+		expect(selection(plain, false)).toBe("none");
+		expect(selection(capture((c) => { c.useSelectionAsCaptureValue = true; }), false)).toBe("optional");
+		expect(selection(capture((c) => { c.useSelectionAsCaptureValue = false; }), true)).toBe("none");
+		expect(selection(capture((c) => { c.format = { enabled: true, format: "- {{VALUE:topic}}" }; }), true)).toBe("none");
+		// A template's own prompt reads the selection whatever the capture setting says.
+		expect(selection(capture((c) => { c.useSelectionAsCaptureValue = false; }), false)).toBe("none");
+		expect(currentNoteUse(capture((c) => { c.useSelectionAsCaptureValue = false; }), { templates: ["{{VALUE}}"], selectionAsCaptureValue: false })).toBe("optional");
+		expect(use(template((t) => { t.fileNameFormat = { enabled: false, format: "" }; }))).toBe("optional");
+		expect(use(template(), "# {{VALUE}}")).toBe("optional");
+		expect(use(template(), "# {{VALUE:topic}}")).toBe("none");
+	});
+
 	it("lets required beat optional", () => {
 		expect(use(capture((c) => {
 			c.captureToActiveFile = true;
@@ -157,7 +179,7 @@ describe("currentNoteUse", () => {
 		}))).toBe("required");
 		expect(use(template(), "Back to {{LINKCURRENT}}")).toBe("required");
 		expect(use(template((t) => { t.appendLink = { ...optionalLink }; }), "Back to {{LINKCURRENT}}")).toBe("optional");
-		expect(use(template(), "# {{VALUE}}")).toBe("none");
+		expect(use(template(), "# {{DATE}}")).toBe("none");
 	});
 
 	it("survives a hand-edited template missing its folder and file name settings", () => {
@@ -173,16 +195,16 @@ describe("currentNoteUse", () => {
 
 describe("describeCurrentNoteUse", () => {
 	it("reads the template file from the vault, tolerating an omitted .md", async () => {
-		const app = vault({ "Templates/Note.md": "See {{LINKCURRENT}}" });
+		const app = plugin({ "Templates/Note.md": "See {{LINKCURRENT}}" });
 
 		await expect(describeCurrentNoteUse(app, template((t) => { t.templatePath = "Templates/Note"; }))).resolves.toBe("required");
-		expect(app.vault.cachedRead).toHaveBeenCalledWith(expect.objectContaining({ path: "Templates/Note.md" }));
+		expect(app.app.vault.cachedRead).toHaveBeenCalledWith(expect.objectContaining({ path: "Templates/Note.md" }));
 		await expect(describeCurrentNoteUse(app, template((t) => { t.templatePath = "Missing.md"; }))).resolves.toBe("none");
 		await expect(describeCurrentNoteUse(app, capture((c) => { c.captureToActiveFile = true; }))).resolves.toBe("required");
 	});
 
 	it("reads a Capture's create-with-template file and the templates it includes", async () => {
-		const app = vault({
+		const app = plugin({
 			"Templates/Backlink.md": "# {{VALUE:topic}}\n{{TEMPLATE:Templates/Footer.md}}",
 			"Templates/Footer.md": "Back to {{LINKCURRENT}}",
 			"Templates/Loop.md": "{{TEMPLATE:Templates/Loop.md}} {{SELECTED}}",

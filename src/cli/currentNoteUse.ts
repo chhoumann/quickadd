@@ -1,8 +1,9 @@
 import type { App } from "obsidian";
+import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { SELECTED_REGEX } from "../constants";
+import { NAME_VALUE_REGEX, SELECTED_REGEX } from "../constants";
 import { CURRENT_FOLDER_TOKEN_REGEX, CURRENT_NOTE_TOKEN_REGEX } from "../formatters/helpers/currentFileTokens";
 import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
@@ -19,6 +20,11 @@ export interface CurrentNoteUseContext {
 	 * create-with-template file, and the files they include with `{{TEMPLATE:...}}`.
 	 */
 	templates: string[];
+	/**
+	 * The global "Use selection as capture value" setting, which a Capture may
+	 * override. A template's own `{{VALUE}}` prompt always takes the selection.
+	 */
+	selectionAsCaptureValue: boolean;
 }
 
 type Link = ReturnType<typeof normalizeAppendLinkOptions>;
@@ -36,8 +42,11 @@ export function currentNoteUse(choice: IChoice, context: CurrentNoteUseContext):
 }
 
 /** {@link currentNoteUse} with the templates the run formats read from the vault. */
-export async function describeCurrentNoteUse(app: App, choice: IChoice): Promise<CurrentNoteUse> {
-	return currentNoteUse(choice, { templates: await readTemplates(app, templatePaths(choice)) });
+export async function describeCurrentNoteUse(plugin: QuickAdd, choice: IChoice): Promise<CurrentNoteUse> {
+	return currentNoteUse(choice, {
+		templates: await readTemplates(plugin.app, templatePaths(choice)),
+		selectionAsCaptureValue: plugin.settings.useSelectionAsCaptureValue ?? true,
+	});
 }
 
 /** The template files a choice formats, and the includes of its own format. */
@@ -68,7 +77,7 @@ async function readTemplates(app: App, paths: string[]): Promise<string[]> {
 	return texts;
 }
 
-function captureUses(capture: ICaptureChoice, { templates }: CurrentNoteUseContext): CurrentNoteUse[] {
+function captureUses(capture: ICaptureChoice, { templates, selectionAsCaptureValue }: CurrentNoteUseContext): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(capture.appendLink);
 	const format = capture.format?.enabled ? capture.format.format : "{{VALUE}}";
 	const property = capture.propertyCapture?.property;
@@ -81,7 +90,8 @@ function captureUses(capture: ICaptureChoice, { templates }: CurrentNoteUseConte
 		capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? tokenUse(capture.insertAfter.after, "line", link) : "none",
 		capture.insertBefore?.enabled ? tokenUse(capture.insertBefore.before, "line", link) : "none",
 		property?.kind === "named" ? tokenUse(property.format, "property", link) : "none",
-		contents.some((text) => SELECTED_REGEX.test(text)) ? "optional" : "none",
+		selectionUse(format, capture.useSelectionAsCaptureValue ?? selectionAsCaptureValue),
+		...templates.map((text) => selectionUse(text, true)),
 	];
 }
 
@@ -96,7 +106,7 @@ function templateUses(template: ITemplateChoice, { templates }: CurrentNoteUseCo
 		linkUse(link),
 		tokenUse(fileName, "path", link),
 		...templates.map((text) => tokenUse(text, "content", link)),
-		templates.some((text) => SELECTED_REGEX.test(text)) ? "optional" : "none",
+		...[fileName, ...templates].map((text) => selectionUse(text, true)),
 	];
 }
 
@@ -121,6 +131,11 @@ function tokenUse(format: string, context: "content" | "path" | "line" | "proper
 	const text = context === "line" ? format.replace(FOLDER_TOKENS, "") : format;
 	if (!CURRENT_NOTE_TOKEN_REGEX.test(text)) return "none";
 	return context === "content" && link.enabled && !link.requireActiveFile ? "optional" : "required";
+}
+
+/** `{{SELECTED}}`, and `{{VALUE}}` when the formatter fills it from the selection, are empty without a current note. */
+function selectionUse(text: string, valueFromSelection: boolean): CurrentNoteUse {
+	return SELECTED_REGEX.test(text) || (valueFromSelection && NAME_VALUE_REGEX.test(text)) ? "optional" : "none";
 }
 
 function strongest(uses: CurrentNoteUse[]): CurrentNoteUse {

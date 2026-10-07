@@ -24,7 +24,7 @@ async function runResolvedChoice(
 	verify: boolean,
 ) {
 	const startedAt = Date.now();
-	const summary = await describeChoice(plugin.app, choice);
+	const summary = await describeChoice(plugin, choice);
 	if (choice.type === "Multi") {
 		return { ok: false, error: "Multi choices are interactive and cannot be run via CLI.", choice: summary };
 	}
@@ -75,7 +75,7 @@ export async function runTemplate(plugin: QuickAdd, params: CliData) {
 			return {
 				ok: false,
 				error: "Missing required inputs for non-interactive CLI run.",
-				choice: await describeChoice(plugin.app, choice),
+				choice: await describeChoice(plugin, choice),
 				missing: [{ id: "value", label: "New note name", type: "text", source: "collected", optionCount: 0 }],
 				missingFlags: ["value-value=<value>"],
 			};
@@ -86,7 +86,7 @@ export async function runTemplate(plugin: QuickAdd, params: CliData) {
 
 export async function runInteractive(plugin: QuickAdd, params: CliData) {
 	const choice = resolveChoiceFromParams(plugin, params);
-	const summary = await describeChoice(plugin.app, choice);
+	const summary = await describeChoice(plugin, choice);
 	if (choice.type === "Multi") {
 		return { ok: false, error: "Multi choices cannot be run interactively via CLI.", choice: summary };
 	}

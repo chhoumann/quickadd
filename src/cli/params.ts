@@ -187,11 +187,11 @@ export function setExecutorVariables(
 	}
 }
 
-export async function describeChoice(app: App, choice: IChoice) {
+export async function describeChoice(plugin: QuickAdd, choice: IChoice) {
 	return {
 		id: choice.id,
 		name: choice.name,
 		type: choice.type,
-		currentNote: await describeCurrentNoteUse(app, choice),
+		currentNote: await describeCurrentNoteUse(plugin, choice),
 	};
 }

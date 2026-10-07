@@ -1,4 +1,4 @@
-import type { App, CliData } from "obsidian";
+import type { CliData } from "obsidian";
 import { ChoiceExecutor } from "../choiceExecutor";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
@@ -75,7 +75,7 @@ function describeWrites(choice: IChoice): CliChoiceSummary["writes"] {
 }
 
 async function flattenChoices(
-	app: App,
+	plugin: QuickAdd,
 	choices: IChoice[],
 	segments: string[] = [],
 ): Promise<CliChoiceSummary[]> {
@@ -93,12 +93,12 @@ async function flattenChoices(
 			command: choice.command,
 			path,
 			runnable: !isMulti,
-			currentNote: await describeCurrentNoteUse(app, choice),
+			currentNote: await describeCurrentNoteUse(plugin, choice),
 			writes: describeWrites(choice),
 		});
 
 		if (isMulti) {
-			flattened.push(...await flattenChoices(app, childChoicesOf(choice), pathSegments));
+			flattened.push(...await flattenChoices(plugin, childChoicesOf(choice), pathSegments));
 		}
 	}
 
@@ -111,7 +111,7 @@ export async function listChoicesHandler(plugin: QuickAdd, params: CliData) {
 	if (type && !SUPPORTED_LIST_TYPES.has(type)) {
 		return { ok: false, error: `Invalid type filter '${rawType}'.` };
 	}
-	const choices = (await flattenChoices(plugin.app, plugin.settings.choices)).filter((choice) =>
+	const choices = (await flattenChoices(plugin, plugin.settings.choices)).filter((choice) =>
 		(!type || choice.type.toLowerCase() === type) &&
 		(!isTruthy(params.commands) || choice.command),
 	);
@@ -128,7 +128,7 @@ export async function checkChoiceHandler(
 			ok: false,
 
 			error: "Multi choices are interactive and cannot be checked via CLI.",
-			choice: await describeChoice(plugin.app, choice),
+			choice: await describeChoice(plugin, choice),
 		};
 	}
 
@@ -158,7 +158,7 @@ export async function checkChoiceHandler(
 	return {
 		ok: unresolved.length === 0,
 
-		choice: await describeChoice(plugin.app, choice),
+		choice: await describeChoice(plugin, choice),
 		requiredInputCount: requirements.length,
 		missingInputCount: unresolved.length,
 		missing: unresolved.map(summarize),
