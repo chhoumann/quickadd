@@ -37,6 +37,10 @@ The extension is not in the Raycast Store yet, so install it from source.
 3. Press Enter. QuickAdd runs the choice inside Obsidian and sends each prompt
    to Raycast.
 
+A choice that uses the current note, such as a capture to the active file or
+an appended link, first asks which note that is, since Raycast cannot see the
+tab open in Obsidian.
+
 ![The Run QuickAdd Choice list in Raycast. A Recent section holds New Project, Quick Capture, and Add Book, and a Choices section lists Quick Capture, Journal, Meeting Notes, Add Book, and New Project, each tagged Capture or Template](../Images/raycast-run-choice.png)
 
 Every prompt QuickAdd raises appears in Raycast:

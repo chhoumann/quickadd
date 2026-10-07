@@ -39,6 +39,33 @@ obsidian vault=dev quickadd:run choice="Weekly review" date=lw
 `last friday`, `lw`) and the choice's Which day setting is skipped. Pass
 `ask` to open the date picker instead.
 
+`current=` names the run's current note (QuickAdd 2.32.0 or later). By default
+that is the active tab, which a run started from outside Obsidian cannot see.
+Pass a vault path (`.md` may be omitted) and every part of the run that reads
+the current note uses that note instead: **Capture to active file**, **Append
+link**, `{{LINKCURRENT}}`, `{{LINKSECTION}}`, `{{FILENAMECURRENT}}`,
+`{{FOLDERCURRENT}}`, `{{SELECTED}}`, and a Template's **Same folder as current
+file**. Pass `none` to run without a current note.
+
+```bash
+obsidian vault=dev quickadd:run choice="Add to today" value-value="Call Sam" current="Daily/2026-10-07"
+obsidian vault=dev quickadd:run choice="Inbox" value-value="Idea" current=none
+```
+
+- A path with no note returns `{"ok":false,"error":"No note at '…'."}` before anything runs.
+- When the named note is not open in the active editor, QuickAdd writes through
+  the vault: a capture at the **Cursor** position goes to the top of the note
+  (the bottom when the choice captures to the bottom), an appended link goes on
+  a new last line (or into its frontmatter property), `{{LINKSECTION}}` links to
+  the note without a heading, and `{{SELECTED}}` is empty.
+- With `none`, a choice that requires the current note fails the way it does
+  with no file open, and an optional link or token is left empty.
+- Macro scripts that call `app.workspace.getActiveFile()` themselves are not
+  affected; `current=` only changes what QuickAdd resolves.
+
+`current=` is also accepted by `quickadd:run-template`, `quickadd:check`, and
+`quickadd:interactive`.
+
 ### List your choices: `quickadd:list` {#quickaddlist}
 
 List every QuickAdd choice (including nested choices inside multis):
@@ -54,9 +81,19 @@ read from its settings (QuickAdd 2.30.0 or later). You (or an agent) can tell
 choices apart without opening them:
 
 ```json
-{"name":"Daily log","type":"Capture","writes":{"target":"Daily/{{DATE:YYYY-MM-DD}}.md","position":"after","line":"## Log","format":"- {{TIME}} {{VALUE}}\n","createWithTemplate":"Templates/Daily.md"}}
-{"name":"Meeting note","type":"Template","writes":{"template":"Templates/Meeting.md","folder":"Meetings","fileName":"{{DATE}} {{VALUE:topic}}"}}
+{"name":"Daily log","type":"Capture","currentNote":"none","writes":{"target":"Daily/{{DATE:YYYY-MM-DD}}.md","position":"after","line":"## Log","format":"- {{TIME}} {{VALUE}}\n","createWithTemplate":"Templates/Daily.md"}}
+{"name":"Meeting note","type":"Template","currentNote":"optional","writes":{"template":"Templates/Meeting.md","folder":"Meetings","fileName":"{{DATE}} {{VALUE:topic}}"}}
 ```
+
+Every choice also carries `currentNote` (QuickAdd 2.32.0 or later), which says
+whether the choice uses the current note, so a caller knows when to pass
+`current=`: `required` when the run fails without one (**Capture to active
+file**, a required **Append link**, a `{{LINKCURRENT}}`-style token, **Same
+folder as current file**), `optional` when something is left empty without one
+(an optional **Append link** and the tokens it makes optional, `{{SELECTED}}`),
+and `none` otherwise. Macros and Multis are always `none`. The same key is in
+the `choice` summary that `quickadd:check`, `quickadd:run`, and
+`quickadd:interactive` return.
 
 | Capture key | Meaning |
 | --- | --- |
@@ -230,9 +267,9 @@ run interactively and select the offered note in the discovery prompt.
 ### Names the CLI reserves {#reserved-flag-names}
 
 The bare `key=value` form (pattern 2) ignores names that a command already uses
-as flags or selectors: `choice`, `id`, `vars`, `ui`, `verify`, `date` (on
-`quickadd` / `quickadd:run`), `fields` (on `quickadd:check`), and `path` (on
-`quickadd:run-template`). If a choice has a variable named after one of these
+as flags or selectors: `choice`, `id`, `vars`, `ui`, `verify`, `date`,
+`current` (on `quickadd` / `quickadd:run`), `fields` (on `quickadd:check`), and
+`path` (on `quickadd:run-template`). If a choice has a variable named after one of these
 (for example `{{VALUE:verify}}`), pass it with the `value-` prefix or via
 `vars` instead - neither is ever treated as a flag:
 
