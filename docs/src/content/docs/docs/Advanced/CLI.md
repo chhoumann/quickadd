@@ -90,11 +90,15 @@ Every choice also carries `currentNote` (QuickAdd 2.32.0 or later), which says
 whether the choice uses the current note, so a caller knows when to pass
 `current=`: `required` when the run fails without one (**Capture to active
 file**, a required **Append link**, a `{{LINKCURRENT}}`-style token, **Same
-folder as current file**), `optional` when something is left empty without one
-(an optional **Append link** and the tokens it makes optional, `{{SELECTED}}`),
-and `none` otherwise. Macros and Multis are always `none`. The same key is in
-the `choice` summary that `quickadd:check`, `quickadd:run`, and
-`quickadd:interactive` return.
+folder as current file**, or no folder setting while Obsidian creates new notes
+in the current file's folder), `optional` when something is left empty without
+one (an optional **Append link** and the tokens it makes optional,
+`{{SELECTED}}`, a `{{VALUE}}` that takes the selection, a
+`{{FIELD:…|default-from:active}}` default), and `none` otherwise. The tokens
+are read from every text the run formats, including the template a Capture
+creates its target with and the files a template includes. Macros and Multis
+are always `none`. The same key is in the `choice` summary that
+`quickadd:check`, `quickadd:run`, and `quickadd:interactive` return.
 
 | Capture key | Meaning |
 | --- | --- |
