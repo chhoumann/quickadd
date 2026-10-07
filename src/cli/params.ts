@@ -1,8 +1,10 @@
-import type { CliData, CliFlags } from "obsidian";
+import type { App, CliData, CliFlags, TFile } from "obsidian";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
+import { describeCurrentNoteUse } from "./currentNoteUse";
 
 const SELECTOR_FLAGS: CliFlags = {
 	choice: { value: "<name>", description: "Choice name" },
@@ -14,6 +16,10 @@ const DATE_FLAG = {
 	value: "<when>",
 	description: "Day for {{DATE}} (YYYY-MM-DD, last week, last friday, ask, @date:ISO)",
 };
+const CURRENT_FLAG = {
+	value: "<vault-path|none>",
+	description: "Current note for the run: a vault path, or none (default: the active tab)",
+};
 
 export const RUN_FLAGS: CliFlags = {
 	...SELECTOR_FLAGS,
@@ -23,6 +29,7 @@ export const RUN_FLAGS: CliFlags = {
 		description: "Report the verified outcome for Template/Capture choices (file path and effect on success, honest failure when the engine swallows an error)",
 	},
 	date: DATE_FLAG,
+	current: CURRENT_FLAG,
 };
 export const LIST_FLAGS: CliFlags = {
 	type: { value: "<Template|Capture|Macro|Multi>", description: "Filter by choice type" },
@@ -37,15 +44,18 @@ export const RUN_TEMPLATE_FLAGS: CliFlags = {
 	vars: VARS_FLAG,
 	ui: UI_FLAG,
 	date: DATE_FLAG,
+	current: CURRENT_FLAG,
 };
 export const CHECK_FLAGS: CliFlags = {
 	...SELECTOR_FLAGS,
 	vars: VARS_FLAG,
 	fields: { description: "Include full field metadata (options, defaults, widget config)" },
+	current: CURRENT_FLAG,
 };
 export const INTERACTIVE_FLAGS: CliFlags = {
 	...SELECTOR_FLAGS,
 	vars: { value: "<json>", description: "Variables object as JSON (pre-seeded inputs)" },
+	current: CURRENT_FLAG,
 };
 export const PREVIEW_FLAGS: CliFlags = {
 	path: { value: "<vault-path>", description: "Path to a .quickadd.json package file in the vault" },
@@ -111,6 +121,21 @@ export function extractVariables(
 	return variables;
 }
 
+/**
+ * The `current=` flag: the note the run treats as current. `undefined` when
+ * absent (the active tab), `null` for `none`, else the vault file at the path,
+ * which may omit `.md` like a template path. A path with no note throws, so
+ * nothing runs for a mistyped one.
+ */
+export function resolveCurrentNote(app: App, params: CliData): TFile | null | undefined {
+	if (typeof params.current !== "string") return undefined;
+	const value = params.current.trim();
+	if (value === "none") return null;
+	const file = app.vault.getFileByPath(resolveTemplatePath(value));
+	if (!file) throw new Error(`No note at '${value}'.`);
+	return file;
+}
+
 export function resolveChoiceFromParams(plugin: QuickAdd, params: CliData): IChoice {
 	if (typeof params.id === "string" && params.id.trim().length > 0) {
 		return plugin.getChoiceById(params.id);
@@ -162,10 +187,11 @@ export function setExecutorVariables(
 	}
 }
 
-export function describeChoice(choice: IChoice) {
+export async function describeChoice(app: App, choice: IChoice) {
 	return {
 		id: choice.id,
 		name: choice.name,
 		type: choice.type,
+		currentNote: await describeCurrentNoteUse(app, choice),
 	};
 }

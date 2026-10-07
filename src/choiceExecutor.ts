@@ -1,4 +1,4 @@
-import { Notice, type App, type WorkspaceLeaf } from "obsidian";
+import { Notice, type App, type TFile, type WorkspaceLeaf } from "obsidian";
 import { currentDispatchChain, enterChoice, type ChoiceChain } from "./engine/choiceChain";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
@@ -88,6 +88,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	recordExecutionResult(result: ChoiceOutcome) {
 		this.pendingResult = result;
+	}
+
+	/**
+	 * Names the run's current note up front (the CLI's `current=`). The live
+	 * context is set too, so the input collection that runs before execute()
+	 * (`quickadd:check`, a non-interactive run) reads the same note.
+	 */
+	setCurrentFile(file: TFile | null): void {
+		this.triggerContext = { activeFile: file };
+		this.triggerContextOverride = this.triggerContext;
 	}
 
 	private beginExecutionContext(): void {

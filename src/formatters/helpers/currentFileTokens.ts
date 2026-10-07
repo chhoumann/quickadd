@@ -9,6 +9,11 @@ export interface CurrentFileTokenOptions {
 }
 
 type CurrentToken = "LINKCURRENT" | "LINKSECTION" | "FILENAMECURRENT" | "FOLDER" | "FOLDERCURRENT" | "TITLE";
+
+/** The tokens above that read the current note (`{{FOLDER}}` and `{{TITLE}}` do not). */
+export const CURRENT_NOTE_TOKEN_REGEX = /{{(?:LINKCURRENT|LINKSECTION|FILENAMECURRENT|FOLDERCURRENT(?:\|name)?)}}/i;
+export const CURRENT_FOLDER_TOKEN_REGEX = /{{FOLDERCURRENT(?:\|name)?}}/i;
+
 type Resolvers = Record<CurrentToken, () => string | null>;
 
 /** Resolve once per token and never scan replacement text, which may itself contain tokens. */
