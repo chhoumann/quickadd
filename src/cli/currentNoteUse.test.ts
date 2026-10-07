@@ -143,6 +143,14 @@ describe("currentNoteUse", () => {
 		expect(use(template(), "# {{VALUE:topic}}")).toBe("none");
 	});
 
+	it("treats {{FIELD:…|default-from:active}} as optional wherever it is formatted", () => {
+		expect(use(capture((c) => { c.format = { enabled: true, format: "- {{FIELD:project|default-from:active}}" }; }))).toBe("optional");
+		expect(use(capture((c) => { c.format = { enabled: true, format: "- {{FIELD:project|default:Work}}" }; }))).toBe("none");
+		expect(use(capture((c) => { c.captureTo = "{{FIELD:area|default-from:active}}/Log.md"; }))).toBe("optional");
+		expect(use(template(), "project: {{FIELD:project|default-from:active}}")).toBe("optional");
+		expect(use(template((t) => { t.fileNameFormat = { enabled: true, format: "{{FIELD:area|default-from:active}} notes" }; }))).toBe("optional");
+	});
+
 	it("lets required beat optional", () => {
 		expect(use(capture((c) => {
 			c.captureToActiveFile = true;

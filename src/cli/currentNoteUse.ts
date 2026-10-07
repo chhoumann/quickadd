@@ -29,6 +29,9 @@ export interface CurrentNoteUseContext {
 
 type Link = ReturnType<typeof normalizeAppendLinkOptions>;
 
+/** A text the run formats, and what the formatted text becomes. */
+type Formatted = [text: string, context: "content" | "path" | "line" | "property"];
+
 /**
  * How a choice uses the current note, read from its settings with the rules
  * the engines enforce. The vault reads are passed in (see
@@ -81,15 +84,19 @@ function captureUses(capture: ICaptureChoice, { templates, selectionAsCaptureVal
 	const link = normalizeAppendLinkOptions(capture.appendLink);
 	const format = capture.format?.enabled ? capture.format.format : "{{VALUE}}";
 	const property = capture.propertyCapture?.property;
-	const contents = [format, ...templates];
+	const formatted: Formatted[] = [
+		[format, "content"],
+		...templates.map((text): Formatted => [text, "content"]),
+		[capture.captureToActiveFile ? "" : capture.captureTo ?? "", "path"],
+		[capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? capture.insertAfter.after : "", "line"],
+		[capture.insertBefore?.enabled ? capture.insertBefore.before : "", "line"],
+		[property?.kind === "named" ? property.format : "", "property"],
+	];
 	return [
 		capture.captureToActiveFile ? "required" : "none",
 		linkUse(link),
-		...contents.map((text) => tokenUse(text, "content", link)),
-		capture.captureToActiveFile ? "none" : tokenUse(capture.captureTo ?? "", "path", link),
-		capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? tokenUse(capture.insertAfter.after, "line", link) : "none",
-		capture.insertBefore?.enabled ? tokenUse(capture.insertBefore.before, "line", link) : "none",
-		property?.kind === "named" ? tokenUse(property.format, "property", link) : "none",
+		...formatted.map(([text, context]) => tokenUse(text, context, link)),
+		...formatted.map(([text]) => activeDefaultUse(text)),
 		selectionUse(format, capture.useSelectionAsCaptureValue ?? selectionAsCaptureValue),
 		...templates.map((text) => selectionUse(text, true)),
 	];
@@ -100,13 +107,18 @@ function templateUses(template: ITemplateChoice, { templates }: CurrentNoteUseCo
 	// A list must not fail on one hand-edited choice, so read defensively.
 	const folder = template.folder ?? { enabled: false, folders: [] };
 	const fileName = template.fileNameFormat?.enabled ? template.fileNameFormat.format : "{{VALUE}}";
+	const mode = deriveFolderMode(folder);
+	const formatted: Formatted[] = [
+		[fileName, "path"],
+		[mode === "specified" ? (folder.folders ?? []).join("\n") : "", "path"],
+		...templates.map((text): Formatted => [text, "content"]),
+	];
 	return [
-		deriveFolderMode(folder) === "active-file" ? "required" : "none",
-		deriveFolderMode(folder) === "specified" ? tokenUse((folder.folders ?? []).join("\n"), "path", link) : "none",
+		mode === "active-file" ? "required" : "none",
 		linkUse(link),
-		tokenUse(fileName, "path", link),
-		...templates.map((text) => tokenUse(text, "content", link)),
-		...[fileName, ...templates].map((text) => selectionUse(text, true)),
+		...formatted.map(([text, context]) => tokenUse(text, context, link)),
+		...formatted.map(([text]) => activeDefaultUse(text)),
+		...formatted.map(([text]) => selectionUse(text, true)),
 	];
 }
 
@@ -131,6 +143,13 @@ function tokenUse(format: string, context: "content" | "path" | "line" | "proper
 	const text = context === "line" ? format.replace(FOLDER_TOKENS, "") : format;
 	if (!CURRENT_NOTE_TOKEN_REGEX.test(text)) return "none";
 	return context === "content" && link.enabled && !link.requireActiveFile ? "optional" : "required";
+}
+
+const ACTIVE_DEFAULT_REGEX = /{{FIELD:[^}]*\|\s*default-from\s*:\s*active\s*(?:\||}})/i;
+
+/** `{{FIELD:…|default-from:active}}` takes its default from the current note's properties. */
+function activeDefaultUse(text: string): CurrentNoteUse {
+	return ACTIVE_DEFAULT_REGEX.test(text) ? "optional" : "none";
 }
 
 /** `{{SELECTED}}`, and `{{VALUE}}` when the formatter fills it from the selection, are empty without a current note. */
