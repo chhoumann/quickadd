@@ -72,6 +72,14 @@ vi.mock("../utils/templaterIntegration", () => ({
 	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 	withTemplaterFileCreationSuppressed: vi.fn(async (_app: unknown, _p: string, run: () => unknown) => await run()),
 }));
+vi.mock("../utils/frontmatterPropertyLinks", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	appendLinkToFrontmatterProperty: vi.fn(),
+}));
+vi.mock("./canvasCapture", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	resolveActiveCanvasCaptureTarget: vi.fn(() => null),
+}));
 vi.mock("three-way-merge", () => ({ default: vi.fn(() => ({})), __esModule: true }));
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({ default: class InputSuggesterMock {} }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
@@ -79,6 +87,8 @@ vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 import { TFile, type App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { appendToCurrentLine, insertFileLinkToCurrentNote, insertOnNewLineBelow } from "../utils/editorInsertion";
+import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
+import { resolveActiveCanvasCaptureTarget } from "./canvasCapture";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
@@ -97,8 +107,11 @@ const target = note("Daily/Today.md");
 const other = note("Other.md");
 
 function harness({
-	current, activeEditorFile, configure = () => {},
-}: { current: TFile | null; activeEditorFile: TFile | null; configure?: (choice: CaptureChoice) => void }) {
+	current, activeEditorFile, configure = () => {}, focusedProperty = null,
+}: {
+	current: TFile | null; activeEditorFile: TFile | null;
+	configure?: (choice: CaptureChoice) => void; focusedProperty?: { file: TFile; key: string } | null;
+}) {
 	const contents = new Map<string, string>([[target.path, "# Today\n"], [other.path, "# Other\n"]]);
 	const files = new Map<string, TFile>([[target.path, target], [other.path, other]]);
 	const app = {
@@ -127,6 +140,7 @@ function harness({
 		recordExecutionResult: vi.fn(),
 		variables: new Map<string, unknown>(),
 		triggerContext: { activeFile: current },
+		focusedProperty,
 	};
 	const choice = new CaptureChoice("Here");
 	choice.captureToActiveFile = true;
@@ -199,5 +213,37 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 
 		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(app, other, target, expect.objectContaining({ enabled: true }), undefined);
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: other, effect: "changed" });
+	});
+
+	it("ignores a property focused in another note when placing the link", async () => {
+		const link = (choice: CaptureChoice) => {
+			choice.captureToActiveFile = false;
+			choice.captureTo = other.path;
+			choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: true };
+		};
+		const elsewhere = harness({
+			current: target, activeEditorFile: other, configure: link, focusedProperty: { file: other, key: "related" },
+		});
+		await elsewhere.engine.run();
+		expect(appendLinkToFrontmatterProperty).not.toHaveBeenCalled();
+		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(elsewhere.app, other, target, expect.anything(), undefined);
+
+		vi.clearAllMocks();
+		const here = harness({
+			current: target, activeEditorFile: other, configure: link, focusedProperty: { file: target, key: "related" },
+		});
+		await here.engine.run();
+		expect(appendLinkToFrontmatterProperty).toHaveBeenCalledWith(here.app, { file: target, key: "related" }, other);
+		expect(insertFileLinkToCurrentNote).not.toHaveBeenCalled();
+	});
+
+	it("consults the active canvas only when the current note is that canvas", async () => {
+		await harness({ current: target, activeEditorFile: other }).engine.run();
+		expect(resolveActiveCanvasCaptureTarget).not.toHaveBeenCalled();
+
+		const board = note("Board.canvas");
+		board.extension = "canvas";
+		await harness({ current: board, activeEditorFile: null }).engine.run();
+		expect(resolveActiveCanvasCaptureTarget).toHaveBeenCalledTimes(1);
 	});
 });

@@ -363,10 +363,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		| { kind: "canvasText"; canvas: CanvasTextCaptureTarget }
 		| { kind: "note"; filePath: string; isCanvasTriggered: boolean }
 	> {
-		// An active canvas target only exists with Capture to active file, and a
-		// configured one only without it.
+		// An active canvas target only exists with Capture to active file when the
+		// current note is that canvas, and a configured one only without it.
 		const canvasTarget =
-			(this.choice.captureToActiveFile
+			(this.choice.captureToActiveFile && currentFile(this.app, this.choiceExecutor)?.extension === "canvas"
 				? resolveActiveCanvasCaptureTarget(this.app, action)
 				: null) ?? (await this.resolveConfiguredCanvasTarget(action));
 

@@ -122,8 +122,19 @@ describe("#1536 — create-if-not-found at cursor without an active editor", () 
 		).rejects.toThrow("no active markdown editor");
 	});
 
-	it("inserts at the cursor line when a real editor is active (control)", async () => {
+	it("aborts with the missing-editor diagnostic when the active editor shows another note", async () => {
 		const formatter = createFormatter({
+			file: { path: "Other.md" },
+			editor: { getCursor: () => ({ line: 0, ch: 0 }) },
+		});
+		await expect(
+			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()).then(({ content }) => content),
+		).rejects.toThrow("no active markdown editor");
+	});
+
+	it("inserts at the cursor line when a real editor shows the target (control)", async () => {
+		const formatter = createFormatter({
+			file: { path: "Target.md" },
 			editor: { getCursor: () => ({ line: 0, ch: 0 }) },
 		});
 		const result = await formatter.formatContentWithFile(

@@ -430,6 +430,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
       createIfNotFoundLocation: 'cursor',
     });
     (app.workspace.getActiveViewOfType as any).mockReturnValue({
+      file: { path: file.path },
       editor: {
         getCursor: vi.fn().mockReturnValue({ line: 0, ch: 0 }),
         getSelection: vi.fn().mockReturnValue(''),

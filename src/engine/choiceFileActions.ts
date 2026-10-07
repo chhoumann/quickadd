@@ -24,13 +24,15 @@ export async function insertChoiceFileLink(
 	onEditorTextMutation?: EditorTextMutationObserver,
 ): Promise<void> {
 	if (!options.enabled) return;
-	const focusedProperty = executor.focusedProperty;
+	const current = currentFile(app, executor);
+	// A property focused in some other note is not where this run's link goes.
+	const focusedProperty = executor.focusedProperty?.file.path === current?.path ? executor.focusedProperty : null;
 	if (options.destination?.type === "specifiedFile") {
 		await appendFileLinkToDestinationFile(app, file, options, onEditorTextMutation);
 	} else if (focusedProperty && !placementSupportsFrontmatter(options.placement)) {
 		await appendLinkToFrontmatterProperty(app, focusedProperty, file);
 	} else {
-		await insertFileLinkToCurrentNote(app, file, currentFile(app, executor), options, onEditorTextMutation);
+		await insertFileLinkToCurrentNote(app, file, current, options, onEditorTextMutation);
 	}
 }
 

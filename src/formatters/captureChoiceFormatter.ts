@@ -2,6 +2,7 @@ import getEndOfSection from "./helpers/getEndOfSection";
 import { insertOrderedCapture } from "./helpers/orderedCaptureInsertion";
 import type { TFile } from "obsidian";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
+import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
 import { currentFile } from "../utils/currentFile";
 import { getLinesInString } from "src/utility";
 import {
@@ -683,7 +684,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return surroundCapture(payload, note + blockquoteSeparator(note, payload.content));
 			}
 			case CREATE_IF_NOT_FOUND_CURSOR: {
-				const view = getActiveMarkdownEditorView(this.app);
+				const view = this.file ? getMarkdownEditorViewForFile(this.app, this.file) : getActiveMarkdownEditorView(this.app);
 				if (!view) throw new ChoiceAbortError(
 					`Unable to insert line '${rawTarget}' at cursor position: no active markdown editor.`,
 				);
