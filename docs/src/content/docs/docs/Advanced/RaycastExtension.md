@@ -142,6 +142,7 @@ could reach the wrong one. Rename one of the folders.
 | Run QuickAdd Choice, with a choice's inputs on one form | QuickAdd 2.17.2 or later |
 | Cancel Run stops the run in Obsidian, and the **Created** and **Added to** finish messages | QuickAdd 2.20 or later |
 | Note pickers that start empty, `[[` and `#` completion, and Escape ending the run | QuickAdd 2.31 or later |
+| Asking which note a choice should use as the current note | QuickAdd 2.32 or later |
 
 ## Limitations {#limitations}
 

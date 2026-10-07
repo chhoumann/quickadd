@@ -584,7 +584,31 @@ Good to know:
 
 These options work on text prompts and pickers alike. Combine them freely:
 `{{VALUE:title|label:Note title|default:Untitled}}`. Inside a table cell, write
-the pipe as `\|`, as in `{{FILE:People\|label:Who?}}`; QuickAdd reads it as `|`.
+the pipe as `\|`, as in `{{FILE:People\|label:Who?}}`; see
+[In a table cell](#table-cell).
+
+#### In a table cell {#table-cell}
+
+_Requires QuickAdd 2.32.0 or later._
+
+A Markdown table starts a new cell at every `|`, so inside a table, write the
+pipe between a token's options as `\|`. QuickAdd reads `\|` inside `{{...}}`
+as `|`, and the table keeps its cells:
+
+```markdown
+| Client | Due |
+| --- | --- |
+| {{FILE:Clients\|link\|label:Client}} | {{VDATE:due,YYYY-MM-DD\|label:Due date}} |
+```
+
+This works for every token with options. A `\|` outside a token is left as it
+is. Before QuickAdd 2.32.0, the `\` became part of the option, so
+`{{FILE:Clients\|label:Client}}` looked for notes in a folder named `Clients\`
+and found none.
+
+QuickAdd doesn't escape what it writes into the cell, so an answer that
+contains a `|`, such as a link with display text (`[[Note|Shown text]]`), still
+starts a new cell.
 
 #### Name the prompt: `|label:` {#value-label}
 
@@ -594,7 +618,9 @@ project?" instead of "project", in the prompt and in the
 variable, so `{{VALUE:project}}` reuses the answer. On an option list, the
 label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`.
 Without one, the one-page form titles it by its `|name:` or else its options,
-such as "Red / Green / Blue". An unnamed `{{VALUE|label:What's the order?}}` also shows its label in the
+such as "Red / Green / Blue". A title longer than 30 characters stops at a whole
+option and ends with "…" (QuickAdd 2.32.0 or later; earlier versions showed
+`Red,Green,Blue`). An unnamed `{{VALUE|label:What's the order?}}` also shows its label in the
 builder's preview.
 
 Before QuickAdd 2.30.0, a named prompt kept its name as the title and showed
@@ -1104,7 +1130,8 @@ shows its first level-1 heading instead. An ID is an unbroken timestamp of 12
 or more digits, such as `202610061432`, a UUID, or a ULID. A date such as
 `2026-10-06` is not an ID, so a daily note shows its file name. A frontmatter
 `title` wins for every note. The picker always inserts the actual file, so
-friendly labels never change what you get.
+friendly labels never change what you get. Before QuickAdd 2.32.0, a note
+showed its first level-1 heading whenever it had one, whatever its file name.
 
 You can also find a note by its `aliases`: the row shows the alias with the
 note's name beneath it, and still inserts the note (QuickAdd 2.30.0 or later).
