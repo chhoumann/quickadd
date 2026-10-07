@@ -25,6 +25,11 @@ export interface CurrentNoteUseContext {
 	 * override. A template's own `{{VALUE}}` prompt always takes the selection.
 	 */
 	selectionAsCaptureValue: boolean;
+	/**
+	 * Obsidian's "Default location for new notes" is "Same folder as current
+	 * file", which a Template with its folder setting off follows.
+	 */
+	newNotesInCurrentFolder: boolean;
 }
 
 type Link = ReturnType<typeof normalizeAppendLinkOptions>;
@@ -46,9 +51,12 @@ export function currentNoteUse(choice: IChoice, context: CurrentNoteUseContext):
 
 /** {@link currentNoteUse} with the templates the run formats read from the vault. */
 export async function describeCurrentNoteUse(plugin: QuickAdd, choice: IChoice): Promise<CurrentNoteUse> {
+	// vault.getConfig is the de-facto (untyped) plugin API for Obsidian's settings.
+	const vault = plugin.app.vault as App["vault"] & { getConfig?: (key: string) => unknown };
 	return currentNoteUse(choice, {
 		templates: await readTemplates(plugin.app, templatePaths(choice)),
 		selectionAsCaptureValue: plugin.settings.useSelectionAsCaptureValue ?? true,
+		newNotesInCurrentFolder: vault.getConfig?.("newFileLocation") === "current",
 	});
 }
 
@@ -102,7 +110,7 @@ function captureUses(capture: ICaptureChoice, { templates, selectionAsCaptureVal
 	];
 }
 
-function templateUses(template: ITemplateChoice, { templates }: CurrentNoteUseContext): CurrentNoteUse[] {
+function templateUses(template: ITemplateChoice, { templates, newNotesInCurrentFolder }: CurrentNoteUseContext): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(template.appendLink);
 	// A list must not fail on one hand-edited choice, so read defensively.
 	const folder = template.folder ?? { enabled: false, folders: [] };
@@ -114,7 +122,7 @@ function templateUses(template: ITemplateChoice, { templates }: CurrentNoteUseCo
 		...templates.map((text): Formatted => [text, "content"]),
 	];
 	return [
-		mode === "active-file" ? "required" : "none",
+		mode === "active-file" || (mode === "obsidian-default" && newNotesInCurrentFolder) ? "required" : "none",
 		linkUse(link),
 		...formatted.map(([text, context]) => tokenUse(text, context, link)),
 		...formatted.map(([text]) => activeDefaultUse(text)),
