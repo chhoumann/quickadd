@@ -222,3 +222,17 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(rc.requirements.size).toBe(1);
 	});
 });
+
+describe("RequirementCollector - escaped pipe in a table cell (#2197)", () => {
+	it("records the FILE picker with its label, scoped to the folder", async () => {
+		const app = makeApp(["Persons/Ann.md", "Elsewhere/Bob.md"]);
+		const rc = new RequirementCollector(app, makePlugin());
+		await rc.scanString("| {{FILE:Persons\\|label:Prompt Three}} |");
+
+		const key = parseFileToken("Persons|label:Prompt Three")!.variableKey;
+		const req = rc.requirements.get(key);
+		expect(req?.type).toBe("file-picker");
+		expect(req?.label).toBe("Prompt Three");
+		expect(req?.options).toEqual([`${FILE_PICK_PREFIX}Persons/Ann.md`]);
+	});
+});
