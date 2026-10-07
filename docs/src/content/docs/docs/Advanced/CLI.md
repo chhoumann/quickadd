@@ -54,8 +54,8 @@ obsidian vault=dev quickadd:run choice="Inbox" value-value="Idea" current=none
 
 - A path with no note returns `{"ok":false,"error":"No note at '…'."}` before anything runs.
 - When the named note is not open in the active editor, QuickAdd writes through
-  the vault: a capture at the **Cursor** position goes to the top of the note
-  (the bottom when the choice captures to the bottom), an appended link goes on
+  the vault: a capture set to **At cursor**, **New line above cursor**, or **New
+  line below cursor** goes to the top of the note, a link goes on
   a new last line (or into its frontmatter property), `{{LINKSECTION}}` links to
   the note without a heading, and `{{SELECTED}}` is empty.
 - With `none`, a choice that requires the current note behaves as it does with
