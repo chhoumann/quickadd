@@ -363,12 +363,19 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		| { kind: "canvasText"; canvas: CanvasTextCaptureTarget }
 		| { kind: "note"; filePath: string; isCanvasTriggered: boolean }
 	> {
-		// An active canvas target only exists with Capture to active file when the
-		// current note is that canvas, and a configured one only without it.
-		const canvasTarget =
-			(this.choice.captureToActiveFile && currentFile(this.app, this.choiceExecutor)?.extension === "canvas"
-				? resolveActiveCanvasCaptureTarget(this.app, action)
-				: null) ?? (await this.resolveConfiguredCanvasTarget(action));
+		// A Canvas is JSON, so a capture into it lands on a selected card or not at
+		// all: with Capture to active file and a Canvas as the current note, that
+		// Canvas must be the active view. A configured target exists only without it.
+		const current = currentFile(this.app, this.choiceExecutor);
+		const currentCanvas = this.choice.captureToActiveFile && current?.extension === "canvas" ? current : null;
+		const canvasTarget = currentCanvas
+			? resolveActiveCanvasCaptureTarget(this.app, action, currentCanvas)
+			: await this.resolveConfiguredCanvasTarget(action);
+		if (currentCanvas && !canvasTarget) {
+			throw new ChoiceAbortError(
+				`Cannot capture to Canvas '${currentCanvas.path}' - it is not the active view. Open it and select one card.`,
+			);
+		}
 
 		if (canvasTarget?.kind === "text") {
 			if (isPropertyCapture) {

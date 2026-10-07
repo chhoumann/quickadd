@@ -1,5 +1,5 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * A run's current note comes from the executor's trigger context (the note the
@@ -27,6 +27,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		async insertFormattedContent(content: string, choice: { activeFileWritePosition?: string }, fileContent: string) {
 			const bottom = choice.activeFileWritePosition === "bottom";
 			return { content: bottom ? `${fileContent}${content}` : `${content}${fileContent}`, captureContent: content, cursor: { kind: "none" } };
+		}
+		async formatContentWithFile(content: string, _choice: unknown, cardText: string) {
+			return { content: `${cardText}${content}`, captureContent: content, cursor: { kind: "none" } };
 		}
 		async formatFileName(name: string) {
 			return name;
@@ -84,15 +87,18 @@ vi.mock("three-way-merge", () => ({ default: vi.fn(() => ({})), __esModule: true
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({ default: class InputSuggesterMock {} }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 
-import { TFile, type App } from "obsidian";
+import { TFile, View, type App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { appendToCurrentLine, insertFileLinkToCurrentNote, insertOnNewLineBelow } from "../utils/editorInsertion";
 import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { resolveActiveCanvasCaptureTarget } from "./canvasCapture";
+import type * as CanvasCapture from "./canvasCapture";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { settingsStore } from "../settingsStore";
+
+const realCanvasCapture = await vi.importActual<typeof CanvasCapture>("./canvasCapture");
 
 function note(path: string): TFile {
 	const file = new TFile();
@@ -103,17 +109,34 @@ function note(path: string): TFile {
 	return file;
 }
 
+function canvas(path: string): TFile {
+	const file = note(path);
+	file.extension = "canvas";
+	file.basename = file.name.replace(/\.canvas$/, "");
+	return file;
+}
+
 const target = note("Daily/Today.md");
 const other = note("Other.md");
+const board = canvas("Board.canvas");
+const otherBoard = canvas("Other.canvas");
+const BOARD_JSON = '{"nodes":[{"id":"card","type":"text","text":"Start"}],"edges":[]}';
+
+type Card = { id: string; type: "text"; text: string; setText: ReturnType<typeof vi.fn> };
 
 function harness({
-	current, activeEditorFile, configure = () => {}, focusedProperty = null,
+	current, activeEditorFile, activeCanvas = null, configure = () => {}, focusedProperty = null,
 }: {
 	current: TFile | null; activeEditorFile: TFile | null;
+	/** A Canvas view in the active leaf with one selected text card. */
+	activeCanvas?: { file: TFile; card: Card } | null;
 	configure?: (choice: CaptureChoice) => void; focusedProperty?: { file: TFile; key: string } | null;
 }) {
-	const contents = new Map<string, string>([[target.path, "# Today\n"], [other.path, "# Other\n"]]);
-	const files = new Map<string, TFile>([[target.path, target], [other.path, other]]);
+	const contents = new Map<string, string>([[target.path, "# Today\n"], [other.path, "# Other\n"], [board.path, BOARD_JSON]]);
+	const files = new Map<string, TFile>([[target.path, target], [other.path, other], [board.path, board], [otherBoard.path, otherBoard]]);
+	const canvasView = activeCanvas
+		? { file: activeCanvas.file, getViewType: () => "canvas", canvas: { selection: new Set([activeCanvas.card]), requestSave: vi.fn() } }
+		: null;
 	const app = {
 		vault: {
 			adapter: { exists: vi.fn(async (path: string) => files.has(path)) },
@@ -130,7 +153,8 @@ function harness({
 		workspace: {
 			// A different note is active in the editor while the run resolves.
 			getActiveFile: vi.fn(() => other),
-			getActiveViewOfType: vi.fn(() => activeEditorFile ? { file: activeEditorFile, editor: {} } : null),
+			getActiveViewOfType: vi.fn((type: unknown) =>
+				type === View ? canvasView : activeEditorFile ? { file: activeEditorFile, editor: {} } : null),
 			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: { getNewFileParent: vi.fn(() => ({ path: "" })) },
@@ -138,6 +162,7 @@ function harness({
 	const executor: IChoiceExecutor = {
 		...createChoiceExecutor(),
 		recordExecutionResult: vi.fn(),
+		signalAbort: vi.fn(),
 		variables: new Map<string, unknown>(),
 		triggerContext: { activeFile: current },
 		focusedProperty,
@@ -245,5 +270,50 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 		board.extension = "canvas";
 		await harness({ current: board, activeEditorFile: null }).engine.run();
 		expect(resolveActiveCanvasCaptureTarget).toHaveBeenCalledTimes(1);
+	});
+
+	describe("with a Canvas as the current note", () => {
+		const card = (): Card => ({ id: "card", type: "text", text: "Start", setText: vi.fn() });
+		const bottom = (choice: CaptureChoice) => { choice.activeFileWritePosition = "bottom"; };
+		const refused = expect.objectContaining({ message: "Cannot capture to Canvas 'Board.canvas' - it is not the active view. Open it and select one card." });
+		beforeEach(() => vi.mocked(resolveActiveCanvasCaptureTarget).mockImplementation(realCanvasCapture.resolveActiveCanvasCaptureTarget));
+		afterEach(() => vi.mocked(resolveActiveCanvasCaptureTarget).mockImplementation(() => null));
+
+		it("never writes text into the Canvas file when another note's editor is active", async () => {
+			const { engine, executor, contents } = harness({ current: board, activeEditorFile: other, configure: bottom });
+
+			await engine.run();
+
+			expect(contents.get(board.path)).toBe(BOARD_JSON);
+			expect(executor.signalAbort).toHaveBeenCalledWith(refused);
+			expect(executor.recordExecutionResult).not.toHaveBeenCalled();
+		});
+
+		it("refuses a card selected in another Canvas", async () => {
+			const elsewhere = card();
+			const { engine, executor, contents } = harness({
+				current: board, activeEditorFile: null, activeCanvas: { file: otherBoard, card: elsewhere }, configure: bottom,
+			});
+
+			await engine.run();
+
+			expect(elsewhere.setText).not.toHaveBeenCalled();
+			expect(contents.get(board.path)).toBe(BOARD_JSON);
+			expect(executor.signalAbort).toHaveBeenCalledWith(refused);
+			expect(executor.recordExecutionResult).not.toHaveBeenCalled();
+		});
+
+		it("writes the selected card when the active Canvas is the current note", async () => {
+			const selected = card();
+			const { engine, executor, contents } = harness({
+				current: board, activeEditorFile: null, activeCanvas: { file: board, card: selected }, configure: bottom,
+			});
+
+			await engine.run();
+
+			expect(selected.setText).toHaveBeenCalledWith("Startcaptured\n");
+			expect(contents.get(board.path)).toBe(BOARD_JSON);
+			expect(executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: board, effect: "changed" });
+		});
 	});
 });

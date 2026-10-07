@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { App } from "obsidian";
+import type { App, TFile } from "obsidian";
 import {
 	getCanvasActionUnsupportedReason,
 	getCanvasTextCaptureContent,
@@ -64,6 +64,26 @@ describe("canvasCapture", () => {
 		expect(() => resolveActiveCanvasCaptureTarget(app, "activeFileTop")).toThrow(
 			"exactly one selected node",
 		);
+	});
+
+	it("returns null for a card selected in a Canvas other than the run's current one", () => {
+		const app = createApp({
+			workspace: {
+				activeLeaf: {
+					view: {
+						getViewType: () => "canvas",
+						file: { path: "Other.canvas", basename: "Other" },
+						canvas: { selection: new Set([{ id: "card", type: "text", text: "body" }]) },
+					},
+				},
+				getActiveFile: () => ({ path: "Other.canvas", basename: "Other" }),
+			},
+		});
+		const board = { path: "Board.canvas" } as TFile;
+		const otherBoard = { path: "Other.canvas" } as TFile;
+
+		expect(resolveActiveCanvasCaptureTarget(app, "append", board)).toBeNull();
+		expect(resolveActiveCanvasCaptureTarget(app, "append", otherBoard)).toMatchObject({ kind: "text", canvasFile: { path: "Other.canvas" } });
 	});
 
 	it("rejects unsupported cursor action for text cards", () => {
