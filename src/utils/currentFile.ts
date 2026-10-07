@@ -3,20 +3,29 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getActiveMarkdownEditorView } from "./activeMarkdownEditor";
 
 /**
- * The note a run treats as current: the one its trigger context fixed when the
- * run began (the active tab then, or the note the CLI named with `current=`).
- * Outside a choice execution no context exists, and the active file is read live.
+ * Whether the caller named the run's current note with `current=`. Only then
+ * does the run keep that note, and write to it when no editor shows it.
+ * Otherwise the current note is the active tab, as it was before `current=`.
+ */
+export function namesCurrentNote(executor: IChoiceExecutor | undefined): boolean {
+	return executor?.triggerContext?.named === true;
+}
+
+/**
+ * The note a run treats as current: the note the caller named with `current=`,
+ * or else the active file, read live so a macro step that opens a note hands it
+ * to the next step.
  */
 export function currentFile(app: App, executor: IChoiceExecutor | undefined): TFile | null {
 	const context = executor?.triggerContext;
-	return context ? context.activeFile : app.workspace.getActiveFile();
+	return context?.named ? context.activeFile : app.workspace.getActiveFile();
 }
 
 /** The active Markdown editor, when it shows the run's current note. */
 export function currentEditorView(app: App, executor: IChoiceExecutor | undefined): MarkdownView | null {
-	const context = executor?.triggerContext;
 	const view = getActiveMarkdownEditorView(app);
-	if (!context) return view;
+	const context = executor?.triggerContext;
+	if (!context?.named) return view;
 	return context.activeFile && view?.file?.path === context.activeFile.path ? view : null;
 }
 

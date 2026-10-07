@@ -96,7 +96,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	 * (`quickadd:check`, a non-interactive run) reads the same note.
 	 */
 	setCurrentFile(file: TFile | null): void {
-		this.triggerContext = { activeFile: file };
+		this.triggerContext = { activeFile: file, named: true };
 		this.triggerContextOverride = this.triggerContext;
 	}
 

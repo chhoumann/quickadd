@@ -487,7 +487,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
         file,
       ).then(({ content }) => content),
     ).rejects.toThrow(
-      "Unable to insert line '# Missing' at cursor position: no active markdown editor.",
+      "Unable to insert line '# Missing' at cursor position: 'EndOfSection.md' isn't open in the active editor.",
     );
   });
 });

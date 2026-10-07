@@ -1,6 +1,6 @@
 import type { App, TFile, WorkspaceLeaf } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { currentFile } from "../utils/currentFile";
+import { currentFile, namesCurrentNote } from "../utils/currentFile";
 import { log } from "../logger/logManager";
 import { type normalizeAppendLinkOptions, type AppendLinkOptions, placementSupportsFrontmatter } from "../types/linkPlacement";
 import { insertFileLinkToCurrentNote } from "../utils/editorInsertion";
@@ -25,14 +25,15 @@ export async function insertChoiceFileLink(
 ): Promise<void> {
 	if (!options.enabled) return;
 	const current = currentFile(app, executor);
-	// A property focused in some other note is not where this run's link goes.
-	const focusedProperty = executor.focusedProperty?.file.path === current?.path ? executor.focusedProperty : null;
+	const named = namesCurrentNote(executor);
+	// A property focused in some other note is not where a named note's link goes.
+	const focusedProperty = !named || executor.focusedProperty?.file.path === current?.path ? executor.focusedProperty : null;
 	if (options.destination?.type === "specifiedFile") {
 		await appendFileLinkToDestinationFile(app, file, options, onEditorTextMutation);
 	} else if (focusedProperty && !placementSupportsFrontmatter(options.placement)) {
 		await appendLinkToFrontmatterProperty(app, focusedProperty, file);
 	} else {
-		await insertFileLinkToCurrentNote(app, file, current, options, onEditorTextMutation);
+		await insertFileLinkToCurrentNote(app, file, current, options, onEditorTextMutation, named);
 	}
 }
 

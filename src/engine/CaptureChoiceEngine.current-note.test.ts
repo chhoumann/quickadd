@@ -3,9 +3,9 @@ import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * A run's current note comes from the executor's trigger context (the note the
- * CLI named with `current=`, or the active tab when the run began), never from
- * the tab that happens to be active while the capture runs.
+ * A note the CLI named with `current=` is the run's current note, whatever tab
+ * is active while the capture runs. Without one, the current note is the active
+ * tab, read when the capture runs, as before `current=` existed.
  */
 
 vi.mock("../quickAddSettingsTab", () => ({
@@ -126,9 +126,11 @@ const BOARD_JSON = '{"nodes":[{"id":"card","type":"text","text":"Start"}],"edges
 type Card = { id: string; type: "text"; text: string; setText: ReturnType<typeof vi.fn> };
 
 function harness({
-	current, activeEditorFile, activeCanvas = null, configure = () => {}, focusedProperty = null,
+	current, activeEditorFile, activeCanvas = null, configure = () => {}, focusedProperty = null, named = true,
 }: {
 	current: TFile | null; activeEditorFile: TFile | null;
+	/** Whether the caller named `current` (the CLI's `current=`), or it is just the note the run started in. */
+	named?: boolean;
 	/** A Canvas view in the active leaf with one selected text card. */
 	activeCanvas?: { file: TFile; card: Card } | null;
 	configure?: (choice: CaptureChoice) => void; focusedProperty?: { file: TFile; key: string } | null;
@@ -165,7 +167,7 @@ function harness({
 		recordExecutionResult: vi.fn(),
 		signalAbort: vi.fn(),
 		variables: new Map<string, unknown>(),
-		triggerContext: { activeFile: current },
+		triggerContext: named ? { activeFile: current, named: true } : { activeFile: current },
 		focusedProperty,
 	};
 	const choice = new CaptureChoice("Here");
@@ -188,6 +190,16 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 		expect(contents.get(other.path)).toBe("# Other\n");
 		expect(appendToCurrentLine).not.toHaveBeenCalled();
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: target, effect: "changed" });
+	});
+
+	it("captures into the active note when the run did not name one, so a macro step's note is used", async () => {
+		const { engine, app, executor, contents } = harness({ current: target, activeEditorFile: other, named: false });
+
+		await engine.run();
+
+		expect(appendToCurrentLine).toHaveBeenCalledWith("captured\n", app, other);
+		expect(contents.get(target.path)).toBe("# Today\n");
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: other, effect: "changed" });
 	});
 
 	it("keeps the bottom for a new-line capture whose settings capture to the bottom", async () => {
@@ -237,7 +249,7 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 
 		await engine.run();
 
-		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(app, other, target, expect.objectContaining({ enabled: true }), undefined);
+		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(app, other, target, expect.objectContaining({ enabled: true }), undefined, true);
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: other, effect: "changed" });
 	});
 
@@ -252,7 +264,7 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 		});
 		await elsewhere.engine.run();
 		expect(appendLinkToFrontmatterProperty).not.toHaveBeenCalled();
-		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(elsewhere.app, other, target, expect.anything(), undefined);
+		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(elsewhere.app, other, target, expect.anything(), undefined, true);
 
 		vi.clearAllMocks();
 		const here = harness({
@@ -261,6 +273,35 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 		await here.engine.run();
 		expect(appendLinkToFrontmatterProperty).toHaveBeenCalledWith(here.app, { file: target, key: "related" }, other);
 		expect(insertFileLinkToCurrentNote).not.toHaveBeenCalled();
+	});
+
+	it("keeps a property focused in the note the run started in when no note was named", async () => {
+		const { engine, app } = harness({
+			current: target, activeEditorFile: other, named: false, focusedProperty: { file: target, key: "related" },
+			configure: (choice) => {
+				choice.captureToActiveFile = false;
+				choice.captureTo = other.path;
+				choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: true };
+			},
+		});
+
+		await engine.run();
+
+		expect(appendLinkToFrontmatterProperty).toHaveBeenCalledWith(app, { file: target, key: "related" }, other);
+		expect(insertFileLinkToCurrentNote).not.toHaveBeenCalled();
+	});
+
+	it("fails a cursor capture with no editor when no note was named, instead of writing to the file", async () => {
+		const { engine, app, executor, contents } = harness({ current: target, activeEditorFile: null, named: false });
+		vi.mocked(appendToCurrentLine).mockReturnValueOnce(false);
+
+		await engine.run();
+
+		expect(appendToCurrentLine).toHaveBeenCalledWith("captured\n", app, other);
+		expect(contents.get(other.path)).toBe("# Other\n");
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
+			status: "error", reason: expect.stringContaining("no active Markdown editor to insert into"),
+		}));
 	});
 
 	it("consults the active canvas only when the current note is that canvas", async () => {

@@ -426,7 +426,7 @@ describe("TemplateChoiceEngine same folder as the current note", () => {
 			createChoice({ createInSameFolderAsActiveFile: true }),
 			["Projects", "Other"],
 			createActiveFile("Other"),
-			{ activeFile: createActiveFile("Projects") },
+			{ activeFile: createActiveFile("Projects"), named: true },
 		);
 
 		await expect(engine.run()).resolves.toBeUndefined();
@@ -440,7 +440,7 @@ describe("TemplateChoiceEngine same folder as the current note", () => {
 			createChoice({ createInSameFolderAsActiveFile: true }),
 			["Other"],
 			createActiveFile("Other"),
-			{ activeFile: null },
+			{ activeFile: null, named: true },
 		);
 
 		await expect(engine.run()).resolves.toBeUndefined();

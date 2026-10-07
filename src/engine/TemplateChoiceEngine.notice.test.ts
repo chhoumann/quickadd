@@ -678,6 +678,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 				destination: { type: "activeFile" },
 			}),
 			undefined,
+			false,
 		);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",

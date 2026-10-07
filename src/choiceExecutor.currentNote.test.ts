@@ -37,11 +37,11 @@ describe("ChoiceExecutor.setCurrentFile", () => {
 		seen.contexts.length = 0;
 		const executor = new ChoiceExecutor(app, {} as never);
 		executor.setCurrentFile(named);
-		expect(executor.triggerContext).toEqual({ activeFile: named });
+		expect(executor.triggerContext).toEqual({ activeFile: named, named: true });
 
 		await executor.execute(capture);
 
-		expect(seen.contexts).toEqual([{ activeFile: named }]);
+		expect(seen.contexts).toEqual([{ activeFile: named, named: true }]);
 	});
 
 	it("fixes none as no current note", async () => {
@@ -51,7 +51,7 @@ describe("ChoiceExecutor.setCurrentFile", () => {
 
 		await executor.execute(capture);
 
-		expect(seen.contexts).toEqual([{ activeFile: null }]);
+		expect(seen.contexts).toEqual([{ activeFile: null, named: true }]);
 	});
 
 	it("reads the active tab when no note was named", async () => {

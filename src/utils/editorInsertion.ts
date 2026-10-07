@@ -368,6 +368,8 @@ export async function insertFileLinkToCurrentNote(
 	currentNote: TFile | null,
 	linkOptions: AppendLinkOptions,
 	onEditorTextMutation?: EditorTextMutationObserver,
+	/** Write a text-placement link through the vault when no editor shows the note (a note named with `current=`). */
+	writeThroughVault = false,
 ): Promise<boolean> {
 	if (!linkOptions?.enabled) return false;
 
@@ -403,8 +405,13 @@ export async function insertFileLinkToCurrentNote(
 					normalized.frontmatterHandling,
 				);
 			});
-		} else {
+		} else if (writeThroughVault) {
 			await appendLinkLineToNote(app, currentNote, linkText, onEditorTextMutation);
+		} else {
+			if (linkOptions.requireActiveFile) {
+				throw new Error("Cannot append link because no active Markdown view is available.");
+			}
+			return false;
 		}
 		return true;
 	}

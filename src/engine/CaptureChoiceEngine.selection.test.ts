@@ -1703,6 +1703,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 				destination: { type: "activeFile" },
 			}),
 			undefined,
+			false,
 		);
 	});
 

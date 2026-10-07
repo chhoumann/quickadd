@@ -296,7 +296,7 @@ describe("insertFileLinkToCurrentNote", () => {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
-			}, (mutation) => mutations.push(mutation)),
+			}, (mutation) => mutations.push(mutation), true),
 		).resolves.toBe(true);
 
 		expect(process).toHaveBeenCalledWith(currentNote, expect.any(Function));
@@ -306,6 +306,23 @@ describe("insertFileLinkToCurrentNote", () => {
 			edits: [{ from: 9, to: 9, text: "\n[[Created]]" }],
 		}]);
 		expect(otherEditor.replaceSelection).not.toHaveBeenCalled();
+	});
+
+	it("refuses a text-placement link when no editor shows a note that wasn't named", async () => {
+		const currentNote = { path: "Host.md", extension: "md" } as TFile;
+		const process = vi.fn();
+		const app = {
+			workspace: { getLeavesOfType: vi.fn(() => []), getActiveViewOfType: vi.fn(() => null) },
+			vault: { process },
+			fileManager: { generateMarkdownLink: vi.fn(() => "[[Created]]") },
+		} as unknown as App;
+		const options = { enabled: true, placement: "replaceSelection" as const };
+
+		await expect(insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, currentNote, { ...options, requireActiveFile: true }))
+			.rejects.toThrow("Cannot append link because no active Markdown view is available.");
+		await expect(insertFileLinkToCurrentNote(app, { path: "Created.md" } as TFile, currentNote, { ...options, requireActiveFile: false }))
+			.resolves.toBe(false);
+		expect(process).not.toHaveBeenCalled();
 	});
 
 	it("refuses a non-Markdown current note like no note at all", async () => {
