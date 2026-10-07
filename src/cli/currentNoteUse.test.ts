@@ -9,7 +9,9 @@ import type IChoice from "../types/choices/IChoice";
 import { currentNoteUse, describeCurrentNoteUse, type CurrentNoteUseContext } from "./currentNoteUse";
 
 const base: CurrentNoteUseContext = { templates: [], selectionAsCaptureValue: false, newNotesInCurrentFolder: false };
-const use = (choice: IChoice, ...templates: string[]) => currentNoteUse(choice, { ...base, templates });
+/** `templates` are the texts of the templates the run formats as note content. */
+const use = (choice: IChoice, ...templates: string[]) =>
+	currentNoteUse(choice, { ...base, templates: templates.map((text) => [text, "content"]) });
 
 /** A plugin whose vault holds `files`, path to text, with selection as value off. */
 function plugin(files: Record<string, string>, newFileLocation = "root"): QuickAdd {
@@ -139,7 +141,7 @@ describe("currentNoteUse", () => {
 		expect(selection(capture((c) => { c.format = { enabled: true, format: "- {{VALUE:topic}}" }; }), true)).toBe("none");
 		// A template's own prompt reads the selection whatever the capture setting says.
 		expect(selection(capture((c) => { c.useSelectionAsCaptureValue = false; }), false)).toBe("none");
-		expect(currentNoteUse(capture((c) => { c.useSelectionAsCaptureValue = false; }), { ...base, templates: ["{{VALUE}}"] })).toBe("optional");
+		expect(currentNoteUse(capture((c) => { c.useSelectionAsCaptureValue = false; }), { ...base, templates: [["{{VALUE}}", "content"]] })).toBe("optional");
 		expect(use(template((t) => { t.fileNameFormat = { enabled: false, format: "" }; }))).toBe("optional");
 		expect(use(template(), "# {{VALUE}}")).toBe("optional");
 		expect(use(template(), "# {{VALUE:topic}}")).toBe("none");
@@ -243,6 +245,32 @@ describe("describeCurrentNoteUse", () => {
 		}))).resolves.toBe("required");
 		await expect(describeCurrentNoteUse(app, template((t) => { t.templatePath = "Templates/Backlink.md"; }))).resolves.toBe("required");
 		await expect(describeCurrentNoteUse(app, template((t) => { t.templatePath = "Templates/Loop.md"; }))).resolves.toBe("optional");
+	});
+
+	it("classifies an included template by the setting that includes it", async () => {
+		const app = plugin({
+			"Templates/Where.md": "{{FOLDERCURRENT}}/Log.md",
+			"Templates/Heading.md": "## {{FILENAMECURRENT}}",
+			"Templates/Note.md": "# {{DATE}}",
+		});
+		const optional = (c: CaptureChoice) => { c.appendLink = { ...optionalLink }; };
+
+		await expect(describeCurrentNoteUse(app, capture((c) => {
+			c.captureTo = "{{TEMPLATE:Templates/Where.md}}";
+			optional(c);
+		}))).resolves.toBe("required");
+		await expect(describeCurrentNoteUse(app, capture((c) => {
+			c.insertAfter = { ...c.insertAfter, enabled: true, after: "{{TEMPLATE:Templates/Heading.md}}" };
+			optional(c);
+		}))).resolves.toBe("required");
+		await expect(describeCurrentNoteUse(app, capture((c) => {
+			c.format = { enabled: true, format: "{{TEMPLATE:Templates/Heading.md}}" };
+			optional(c);
+		}))).resolves.toBe("optional");
+		await expect(describeCurrentNoteUse(app, template((t) => {
+			t.fileNameFormat = { enabled: true, format: "{{TEMPLATE:Templates/Heading.md}}" };
+			t.appendLink = { ...optionalLink };
+		}))).resolves.toBe("required");
 	});
 
 	it("reads Obsidian's new-note location for a template without a folder setting", async () => {

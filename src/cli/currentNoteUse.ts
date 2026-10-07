@@ -13,13 +13,21 @@ import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 /** Whether a choice needs the current note: `required` fails without one, `optional` leaves something empty. */
 export type CurrentNoteUse = "none" | "optional" | "required";
 
+/** What a formatted text becomes: note content, a path, a line target, or a property name. */
+type FormatContext = "content" | "path" | "line" | "property";
+
+/** A text the run formats, and what the formatted text becomes. */
+export type Formatted = [text: string, context: FormatContext];
+
 /** What the classification reads beyond the choice's own settings. */
 export interface CurrentNoteUseContext {
 	/**
-	 * The text of every template the run formats: a Template's file, a Capture's
-	 * create-with-template file, and the files they include with `{{TEMPLATE:...}}`.
+	 * The text of every template the run formats, with what it becomes: a
+	 * Template's file, a Capture's create-with-template file, and the files any
+	 * formatted setting includes with `{{TEMPLATE:...}}`, which become what that
+	 * setting becomes.
 	 */
-	templates: string[];
+	templates: Formatted[];
 	/**
 	 * The global "Use selection as capture value" setting, which a Capture may
 	 * override. A template's own `{{VALUE}}` prompt always takes the selection.
@@ -33,9 +41,6 @@ export interface CurrentNoteUseContext {
 }
 
 type Link = ReturnType<typeof normalizeAppendLinkOptions>;
-
-/** A text the run formats, and what the formatted text becomes. */
-type Formatted = [text: string, context: "content" | "path" | "line" | "property"];
 
 /**
  * How a choice uses the current note, read from its settings with the rules
@@ -60,67 +65,86 @@ export async function describeCurrentNoteUse(plugin: QuickAdd, choice: IChoice):
 	});
 }
 
-/** The template files a choice formats, and the includes of its own format. */
-function templatePaths(choice: IChoice): string[] {
-	if (choice.type === "Template") return [(choice as ITemplateChoice).templatePath ?? ""];
-	if (choice.type !== "Capture") return [];
-	const capture = choice as ICaptureChoice;
-	const creation = capture.createFileIfItDoesntExist;
-	return [
-		...(creation?.enabled && creation.createWithTemplate ? [creation.template] : []),
-		...collectTemplateIncludePaths(capture.format?.enabled ? capture.format.format : ""),
-	];
+/** The template files a choice formats, and the includes of its formatted settings, each with what it becomes. */
+function templatePaths(choice: IChoice): Formatted[] {
+	const creation = choice.type === "Capture" ? (choice as ICaptureChoice).createFileIfItDoesntExist : undefined;
+	const own: Formatted[] = choice.type === "Template"
+		? [[(choice as ITemplateChoice).templatePath ?? "", "content"]]
+		: creation?.enabled && creation.createWithTemplate ? [[creation.template, "content"]] : [];
+	return [...own, ...formattedSettings(choice).flatMap(([text, context]) => includes(text, context))];
 }
 
-/** The text of each template at `paths` and of every template they include, each read once. */
-async function readTemplates(app: App, paths: string[]): Promise<string[]> {
+function includes(text: string, context: FormatContext): Formatted[] {
+	return [...collectTemplateIncludePaths(text)].map((path): Formatted => [path, context]);
+}
+
+/** The text of each template at `paths` and of every template they include, each read once per context. */
+async function readTemplates(app: App, paths: Formatted[]): Promise<Formatted[]> {
 	const queue = [...paths];
 	const read = new Set<string>();
-	const texts: string[] = [];
-	for (let path = queue.shift(); path !== undefined; path = queue.shift()) {
+	const texts: Formatted[] = [];
+	for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+		const [path, context] = next;
 		const file = getTemplateFile(app, path);
-		if (!file || read.has(file.path)) continue;
-		read.add(file.path);
+		if (!file || read.has(`${context}:${file.path}`)) continue;
+		read.add(`${context}:${file.path}`);
 		const text = await app.vault.cachedRead(file);
-		texts.push(text);
-		queue.push(...collectTemplateIncludePaths(text));
+		texts.push([text, context]);
+		queue.push(...includes(text, context));
 	}
 	return texts;
 }
 
+/** The settings a run formats, with what each becomes. */
+function formattedSettings(choice: IChoice): Formatted[] {
+	if (choice.type === "Capture") {
+		const capture = choice as ICaptureChoice;
+		const property = capture.propertyCapture?.property;
+		return [
+			[captureFormat(capture), "content"],
+			[capture.captureToActiveFile ? "" : capture.captureTo ?? "", "path"],
+			[capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? capture.insertAfter.after : "", "line"],
+			[capture.insertBefore?.enabled ? capture.insertBefore.before : "", "line"],
+			[property?.kind === "named" ? property.format : "", "property"],
+		];
+	}
+	if (choice.type === "Template") {
+		const template = choice as ITemplateChoice;
+		const folder = templateFolder(template);
+		return [
+			[template.fileNameFormat?.enabled ? template.fileNameFormat.format : "{{VALUE}}", "path"],
+			[deriveFolderMode(folder) === "specified" ? (folder.folders ?? []).join("\n") : "", "path"],
+		];
+	}
+	return [];
+}
+
+function captureFormat(capture: ICaptureChoice): string {
+	return capture.format?.enabled ? capture.format.format : "{{VALUE}}";
+}
+
+/** A list must not fail on one hand-edited choice, so the folder setting is read defensively. */
+function templateFolder(template: ITemplateChoice): ITemplateChoice["folder"] {
+	return template.folder ?? { enabled: false, folders: [] };
+}
+
 function captureUses(capture: ICaptureChoice, { templates, selectionAsCaptureValue }: CurrentNoteUseContext): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(capture.appendLink);
-	const format = capture.format?.enabled ? capture.format.format : "{{VALUE}}";
-	const property = capture.propertyCapture?.property;
-	const formatted: Formatted[] = [
-		[format, "content"],
-		...templates.map((text): Formatted => [text, "content"]),
-		[capture.captureToActiveFile ? "" : capture.captureTo ?? "", "path"],
-		[capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? capture.insertAfter.after : "", "line"],
-		[capture.insertBefore?.enabled ? capture.insertBefore.before : "", "line"],
-		[property?.kind === "named" ? property.format : "", "property"],
-	];
+	const formatted = [...formattedSettings(capture), ...templates];
 	return [
 		capture.captureToActiveFile ? "required" : "none",
 		linkUse(link),
 		...formatted.map(([text, context]) => tokenUse(text, context, link)),
 		...formatted.map(([text]) => activeDefaultUse(text)),
-		selectionUse(format, capture.useSelectionAsCaptureValue ?? selectionAsCaptureValue),
-		...templates.map((text) => selectionUse(text, true)),
+		selectionUse(captureFormat(capture), capture.useSelectionAsCaptureValue ?? selectionAsCaptureValue),
+		...templates.map(([text]) => selectionUse(text, true)),
 	];
 }
 
 function templateUses(template: ITemplateChoice, { templates, newNotesInCurrentFolder }: CurrentNoteUseContext): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(template.appendLink);
-	// A list must not fail on one hand-edited choice, so read defensively.
-	const folder = template.folder ?? { enabled: false, folders: [] };
-	const fileName = template.fileNameFormat?.enabled ? template.fileNameFormat.format : "{{VALUE}}";
-	const mode = deriveFolderMode(folder);
-	const formatted: Formatted[] = [
-		[fileName, "path"],
-		[mode === "specified" ? (folder.folders ?? []).join("\n") : "", "path"],
-		...templates.map((text): Formatted => [text, "content"]),
-	];
+	const mode = deriveFolderMode(templateFolder(template));
+	const formatted = [...formattedSettings(template), ...templates];
 	return [
 		mode === "active-file" || (mode === "obsidian-default" && newNotesInCurrentFolder) ? "required" : "none",
 		linkUse(link),
@@ -147,7 +171,7 @@ const FOLDER_TOKENS = new RegExp(CURRENT_FOLDER_TOKEN_REGEX.source, "gi");
  * blank or unmatched line, a nameless property. A line target keeps
  * `{{FOLDERCURRENT}}` literal, so that token alone needs no note there.
  */
-function tokenUse(format: string, context: "content" | "path" | "line" | "property", link: Link): CurrentNoteUse {
+function tokenUse(format: string, context: FormatContext, link: Link): CurrentNoteUse {
 	const text = context === "line" ? format.replace(FOLDER_TOKENS, "") : format;
 	if (!CURRENT_NOTE_TOKEN_REGEX.test(text)) return "none";
 	return context === "content" && link.enabled && !link.requireActiveFile ? "optional" : "required";
