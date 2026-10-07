@@ -1,6 +1,6 @@
-// Global test setup for component tests.
-// Adds jest-dom matchers (toBeInTheDocument, toHaveAttribute, ...) to expect().
-import "@testing-library/jest-dom/vitest";
+// Global test setup. Under jsdom it adds jest-dom matchers (toBeInTheDocument,
+// toHaveAttribute, ...) to expect() and Obsidian's DOM helpers.
+import { afterEach } from "vitest";
 
 // Obsidian augments HTMLElement/SVGElement with `setCssStyles`/`setCssProps` at
 // runtime; jsdom does not. Provide the helper subset used by these tests so plugin code that uses
@@ -121,9 +121,27 @@ export function installObsidianDomHelpers(window: Window): void {
 	}
 }
 
-if (typeof window !== "undefined") installObsidianDomHelpers(window);
-
-// Obsidian's globals for the document and window that have focus.
-if (typeof window !== "undefined" && !("activeDocument" in globalThis)) {
-	Object.defineProperty(globalThis, "activeDocument", { configurable: true, get: () => window.document });
+if (typeof window !== "undefined") {
+	await import("@testing-library/jest-dom/vitest");
+	installObsidianDomHelpers(window);
+	// Obsidian's globals for the document and window that have focus.
+	if (!("activeDocument" in globalThis)) {
+		Object.defineProperty(globalThis, "activeDocument", { configurable: true, get: () => window.document });
+	}
+} else {
+	// Engines catch and report errors, so a Node test that reaches the DOM can
+	// still pass without running the path it names. Fail it instead.
+	let firstRead: string | undefined;
+	Object.defineProperty(globalThis, "document", {
+		configurable: true,
+		get() {
+			firstRead ??= new Error().stack;
+			return undefined;
+		},
+	});
+	afterEach(() => {
+		const stack = firstRead;
+		firstRead = undefined;
+		if (stack) throw new Error(`This test reads \`document\`; add \`// @vitest-environment jsdom\` to its file.\n${stack}`);
+	});
 }

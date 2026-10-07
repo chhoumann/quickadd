@@ -495,7 +495,9 @@ export class App {
     },
   };
   workspace: any = {
-    containerEl: typeof document !== "undefined" ? document.body : undefined,
+    get containerEl() {
+      return document.body;
+    },
     getActiveViewOfType: () => undefined,
     getActiveFile: () => null,
     getLeaf: () => ({}),
