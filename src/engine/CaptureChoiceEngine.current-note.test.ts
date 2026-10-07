@@ -291,13 +291,17 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 		expect(insertFileLinkToCurrentNote).not.toHaveBeenCalled();
 	});
 
-	it("leaves a cursor capture to the editor when no note was named, even with no editor active", async () => {
-		const { engine, app, contents } = harness({ current: target, activeEditorFile: null, named: false });
+	it("fails a cursor capture with no editor when no note was named, instead of writing to the file", async () => {
+		const { engine, app, executor, contents } = harness({ current: target, activeEditorFile: null, named: false });
+		vi.mocked(appendToCurrentLine).mockReturnValueOnce(false);
 
 		await engine.run();
 
 		expect(appendToCurrentLine).toHaveBeenCalledWith("captured\n", app, other);
 		expect(contents.get(other.path)).toBe("# Other\n");
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
+			status: "error", reason: expect.stringContaining("no active Markdown editor to insert into"),
+		}));
 	});
 
 	it("consults the active canvas only when the current note is that canvas", async () => {
