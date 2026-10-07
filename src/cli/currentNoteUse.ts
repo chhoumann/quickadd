@@ -36,11 +36,15 @@ export async function describeCurrentNoteUse(app: App, choice: IChoice): Promise
 function captureUses(capture: ICaptureChoice): CurrentNoteUse[] {
 	const link = normalizeAppendLinkOptions(capture.appendLink);
 	const format = capture.format?.enabled ? capture.format.format : "{{VALUE}}";
+	const property = capture.propertyCapture?.property;
 	return [
 		capture.captureToActiveFile ? "required" : "none",
 		linkUse(link),
 		tokenUse(format, "content", link),
 		capture.captureToActiveFile ? "none" : tokenUse(capture.captureTo ?? "", "path", link),
+		capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? tokenUse(capture.insertAfter.after, "location", link) : "none",
+		capture.insertBefore?.enabled ? tokenUse(capture.insertBefore.before, "location", link) : "none",
+		property?.kind === "named" ? tokenUse(property.format, "content", link) : "none",
 		SELECTED_REGEX.test(format) ? "optional" : "none",
 	];
 }
@@ -52,6 +56,7 @@ function templateUses(template: ITemplateChoice, templateContent: string): Curre
 	const fileName = template.fileNameFormat?.enabled ? template.fileNameFormat.format : "{{VALUE}}";
 	return [
 		deriveFolderMode(folder) === "active-file" ? "required" : "none",
+		deriveFolderMode(folder) === "specified" ? tokenUse((folder.folders ?? []).join("\n"), "path", link) : "none",
 		linkUse(link),
 		tokenUse(fileName, "path", link),
 		tokenUse(templateContent, "content", link),
@@ -65,15 +70,20 @@ function linkUse(link: Link): CurrentNoteUse {
 	return link.requireActiveFile ? "required" : "optional";
 }
 
+const FOLDER_TOKENS = new RegExp(CURRENT_FOLDER_TOKEN_REGEX.source, "gi");
+
 /**
- * `{{LINKCURRENT}}`, `{{LINKSECTION}}`, `{{FILENAMECURRENT}}` and
- * `{{FOLDERCURRENT}}` render empty without a current note only when the append
- * link is on and not required; `{{FOLDERCURRENT}}` in a path always fails, so a
- * write is never silently retargeted to the vault root.
+ * What `{{LINKCURRENT}}`, `{{LINKSECTION}}`, `{{FILENAMECURRENT}}` and
+ * `{{FOLDERCURRENT}}` do without a current note depends on where the format is
+ * used. In content they render empty when the append link is on and not
+ * required, and fail otherwise. In a path (a file name, a capture target, a
+ * folder) an empty token would retarget the write, so they always fail. A line
+ * target (insert after or before) keeps `{{FOLDERCURRENT}}` literal.
  */
-function tokenUse(format: string, context: "content" | "path", link: Link): CurrentNoteUse {
-	if (!CURRENT_NOTE_TOKEN_REGEX.test(format)) return "none";
-	if (context === "path" && CURRENT_FOLDER_TOKEN_REGEX.test(format)) return "required";
+function tokenUse(format: string, context: "content" | "path" | "location", link: Link): CurrentNoteUse {
+	const text = context === "location" ? format.replace(FOLDER_TOKENS, "") : format;
+	if (!CURRENT_NOTE_TOKEN_REGEX.test(text)) return "none";
+	if (context === "path") return "required";
 	return link.enabled && !link.requireActiveFile ? "optional" : "required";
 }
 

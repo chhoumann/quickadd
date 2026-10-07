@@ -62,7 +62,7 @@ describe("currentNoteUse", () => {
 		expect(currentNoteUse(capture((c) => { c.format = { enabled: false, format: "{{LINKCURRENT}}" }; }))).toBe("none");
 	});
 
-	it("reads the capture target path: a folder token there always fails without a note", () => {
+	it("reads the capture target path, where an empty token would retarget the write", () => {
 		expect(currentNoteUse(capture((c) => {
 			c.captureTo = "{{FOLDERCURRENT}}/Log.md";
 			c.appendLink = { ...optionalLink };
@@ -70,7 +70,35 @@ describe("currentNoteUse", () => {
 		expect(currentNoteUse(capture((c) => {
 			c.captureTo = "Logs/{{FILENAMECURRENT}}.md";
 			c.appendLink = { ...optionalLink };
+		}))).toBe("required");
+	});
+
+	it("reads the line targets, where a folder token stays literal", () => {
+		expect(currentNoteUse(capture((c) => {
+			c.insertAfter = { ...c.insertAfter, enabled: true, after: "## {{FILENAMECURRENT}}" };
+		}))).toBe("required");
+		expect(currentNoteUse(capture((c) => {
+			c.insertAfter = { ...c.insertAfter, enabled: true, after: "## {{FOLDERCURRENT}}" };
+		}))).toBe("none");
+		expect(currentNoteUse(capture((c) => {
+			c.insertAfter = { ...c.insertAfter, enabled: false, after: "## {{FILENAMECURRENT}}" };
+		}))).toBe("none");
+		expect(currentNoteUse(capture((c) => {
+			c.insertAfter = { ...c.insertAfter, enabled: true, promptHeading: true, after: "## {{FILENAMECURRENT}}" };
+		}))).toBe("none");
+		expect(currentNoteUse(capture((c) => {
+			c.insertBefore = { enabled: true, before: "{{LINKCURRENT}}", createIfNotFound: false, createIfNotFoundLocation: "top" };
+			c.appendLink = { ...optionalLink };
 		}))).toBe("optional");
+	});
+
+	it("reads a named property's name", () => {
+		expect(currentNoteUse(capture((c) => {
+			c.propertyCapture = { property: { kind: "named", format: "{{FILENAMECURRENT}}" }, action: "set", createIfMissing: true };
+		}))).toBe("required");
+		expect(currentNoteUse(capture((c) => {
+			c.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: true };
+		}))).toBe("none");
 	});
 
 	it("treats {{SELECTED}} as optional", () => {
@@ -91,6 +119,16 @@ describe("currentNoteUse", () => {
 		}))).toBe("required");
 		expect(currentNoteUse(template((t) => {
 			t.folder = { ...t.folder, enabled: false, createInSameFolderAsActiveFile: true };
+		}))).toBe("none");
+	});
+
+	it("reads the template's folders when it creates in a specified folder", () => {
+		expect(currentNoteUse(template((t) => {
+			t.folder = { ...t.folder, enabled: true, folders: ["Projects/{{FOLDERCURRENT|name}}"] };
+			t.appendLink = { ...optionalLink };
+		}))).toBe("required");
+		expect(currentNoteUse(template((t) => {
+			t.folder = { ...t.folder, enabled: true, chooseWhenCreatingNote: true, folders: ["Projects/{{FOLDERCURRENT|name}}"] };
 		}))).toBe("none");
 	});
 
