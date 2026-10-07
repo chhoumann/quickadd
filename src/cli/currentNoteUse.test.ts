@@ -86,15 +86,17 @@ describe("currentNoteUse", () => {
 		expect(currentNoteUse(capture((c) => {
 			c.insertAfter = { ...c.insertAfter, enabled: true, promptHeading: true, after: "## {{FILENAMECURRENT}}" };
 		}))).toBe("none");
+		// An empty line target aborts and a half-empty one matches nothing, so the optional link does not help.
 		expect(currentNoteUse(capture((c) => {
 			c.insertBefore = { enabled: true, before: "{{LINKCURRENT}}", createIfNotFound: false, createIfNotFoundLocation: "top" };
 			c.appendLink = { ...optionalLink };
-		}))).toBe("optional");
+		}))).toBe("required");
 	});
 
-	it("reads a named property's name", () => {
+	it("reads a named property's name, which cannot be empty", () => {
 		expect(currentNoteUse(capture((c) => {
 			c.propertyCapture = { property: { kind: "named", format: "{{FILENAMECURRENT}}" }, action: "set", createIfMissing: true };
+			c.appendLink = { ...optionalLink };
 		}))).toBe("required");
 		expect(currentNoteUse(capture((c) => {
 			c.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: true };

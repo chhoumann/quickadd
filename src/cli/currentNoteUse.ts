@@ -42,9 +42,9 @@ function captureUses(capture: ICaptureChoice): CurrentNoteUse[] {
 		linkUse(link),
 		tokenUse(format, "content", link),
 		capture.captureToActiveFile ? "none" : tokenUse(capture.captureTo ?? "", "path", link),
-		capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? tokenUse(capture.insertAfter.after, "location", link) : "none",
-		capture.insertBefore?.enabled ? tokenUse(capture.insertBefore.before, "location", link) : "none",
-		property?.kind === "named" ? tokenUse(property.format, "content", link) : "none",
+		capture.insertAfter?.enabled && !capture.insertAfter.promptHeading ? tokenUse(capture.insertAfter.after, "line", link) : "none",
+		capture.insertBefore?.enabled ? tokenUse(capture.insertBefore.before, "line", link) : "none",
+		property?.kind === "named" ? tokenUse(property.format, "property", link) : "none",
 		SELECTED_REGEX.test(format) ? "optional" : "none",
 	];
 }
@@ -76,15 +76,15 @@ const FOLDER_TOKENS = new RegExp(CURRENT_FOLDER_TOKEN_REGEX.source, "gi");
  * What `{{LINKCURRENT}}`, `{{LINKSECTION}}`, `{{FILENAMECURRENT}}` and
  * `{{FOLDERCURRENT}}` do without a current note depends on where the format is
  * used. In content they render empty when the append link is on and not
- * required, and fail otherwise. In a path (a file name, a capture target, a
- * folder) an empty token would retarget the write, so they always fail. A line
- * target (insert after or before) keeps `{{FOLDERCURRENT}}` literal.
+ * required, and fail otherwise. Anywhere else (a path, a line target, a
+ * property name) an empty token leaves nothing usable: a retargeted write, a
+ * blank or unmatched line, a nameless property. A line target keeps
+ * `{{FOLDERCURRENT}}` literal, so that token alone needs no note there.
  */
-function tokenUse(format: string, context: "content" | "path" | "location", link: Link): CurrentNoteUse {
-	const text = context === "location" ? format.replace(FOLDER_TOKENS, "") : format;
+function tokenUse(format: string, context: "content" | "path" | "line" | "property", link: Link): CurrentNoteUse {
+	const text = context === "line" ? format.replace(FOLDER_TOKENS, "") : format;
 	if (!CURRENT_NOTE_TOKEN_REGEX.test(text)) return "none";
-	if (context === "path") return "required";
-	return link.enabled && !link.requireActiveFile ? "optional" : "required";
+	return context === "content" && link.enabled && !link.requireActiveFile ? "optional" : "required";
 }
 
 function strongest(uses: CurrentNoteUse[]): CurrentNoteUse {
