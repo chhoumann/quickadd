@@ -3,7 +3,7 @@ import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
-import { resolveTemplatePath } from "../utils/templateFolderUtils";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import { describeCurrentNoteUse } from "./currentNoteUse";
 
 const SELECTOR_FLAGS: CliFlags = {
@@ -124,14 +124,15 @@ export function extractVariables(
 /**
  * The `current=` flag: the note the run treats as current. `undefined` when
  * absent (the active tab), `null` for `none`, else the vault file at the path,
- * which may omit `.md` like a template path. A path with no note throws, so
- * nothing runs for a mistyped one.
+ * or at the path with `.md` added when nothing is at the path itself. A path
+ * with no note throws, so nothing runs for a mistyped one.
  */
 export function resolveCurrentNote(app: App, params: CliData): TFile | null | undefined {
 	if (typeof params.current !== "string") return undefined;
 	const value = params.current.trim();
 	if (value === "none") return null;
-	const file = app.vault.getFileByPath(resolveTemplatePath(value));
+	const path = normalizeVaultPath(value);
+	const file = app.vault.getFileByPath(path) ?? app.vault.getFileByPath(`${path}.md`);
 	if (!file) throw new Error(`No note at '${value}'.`);
 	return file;
 }
