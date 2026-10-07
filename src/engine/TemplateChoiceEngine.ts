@@ -674,15 +674,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	// the order or conditions here, update that helper (and its 16-combo test) so
 	// the dropdown keeps showing the mode that actually runs.
 	private async getFolderPath() {
+		const config = this.choice.folder;
 		// Configured folders are matched against vault paths below (subfolder
 		// ordering, allowed roots), so they are canonicalized before any of that,
-		// not only when a selection is resolved.
-		const folders: string[] = (
-			await this.formatFolderPaths([...this.choice.folder.folders])
+		// not only when a selection is resolved. The picker replaces them with the
+		// vault's folders, so for it they are not formatted at all: a token in an
+		// unused folder must not prompt or fail.
+		const folders: string[] = config?.chooseWhenCreatingNote ? [] : (
+			await this.formatFolderPaths([...config.folders])
 		).map((folder) => this.canonicalFolderPath(folder));
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
-		const config = this.choice.folder;
 		let destinations = folders;
 		let allowedRoots: string[] | undefined = folders;
 		if (config?.chooseWhenCreatingNote) {
