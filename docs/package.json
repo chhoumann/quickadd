@@ -14,7 +14,7 @@
     "@astrojs/markdown-satteri": "^0.4.2",
     "@astrojs/starlight": "^0.42.4",
     "astro": "^7.3.5",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "starlight-llms-txt": "^0.12.0",
     "zod": "4.6.5"
   }
