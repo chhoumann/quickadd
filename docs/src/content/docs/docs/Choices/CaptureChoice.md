@@ -227,7 +227,8 @@ or more digits, such as `202610061432`, a UUID, or a ULID. A date such as
 `2026-10-06` is not an ID, so a daily note shows its file name. A frontmatter
 `title` wins for every note. The selected destination is always the real file,
 so captures write to the same place even when the label is friendlier than the
-filename.
+filename. Before QuickAdd 2.32.0, a note showed its first level-1 heading
+whenever it had one, whatever its file name.
 
 You can also find a note by its `aliases`. A note found that way shows the
 alias with the note's name beneath it, as in Obsidian's quick switcher, and
