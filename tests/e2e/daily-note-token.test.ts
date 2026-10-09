@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { setVaultConfig } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("daily-note-token");
 
@@ -233,7 +234,7 @@ describe("{{DAILY}} in native Obsidian", () => {
 		choice.format = { enabled: true, format: "{{DAILY|link}}" };
 		await saveChoice(choice);
 		const useMarkdownLinks = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('useMarkdownLinks')");
-		await obsidian.dev.evalJson("(() => { app.vault.setConfig('useMarkdownLinks', true); return true; })()");
+		await obsidian.dev.evalJson(`${setVaultConfig("useMarkdownLinks", true)}, true`);
 		try {
 			await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, date: "2031-02-18" });
 			await expect.poll(() => read(inbox), { timeout: 10000, interval: 100 })
@@ -249,8 +250,7 @@ describe("{{DAILY}} in native Obsidian", () => {
 			})()`);
 			expect(opened).toBe(`${folder}/2031-02-18.md`);
 		} finally {
-			// Saved now: the debounced save of `true` would otherwise reach disk after the restore.
-			await obsidian.dev.evalJsonAsync(`(async () => { app.vault.setConfig('useMarkdownLinks', ${useMarkdownLinks === true}); await app.vault.saveConfig(); return true; })()`);
+			await obsidian.dev.evalJson(`${setVaultConfig("useMarkdownLinks", useMarkdownLinks === true)}, true`);
 		}
 	});
 

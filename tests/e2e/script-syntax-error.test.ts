@@ -3,7 +3,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { jsLiteral, leaveSettingsPage, POLL_OPTS } from "./uiHelpers";
+import { jsLiteral, leaveSettingsPage, POLL_OPTS, setVaultConfig } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("script-syntax-error");
 
@@ -39,7 +39,7 @@ it("names the file and line of a user script syntax error on run, in the CLI, an
 
 	await obsidian.dev.evalJson(clearNotices);
 	const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
-	await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), true");
+	await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", false)}, true`);
 	try {
 		await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);
 		await expect.poll(() => obsidian.dev.evalJson<boolean>(`(() => {
@@ -53,6 +53,6 @@ it("names the file and line of a user script syntax error on run, in the CLI, an
 		]);
 		await leaveSettingsPage(obsidian);
 	} finally {
-		await obsidian.dev.evalJson(`(() => { app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
+		await obsidian.dev.evalJson(`(() => { app.setting.close(); ${setVaultConfig("settingsPopoutWindow", popout)}; return true; })()`);
 	}
 });

@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickAt, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { clickAt, POLL_OPTS, pressKey, setVaultConfig, typeInto, waitForElement } from "./uiHelpers";
 
 // #1912: the import review shows JavaScript written into a choice setting, counts
 // viewing it like opening a bundled script, and says beside Import what is left.
@@ -67,7 +67,7 @@ it("shows a choice's inline code and says beside Import what is left", async () 
 	};
 
 	const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
-	await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), true");
+	await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", false)}, true`);
 	try {
 		await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);
 		await expect.poll(() => obsidian.dev.evalJson<boolean>(`(() => {
@@ -116,6 +116,6 @@ it("shows a choice's inline code and says beside Import what is left", async () 
 	} finally {
 		await pressKey(obsidian, "Escape");
 		await obsidian.dev.evalJson("app.setting.close(); true");
-		await obsidian.dev.evalJson(`app.vault.setConfig('settingsPopoutWindow', ${JSON.stringify(popout)}), true`);
+		await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", popout)}, true`);
 	}
 });

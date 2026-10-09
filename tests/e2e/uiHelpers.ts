@@ -23,6 +23,15 @@ export function jsLiteral(value: unknown): string {
 	return JSON.stringify(value).replace(/[<>\b\f\n\r\t\0\u2028\u2029]/g, (char) => UNSAFE_IN_CODE[char]);
 }
 
+/**
+ * Page code that sets vault option `key` in memory only. `app.vault.setConfig`
+ * also writes app.json, and under load Obsidian reads that write back after a
+ * spec restores the option, leaving it changed for every later spec (#2207).
+ */
+export function setVaultConfig(key: string, value: unknown): string {
+	return `void (app.vault.config[${jsLiteral(key)}] = ${jsLiteral(value)})`;
+}
+
 export async function waitForElement(obsidian: ObsidianClient, selector: string) {
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(
 		`Boolean(document.querySelector(${JSON.stringify(selector)})?.getClientRects().length)`,

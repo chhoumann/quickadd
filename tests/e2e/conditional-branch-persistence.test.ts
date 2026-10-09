@@ -7,6 +7,7 @@ import {
 	acquireQuickAddVaultRunLock,
 	createQuickAddObsidianClient,
 } from "./e2eVault";
+import { setVaultConfig } from "./uiHelpers";
 
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "qa-e2e-cond-branch";
@@ -77,7 +78,7 @@ beforeAll(async () => {
 	// the helpers above stay window-agnostic, so if a runner-side fix ever
 	// makes popouts reliable, deleting this line is the whole migration.
 	await obsidian.dev.eval(
-		`app.vault.setConfig('settingsPopoutWindow', false)`,
+		setVaultConfig("settingsPopoutWindow", false),
 	);
 	qa = obsidian.plugin(PLUGIN_ID);
 	await qa.reload({ waitUntilReady: true });

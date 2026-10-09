@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
+import { setVaultConfig } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("settings-popout-save");
 
@@ -25,7 +26,7 @@ for (const mainWindow of ["visible", "hidden"] as const) {
 			const inMemory = await obsidian.dev.evalJsonAsync<string[]>(`(async () => {
 				const remote = require("@electron/remote");
 				const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-				app.vault.setConfig("settingsPopoutWindow", true);
+				${setVaultConfig("settingsPopoutWindow", true)};
 				app.setting.open();
 				app.setting.openTabById("quickadd");
 				let doc;
@@ -76,7 +77,7 @@ for (const mainWindow of ["visible", "hidden"] as const) {
 			await obsidian.dev.evalJson(`(() => {
 				require("@electron/remote").getCurrentWindow().show();
 				app.setting.close();
-				app.vault.setConfig("settingsPopoutWindow", ${JSON.stringify(popout)});
+				${setVaultConfig("settingsPopoutWindow", popout)};
 				return true;
 			})()`);
 		}

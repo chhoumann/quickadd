@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import type { QuickAddPackage } from "../../src/types/packages/QuickAddPackage";
 import { encodeToBase64 } from "../../src/utils/base64";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, jsLiteral, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { POLL_OPTS, jsLiteral, pressKey, setVaultConfig, typeInto, waitForElement } from "./uiHelpers";
 
 // #1865: typing a file's Destination past a path that names a folder regrouped
 // the row, which re-created it and dropped focus, and a folder destination
@@ -32,7 +32,7 @@ it("keeps focus while you type a destination, and blocks a folder destination", 
 	};
 
 	const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
-	await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), true");
+	await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", false)}, true`);
 	const state = () => obsidian.dev.evalJson<{ focused: boolean; value: string; folder: boolean; importDisabled: boolean }>(`(() => {
 		const input = document.querySelector(${jsLiteral(DESTINATION)});
 		return {
@@ -67,6 +67,6 @@ it("keeps focus while you type a destination, and blocks a folder destination", 
 	} finally {
 		await pressKey(obsidian, "Escape");
 		await obsidian.dev.evalJson("app.setting.close(); true");
-		await obsidian.dev.evalJson(`app.vault.setConfig('settingsPopoutWindow', ${jsLiteral(popout)}), true`);
+		await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", popout)}, true`);
 	}
 });

@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { waitForElement } from "./uiHelpers";
+import { setVaultConfig, waitForElement } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("drag-pill-bounds");
 
@@ -26,7 +26,7 @@ it("keeps the drag pill inside a narrow window with the grip under the cursor", 
 		// Narrow enough that a pill growing right from the handle runs off the window.
 		await obsidian.dev.evalJson(`require("@electron/remote").getCurrentWindow().setSize(900, 700), true`);
 		await expect.poll(() => obsidian.dev.evalJson<number>("innerWidth")).toBe(900);
-		await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), app.setting.open(), app.setting.openTabById('quickadd'), true");
+		await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", false)}, app.setting.open(), app.setting.openTabById('quickadd'), true`);
 		const handleSelector = `[aria-label=${JSON.stringify(`Reorder ${LONG_NAME}`)}]`;
 		await waitForElement(obsidian, handleSelector);
 		const [x, y] = await obsidian.dev.evalJson<number[]>(`(() => {
@@ -53,7 +53,7 @@ it("keeps the drag pill inside a narrow window with the grip under the cursor", 
 		if (pressedAt) await mouse("mouseReleased", pressedAt[0], pressedAt[1], 1);
 		await obsidian.dev.evalJson(`(() => {
 			app.setting.close();
-			app.vault.setConfig('settingsPopoutWindow', ${JSON.stringify(popout)});
+			${setVaultConfig("settingsPopoutWindow", popout)};
 			require("@electron/remote").getCurrentWindow().setSize(${originalSize[0]}, ${originalSize[1]});
 			return true;
 		})()`);
