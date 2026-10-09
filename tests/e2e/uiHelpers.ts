@@ -165,20 +165,28 @@ export async function closeOpenPrompts(obsidian: ObsidianClient) {
  * it stops moving: a settings page slides in when it opens or is returned to.
  */
 export async function clickWhenStill(obsidian: ObsidianClient, selector: string) {
+	// The last two samples go into the timeout, so a failure says whether the
+	// element was missing, hidden, or still moving.
+	let previous = "";
 	let last = "";
 	const point = await obsidian.waitFor(async () => {
-		const rect = await obsidian.dev.evalJson<{ x: number; y: number } | null>(`(() => {
-			const el = [...document.querySelectorAll(${jsLiteral(selector)})].find((el) => el.getClientRects().length > 0);
-			if (!el) return null;
+		const sample = await obsidian.dev.evalJson<{ x: number; y: number } | "absent" | "hidden">(`(() => {
+			const all = [...document.querySelectorAll(${jsLiteral(selector)})];
+			const el = all.find((el) => el.getClientRects().length > 0);
+			if (!el) return all.length > 0 ? "hidden" : "absent";
 			el.scrollIntoView({ block: "nearest" });
 			const rect = el.getBoundingClientRect();
 			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 		})()`);
-		const key = JSON.stringify(rect);
-		const settled = rect !== null && key === last;
+		const key = JSON.stringify(sample);
+		const settled = typeof sample === "object" && key === last;
+		previous = last;
 		last = key;
-		return settled ? rect : false;
-	}, { message: `${selector} visible and still`, timeoutMs: 10_000, intervalMs: 100 });
+		return settled ? sample : false;
+	}, { message: `${selector} visible and still`, timeoutMs: 10_000, intervalMs: 100 }).catch((error: Error) => {
+		error.message += ` Last samples: ${previous}, ${last}.`;
+		throw error;
+	});
 	await clickAt(obsidian, point.x, point.y);
 }
 
