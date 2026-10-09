@@ -1,5 +1,5 @@
 import { executeMacroAI, pickMacroModel } from "./macroAI";
-import { withDispatchChain, type ChoiceChain } from "./choiceChain";
+import { withDispatch, type ChoiceChain } from "./choiceChain";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import { templaterRerunAfter, warnDeprecatedOnce } from "src/utils/templaterRerunDeprecation";
 import type IMacroChoice from "../types/choices/IMacroChoice";
@@ -48,6 +48,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
+import { namedCurrentNote } from "../utils/currentFile";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { createVariablesProxy } from "../utils/variablesProxy";
@@ -409,7 +410,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		withDispatchChain(this.chain, () =>
+		withDispatch({ chain: this.chain, currentNote: namedCurrentNote(this.choiceExecutor) }, () =>
 			// @ts-ignore
 			this.app.commands.executeCommandById(command.commandId),
 		);

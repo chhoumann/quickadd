@@ -90,6 +90,7 @@ vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 
 import { TFile, View, type App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
+import { insertChoiceFileLink } from "./choiceFileActions";
 import { appendToCurrentLine, insertFileLinkToCurrentNote, insertOnNewLineBelow } from "../utils/editorInsertion";
 import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { resolveActiveCanvasCaptureTarget } from "./canvasCapture";
@@ -226,15 +227,34 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 		expect(contents.get(target.path)).toBe("# Today\n");
 	});
 
-	it("fails like today when the run has no current note, even though a tab is active", async () => {
+	it("fails naming current=none when the run has no current note, even though a tab is active", async () => {
 		const { engine, executor, contents } = harness({ current: null, activeEditorFile: other });
+
+		await engine.run();
+
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error", reason: "This choice needs a current note, and the run was started with current=none.",
+		});
+		expect(contents.get(other.path)).toBe("# Other\n");
+	});
+
+	it("fails like today when an in-app run has no file open", async () => {
+		const { engine, app, executor } = harness({ current: null, activeEditorFile: null, named: false });
+		vi.mocked(app.workspace.getActiveFile).mockReturnValue(null);
 
 		await engine.run();
 
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "error", reason: "Cannot capture to active file - no active file.",
 		});
-		expect(contents.get(other.path)).toBe("# Other\n");
+	});
+
+	it("fails a required link naming current=none when the run has no current note", async () => {
+		const { app, executor } = harness({ current: null, activeEditorFile: other });
+
+		await expect(insertChoiceFileLink(app, other, { enabled: true, placement: "newLine", requireActiveFile: true }, executor))
+			.rejects.toThrow("This choice needs a current note, and the run was started with current=none.");
+		expect(insertFileLinkToCurrentNote).not.toHaveBeenCalled();
 	});
 
 	it("appends the link into the current note", async () => {

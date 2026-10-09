@@ -59,3 +59,89 @@ it("keeps the note named with current= for every step", async () => {
 	await expect.poll(() => sandbox.read(startName), POLL_OPTS).toContain("captured");
 	expect(await sandbox.read(madeName)).not.toContain("captured");
 });
+
+it("says current=none was given when a choice needs the current note", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const inbox = await seedVaultFile(obsidian, sandbox, "Inbox.md", "");
+	const capture = new CaptureChoice("Add to inbox");
+	capture.captureTo = inbox;
+	capture.format = { enabled: true, format: "- {{VALUE}} (from {{LINKCURRENT}})" };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [capture];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	const run = await obsidian.execJson<{ ok: boolean; error?: string }>("quickadd:run", {
+		id: capture.id, "value-value": "x", current: "none", verify: "true",
+	});
+
+	expect(run, JSON.stringify(run)).toMatchObject({
+		ok: false,
+		error: "This choice needs a current note, and the run was started with current=none.",
+	});
+});
+
+it("keeps the note named with current= for a choice's command run as a macro step", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const start = await seedVaultFile(obsidian, sandbox, "command-step start.md", "start\n");
+	const other = await seedVaultFile(obsidian, sandbox, "command-step other.md", "other\n");
+	const capture = new CaptureChoice("Line to current");
+	capture.command = true;
+	capture.captureToActiveFile = true;
+	capture.activeFileWritePosition = "bottom";
+	capture.format = { enabled: true, format: "captured" };
+	const macro = new MacroChoice("Run capture command");
+	macro.macro.commands = [{
+		id: "run-capture-command", name: "QuickAdd: Line to current", type: "Obsidian",
+		commandId: `quickadd:choice:${capture.id}`,
+	} as ICommand];
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [capture, macro];
+	});
+	// The loaded instance registers the new command when it sees the patch. Let it
+	// finish before reloading, or it can register after its unload and serve the
+	// command from the old module.
+	await expect.poll(() => obsidian.dev.evalJson(
+		`Boolean(app.commands.commands[${jsLiteral(`quickadd:choice:${capture.id}`)}])`), POLL_OPTS).toBe(true);
+	await plugin.reload({ waitUntilReady: true });
+	await obsidian.dev.evalJsonAsync(`(async () => {
+		await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath(${jsLiteral(other)}));
+		return true;
+	})()`);
+
+	const run = await obsidian.execJson<{ ok: boolean }>("quickadd:run", { id: macro.id, current: start });
+
+	expect(run, JSON.stringify(run)).toMatchObject({ ok: true });
+	await expect.poll(() => sandbox.read("command-step start.md"), POLL_OPTS).toContain("captured");
+	expect(await sandbox.read("command-step other.md")).toBe("other\n");
+});
+
+it("forgets the note named with current= once that run ends", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const start = await seedVaultFile(obsidian, sandbox, "reuse start.md", "start\n");
+	const other = await seedVaultFile(obsidian, sandbox, "reuse other.md", "other\n");
+	const script = await seedVaultFile(obsidian, sandbox, "keep-api.js",
+		"module.exports = async ({ quickAddApi }) => { window.__qaKeptApi = quickAddApi; };");
+	const capture = new CaptureChoice("Line to active");
+	capture.captureToActiveFile = true;
+	capture.activeFileWritePosition = "bottom";
+	capture.format = { enabled: true, format: "captured" };
+	const macro = new MacroChoice("Keep API");
+	macro.macro.commands = [{ id: "keep-api", name: "keep", type: "UserScript", path: script, settings: {} } as ICommand];
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [capture, macro];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	const run = await obsidian.execJson<{ ok: boolean }>("quickadd:run", { id: macro.id, current: start });
+	expect(run, JSON.stringify(run)).toMatchObject({ ok: true });
+	await obsidian.dev.evalJsonAsync(`(async () => {
+		await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath(${jsLiteral(other)}));
+		await window.__qaKeptApi.executeChoice("Line to active");
+		delete window.__qaKeptApi;
+		return true;
+	})()`);
+
+	await expect.poll(() => sandbox.read("reuse other.md"), POLL_OPTS).toContain("captured");
+	expect(await sandbox.read("reuse start.md")).toBe("start\n");
+});

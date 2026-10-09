@@ -1,3 +1,4 @@
+import type { TFile } from "obsidian";
 import type IChoice from "../types/choices/IChoice";
 
 /**
@@ -26,25 +27,32 @@ export function enterChoice(choice: IChoice, ancestry: ChoiceChain): ChoiceChain
 }
 
 /**
- * The chain of the run that is dispatching an Obsidian command, visible to
- * whatever that command starts. A registered QuickAdd command builds a fresh
- * ChoiceExecutor, so without this a macro step that runs its own
- * "QuickAdd: ..." command would recurse past the guard forever.
- * `executeCommandById` invokes the command synchronously, so the chain is set
- * only for that call and the new executor reads it in its constructor.
+ * What the run dispatching an Obsidian command hands to whatever that command
+ * starts. A registered QuickAdd command builds a fresh ChoiceExecutor, so
+ * without the chain a macro step that runs its own "QuickAdd: ..." command
+ * would recurse past the guard forever, and without the note a choice run that
+ * way would read the active tab instead of the note named with `current=`.
+ * `executeCommandById` invokes the command synchronously, so the dispatch is
+ * set only for that call and the new executor reads it in its constructor.
  */
-let dispatchChain: ChoiceChain = [];
-
-export function currentDispatchChain(): ChoiceChain {
-	return dispatchChain;
+export interface Dispatch {
+	chain: ChoiceChain;
+	/** The note the dispatching run's caller named with `current=` (`null` for `current=none`); absent when it named no note. */
+	currentNote?: TFile | null;
 }
 
-export function withDispatchChain<T>(chain: ChoiceChain, run: () => T): T {
-	const previous = dispatchChain;
-	dispatchChain = chain;
+let dispatch: Dispatch = { chain: [] };
+
+export function currentDispatch(): Dispatch {
+	return dispatch;
+}
+
+export function withDispatch<T>(next: Dispatch, run: () => T): T {
+	const previous = dispatch;
+	dispatch = next;
 	try {
 		return run();
 	} finally {
-		dispatchChain = previous;
+		dispatch = previous;
 	}
 }
