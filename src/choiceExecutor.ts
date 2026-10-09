@@ -227,17 +227,17 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		ancestry?: ChoiceChain,
 	): Promise<void> {
 		const previousFocusedOverride = this.focusedPropertyOverride;
-		const previousTriggerOverride = this.triggerContextOverride;
 		this.focusedPropertyOverride = focusedProperty;
 		// `triggerContext` is `undefined` only when the caller didn't capture one;
 		// leave the override unset so the executor reads it live. A captured value
 		// (including `null` for "no active note at trigger time") IS injected.
+		// Not restored afterwards: only an outermost run reads it, and that run's
+		// end clears it.
 		this.triggerContextOverride = triggerContext;
 		try {
 			await this.execute(choice, ancestry);
 		} finally {
 			this.focusedPropertyOverride = previousFocusedOverride;
-			this.triggerContextOverride = previousTriggerOverride;
 		}
 	}
 

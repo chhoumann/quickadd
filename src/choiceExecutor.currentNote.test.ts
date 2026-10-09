@@ -71,6 +71,17 @@ describe("ChoiceExecutor.setCurrentFile", () => {
 
 		expect(seen.contexts).toEqual([{ activeFile: named, named: true }, { activeFile: active }]);
 	});
+
+	it("reads the active tab on the run after a launcher run that was handed the named note", async () => {
+		seen.contexts.length = 0;
+		const executor = new ChoiceExecutor(app, {} as never);
+		executor.setCurrentFile(named);
+
+		await executor.executeWithFocusedProperty(capture, null, executor.triggerContext);
+		await executor.execute(capture);
+
+		expect(seen.contexts).toEqual([{ activeFile: named, named: true }, { activeFile: active }]);
+	});
 });
 
 describe("ChoiceExecutor built inside a command dispatch", () => {
