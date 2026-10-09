@@ -108,7 +108,18 @@ describe("ChoiceExecutor built inside a command dispatch", () => {
 		expect(seen.contexts).toEqual([{ activeFile: null, named: true }]);
 	});
 
-	it("reads the active tab when the dispatching run named no note", async () => {
+	it("reads the active tab after a launcher run the self-call guard stopped", async () => {
+		seen.contexts.length = 0;
+		const other = { id: "c2", name: "Other capture", type: "Capture" } as never;
+		const executor = withDispatch({ chain: [capture], currentNote: named }, () => new ChoiceExecutor(app, {} as never));
+
+		await expect(executor.executeWithFocusedProperty(capture, null, executor.triggerContext)).rejects.toThrow("calls itself");
+		await executor.execute(other);
+
+		expect(seen.contexts).toEqual([{ activeFile: active }]);
+	});
+
+	it("reads the active tab when the dispatching run did not name a note", async () => {
 		seen.contexts.length = 0;
 		const executor = withDispatch({ chain: [] }, () => new ChoiceExecutor(app, {} as never));
 

@@ -1,6 +1,6 @@
 import type { App, TFile, WorkspaceLeaf } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { CURRENT_NONE_MESSAGE, currentFile, namesCurrentNote } from "../utils/currentFile";
+import { CURRENT_NONE_MESSAGE, currentFile, namesCurrentNote, startedWithCurrentNone } from "../utils/currentFile";
 import { log } from "../logger/logManager";
 import { type normalizeAppendLinkOptions, type AppendLinkOptions, placementSupportsFrontmatter } from "../types/linkPlacement";
 import { insertFileLinkToCurrentNote } from "../utils/editorInsertion";
@@ -33,7 +33,7 @@ export async function insertChoiceFileLink(
 	} else if (focusedProperty && !placementSupportsFrontmatter(options.placement)) {
 		await appendLinkToFrontmatterProperty(app, focusedProperty, file);
 	} else {
-		if (named && !current && options.requireActiveFile) throw new Error(CURRENT_NONE_MESSAGE);
+		if (startedWithCurrentNone(executor) && options.requireActiveFile) throw new Error(CURRENT_NONE_MESSAGE);
 		await insertFileLinkToCurrentNote(app, file, current, options, onEditorTextMutation, named);
 	}
 }

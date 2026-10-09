@@ -23,14 +23,19 @@ export function currentFile(app: App, executor: IChoiceExecutor | undefined): TF
 
 export const CURRENT_NONE_MESSAGE = "This choice needs a current note, and the run was started with current=none.";
 
+/** Whether the caller said there is no current note, with `current=none`. */
+export function startedWithCurrentNone(executor: IChoiceExecutor | undefined): boolean {
+	const context = executor?.triggerContext;
+	return context?.named === true && !context.activeFile;
+}
+
 /**
  * What a failure that needs the current note says when there is none: the
  * in-app message, unless the caller said there is none with `current=none`,
  * where "open a file" is advice the caller cannot act on.
  */
 export function missingCurrentNoteMessage(executor: IChoiceExecutor | undefined, inApp: string): string {
-	const context = executor?.triggerContext;
-	return context?.named && !context.activeFile ? CURRENT_NONE_MESSAGE : inApp;
+	return startedWithCurrentNone(executor) ? CURRENT_NONE_MESSAGE : inApp;
 }
 
 /** The active Markdown editor, when it shows the run's current note. */

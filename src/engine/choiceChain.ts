@@ -37,7 +37,7 @@ export function enterChoice(choice: IChoice, ancestry: ChoiceChain): ChoiceChain
  */
 export interface Dispatch {
 	chain: ChoiceChain;
-	/** The note the dispatching run's caller named with `current=`; absent when it named none. */
+	/** The note the dispatching run's caller named with `current=` (`null` for `current=none`); absent when it named no note. */
 	currentNote?: TFile | null;
 }
 
