@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { insertText, POLL_OPTS, pressKey, typeInto, waitForElement, expectNoPrompt } from "./uiHelpers";
+import { insertText, POLL_OPTS, pressKey, setVaultConfig, typeInto, waitForElement, expectNoPrompt } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("template-cursor");
 
@@ -375,7 +375,7 @@ describe("Template cursor markers in native Obsidian", () => {
 		const previousUpdateLinks = await obsidian.dev.evalJson<boolean>('app.vault.getConfig("alwaysUpdateLinks")');
 		try {
 			await obsidian.dev.evalJsonAsync(`(async () => {
-				app.vault.setConfig("alwaysUpdateLinks", true);
+				${setVaultConfig("alwaysUpdateLinks", true)};
 				const leaf = app.workspace.activeLeaf;
 				await leaf.setViewState({ type: "markdown", state: { file: ${JSON.stringify(path)}, mode: "source", source: false } });
 				leaf.view.editor.focus();
@@ -408,7 +408,7 @@ describe("Template cursor markers in native Obsidian", () => {
 			expect(await obsidian.dev.evalJson("app.workspace.activeLeaf.view.getState().source")).toBe(false);
 		} finally {
 			await obsidian.dev.evalJson(`(() => {
-				app.vault.setConfig("alwaysUpdateLinks", ${JSON.stringify(previousUpdateLinks)});
+				${setVaultConfig("alwaysUpdateLinks", previousUpdateLinks)};
 				for (const close of document.querySelectorAll(".modal-close-button")) close.click();
 				return true;
 			})()`);

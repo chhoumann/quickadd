@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { jsLiteral, POLL_OPTS, pressKey, setVaultConfig, typeInto } from "./uiHelpers";
 
 // "Import" adds a choice and never replaces one: the CLI refuses it for a
 // choice already in the vault, and the modal only offers it for new choices.
@@ -47,7 +47,7 @@ it("offers Overwrite, not Import, for a choice already in the vault", async () =
 	await obsidian.execJson("quickadd:package-import", { path: mine });
 
 	const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
-	await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), true");
+	await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", false)}, true`);
 	try {
 		await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);
 		await expect.poll(() => obsidian.dev.evalJson<boolean>(`(() => {
@@ -65,6 +65,6 @@ it("offers Overwrite, not Import, for a choice already in the vault", async () =
 	} finally {
 		await pressKey(obsidian, "Escape");
 		await obsidian.dev.evalJson("app.setting.close(); true");
-		await obsidian.dev.evalJson(`app.vault.setConfig('settingsPopoutWindow', ${jsLiteral(popout)}), true`);
+		await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", popout)}, true`);
 	}
 });

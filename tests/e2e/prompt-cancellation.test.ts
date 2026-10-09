@@ -9,7 +9,7 @@ import { ChoiceCommand } from "../../src/types/macros/ChoiceCommand";
 import { ConditionalCommand } from "../../src/types/macros/Conditional/ConditionalCommand";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
+import { insertText, jsLiteral, POLL_OPTS, pressKey, setVaultConfig } from "./uiHelpers";
 
 // Pressing Escape in a prompt is a normal way to stop a run. It must not land in
 // Obsidian's `dev:errors`, which records every unhandled promise rejection (even one
@@ -246,7 +246,7 @@ it("Escape in the macro builder's script pickers leaves dev:errors empty", async
 	// Settings in the main window, as in conditional-branch-persistence.test.ts:
 	// the popout's DOM adoption is nondeterministic under CLI automation.
 	const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
-	await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), true");
+	await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", false)}, true`);
 	const click = (selector: string, text?: string) => obsidian.dev.evalJson<boolean>(`(() => {
 		const all = Array.from(document.querySelectorAll(${jsLiteral(selector)}))
 			.filter((el) => ${jsLiteral(text ?? null)} === null || el.textContent.trim() === ${jsLiteral(text ?? null)});
@@ -286,6 +286,6 @@ it("Escape in the macro builder's script pickers leaves dev:errors empty", async
 		expect(await devErrors(obsidian)).toBe(NO_ERRORS);
 	} finally {
 		await escapeUntilClosed(obsidian);
-		await obsidian.dev.evalJson(`(() => { app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
+		await obsidian.dev.evalJson(`(() => { app.setting.close(); ${setVaultConfig("settingsPopoutWindow", popout)}; return true; })()`);
 	}
 });
