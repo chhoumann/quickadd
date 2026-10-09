@@ -14,31 +14,34 @@ const LIST_GAP_PX = 4;
 // script field on a phone, so a name wraps between words, not between letters.
 const MIN_LIST_WIDTH_PX = 300;
 
+// In a prompt, the list stays below its input while this much room is left
+// there, about three of the note picker's two-line rows. Above the input it
+// would cover the form's title and the answers already given.
+const MIN_PROMPT_ROOM_BELOW_PX = 150;
+
 /**
- * Whether the list should open above its input when it fits there. QuickAdd
- * prompts end in an action bar (`.qa-prompt-actions`: Submit, Cancel, Peek)
- * below their inputs (pinned to the bottom of the one-page form), and the list
- * is layered above the modal, so a list that reaches the bar takes the click
- * aimed at Submit.
+ * Where the room below the input ends in a prompt: a gap above its action bar
+ * (`.qa-prompt-actions`: Submit, Cancel, Peek) when the bar is below the input.
+ * QuickAdd prompts end in that bar (pinned to the bottom of the one-page
+ * form), and the list is layered above the modal, so a list that reaches the
+ * bar takes the click aimed at Submit.
  */
-function prefersAbove(inputEl: HTMLElement, input: DOMRect, listHeight: number): boolean {
-	const actionsEl = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions");
-	if (!actionsEl) return false;
-	const actions = actionsEl.getBoundingClientRect();
-	const actionsBelowInput = actions.height > 0 && actions.top >= input.bottom;
-	const reachesActions = input.bottom + LIST_GAP_PX + listHeight > actions.top;
-	return actionsBelowInput && reachesActions;
+function actionBarLimit(inputEl: HTMLElement, input: DOMRect): number {
+	const actions = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions")?.getBoundingClientRect();
+	return actions && actions.height > 0 && actions.top >= input.bottom
+		? actions.top - LIST_GAP_PX
+		: Infinity;
 }
 
 /**
  * Place the list against its input, exactly as wide as the input (also past
  * the 500px cap Obsidian puts on `.suggestion-container`; the text prompt's
  * input is wider), but at least `MIN_LIST_WIDTH_PX` or the viewport's width.
- * It opens below the input, and above it when the visible viewport has room
- * there and either `prefersAbove` or there is no room below (above the
- * on-screen keyboard on a phone). When neither side holds the whole list, it
- * takes the roomier side, shortened to fit. Horizontally it stays inside the
- * viewport.
+ * It opens below the input, and on the roomier side when it doesn't fit there,
+ * shortened if needed. In a prompt it stays below, shortened, while
+ * `MIN_PROMPT_ROOM_BELOW_PX` of room is left. The room below ends at the bottom
+ * of the visible viewport, the on-screen keyboard on a phone, or
+ * `actionBarLimit`. Horizontally it stays inside the viewport.
  */
 function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const input = inputEl.getBoundingClientRect();
@@ -60,9 +63,11 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	// Obsidian lays its own UI out above `100vh - var(--keyboard-height)`.
 	const keyboardHeight =
 		parseFloat(getComputedStyle(doc.documentElement).getPropertyValue("--keyboard-height")) || 0;
+	const barLimit = actionBarLimit(inputEl, input);
 	const visibleBottom = Math.min(
 		viewport.offsetTop + viewport.height,
 		doc.documentElement.clientHeight - keyboardHeight,
+		barLimit,
 	);
 	// The top of a phone's screen is the status bar. On a phone, a settings page
 	// scrolls under the settings header, which holds the back and close buttons.
@@ -76,11 +81,11 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 
 	const roomBelow = visibleBottom - input.bottom - LIST_GAP_PX;
 	const roomAbove = input.top - LIST_GAP_PX - visibleTop;
-	const fitsBelow = origin.height <= roomBelow;
-	const fitsAbove = origin.height <= roomAbove;
-	const placeAbove = fitsAbove
-		? !fitsBelow || prefersAbove(inputEl, input, origin.height)
-		: !fitsBelow && roomAbove > roomBelow;
+	const enoughBelow = Math.min(
+		origin.height,
+		barLimit < Infinity ? MIN_PROMPT_ROOM_BELOW_PX : Infinity,
+	);
+	const placeAbove = roomBelow < enoughBelow && roomAbove > roomBelow;
 	const height = Math.min(origin.height, placeAbove ? roomAbove : roomBelow);
 	const top = placeAbove ? input.top - LIST_GAP_PX - height : input.bottom + LIST_GAP_PX;
 	const left = Math.max(

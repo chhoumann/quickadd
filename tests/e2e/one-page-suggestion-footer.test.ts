@@ -13,6 +13,8 @@ type Rect = { top: number; bottom: number };
 type Layout = {
 	suggestions: string[];
 	list: Rect | null;
+	/** Whether the list is shorter than its rows and scrolls. */
+	listScrolls: boolean;
 	input: Rect;
 	actions: Rect;
 	submitCentre: { x: number; y: number };
@@ -82,6 +84,7 @@ async function layout(inputSelector: string): Promise<Layout> {
 			suggestions: Array.from(document.querySelectorAll(".suggestion-container .suggestion-item"))
 				.map((item) => (item.querySelector(".qa-onepage-file-suggestion__label") ?? item).textContent),
 			list: list ? rect(list) : null,
+			listScrolls: list ? list.querySelector(".suggestion").scrollHeight > list.querySelector(".suggestion").clientHeight : false,
 			input: rect(input),
 			actions: rect(actions),
 			submitCentre: { x, y },
@@ -121,6 +124,31 @@ it("keeps Submit clickable while the last field's suggestions are open", async (
 	await expectNoPrompt(obsidian);
 	await expect.poll(() => sandbox.read("out/deal.md").catch(() => ""), POLL_OPTS)
 		.toMatch(/^---\nclient: Acme\ncontact: Jane\nstage: Lead\ndate: \d{4}-\d{2}-\d{2}\n---\n$/);
+});
+
+it("opens a mid-form picker's list below it, shortened above the action bar", async () => {
+	const { obsidian } = getContext();
+	const field = await openForm("order", ({ deals, people }) => [
+		"---",
+		`client: {{FIELD:client|folder:${deals}|label:Which client?}}`,
+		`contact: {{FILE:${people}|label:Who did you talk to?}}`,
+		`stage: {{FIELD:stage|folder:${deals}|label:Where does the deal stand?}}`,
+		"budget: {{VALUE:budget}}",
+		"owner: {{VALUE:owner}}",
+		"---",
+		"",
+	]);
+	await typeInto(obsidian, field("client", "Which client?"), "Acme");
+	const picker = ".onePageInputModal .qa-onepage-file-picker__input";
+	await typeInto(obsidian, picker, "");
+	await expect.poll(async () => (await layout(picker)).suggestions.length, POLL_OPTS).toBe(6);
+
+	const opened = await layout(picker);
+	expect(opened.list?.top).toBeGreaterThanOrEqual(opened.input.bottom);
+	expect(opened.list?.bottom).toBeLessThanOrEqual(opened.actions.top);
+	expect(opened.listScrolls).toBe(true);
+	expect(opened.list!.bottom - opened.list!.top).toBeGreaterThanOrEqual(150);
+	expect(opened.atSubmit).toBe("Submit");
 });
 
 it("re-places the list when a multi-select FILE pick keeps it open", async () => {

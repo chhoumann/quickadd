@@ -397,10 +397,11 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(list().style.left).toBe(left);
 	});
 
-	// Input 484-514, action bar from 546: 32px below the input, 4px of it the gap.
+	// Input 484-514, action bar from 546: 32px below the input, 4px gaps on
+	// either side of the list.
 	it.each([
-		[28, "below"], // ends at 546, touching but not covering the bar
-		[29, "above"], // would cover the bar's top pixel
+		[24, "below"], // ends 4px over the bar
+		[25, "above"],
 		[180, "above"],
 	])("opens a %ipx list below the last input only when it clears the action bar", async (listHeight, expected) => {
 		geometry = { input: [484, 514], actionsTop: 546, listHeight };
@@ -414,11 +415,36 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(list().style.top).toBe(`${484 - 4 - 180}px`);
 	});
 
-	it("stays below when there is no room above either", async () => {
-		// Opening above would need 4 + 47 = 51px over the input; only 40px exist.
+	it("takes the roomier side, shortened, when neither side holds the list", async () => {
+		// 4 + 47 = 51px is needed on either side; 36px exist above, 24px before the bar.
 		geometry = { input: [40, 70], actionsTop: 102, listHeight: 47 };
 		await openSuggest();
-		expect(side()).toBe("below");
+		expect(list().style.top).toBe("0px");
+		expect(list().style.maxHeight).toBe("36px");
+	});
+
+	// Input 300-330, action bar from 546: 208px of room below the input.
+	it("keeps a list that would fit above below its input, shortened to end over the action bar", async () => {
+		geometry = { input: [300, 330], actionsTop: 546, listHeight: 250 };
+		await openSuggest();
+		expect(list().style.top).toBe("334px");
+		expect(list().style.maxHeight).toBe("208px");
+	});
+
+	it("opens a list that fits only above there, outside a prompt", async () => {
+		actions.remove();
+		geometry = { input: [500, 530], actionsTop: 0, listHeight: 400 };
+		await openSuggest();
+		expect(side()).toBe("above");
+	});
+
+	it.each([
+		[488, "below"], // 150px below the input
+		[487, "above"],
+	])("keeps a prompt's list below with at least 150px of room there (action bar at %i)", async (actionsTop, expected) => {
+		geometry = { input: [300, 330], actionsTop, listHeight: 250 };
+		await openSuggest();
+		expect(side()).toBe(expected);
 	});
 
 	it("ignores inputs outside a prompt with an action bar", async () => {
@@ -428,9 +454,9 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(side()).toBe("below");
 	});
 
-	it("stays below when opening above would leave the visible viewport", async () => {
-		// Pinch-zoomed: the visible viewport starts at y=350, so a 180px list
-		// above an input at 484 (top edge 300) would be cut off.
+	it("stays inside the visible viewport when it opens above", async () => {
+		// Pinch-zoomed: the visible viewport starts at y=350, so 130px are left
+		// above an input at 484.
 		Object.defineProperty(window, "visualViewport", {
 			configurable: true,
 			value: { offsetLeft: 0, offsetTop: 350, width: 1000, height: 450 },
@@ -438,7 +464,8 @@ describe("TextInputSuggest placement in a prompt", () => {
 		try {
 			geometry = { input: [484, 514], actionsTop: 546, listHeight: 180 };
 			await openSuggest();
-			expect(side()).toBe("below");
+			expect(list().style.top).toBe("350px");
+			expect(list().style.maxHeight).toBe("130px");
 		} finally {
 			Reflect.deleteProperty(window, "visualViewport");
 		}
