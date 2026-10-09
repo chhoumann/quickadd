@@ -59,10 +59,12 @@ obsidian vault=dev quickadd:run choice="Inbox" value-value="Idea" current=none
   a new last line (or into its frontmatter property), `{{LINKSECTION}}` links to
   the note without a heading, and `{{SELECTED}}` is empty.
 - With `none`, a choice that requires the current note behaves as it does with
-  no file open: an error for most, and the vault root for a Template set to
-  **Same folder as current file**. An optional link or token is left empty.
+  no file open: an error for most, which says the run was started with
+  `current=none`, and the vault root for a Template set to **Same folder as
+  current file**. An optional link or token is left empty.
 - Macro scripts that call `app.workspace.getActiveFile()` themselves are not
-  affected; `current=` only changes what QuickAdd resolves.
+  affected; `current=` only changes what QuickAdd resolves. An **Obsidian
+  Command** step that runs a QuickAdd choice's command uses the named note too.
 
 `current=` is also accepted by `quickadd:run-template`, `quickadd:check`, and
 `quickadd:interactive`.

@@ -23,7 +23,7 @@ import { type FieldFilter } from "../utils/FieldSuggestionParser";
 import { type ParsedFileToken } from "../utils/fileSyntax";
 import { normalizeNumericValue } from "../utils/valueSyntax";
 import { collectFieldValuesRaw, generateFieldCacheKey } from "../utils/FieldValueCollector";
-import { currentFile, currentSelection } from "../utils/currentFile";
+import { currentFile, currentSelection, missingCurrentNoteMessage } from "../utils/currentFile";
 import { Formatter, type PromptContext } from "./formatter";
 import {
 	buildPromptContextLine,
@@ -385,6 +385,10 @@ export class CompleteFormatter extends Formatter {
 		if (!file) return null;
 
 		return this.app.fileManager.generateMarkdownLink(file, "");
+	}
+
+	protected missingCurrentNoteMessage(inApp: string): string {
+		return missingCurrentNoteMessage(this.choiceExecutor, inApp);
 	}
 
 	protected getCurrentFileName(): string | null {

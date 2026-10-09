@@ -26,6 +26,7 @@ vi.mock("./engine/CaptureChoiceEngine", () => ({
 }));
 
 const { ChoiceExecutor } = await import("./choiceExecutor");
+const { withDispatch } = await import("./engine/choiceChain");
 
 describe("ChoiceExecutor.setCurrentFile", () => {
 	const active = { path: "Active.md" } as TFile;
@@ -57,6 +58,51 @@ describe("ChoiceExecutor.setCurrentFile", () => {
 	it("reads the active tab when no note was named", async () => {
 		seen.contexts.length = 0;
 		await new ChoiceExecutor(app, {} as never).execute(capture);
+		expect(seen.contexts).toEqual([{ activeFile: active }]);
+	});
+
+	it("reads the active tab again on the run after the one the note was named for", async () => {
+		seen.contexts.length = 0;
+		const executor = new ChoiceExecutor(app, {} as never);
+		executor.setCurrentFile(named);
+
+		await executor.execute(capture);
+		await executor.execute(capture);
+
+		expect(seen.contexts).toEqual([{ activeFile: named, named: true }, { activeFile: active }]);
+	});
+});
+
+describe("ChoiceExecutor built inside a command dispatch", () => {
+	const active = { path: "Active.md" } as TFile;
+	const named = { path: "Daily/Today.md" } as TFile;
+	const capture = { id: "c", name: "Capture", type: "Capture" } as never;
+	const app = { workspace: { getActiveFile: () => active } } as never;
+
+	it("uses the note the dispatching run named", async () => {
+		seen.contexts.length = 0;
+		const executor = withDispatch({ chain: [], currentNote: named }, () => new ChoiceExecutor(app, {} as never));
+
+		await executor.execute(capture);
+
+		expect(seen.contexts).toEqual([{ activeFile: named, named: true }]);
+	});
+
+	it("uses no current note when the dispatching run named none", async () => {
+		seen.contexts.length = 0;
+		const executor = withDispatch({ chain: [], currentNote: null }, () => new ChoiceExecutor(app, {} as never));
+
+		await executor.execute(capture);
+
+		expect(seen.contexts).toEqual([{ activeFile: null, named: true }]);
+	});
+
+	it("reads the active tab when the dispatching run named no note", async () => {
+		seen.contexts.length = 0;
+		const executor = withDispatch({ chain: [] }, () => new ChoiceExecutor(app, {} as never));
+
+		await executor.execute(capture);
+
 		expect(seen.contexts).toEqual([{ activeFile: active }]);
 	});
 });

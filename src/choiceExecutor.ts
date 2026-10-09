@@ -1,5 +1,5 @@
 import { Notice, type App, type TFile, type WorkspaceLeaf } from "obsidian";
-import { currentDispatchChain, enterChoice, type ChoiceChain } from "./engine/choiceChain";
+import { currentDispatch, enterChoice, type ChoiceChain } from "./engine/choiceChain";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -69,12 +69,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	 * Ancestry of a run started without one: the dispatching run's chain when
 	 * this executor was built inside a command dispatch, otherwise empty.
 	 */
-	private readonly dispatchAncestry = currentDispatchChain();
+	private readonly dispatchAncestry: ChoiceChain;
 	private macroOnePageInput: IChoice["onePageInput"];
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
 
-	constructor(private app: App, private plugin: QuickAdd) {}
+	constructor(private app: App, private plugin: QuickAdd) {
+		const dispatch = currentDispatch();
+		this.dispatchAncestry = dispatch.chain;
+		if (dispatch.currentNote !== undefined) this.setCurrentFile(dispatch.currentNote);
+	}
 
 	signalAbort(error: MacroAbortError) {
 		this.pendingAbort = error;
@@ -93,7 +97,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	/**
 	 * Names the run's current note up front (the CLI's `current=`). The live
 	 * context is set too, so the input collection that runs before execute()
-	 * (`quickadd:check`, a non-interactive run) reads the same note.
+	 * (`quickadd:check`, a non-interactive run) reads the same note. The note
+	 * applies to the next outermost run only.
 	 */
 	setCurrentFile(file: TFile | null): void {
 		this.triggerContext = { activeFile: file, named: true };
@@ -137,6 +142,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		if (this.executionDepth === 0) {
 			this.focusedProperty = null;
 			this.triggerContext = null;
+			// A note named with setCurrentFile belongs to the run it was named for,
+			// not to a later run on this executor (a script that kept its quickAddApi).
+			this.triggerContextOverride = undefined;
 			this.clocks = undefined;
 			this.pickDate = false;
 			// Preloaded script modules are scoped to ONE outermost execution: a

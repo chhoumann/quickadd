@@ -22,6 +22,7 @@ export function replaceCurrentFileTokens(
 	opts: CurrentFileTokenOptions,
 	resolve: Resolvers,
 	behavior: "required" | "optional",
+	message: (inApp: string) => string,
 ): string {
 	const values = new Map<string, string | null>();
 	const missing = new Set<CurrentToken>();
@@ -52,17 +53,17 @@ export function replaceCurrentFileTokens(
 	);
 	const folderError = "Unable to get the active file's folder. Make sure you have a file open in the editor.";
 	if (missing.has("FOLDERCURRENT") && opts.activeFolder === "path") {
-		throw new Error(folderError);
+		throw new Error(message(folderError));
 	}
 	if (missing.size > 0) {
 		if (behavior === "required") {
-			throw new Error(
+			throw new Error(message(
 				missing.has("LINKCURRENT") || missing.has("LINKSECTION")
 					? "Unable to get current file path. Make sure you have a file open in the editor."
 					: missing.has("FILENAMECURRENT")
 						? "Unable to get current file name. Make sure you have a file open in the editor."
 						: folderError,
-			);
+			));
 		}
 		log.logMessage("Skipping current-file token replacement because no active file is available.");
 	}
