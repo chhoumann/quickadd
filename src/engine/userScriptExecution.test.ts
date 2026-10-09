@@ -142,4 +142,18 @@ describe("executeUserScript with a script that exports nothing", () => {
 		expect(ran).toEqual(["top level"]);
 		expect(result).toBeUndefined();
 	});
+
+	it("still rejects a selected member that is an empty object", async () => {
+		const command: IUserScript = {
+			id: "empty-member-command",
+			name: "lib::start",
+			type: CommandType.UserScript,
+			path: "scripts/todoist.js",
+			settings: {},
+		};
+
+		await expect(
+			run(command, createApp(new Map(), "module.exports = { start: {} };")),
+		).rejects.toThrow("is an empty object");
+	});
 });

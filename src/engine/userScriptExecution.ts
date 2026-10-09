@@ -4,7 +4,7 @@ import type { QuickAddApi } from "../quickAddApi";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { IUserScript } from "../types/macros/IUserScript";
-import { getUserScriptPreloadKey, type LoadedUserScript, loadUserScript } from "../utils/userScript";
+import { getUserScriptMemberAccess, getUserScriptPreloadKey, type LoadedUserScript, loadUserScript } from "../utils/userScript";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { resolveScriptSettings } from "./userScriptSettings";
 import { log } from "../logger/logManager";
@@ -119,6 +119,10 @@ export async function executeUserScript(
 				log.logError(`user script in macro for '${choiceName}' is invalid`);
 		}
 	}
+
+	// Nothing exported: the script did its work at the top level while loading.
+	const drillsMember = (getUserScriptMemberAccess(command.name ?? "").memberAccess ?? []).length > 0;
+	if (!drillsMember && isRecord(userScript) && Object.keys(userScript).length === 0) return;
 
 	try {
 		return await delegate(userScript);
