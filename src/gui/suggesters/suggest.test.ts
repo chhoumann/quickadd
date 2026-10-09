@@ -431,18 +431,17 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(list().style.maxHeight).toBe("208px");
 	});
 
-	it("keeps a list that would fit above below its input, shortened to the viewport", async () => {
+	it("opens a list that fits only above there, outside a prompt", async () => {
 		actions.remove();
 		geometry = { input: [500, 530], actionsTop: 0, listHeight: 400 };
 		await openSuggest();
-		expect(list().style.top).toBe("534px");
-		expect(list().style.maxHeight).toBe("266px");
+		expect(side()).toBe("above");
 	});
 
 	it.each([
 		[488, "below"], // 150px below the input
 		[487, "above"],
-	])("keeps a list below with at least 150px of room there (action bar at %i)", async (actionsTop, expected) => {
+	])("keeps a prompt's list below with at least 150px of room there (action bar at %i)", async (actionsTop, expected) => {
 		geometry = { input: [300, 330], actionsTop, listHeight: 250 };
 		await openSuggest();
 		expect(side()).toBe(expected);

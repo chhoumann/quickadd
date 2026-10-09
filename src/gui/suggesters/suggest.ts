@@ -14,9 +14,10 @@ const LIST_GAP_PX = 4;
 // script field on a phone, so a name wraps between words, not between letters.
 const MIN_LIST_WIDTH_PX = 300;
 
-// Below its input, the list keeps at least this much room, about three of the
-// note picker's two-line rows, before it moves to a roomier side above.
-const MIN_ROOM_BELOW_PX = 150;
+// In a prompt, the list stays below its input while this much room is left
+// there, about three of the note picker's two-line rows. Above the input it
+// would cover the form's title and the answers already given.
+const MIN_PROMPT_ROOM_BELOW_PX = 150;
 
 /**
  * Where the room below the input ends in a prompt: a gap above its action bar
@@ -36,11 +37,11 @@ function actionBarLimit(inputEl: HTMLElement, input: DOMRect): number {
  * Place the list against its input, exactly as wide as the input (also past
  * the 500px cap Obsidian puts on `.suggestion-container`; the text prompt's
  * input is wider), but at least `MIN_LIST_WIDTH_PX` or the viewport's width.
- * It opens below the input, shortened to fit when it doesn't fit whole, as
- * long as `MIN_ROOM_BELOW_PX` of room is left there. With less room below it
- * takes the roomier side. The room below ends at the bottom of the visible
- * viewport, the on-screen keyboard on a phone, or `actionBarLimit`. Horizontally
- * it stays inside the viewport.
+ * It opens below the input, and on the roomier side when it doesn't fit there,
+ * shortened if needed. In a prompt it stays below, shortened, while
+ * `MIN_PROMPT_ROOM_BELOW_PX` of room is left. The room below ends at the bottom
+ * of the visible viewport, the on-screen keyboard on a phone, or
+ * `actionBarLimit`. Horizontally it stays inside the viewport.
  */
 function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const input = inputEl.getBoundingClientRect();
@@ -62,10 +63,11 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	// Obsidian lays its own UI out above `100vh - var(--keyboard-height)`.
 	const keyboardHeight =
 		parseFloat(getComputedStyle(doc.documentElement).getPropertyValue("--keyboard-height")) || 0;
+	const barLimit = actionBarLimit(inputEl, input);
 	const visibleBottom = Math.min(
 		viewport.offsetTop + viewport.height,
 		doc.documentElement.clientHeight - keyboardHeight,
-		actionBarLimit(inputEl, input),
+		barLimit,
 	);
 	// The top of a phone's screen is the status bar. On a phone, a settings page
 	// scrolls under the settings header, which holds the back and close buttons.
@@ -79,8 +81,11 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 
 	const roomBelow = visibleBottom - input.bottom - LIST_GAP_PX;
 	const roomAbove = input.top - LIST_GAP_PX - visibleTop;
-	const placeAbove =
-		roomBelow < Math.min(origin.height, MIN_ROOM_BELOW_PX) && roomAbove > roomBelow;
+	const enoughBelow = Math.min(
+		origin.height,
+		barLimit < Infinity ? MIN_PROMPT_ROOM_BELOW_PX : Infinity,
+	);
+	const placeAbove = roomBelow < enoughBelow && roomAbove > roomBelow;
 	const height = Math.min(origin.height, placeAbove ? roomAbove : roomBelow);
 	const top = placeAbove ? input.top - LIST_GAP_PX - height : input.bottom + LIST_GAP_PX;
 	const left = Math.max(

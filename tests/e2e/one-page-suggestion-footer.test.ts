@@ -143,6 +143,7 @@ it("opens a mid-form picker's full list below it, shortened above the action bar
 	const opened = await layout(picker);
 	expect(opened.list?.top).toBeGreaterThanOrEqual(opened.input.bottom);
 	expect(opened.list?.bottom).toBeLessThanOrEqual(opened.actions.top);
+	expect(opened.list!.bottom - opened.list!.top).toBeGreaterThanOrEqual(150);
 	expect(opened.atSubmit).toBe("Submit");
 });
 
