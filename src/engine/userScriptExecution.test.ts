@@ -1,5 +1,5 @@
 import { TFile, type App } from "obsidian";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type QuickAdd from "../main";
 import { CommandType } from "../types/macros/CommandType";
@@ -27,14 +27,14 @@ module.exports = {
 };
 `;
 
-function createApp(secrets: Map<string, string>): App {
+function createApp(secrets: Map<string, string>, source = SCRIPT_SOURCE): App {
 	const file = new TFile();
 	file.path = "scripts/todoist.js";
 	file.extension = "js";
 	return {
 		vault: {
 			getAbstractFileByPath: vi.fn(() => file),
-			read: vi.fn(async () => SCRIPT_SOURCE),
+			read: vi.fn(async () => source),
 		},
 		secretStorage: {
 			getSecret: vi.fn((id: string) => secrets.get(id) ?? null),
@@ -116,5 +116,44 @@ describe("executeUserScript settings with `Script::Export` member access", () =>
 			__quickaddSecret: true,
 		});
 		expect([...secrets.values()]).toEqual(["legacy-token"]);
+	});
+});
+
+describe("executeUserScript with a script that exports nothing", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	// #2208: all of the script's work happens at the top level while it loads.
+	it("runs the top-level code and finishes without output", async () => {
+		const ran: string[] = [];
+		vi.stubGlobal("window", { require: () => ran });
+		const command: IUserScript = {
+			id: "side-effect-command",
+			name: "create_wp_folder",
+			type: CommandType.UserScript,
+			path: "scripts/todoist.js",
+			settings: {},
+		};
+
+		const { result } = await run(
+			command,
+			createApp(new Map(), "require('ran').push('top level');"),
+		);
+
+		expect(ran).toEqual(["top level"]);
+		expect(result).toBeUndefined();
+	});
+
+	it("still rejects a selected member that is an empty object", async () => {
+		const command: IUserScript = {
+			id: "empty-member-command",
+			name: "lib::start",
+			type: CommandType.UserScript,
+			path: "scripts/todoist.js",
+			settings: {},
+		};
+
+		await expect(
+			run(command, createApp(new Map(), "module.exports = { start: {} };")),
+		).rejects.toThrow("is an empty object");
 	});
 });
