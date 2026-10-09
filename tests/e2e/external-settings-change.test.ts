@@ -229,16 +229,22 @@ it("does not treat its own saves as external changes", async () => {
 	const { obsidian, plugin } = getContext();
 	const before = await plugin.data<QuickAddData>().read();
 	await obsidian.dev.evalJson(COUNT_EXTERNAL_CHANGES);
-
-	await obsidian.dev.evalJson(`(() => {
+	const saveShowCaptureNotification = (value: boolean) => obsidian.dev.evalJsonAsync(`(() => {
 		const tab = app.setting.pluginTabs.find((t) => t.id === "quickadd");
-		tab.setControlValue("showCaptureNotification", ${!before.showCaptureNotification});
-		return true;
+		tab.setControlValue("showCaptureNotification", ${value});
+		return app.plugins.plugins.quickadd.saveSettings().then(() => true);
 	})()`);
-	await obsidian.dev.evalJsonAsync("app.plugins.plugins.quickadd.saveSettings().then(() => true)");
-	expect((await plugin.data<QuickAddData>().read()).showCaptureNotification).toBe(!before.showCaptureNotification);
 
-	// Obsidian debounces its file watcher; give it well past that to call in.
-	await new Promise((resolve) => setTimeout(resolve, 2_500));
-	expect((await obsidian.dev.evalJson<LiveState>(LIVE_STATE)).externalChanges).toBe(0);
+	// The harness only restores data.json after a write through plugin.data(),
+	// which would be an external change here, so this test undoes its own save.
+	try {
+		await saveShowCaptureNotification(!before.showCaptureNotification);
+		expect((await plugin.data<QuickAddData>().read()).showCaptureNotification).toBe(!before.showCaptureNotification);
+
+		// Obsidian debounces its file watcher; give it well past that to call in.
+		await new Promise((resolve) => setTimeout(resolve, 2_500));
+		expect((await obsidian.dev.evalJson<LiveState>(LIVE_STATE)).externalChanges).toBe(0);
+	} finally {
+		await saveShowCaptureNotification(before.showCaptureNotification);
+	}
 });
