@@ -93,6 +93,16 @@ async function sendInput(obsidian: ObsidianClient, label: string, target: string
 	}
 }
 
+/**
+ * Renders the main window as the window in front, or stops doing so. A window
+ * covered by other windows, as a test instance on macOS usually is, gets no
+ * animation frames and throttled timers. An app reload turns this off.
+ */
+export async function setFocusEmulation(obsidian: ObsidianClient, enabled: boolean) {
+	const reply = await obsidian.execText("dev:cdp", { method: "Emulation.setFocusEmulationEnabled", params: JSON.stringify({ enabled }) });
+	if (!reply.startsWith("{")) throw new Error(`dev:cdp Emulation.setFocusEmulationEnabled failed: ${reply}`);
+}
+
 /** Inserts text at the focused element, the way an IME commits it. */
 export async function insertText(obsidian: ObsidianClient, text: string) {
 	await sendInput(obsidian, `insertText ${JSON.stringify(text)}`, INPUT_TARGET, [["Input.insertText", { text }]]);

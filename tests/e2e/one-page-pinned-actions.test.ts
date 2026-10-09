@@ -96,6 +96,8 @@ it.each(["desktop", "is-phone"])("keeps Submit in view on a form taller than the
 		// footer doesn't clip its focus ring.
 		await typeInto(obsidian, ".onePageInputModal textarea", "Pinned");
 		await pressKey(obsidian, "Tab");
+		// The ring grows in over a transition; measure it at its full size.
+		await obsidian.dev.evalJsonAsync(`Promise.all(document.activeElement.getAnimations().map((animation) => animation.finished)).then(() => true)`);
 		const focused = await layout();
 		expect(focused.focused).toBe('button.mod-cta "Submit"');
 		expect(focused.ringFits).toBe(true);

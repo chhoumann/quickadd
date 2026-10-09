@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
@@ -25,6 +25,11 @@ async function watchNotices() {
 		return true;
 	})()`);
 }
+
+// A connected observer would keep filling `__qaNotices` for every later spec.
+afterEach(async () => {
+	await getContext().obsidian.dev.evalJson("window.__qaNoticeObserver?.disconnect(), true");
+});
 
 const noticesContaining = (text: string) => getContext().obsidian.dev.evalJson<number>(
 	`window.__qaNotices.filter(n => n.includes(${JSON.stringify(text)})).length`,
