@@ -3,12 +3,21 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getActiveMarkdownEditorView } from "./activeMarkdownEditor";
 
 /**
+ * The note the caller named with `current=`: the note, `null` for
+ * `current=none`, or `undefined` when the caller named none.
+ */
+export function namedCurrentNote(executor: IChoiceExecutor | undefined): TFile | null | undefined {
+	const context = executor?.triggerContext;
+	return context?.named ? context.activeFile : undefined;
+}
+
+/**
  * Whether the caller named the run's current note with `current=`. Only then
  * does the run keep that note, and write to it when no editor shows it.
  * Otherwise the current note is the active tab, as it was before `current=`.
  */
 export function namesCurrentNote(executor: IChoiceExecutor | undefined): boolean {
-	return executor?.triggerContext?.named === true;
+	return namedCurrentNote(executor) !== undefined;
 }
 
 /**
@@ -17,17 +26,11 @@ export function namesCurrentNote(executor: IChoiceExecutor | undefined): boolean
  * to the next step.
  */
 export function currentFile(app: App, executor: IChoiceExecutor | undefined): TFile | null {
-	const context = executor?.triggerContext;
-	return context?.named ? context.activeFile : app.workspace.getActiveFile();
+	const named = namedCurrentNote(executor);
+	return named === undefined ? app.workspace.getActiveFile() : named;
 }
 
 export const CURRENT_NONE_MESSAGE = "This choice needs a current note, and the run was started with current=none.";
-
-/** Whether the caller said there is no current note, with `current=none`. */
-export function startedWithCurrentNone(executor: IChoiceExecutor | undefined): boolean {
-	const context = executor?.triggerContext;
-	return context?.named === true && !context.activeFile;
-}
 
 /**
  * What a failure that needs the current note says when there is none: the
@@ -35,7 +38,7 @@ export function startedWithCurrentNone(executor: IChoiceExecutor | undefined): b
  * where "open a file" is advice the caller cannot act on.
  */
 export function missingCurrentNoteMessage(executor: IChoiceExecutor | undefined, inApp: string): string {
-	return startedWithCurrentNone(executor) ? CURRENT_NONE_MESSAGE : inApp;
+	return namedCurrentNote(executor) === null ? CURRENT_NONE_MESSAGE : inApp;
 }
 
 /** The active Markdown editor, when it shows the run's current note. */

@@ -162,7 +162,6 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		choice: IChoice,
 		ancestry: ChoiceChain = this.dispatchAncestry,
 	): Promise<void> {
-		const chain = enterChoice(choice, ancestry);
 		this.pendingAbort = null;
 		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
 		// another choice through this same executor) transparent to the outcome slot of an
@@ -174,6 +173,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
+			// Inside the envelope, so a self-call caught here still ends the run and
+			// clears a note named for it.
+			const chain = enterChoice(choice, ancestry);
 			await this.runOnePagePreflightIfEnabled(choice);
 			await withPreparedChoiceInputs(this, choice.id, async () => {
 				await this.applyDateOrigin(choice);
@@ -231,14 +233,13 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// `triggerContext` is `undefined` only when the caller didn't capture one;
 		// leave the override unset so the executor reads it live. A captured value
 		// (including `null` for "no active note at trigger time") IS injected.
+		// Not restored afterwards: only an outermost run reads it, and its end
+		// clears it.
 		this.triggerContextOverride = triggerContext;
 		try {
 			await this.execute(choice, ancestry);
 		} finally {
 			this.focusedPropertyOverride = previousFocusedOverride;
-			// Cleared, not restored: only an outermost run reads it, and a note
-			// named with setCurrentFile must not outlive the run it was handed to.
-			this.triggerContextOverride = undefined;
 		}
 	}
 
@@ -256,7 +257,6 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async executeWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome> {
-		const chain = enterChoice(choice, this.dispatchAncestry);
 		this.pendingAbort = null;
 		this.pendingResult = null;
 		this.beginExecutionContext();
@@ -264,6 +264,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
+			const chain = enterChoice(choice, this.dispatchAncestry);
 			await this.runOnePagePreflightIfEnabled(choice);
 			return await withPreparedChoiceInputs(this, choice.id, async (): Promise<ChoiceOutcome> => {
 				await this.applyDateOrigin(choice);

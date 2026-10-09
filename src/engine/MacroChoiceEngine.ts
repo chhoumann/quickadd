@@ -48,6 +48,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
+import { namedCurrentNote } from "../utils/currentFile";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { createVariablesProxy } from "../utils/variablesProxy";
@@ -409,9 +410,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		const context = this.choiceExecutor.triggerContext;
-		const currentNote = context?.named ? context.activeFile : undefined;
-		withDispatch({ chain: this.chain, currentNote }, () =>
+		withDispatch({ chain: this.chain, currentNote: namedCurrentNote(this.choiceExecutor) }, () =>
 			// @ts-ignore
 			this.app.commands.executeCommandById(command.commandId),
 		);
