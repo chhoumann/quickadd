@@ -123,6 +123,29 @@ it("keeps Submit clickable while the last field's suggestions are open", async (
 		.toMatch(/^---\nclient: Acme\ncontact: Jane\nstage: Lead\ndate: \d{4}-\d{2}-\d{2}\n---\n$/);
 });
 
+it("opens a mid-form picker's full list below it, shortened above the action bar", async () => {
+	const { obsidian } = getContext();
+	const field = await openForm("order", ({ deals, people }) => [
+		"---",
+		`client: {{FIELD:client|folder:${deals}|label:Which client?}}`,
+		`contact: {{FILE:${people}|label:Who did you talk to?}}`,
+		`stage: {{FIELD:stage|folder:${deals}|label:Where does the deal stand?}}`,
+		"budget: {{VALUE:budget}}",
+		"owner: {{VALUE:owner}}",
+		"---",
+		"",
+	]);
+	await typeInto(obsidian, field("client", "Which client?"), "Acme");
+	const picker = ".onePageInputModal .qa-onepage-file-picker__input";
+	await typeInto(obsidian, picker, "");
+	await expect.poll(async () => (await layout(picker)).suggestions.length, POLL_OPTS).toBe(6);
+
+	const opened = await layout(picker);
+	expect(opened.list?.top).toBeGreaterThanOrEqual(opened.input.bottom);
+	expect(opened.list?.bottom).toBeLessThanOrEqual(opened.actions.top);
+	expect(opened.atSubmit).toBe("Submit");
+});
+
 it("re-places the list when a multi-select FILE pick keeps it open", async () => {
 	const { obsidian, sandbox } = getContext();
 	const field = await openForm("meeting", ({ deals, people }) => [
