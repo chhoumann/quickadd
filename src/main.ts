@@ -82,6 +82,13 @@ export default class QuickAdd extends Plugin {
 	 */
 	private suppressSettingsSave = false;
 	/**
+	 * Work started before unload (a settings read, an import) can finish after
+	 * it. Obsidian keeps commands an unloaded plugin adds and never removes them,
+	 * and command ids are shared with the instance that loads next, so an
+	 * unloaded instance must not add or remove any (#2210).
+	 */
+	private unloaded = false;
+	/**
 	 * Serialize persist calls so overlapping debounced/immediate saves cannot
 	 * race. Null when nothing is queued, so quit can tell there is nothing to
 	 * wait for.
@@ -259,6 +266,7 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
+		this.unloaded = true;
 		// Leave an open choice builder first, so its edits are in the write below.
 		leaveBuilderPages(this.app);
 		// Flush any pending debounced settings write so a just-made change (e.g. a
@@ -480,6 +488,9 @@ export default class QuickAdd extends Plugin {
 			}
 			// A missing file is not a request to reset every setting.
 			if (!loadedData) return;
+			// The next instance reads the file itself. A save that unload flushed
+			// is queued behind this run and merges with disk on its own.
+			if (this.unloaded) return;
 
 			const base = this.lastPersistedSettings;
 			const disk = this.normalizeLoadedSettings(loadedData);
@@ -546,6 +557,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	public addCommandForChoice(choice: IChoice) {
+		if (this.unloaded) return;
 		if (choice.type === "Multi") {
 			this.addCommandsForChoices(childChoicesOf(choice));
 		}
@@ -681,6 +693,7 @@ export default class QuickAdd extends Plugin {
 		choice: IChoice,
 		options?: { recursive?: boolean },
 	) {
+		if (this.unloaded) return;
 		// Recurse ONLY when the whole subtree is going away (a folder DELETE):
 		// a Multi (folder) registers commands for its command-enabled descendants,
 		// so tearing it down must remove theirs too, or deleting a folder leaves

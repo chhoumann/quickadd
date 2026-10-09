@@ -98,11 +98,6 @@ it("keeps the note named with current= for a choice's command run as a macro ste
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
 		data.choices = [capture, macro];
 	});
-	// The loaded instance registers the new command when it sees the patch. Let it
-	// finish before reloading, or it can register after its unload and serve the
-	// command from the old module.
-	await expect.poll(() => obsidian.dev.evalJson(
-		`Boolean(app.commands.commands[${jsLiteral(`quickadd:choice:${capture.id}`)}])`), POLL_OPTS).toBe(true);
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJsonAsync(`(async () => {
 		await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath(${jsLiteral(other)}));
