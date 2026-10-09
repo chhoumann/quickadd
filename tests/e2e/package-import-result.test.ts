@@ -56,8 +56,10 @@ it("shows the import result in view, with a single Close", async () => {
 			if (!summary) return null;
 			const body = document.querySelector(".qa-package-body").getBoundingClientRect();
 			const rect = summary.getBoundingClientRect();
+			// Scrolling snaps to device pixels, so a summary scrolled flush with the
+			// edge can overhang it by a fraction of one.
 			return {
-				inView: rect.top >= body.top && rect.bottom <= body.bottom,
+				inView: rect.top >= body.top - 0.5 && rect.bottom <= body.bottom + 0.5,
 				buttons: Array.from(document.querySelectorAll(".qa-package-dialog .modal-button-container button"), (b) => b.textContent.trim()),
 			};
 		})()`), POLL_OPTS).toEqual({ inView: true, buttons: ["Close"] });
