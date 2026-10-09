@@ -13,6 +13,8 @@ type Rect = { top: number; bottom: number };
 type Layout = {
 	suggestions: string[];
 	list: Rect | null;
+	/** Whether the list is shorter than its rows and scrolls. */
+	listScrolls: boolean;
 	input: Rect;
 	actions: Rect;
 	submitCentre: { x: number; y: number };
@@ -82,6 +84,7 @@ async function layout(inputSelector: string): Promise<Layout> {
 			suggestions: Array.from(document.querySelectorAll(".suggestion-container .suggestion-item"))
 				.map((item) => (item.querySelector(".qa-onepage-file-suggestion__label") ?? item).textContent),
 			list: list ? rect(list) : null,
+			listScrolls: list ? list.querySelector(".suggestion").scrollHeight > list.querySelector(".suggestion").clientHeight : false,
 			input: rect(input),
 			actions: rect(actions),
 			submitCentre: { x, y },
@@ -123,7 +126,7 @@ it("keeps Submit clickable while the last field's suggestions are open", async (
 		.toMatch(/^---\nclient: Acme\ncontact: Jane\nstage: Lead\ndate: \d{4}-\d{2}-\d{2}\n---\n$/);
 });
 
-it("opens a mid-form picker's full list below it, shortened above the action bar", async () => {
+it("opens a mid-form picker's list below it, shortened above the action bar", async () => {
 	const { obsidian } = getContext();
 	const field = await openForm("order", ({ deals, people }) => [
 		"---",
@@ -143,6 +146,7 @@ it("opens a mid-form picker's full list below it, shortened above the action bar
 	const opened = await layout(picker);
 	expect(opened.list?.top).toBeGreaterThanOrEqual(opened.input.bottom);
 	expect(opened.list?.bottom).toBeLessThanOrEqual(opened.actions.top);
+	expect(opened.listScrolls).toBe(true);
 	expect(opened.list!.bottom - opened.list!.top).toBeGreaterThanOrEqual(150);
 	expect(opened.atSubmit).toBe("Submit");
 });
