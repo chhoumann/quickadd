@@ -163,34 +163,8 @@ ln -sfn /opt/Obsidian/obsidian-cli "$HOME/.local/bin/obsidian"
 	exit 1
 }
 
-# Undo global bridges installed by the first iteration of this setup, but only
-# when they still point at the exact paths QuickAdd managed.
-managed_legacy_open=false
-if [[ "$(readlink -f /usr/bin/open 2>/dev/null || true)" == "/usr/local/lib/quickadd-obsidian-open" ]]; then
-	managed_legacy_open=true
-	sudo rm -f /usr/bin/open
-	sudo update-alternatives --auto open >/dev/null
-fi
-if [[ "$managed_legacy_open" == true ]]; then
-	sudo rm -f /usr/local/lib/quickadd-obsidian-open
-fi
-legacy_asar=/Applications/Obsidian.app/Contents/Resources/obsidian.asar
-if [[ -L "$legacy_asar" ]] && \
-	[[ "$(readlink -f "$legacy_asar")" == "/opt/Obsidian/resources/obsidian.asar" ]]; then
-	sudo rm -f "$legacy_asar"
-	sudo rmdir --ignore-fail-on-non-empty \
-		/Applications/Obsidian.app/Contents/Resources \
-		/Applications/Obsidian.app/Contents /Applications/Obsidian.app /Applications
-fi
-[[ "$(readlink -f /usr/bin/open 2>/dev/null || true)" != "/usr/local/lib/quickadd-obsidian-open" ]] || {
-	echo "Failed to restore the system open command." >&2
-	exit 1
-}
-
 echo "[setup] Project dependencies, build, and isolated vault"
 pnpm --dir "$REPO_ROOT" install --frozen-lockfile
-node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs"
-node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs" --check
 pnpm --dir "$REPO_ROOT" run build
 pnpm --dir "$REPO_ROOT" run --silent provision:e2e-vault
 
