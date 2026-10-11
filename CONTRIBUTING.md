@@ -80,7 +80,6 @@ Obsidian instance, so the tests never touch your own vaults:
 
 ```bash
 eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
-export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"
 pnpm run test:e2e
 pnpm run stop:e2e-obsidian
 ```

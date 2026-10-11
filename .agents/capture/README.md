@@ -23,8 +23,9 @@ eval "$(pnpm exec obsidian-e2e capture launch --vault /tmp/qa-capture/Notes --pr
 amp orb service start quickadd-capture \
   --command "$PWD/node_modules/.bin/obsidian-e2e capture launch --vault /tmp/qa-capture/Notes"
 # `obsidian` is the CLI bridge from .agents/setup (~/.local/bin/obsidian).
-HOME=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes plugins:restrict off
-HOME=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes quickadd:list   # lists "Add to inbox"
+# On Linux the CLI socket follows XDG_RUNTIME_DIR, which the capture app sets to its HOME.
+HOME=$OBSIDIAN_E2E_CAPTURE_HOME XDG_RUNTIME_DIR=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes plugins:restrict off
+HOME=$OBSIDIAN_E2E_CAPTURE_HOME XDG_RUNTIME_DIR=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes quickadd:list   # lists "Add to inbox"
 
 # After the restrict-off reload (any reload drops the injected capture CSS):
 pnpm exec obsidian-e2e capture prepare --width 1280 --height 800 --scale 2 \
@@ -32,7 +33,7 @@ pnpm exec obsidian-e2e capture prepare --width 1280 --height 800 --scale 2 \
 ```
 
 After `pnpm run build`, reload the plugin in the capture instance with
-`HOME=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes plugin:reload id=quickadd`,
+`HOME=$OBSIDIAN_E2E_CAPTURE_HOME XDG_RUNTIME_DIR=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes plugin:reload id=quickadd`,
 then re-run `pnpm exec obsidian-e2e capture prepare` (any app reload drops the injected capture CSS).
 
 ## Recipes
