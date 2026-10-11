@@ -46,14 +46,9 @@ done
 	echo "Invalid Obsidian CLI bridge; rerun .agents/setup." >&2
 	exit 1
 }
-[[ -x "$SCRIPT_DIR/obsidian-open" && -r /opt/Obsidian/resources/obsidian.asar ]] || {
-	echo "Invalid Obsidian app bridge; rerun .agents/setup." >&2
-	exit 1
-}
 [[ -z "$(dpkg -V obsidian 2>/dev/null || true)" ]] || {
 	echo "Obsidian package integrity check failed; rerun .agents/setup." >&2
 	exit 1
 }
-node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs" --check >/dev/null
 
 echo "QuickAdd E2E prerequisites are available; Obsidian starts on demand."

@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,8 +7,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const runE2E = path.join(repoRoot, ".agents", "run-e2e");
-const openShim = path.join(repoRoot, ".agents", "obsidian-open");
-const patcher = path.join(repoRoot, ".agents", "patch-obsidian-e2e-linux.mjs");
 const profileRoot = "/tmp/quickadd-obsidian-e2e";
 const runningOnLinux = process.platform === "linux";
 const temporaryPaths: string[] = [];
@@ -225,126 +223,5 @@ exit 0
 		} finally {
 			cleanProfileInstance(instanceName, initialRoot);
 		}
-	});
-});
-
-describe.skipIf(!runningOnLinux)("Linux Obsidian launcher validation", () => {
-	function validArgs(validHome: string): string[] {
-		return [
-		"-n",
-		"-g",
-		"-a",
-		"Obsidian",
-		"--env",
-		`HOME=${validHome}`,
-		"--args",
-		`--user-data-dir=${validHome}/Library/Application Support/obsidian`,
-		"--password-store=basic",
-		];
-	}
-
-	function validate(args: string[]): ReturnType<typeof spawnSync> {
-		return spawnSync(openShim, args, {
-			env: { ...process.env, QUICKADD_OBSIDIAN_OPEN_VALIDATE_ONLY: "1" },
-			encoding: "utf8",
-		});
-	}
-
-	it("preserves a pre-existing runner-owned profile root", () => {
-		const testCreatedRoot = !fs.existsSync(profileRoot);
-		if (testCreatedRoot) {
-			fs.mkdirSync(profileRoot, { mode: 0o700 });
-			fs.chmodSync(profileRoot, 0o700);
-		}
-		const before = profileRootState(false);
-		const instanceName = `orb-root-preservation-${process.pid}-${Date.now()}`;
-		fs.mkdirSync(path.join(profileRoot, instanceName, "home"), { recursive: true });
-
-		try {
-			cleanProfileInstance(instanceName, before);
-			expect(profileRootState(false)).toEqual(before);
-		} finally {
-			fs.rmSync(path.join(profileRoot, instanceName), { recursive: true, force: true });
-			if (testCreatedRoot) {
-				const finalState = profileRootState(false);
-				expect(finalState).toEqual(before);
-				expect(finalState.entries).toEqual([]);
-				expect(finalState.mode).toBe(0o700);
-				fs.rmdirSync(profileRoot);
-				expect(fs.existsSync(profileRoot)).toBe(false);
-			}
-		}
-	});
-
-	it("accepts only the runner's exact canonical argv", () => {
-		const initialRoot = prepareProfileRoot();
-		const instanceDir = fs.mkdtempSync(path.join(profileRoot, "orb-script-test-"));
-		const instanceName = path.basename(instanceDir);
-		const validHome = path.join(instanceDir, "home");
-		const args = validArgs(validHome);
-		const escapedHome = temporaryDirectory("quickadd-obsidian-escaped-home-");
-		const linkName = `orb-script-link-${process.pid}-${Date.now()}`;
-		const linkPath = path.join(profileRoot, linkName);
-		fs.mkdirSync(validHome, { recursive: true, mode: 0o700 });
-		fs.writeFileSync(path.join(instanceDir, "obsidian-e2e-instance.json"), "{}", {
-			mode: 0o600,
-			flag: "wx",
-		});
-		try {
-			expect(validate(args).status).toBe(0);
-			const adversarial = [
-				args.slice(1),
-				args.filter((argument) => argument !== "-g"),
-				args.filter((_, index) => index !== 4 && index !== 5),
-				[args[1], args[0], ...args.slice(2)],
-				[...args, "--extra"],
-				args.filter((argument) => argument !== "--password-store=basic"),
-				[...args.slice(0, 7), args[8], args[7]],
-				args.map((argument) =>
-					argument === `HOME=${validHome}` ? `HOME=${validHome}/../home` : argument,
-				),
-			];
-			fs.symlinkSync(escapedHome, linkPath);
-			adversarial.push(
-				args.map((argument) =>
-					argument.includes(validHome)
-						? argument.replace(validHome, linkPath)
-						: argument,
-				),
-			);
-			for (const args of adversarial) expect(validate(args).status).not.toBe(0);
-		} finally {
-			fs.rmSync(linkPath, { force: true });
-			cleanProfileInstance(instanceName, initialRoot);
-		}
-	});
-});
-
-describe("obsidian-e2e Linux patcher", () => {
-	const originalLaunch = 'resolveExec(deps)("/usr/bin/open", [';
-	const originalAsar =
-		'return [path.join("/Applications", leaf), path.join(os.userInfo().homedir, "Applications", leaf)];';
-
-	it("rejects duplicate targets without modifying the bundle", () => {
-		const dist = temporaryDirectory("quickadd-patcher-");
-		const bundle = path.join(dist, "runner.mjs");
-		const source = `${originalLaunch}\n${originalLaunch}\n${originalAsar}\n`;
-		fs.writeFileSync(bundle, source);
-		const result = spawnSync(process.execPath, [patcher, "--dist-dir", dist], { encoding: "utf8" });
-		expect(result.status).not.toBe(0);
-		expect(fs.readFileSync(bundle, "utf8")).toBe(source);
-		expect(fs.readdirSync(dist)).toEqual(["runner.mjs"]);
-	});
-
-	it("atomically patches and then validates one expected bundle", () => {
-		const dist = temporaryDirectory("quickadd-patcher-");
-		const bundle = path.join(dist, "runner.mjs");
-		fs.writeFileSync(bundle, `${originalLaunch}\n${originalAsar}\n`);
-		execFileSync(process.execPath, [patcher, "--dist-dir", dist]);
-		execFileSync(process.execPath, [patcher, "--check", "--dist-dir", dist]);
-		const patchedBundle = fs.readFileSync(bundle, "utf8");
-		expect(patchedBundle).toMatch(/\.agents[\\/]+obsidian-open/);
-		expect(patchedBundle).toContain("/opt/Obsidian/resources/obsidian.asar");
-		expect(fs.readdirSync(dist)).toEqual(["runner.mjs"]);
 	});
 });

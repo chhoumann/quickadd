@@ -44,16 +44,16 @@ Automation or scripted work should surface disruptive operations in the PR descr
 
 ## Obsidian Runtime Workflow
 Agents with the `verify-in-obsidian` skill get the generic workflow there:
-vault-mode choice, the runner script quartet, the `--print-env` HOME remap,
-instance teardown, and the dev-tools loop. This section is the QuickAdd-specific
+vault-mode choice, the runner script quartet, `--print-env`, instance
+teardown, and the dev-tools loop. This section is the QuickAdd-specific
 brief that a skill-less agent still needs.
 
-- Plugin id `quickadd`. Reload with `obsidian vault=<vault> plugin:reload
-  id=quickadd`; the runner's ready probe is `quickadd:list`. Run a choice with
-  `pnpm run obsidian:e2e -- quickadd:run choice=<name>` - note that `ok:true`
-  means the run finished, not that it did what you wanted. Drive anything else
-  through `pnpm run obsidian:e2e -- eval code=<javascript>`; top-level `await`
-  is not allowed there, so wrap async work in an IIFE the eval can await.
+- Plugin id `quickadd`; the runner's ready probe is `quickadd:list`. Run a
+  choice with `pnpm run obsidian:e2e -- quickadd:run choice=<name>` - note that
+  `ok:true` means the run finished, not that it did what you wanted. Drive
+  anything else through `pnpm run obsidian:e2e -- eval code=<javascript>`;
+  top-level `await` is not allowed there, so wrap async work in an IIFE the
+  eval can await.
 - The four runner scripts - `provision:e2e-vault`, `start:e2e-obsidian`,
   `stop:e2e-obsidian`, `obsidian:e2e` - run the shared `obsidian-e2e` bin,
   configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the
@@ -91,7 +91,6 @@ pnpm run obsidian:e2e -- dev:errors
 
 # point the Vitest tests/e2e suite at the isolated instance:
 eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
-export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"   # re-point the CLI socket
 pnpm run test:e2e
 
 pnpm run stop:e2e-obsidian                  # stop this worktree's instance on wrap-up

@@ -74,8 +74,8 @@ importers:
         specifier: 1.13.1
         version: 1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6)
       obsidian-e2e:
-        specifier: ^0.12.1
-        version: 0.12.1(vite-plus@0.1.24(@types/node@26.6.1)(@vitest/coverage-v8@5.0.2)(esbuild@0.28.2)(jiti@2.6.1)(jsdom@30.1.0)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.6.1)(yaml@2.9.1))(yaml@2.9.1))(vitest@5.0.2)
+        specifier: ^0.13.0
+        version: 0.13.0(vite-plus@0.1.24(@types/node@26.6.1)(@vitest/coverage-v8@5.0.2)(esbuild@0.28.2)(jiti@2.6.1)(jsdom@30.1.0)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.6.1)(yaml@2.9.1))(yaml@2.9.1))(vitest@5.0.2)
       svelte:
         specifier: ^5
         version: 5.57.0(@typescript-eslint/types@8.70.0)
@@ -1667,8 +1667,8 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  obsidian-e2e@0.12.1:
-    resolution: {integrity: sha512-S3bpb9T2OZJipbIYAP1BV1xX0CYioRDN4JgJAwTF/Xi5k31tapG/8xIpr5p7C4z0XYFCafeec5tgeTqGTXrz+Q==}
+  obsidian-e2e@0.13.0:
+    resolution: {integrity: sha512-gUEFGFwDnH+s11c5qeRTphh/l4SxpiIMXc4tuBT4gG3I+5Aym2Bj0SwOFOjVf/aWvC7hUa/XjptiszKBbDp/Gw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -3404,7 +3404,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  obsidian-e2e@0.12.1(vite-plus@0.1.24(@types/node@26.6.1)(@vitest/coverage-v8@5.0.2)(esbuild@0.28.2)(jiti@2.6.1)(jsdom@30.1.0)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.6.1)(yaml@2.9.1))(yaml@2.9.1))(vitest@5.0.2):
+  obsidian-e2e@0.13.0(vite-plus@0.1.24(@types/node@26.6.1)(@vitest/coverage-v8@5.0.2)(esbuild@0.28.2)(jiti@2.6.1)(jsdom@30.1.0)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.6.1)(yaml@2.9.1))(yaml@2.9.1))(vitest@5.0.2):
     dependencies:
       vite-plus: 0.1.24(@types/node@26.6.1)(@vitest/coverage-v8@5.0.2)(esbuild@0.28.2)(jiti@2.6.1)(jsdom@30.1.0)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.6.1)(yaml@2.9.1))(yaml@2.9.1)
       yaml: 2.9.1
