@@ -1,11 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import module from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect, it } from "vitest";
 
-it("fails Svelte checking on a type error when the native TypeScript executable cannot run", () => {
+// module.registerHooks, which the preload below uses, arrived in Node 22.15.
+it.skipIf(typeof module.registerHooks !== "function")("fails Svelte checking on a type error when the native TypeScript executable cannot run", () => {
 	const root = fileURLToPath(new URL("../../", import.meta.url));
 	const workspace = mkdtempSync(join(tmpdir(), "quickadd-svelte-check-native-"));
 	try {

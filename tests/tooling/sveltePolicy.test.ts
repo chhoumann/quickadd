@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compile } from "svelte/compiler";
 import { describe, expect, it } from "vitest";
@@ -71,9 +71,9 @@ describe("custom syntax guards without ESLint", () => {
 				expect(diagnostic).toBeDefined();
 				expect(diagnostic?.message).toBe(checkSvelte(contexts.template(statement))[0].message);
 			}
-			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-runes)").map(item => item.filename)).toEqual(["src/state.svelte.ts"]);
+			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-runes)").map(item => basename(item.filename))).toEqual(["state.svelte.ts"]);
 			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-debug)")).toHaveLength(1);
-			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-internal)").map(item => item.filename).sort()).toEqual(["src/internal.svelte.ts", "src/internal.test.ts", "src/internal.ts"]);
+			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-internal)").map(item => basename(item.filename)).sort()).toEqual(["internal.svelte.ts", "internal.test.ts", "internal.ts"]);
 			expect(output.diagnostics.filter(item => item.filename.includes("valid-") || item.filename.includes("excluded.test.ts"))).toEqual([]);
 		} finally {
 			rmSync(workspace, { recursive: true, force: true });
