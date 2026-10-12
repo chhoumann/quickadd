@@ -1,7 +1,7 @@
 # Tooling checks
 
 `pnpm run lint` runs Oxlint, `svelte-policy.mjs`, and
-`svelte-check --tsgo --fail-on-warnings`. `pnpm run build-with-lint` runs the
+`svelte-check --fail-on-warnings`. `pnpm run build-with-lint` runs the
 same checks before producing the application bundle. CI also runs the policy
 tests through `pnpm run test`.
 
@@ -13,8 +13,9 @@ matches these selectors without an ESLint runtime.
 
 Oxlint's JavaScript plugin API is alpha and does not have a semver guarantee.
 The dependency is pinned. The selectors execute in JavaScript, while built-in
-Oxlint rules execute natively. The TypeScript 6 API package remains for tools
-that need it, while compilation and Svelte checking use the native compiler.
+Oxlint rules execute natively. `tsc` uses the native compiler. svelte-check
+uses the TypeScript 6 API package, because svelte-check 4.7.6 exits 0 under
+`--tsgo` when the native compiler cannot start.
 
 All current components use Svelte 5 runes. Svelte checking and production
 compilation require runes mode. The policy checker rejects `$:` statements
@@ -85,10 +86,12 @@ through Oxlint, with the existing test and user-script exceptions.
 TypeScript, component scripts, and inline template handlers. It also checks
 valid examples, the test-file exclusion, matching diagnostics between Oxlint
 and the component checker, and template policy failures. Temporary fixtures
-are private and removed after the test.
+are private and removed after the test. `tests/tooling/svelteCheck.test.ts`
+runs `pnpm run check`'s command with the native compiler unable to start and
+requires it to fail on a component type error.
 
 ```sh
-pnpm exec vitest run tests/tooling/sveltePolicy.test.ts
+pnpm exec vitest run tests/tooling/sveltePolicy.test.ts tests/tooling/svelteCheck.test.ts
 pnpm run build-with-lint
 pnpm run test
 ```
@@ -105,7 +108,7 @@ These refinements follow the tooling migration:
 - Review the retired CSS checks and decide which merit separate enforcement.
 - Move checks to upstream Oxlint or Svelte implementations when they cover
 	template expressions, reducing the code maintained here.
-- Remove the TypeScript 6 compatibility package when its consumers support
-	the native compiler's APIs.
+- Remove the TypeScript 6 compatibility package when svelte-check fails on a
+	native compiler that cannot start.
 - Measure the final verification pipeline. Earlier evaluation timings predate
 	the custom-rule port and the removal of ESLint.
