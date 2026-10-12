@@ -1,0 +1,41 @@
+diff --git a/dist/src/index.js b/dist/src/index.js
+index 8eec91714c82eaba243e87e3a7b90863c8b7710d..e875707d66fbf26e3d3fcc9834fc8683cebe2419 100644
+--- a/dist/src/index.js
++++ b/dist/src/index.js
+@@ -129483,10 +129483,26 @@ function runTypeScriptDiagnostics(tsconfigPath, useTsgo, incremental, cwd) {
+         proc.on('error', (err) => {
+             reject(err);
+         });
+-        proc.on('close', () => {
++        proc.on('close', (code, signal) => {
+             const output = `${stdout}\n${stderr}`;
+             try {
+-                resolve(parseDiagnostics(output, cwd));
++                const diagnostics = parseDiagnostics(output, cwd);
++                // A non-zero exit can also mean the compiler reported diagnostics, so only
++                // treat it as an error when nothing was parsed. A signal always is: the
++                // run did not finish, so any diagnostics it printed are partial. A crash
++                // reported as an exit code after a diagnostic was printed (e.g. on Windows,
++                // where every kill is reported that way) still resolves.
++                if (signal !== null || (code !== 0 && diagnostics.length === 0)) {
++                    const reason = signal !== null
++                        ? `was killed by signal ${signal}`
++                        : `exited with code ${code} without a parseable diagnostic`;
++                    // Include what the compiler printed. Unparsed output, such as a global
++                    // error or an unknown compiler option, is often the only explanation.
++                    const detail = stripAnsi(output).trim();
++                    reject(new Error(`The TypeScript compiler process ${reason}.${detail ? `\n${detail.slice(0, 2000)}` : ''}`));
++                    return;
++                }
++                resolve(diagnostics);
+             }
+             catch (e) {
+                 reject(e);
+@@ -130471,5 +130487,7 @@ parseOptions(async (opts) => {
+     catch (_err) {
+         console.error(_err);
+         console.error('svelte-check failed');
++        // A failed run must not look like a clean one to CI.
++        exitAfterFlush(1);
+     }
+ });

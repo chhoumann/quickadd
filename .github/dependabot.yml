@@ -23,6 +23,10 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 10
+    ignore:
+      # patches/svelte-check@4.7.6.patch pins this version, and pnpm refuses to
+      # install with an unused patch. Upgrade it by hand and delete the patch.
+      - dependency-name: svelte-check
     groups:
       dev-dependencies:
         dependency-type: development
