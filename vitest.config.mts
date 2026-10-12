@@ -46,6 +46,7 @@ export default defineConfig({
 		// Files that need a DOM or Svelte code opt in with `// @vitest-environment jsdom`.
 		// jsdom setup per file is the suite's largest cost, so it is not the default.
 		setupFiles: ["./tests/vitest-setup.ts"],
+		globalSetup: ["./tests/vitest-global-setup.ts"],
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.ts"],
