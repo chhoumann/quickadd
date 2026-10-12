@@ -41,11 +41,14 @@ export const guards = [
 	}
 ];
 
-export const svelteImportGuards = [
+export const svelteInternalGuards = [
 	{
 		selector: ':matches(ImportDeclaration, ImportExpression, ExportNamedDeclaration, ExportAllDeclaration)[source.value=/^svelte\\/internal(\\/|$)/]',
 		message: "Use Svelte's public API instead of svelte/internal.",
 	},
+];
+
+export const svelteRunesGuards = [
 	{
 		selector: ':matches(ImportDeclaration, ImportExpression, ExportNamedDeclaration, ExportAllDeclaration)[source.value="svelte/store"]',
 		message: "Use Svelte runes for component state instead of legacy stores.",
@@ -55,6 +58,8 @@ export const svelteImportGuards = [
 		message: "Use callback props instead of createEventDispatcher.",
 	},
 ];
+
+export const svelteImportGuards = [...svelteInternalGuards, ...svelteRunesGuards];
 
 export const svelteDebugGuards = [
 	{
@@ -81,10 +86,16 @@ export default {
 				return createGuards(context, guards);
 			},
 		},
+		"svelte-internal": {
+			meta: { type: "problem", schema: [] },
+			create(context) {
+				return createGuards(context, svelteInternalGuards);
+			},
+		},
 		"svelte-runes": {
 			meta: { type: "problem", schema: [] },
 			create(context) {
-				return createGuards(context, svelteImportGuards);
+				return createGuards(context, svelteRunesGuards);
 			},
 		},
 		"svelte-debug": {

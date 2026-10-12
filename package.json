@@ -8,7 +8,7 @@
 		"lint": "pnpm run lint:native && pnpm run lint:svelte && pnpm run check",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"build-with-lint": "tsc -noEmit -skipLibCheck && pnpm lint && node esbuild.config.mjs production",
-		"check": "svelte-check --tsgo --fail-on-warnings",
+		"check": "svelte-check --fail-on-warnings",
 		"packages:build": "node docs/packages/build.mjs",
 		"obsidian:e2e": "obsidian-e2e run",
 		"provision:e2e-vault": "obsidian-e2e provision",

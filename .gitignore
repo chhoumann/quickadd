@@ -34,4 +34,6 @@ coverage/
 
 # Obsidian application bundle (only ever extracted transiently for inspection)
 /app.js
+
+# Overlays from svelte-check --tsgo or --incremental runs
 .svelte-check/
