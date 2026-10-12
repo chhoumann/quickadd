@@ -16,11 +16,11 @@ The dependency is pinned. The selectors execute in JavaScript, while built-in
 Oxlint rules execute natively. The TypeScript 6 API package remains for tools
 that need it, while compilation and Svelte checking use the native compiler.
 
-All current components use Svelte 5 runes. Svelte checking now requires runes
-mode, and the policy checker rejects `$:` statements and `svelte/store`
-imports. Shared `.svelte.ts` modules receive the same import restriction in
-Oxlint. This prevents legacy reactive statements and store usage from
-returning, rather than maintaining the old store and legacy-reactivity rules.
+All current components use Svelte 5 runes. Svelte checking and production
+compilation require runes mode. The policy checker rejects `$:` statements
+and `svelte/store` imports. Shared `.svelte.ts` modules receive the same import
+restriction in Oxlint. These checks prevent legacy reactive statements and
+store usage from returning.
 
 ## Svelte rule migration
 

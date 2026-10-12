@@ -37,6 +37,14 @@ describe("production Svelte compiler options", () => {
 		return { styleId: injected[1], css: injected[2] };
 	}
 
+	it("rejects legacy reactivity in the production compiler", () => {
+		const source = "<script>let count = 0; $: count += 1;</script><p>{count}</p>";
+		writeFileSync(filename, source);
+		expect(() => compile(source, { ...svelteCompilerOptions, filename })).toThrowError(
+			expect.objectContaining({ code: "legacy_reactive_statement_invalid" }),
+		);
+	});
+
 	it("gives a component a new style id when its CSS changes", () => {
 		const before = build(`<p class="msg">Hi</p><style>.msg { color: grey; }</style>`);
 		const after = build(`<p class="msg">Hi</p><style>.msg { color: red; }</style>`);
