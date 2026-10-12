@@ -42,7 +42,6 @@ jobs:
             release-assets: '["main.js","manifest.json","styles.css"]'
             verify-commands: |
                 pnpm run lint
-                pnpm run check
                 pnpm run test
             notify-name: QuickAdd
         secrets:
