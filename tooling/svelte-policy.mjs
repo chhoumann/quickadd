@@ -136,10 +136,14 @@ function globalTimer(callee, ancestors) {
 }
 
 function fingerprint(node) {
-	if (node?.type === "LogicalExpression" && ["&&", "||"].includes(node.operator)) {
-		return `${node.operator}:${[fingerprint(node.left), fingerprint(node.right)].sort().join(":")}`;
-	}
 	return JSON.stringify(node, (name, value) => ["start", "end", "loc", "raw"].includes(name) ? undefined : value);
+}
+
+function conditionFingerprint(node) {
+	if (node?.type === "LogicalExpression" && ["&&", "||"].includes(node.operator)) {
+		return `${node.operator}:${[conditionFingerprint(node.left), conditionFingerprint(node.right)].sort().join(":")}`;
+	}
+	return fingerprint(node);
 }
 
 function splitCondition(node, operator) {
@@ -172,9 +176,9 @@ function coveredCondition(node, ancestors) {
 	const candidates = node.test.type === "LogicalExpression" && node.test.operator === "&&"
 		? [...splitCondition(node.test, "&&"), node.test] : [node.test];
 	return candidates.some(candidate => {
-		let terms = splitCondition(candidate, "||").map(term => splitCondition(term, "&&").map(fingerprint));
+		let terms = splitCondition(candidate, "||").map(term => splitCondition(term, "&&").map(conditionFingerprint));
 		for (const condition of previous) {
-			const priorTerms = splitCondition(condition, "||").map(term => splitCondition(term, "&&").map(fingerprint));
+			const priorTerms = splitCondition(condition, "||").map(term => splitCondition(term, "&&").map(conditionFingerprint));
 			terms = terms.filter(term => !priorTerms.some(prior => prior.every(part => term.includes(part))));
 		}
 		return terms.length === 0;
@@ -259,7 +263,7 @@ export function checkSvelte(source, filename = "Component.svelte") {
 			const directives = new Set();
 			for (const attribute of node.attributes) {
 				if (!["OnDirective", "UseDirective"].includes(attribute.type)) continue;
-				const key = `${attribute.type}:${attribute.name}:${fingerprint(attribute.expression)}`;
+				const key = `${attribute.type}:${attribute.name}:${[...(attribute.modifiers ?? [])].sort().join(",")}:${fingerprint(attribute.expression)}`;
 				if (directives.has(key)) report(attribute, "no-dupe-directives", "Remove the duplicate event or action directive.");
 				directives.add(key);
 			}
