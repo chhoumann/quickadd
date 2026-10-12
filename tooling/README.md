@@ -108,7 +108,7 @@ These refinements follow the tooling migration:
 - Review the retired CSS checks and decide which merit separate enforcement.
 - Move checks to upstream Oxlint or Svelte implementations when they cover
 	template expressions, reducing the code maintained here.
-- Remove the TypeScript 6 compatibility package when svelte-check fails on a
-	native compiler that cannot start.
+- Remove the TypeScript 6 compatibility package when svelte-check runs on the
+	native compiler's API and fails when that compiler cannot start.
 - Measure the final verification pipeline. Earlier evaluation timings predate
 	the custom-rule port and the removal of ESLint.

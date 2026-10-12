@@ -24,11 +24,14 @@ function withWorkspace(files: Record<string, string>, run: (workspace: string) =
 	}
 }
 
-function runCheck(workspace: string, env: NodeJS.ProcessEnv = process.env) {
+function expectCheckFails(workspace: string, env: NodeJS.ProcessEnv = process.env): string {
 	const { scripts }: { scripts: { check: string } } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-	const result = spawnSync(process.execPath, [join(root, "node_modules/svelte-check/bin/svelte-check"), ...scripts.check.split(" ").slice(1), "--output", "machine-verbose"], { cwd: workspace, encoding: "utf8", env, timeout: 30_000 });
+	const [bin, ...args] = scripts.check.split(" ");
+	expect(bin).toBe("svelte-check");
+	const result = spawnSync(process.execPath, [join(root, "node_modules/svelte-check/bin/svelte-check"), ...args, "--output", "machine-verbose"], { cwd: workspace, encoding: "utf8", env, timeout: 30_000 });
 	expect(result.error).toBeUndefined();
-	return result;
+	expect(result.status, result.stdout + result.stderr).toBe(1);
+	return result.stdout;
 }
 
 it("fails strict Svelte checking on warnings, invalid handler types, and legacy reactivity", () => {
@@ -39,13 +42,12 @@ it("fails strict Svelte checking on warnings, invalid handler types, and legacy 
 		"handler.svelte": '<script lang="ts">const {handler}: {handler: number} = $props();</script><button onclick={handler}>X</button>',
 		"legacy.svelte": "<script>let n = 1; $: n = n + 1;</script>{n}",
 	}, workspace => {
-		const result = runCheck(workspace);
-		expect(result.status, result.stderr).toBe(1);
-		for (const filename of ["accessibility.svelte", "unused-css.svelte", "handler.svelte", "legacy.svelte"]) expect(result.stdout).toContain(filename);
-		expect(result.stdout).toContain("a11y_click_events_have_key_events");
-		expect(result.stdout).toContain("css_unused_selector");
-		expect(result.stdout).toContain("legacy_reactive_statement_invalid");
-		expect(result.stdout).toContain("2322");
+		const output = expectCheckFails(workspace);
+		for (const filename of ["accessibility.svelte", "unused-css.svelte", "handler.svelte", "legacy.svelte"]) expect(output).toContain(filename);
+		expect(output).toContain("a11y_click_events_have_key_events");
+		expect(output).toContain("css_unused_selector");
+		expect(output).toContain("legacy_reactive_statement_invalid");
+		expect(output).toContain("2322");
 	});
 }, 30_000);
 
@@ -69,9 +71,8 @@ it.skipIf(typeof module.registerHooks !== "function")("fails Svelte checking on 
 		expect(nativeTsc.status).not.toBe(0);
 		expect(nativeTsc.stderr).toContain("Unable to resolve @typescript/typescript-");
 
-		const check = runCheck(workspace, env);
-		expect(check.status, check.stdout + check.stderr).toBe(1);
-		expect(check.stdout).toContain('"Probe.svelte"');
-		expect(check.stdout).toContain('"code":2322');
+		const output = expectCheckFails(workspace, env);
+		expect(output).toContain('"Probe.svelte"');
+		expect(output).toContain('"code":2322');
 	});
 }, 30_000);
