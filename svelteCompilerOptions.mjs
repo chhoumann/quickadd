@@ -18,6 +18,7 @@ import { VERSION } from "svelte/compiler";
 // which Obsidian replaces on update.
 /** @type {import("svelte/compiler").CompileOptions} */
 export const svelteCompilerOptions = {
+	runes: true,
 	css: "injected",
 	cssHash: ({ hash, filename }) =>
 		`svelte-${hash(filename + VERSION + readFileSync(filename, "utf8"))}`,

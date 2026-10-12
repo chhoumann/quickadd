@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import esbuild from "esbuild";
 import esbuildSvelte from "esbuild-svelte";
 import process from "process";
-import sveltePreprocess from "svelte-preprocess";
 import { getGitInfo } from "./buildGitInfo.mjs";
 import { svelteCompilerOptions } from "./svelteCompilerOptions.mjs";
 
@@ -66,7 +65,6 @@ const options = Object.freeze({
 	plugins: [
 		esbuildSvelte({
 			compilerOptions: svelteCompilerOptions,
-			preprocess: sveltePreprocess(),
 		}),
 	],
 	format: "cjs",

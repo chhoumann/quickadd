@@ -104,8 +104,6 @@ jobs:
               run: pnpm install --frozen-lockfile
             - name: Run build with lint
               run: pnpm run build-with-lint
-            - name: Svelte check
-              run: pnpm run check
 
     # Builds the docs site the way Cloudflare Pages does (docs/.node-version,
     # frozen docs lockfile) and checks internal links and anchors. Cloudflare

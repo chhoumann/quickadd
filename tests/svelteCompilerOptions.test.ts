@@ -7,8 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type AST, compile, parseCss, preprocess } from "svelte/compiler";
-import sveltePreprocess from "svelte-preprocess";
+import { type AST, compile, parseCss } from "svelte/compiler";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { svelteCompilerOptions } from "../svelteCompilerOptions.mjs";
 
@@ -38,6 +37,14 @@ describe("production Svelte compiler options", () => {
 		return { styleId: injected[1], css: injected[2] };
 	}
 
+	it("rejects legacy reactivity in the production compiler", () => {
+		const source = "<script>let count = 0; $: count += 1;</script><p>{count}</p>";
+		writeFileSync(filename, source);
+		expect(() => compile(source, { ...svelteCompilerOptions, filename })).toThrowError(
+			expect.objectContaining({ code: "legacy_reactive_statement_invalid" }),
+		);
+	});
+
 	it("gives a component a new style id when its CSS changes", () => {
 		const before = build(`<p class="msg">Hi</p><style>.msg { color: grey; }</style>`);
 		const after = build(`<p class="msg">Hi</p><style>.msg { color: red; }</style>`);
@@ -65,9 +72,9 @@ describe("production Svelte compiler options", () => {
 describe("injected component CSS", () => {
 	/** Selectors in a component's production CSS that lack its scoped class. */
 	async function unscopedSelectors(filename: string): Promise<string[]> {
-		// Preprocess and compile like esbuild.config.mjs does.
+		// Compile native TypeScript like esbuild.config.mjs does.
 		const source = readFileSync(filename, "utf8");
-		const { code } = await preprocess(source, sveltePreprocess(), { filename });
+		const code = source;
 		const options = { ...svelteCompilerOptions, filename };
 		const { css } = compile(code, { ...options, css: "external" });
 		if (!css) return [];

@@ -23,8 +23,8 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
 ## Build, Test, and Development Commands
 - `pnpm run dev`: watch-mode bundle via `esbuild.config.mjs`, regenerating `main.js` as you edit.
 - `pnpm run build`: run `tsc --noEmit` then produce the production bundle.
-- `pnpm run build-with-lint`: type-check, run ESLint (`pnpm lint`), then produce the production build; use for release packaging.
-- `pnpm run lint`: apply ESLint to TypeScript sources to catch type and usage issues.
+- `pnpm run build-with-lint`: type-check, run Oxlint and Svelte policy checks (`pnpm lint`), then produce the production build; use for release packaging.
+- `pnpm run lint`: run Oxlint, Svelte template policies, and strict Svelte compiler/type checks.
 - `pnpm run test`: execute Vitest with `--passWithNoTests` for fast local verification.
 
 ## Coding Style & Naming Conventions
