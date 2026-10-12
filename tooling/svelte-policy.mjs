@@ -19,6 +19,8 @@ const timerFunctions = new Set(["setTimeout", "setInterval", "execScript"]);
 const globalObjects = new Set(["window", "globalThis", "self", "global"]);
 const specialElements = new Set(["head", "body", "window", "document", "element", "options"]);
 const ignoredKeys = new Set(["loc", "name_loc", "metadata", "css"]);
+const functionTypes = new Set(["FunctionExpression", "FunctionDeclaration", "ArrowFunctionExpression"]);
+const hoistedBindings = new WeakMap();
 
 function walk(node, visit, ancestors = []) {
 	if (!node || typeof node !== "object") return;
@@ -27,7 +29,7 @@ function walk(node, visit, ancestors = []) {
 		return;
 	}
 	if (typeof node.type !== "string") return;
-	visit(node, ancestors);
+	if (visit(node, ancestors) === false) return;
 	for (const [key, child] of Object.entries(node)) {
 		if (!ignoredKeys.has(key)) walk(child, visit, [node, ...ancestors]);
 	}
@@ -37,10 +39,13 @@ function patternNames(node) {
 	if (!node) return [];
 	switch (node.type) {
 		case "Identifier": return [node.name];
-		case "RestElement": return patternNames(node.argument);
+		case "RestElement":
+		case "SpreadElement": return patternNames(node.argument);
 		case "AssignmentPattern": return patternNames(node.left);
-		case "ArrayPattern": return node.elements.flatMap(patternNames);
-		case "ObjectPattern": return node.properties.flatMap(property => patternNames(property.type === "RestElement" ? property.argument : property.value));
+		case "ArrayPattern":
+		case "ArrayExpression": return node.elements.flatMap(patternNames);
+		case "ObjectPattern":
+		case "ObjectExpression": return node.properties.flatMap(property => patternNames(["RestElement", "SpreadElement"].includes(property.type) ? property.argument : property.value));
 		default: return [];
 	}
 }
@@ -62,7 +67,7 @@ function references(node) {
 function declaresName(statement, name) {
 	const declaration = statement.declaration ?? statement;
 	switch (declaration.type) {
-		case "VariableDeclaration": return declaration.declarations.some(item => patternNames(item.id).includes(name));
+		case "VariableDeclaration": return declaration.kind !== "var" && declaration.declarations.some(item => patternNames(item.id).includes(name));
 		case "FunctionDeclaration":
 		case "ClassDeclaration": return declaration.id?.name === name;
 		case "ImportDeclaration": return declaration.specifiers.some(item => item.local.name === name);
@@ -71,23 +76,49 @@ function declaresName(statement, name) {
 	}
 }
 
-function isShadowed(name, ancestors) {
+function hoistedVarNames(scope) {
+	if (hoistedBindings.has(scope)) return hoistedBindings.get(scope);
+	const names = new Set();
+	walk(scope, node => {
+		if (node !== scope && (functionTypes.has(node.type) || ["ClassExpression", "ClassDeclaration", "StaticBlock"].includes(node.type))) return false;
+		if (node.type === "VariableDeclaration" && node.kind === "var") {
+			for (const declaration of node.declarations) {
+				for (const name of patternNames(declaration.id)) names.add(name);
+			}
+		}
+	});
+	hoistedBindings.set(scope, names);
+	return names;
+}
+
+function bindingScope(name, ancestors) {
 	for (const ancestor of ancestors) {
-		if (["FunctionExpression", "ClassExpression"].includes(ancestor.type) && ancestor.id?.name === name) return true;
-		if (ancestor.params?.some(param => patternNames(param).includes(name))) return true;
-		if (ancestor.type === "CatchClause" && patternNames(ancestor.param).includes(name)) return true;
-		if (ancestor.type === "EachBlock" && (ancestor.index === name || patternNames(ancestor.context).includes(name))) return true;
-		if (ancestor.type === "SnippetBlock" && ancestor.parameters.some(param => patternNames(param).includes(name))) return true;
-		if (ancestor.type === "AwaitBlock" && ancestors.includes(ancestor.then) && patternNames(ancestor.value).includes(name)) return true;
-		if (ancestor.type === "AwaitBlock" && ancestors.includes(ancestor.catch) && patternNames(ancestor.error).includes(name)) return true;
+		if (["FunctionExpression", "ClassExpression"].includes(ancestor.type) && ancestor.id?.name === name) return ancestor;
+		if (ancestor.params?.some(param => patternNames(param).includes(name))) return ancestor;
+		if (functionTypes.has(ancestor.type) && ancestors.includes(ancestor.body) && hoistedVarNames(ancestor.body).has(name)) return ancestor;
+		if (ancestor.type === "CatchClause" && patternNames(ancestor.param).includes(name)) return ancestor;
+		if (ancestor.type === "EachBlock" && (ancestors.includes(ancestor.body) || ancestors.includes(ancestor.key))
+			&& (ancestor.index === name || patternNames(ancestor.context).includes(name))) return ancestor;
+		if (ancestor.type === "SnippetBlock" && ancestor.parameters.some(param => patternNames(param).includes(name))) return ancestor;
+		if (ancestor.type === "AwaitBlock" && ancestors.includes(ancestor.then) && patternNames(ancestor.value).includes(name)) return ancestor.then;
+		if (ancestor.type === "AwaitBlock" && ancestors.includes(ancestor.catch) && patternNames(ancestor.error).includes(name)) return ancestor.catch;
+		if (ancestors.includes(ancestor.fragment) && ancestor.attributes?.some(attribute => attribute.type === "LetDirective"
+			&& (attribute.expression ? patternNames(attribute.expression).includes(name) : attribute.name === name))) return ancestor.fragment;
+		if (ancestor.type === "SwitchStatement" && ancestors.some(child => ancestor.cases.includes(child))
+			&& ancestor.cases.some(branch => branch.consequent.some(statement => declaresName(statement, name)))) return ancestor;
 		if (["ForStatement", "ForInStatement", "ForOfStatement"].includes(ancestor.type)) {
 			const declaration = ancestor.init ?? ancestor.left;
-			if (declaration?.type === "VariableDeclaration" && declaration.declarations.some(item => patternNames(item.id).includes(name))) return true;
+			if (declaration?.type === "VariableDeclaration" && declaresName(declaration, name)) return ancestor;
 		}
-		if (["BlockStatement", "Program"].includes(ancestor.type) && ancestor.body.some(statement => declaresName(statement, name))) return true;
-		if (ancestor.type === "Fragment" && ancestor.nodes.some(statement => declaresName(statement, name))) return true;
+		if (["BlockStatement", "Program", "StaticBlock"].includes(ancestor.type) && ancestor.body.some(statement => declaresName(statement, name))) return ancestor;
+		if (["Program", "StaticBlock"].includes(ancestor.type) && hoistedVarNames(ancestor).has(name)) return ancestor;
+		if (ancestor.type === "Fragment" && ancestor.nodes.some(statement => declaresName(statement, name))) return ancestor;
 	}
-	return false;
+	return undefined;
+}
+
+function isShadowed(name, ancestors) {
+	return bindingScope(name, ancestors) !== undefined;
 }
 
 function propertyName(node) {
@@ -194,16 +225,20 @@ export function checkSvelte(source, filename = "Component.svelte") {
 	}
 	checkIgnores(ast, source, filename, report);
 	const componentScopes = [ast.instance?.content, ast.module?.content].filter(Boolean);
-	const boundElements = new Set();
-	walk(ast.fragment, node => {
+	const boundElements = new Map();
+	walk(ast.fragment, (node, ancestors) => {
 		if (!["RegularElement", "SvelteElement"].includes(node.type)) return;
 		for (const attribute of node.attributes) {
-			if (attribute.type === "BindDirective" && attribute.name === "this" && attribute.expression?.type === "Identifier") boundElements.add(attribute.expression.name);
+			if (attribute.type !== "BindDirective" || attribute.name !== "this" || attribute.expression?.type !== "Identifier") continue;
+			const name = attribute.expression.name;
+			const scopes = boundElements.get(name) ?? new Set();
+			scopes.add(bindingScope(name, [node, ...ancestors, ...componentScopes]));
+			boundElements.set(name, scopes);
 		}
 	});
 	walk(ast, (node, ancestors) => {
 		const [parent] = ancestors;
-		const globalScopes = ancestors.includes(ast.module?.content) ? ancestors : [...ancestors, ...componentScopes];
+		const globalScopes = ancestors.includes(ast.module?.content) ? [node, ...ancestors] : [node, ...ancestors, ...componentScopes];
 		for (const check of selectors) {
 			if (esquery.matches(node, check.query, ancestors, { fallback: "iteration" })) report(node, check.rule ?? "restricted-syntax", check.message, check.severity ?? "error");
 		}
@@ -229,7 +264,7 @@ export function checkSvelte(source, filename = "Component.svelte") {
 				directives.add(key);
 			}
 		}
-		if (node.type === "MemberExpression" && node.object.type === "Identifier" && boundElements.has(node.object.name) && !isShadowed(node.object.name, ancestors.filter(ancestor => ancestor.type !== "Program"))) {
+		if (node.type === "MemberExpression" && node.object.type === "Identifier" && boundElements.get(node.object.name)?.has(bindingScope(node.object.name, globalScopes))) {
 			const name = propertyName(node);
 			const target = parent?.type === "ChainExpression" ? ancestors[1] : parent;
 			const callee = parent?.type === "ChainExpression" ? parent : node;
