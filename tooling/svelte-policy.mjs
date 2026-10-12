@@ -136,7 +136,10 @@ function globalTimer(callee, ancestors) {
 }
 
 function fingerprint(node) {
-	return JSON.stringify(node, (name, value) => ["start", "end", "loc", "raw"].includes(name) ? undefined : value);
+	return JSON.stringify(node, (name, value) => {
+		if (["start", "end", "loc", "raw"].includes(name)) return undefined;
+		return typeof value === "bigint" ? { bigint: value.toString() } : value;
+	});
 }
 
 function conditionFingerprint(node) {
