@@ -1,0 +1,12 @@
+{
+	"$schema": "https://t3.codes/schema/t3.json",
+	"scripts": [
+		{
+			"name": "Set up QuickAdd",
+			"command": "pnpm install --frozen-lockfile --prefer-offline && pnpm run build",
+			"icon": "configure",
+			"runOnWorktreeCreate": true,
+			"async": false
+		}
+	]
+}
