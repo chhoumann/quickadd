@@ -87,8 +87,8 @@ TypeScript, component scripts, and inline template handlers. It also checks
 valid examples, the test-file exclusion, matching diagnostics between Oxlint
 and the component checker, and template policy failures. Temporary fixtures
 are private and removed after the test. `tests/tooling/svelteCheck.test.ts`
-runs `pnpm run check`'s command with the native compiler unable to start and
-requires it to fail on a component type error.
+requires `pnpm run check`'s command to fail on compiler warnings, legacy
+reactivity, and type errors, including when the native compiler cannot start.
 
 ```sh
 pnpm exec vitest run tests/tooling/sveltePolicy.test.ts tests/tooling/svelteCheck.test.ts

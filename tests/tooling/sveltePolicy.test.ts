@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -244,28 +244,4 @@ describe("Svelte template policies", () => {
 		const unused = compile("<p>X</p><style>.unused { color: red; }</style>", { generate: false, runes: true });
 		expect(unused.warnings.map(item => item.code)).toContain("css_unused_selector");
 	});
-	it("fails strict Svelte checking on warnings, invalid handler types, and legacy reactivity", () => {
-		const root = fileURLToPath(new URL("../../", import.meta.url));
-		const workspace = mkdtempSync(join(tmpdir(), "quickadd-svelte-check-"));
-		try {
-			symlinkSync(join(root, "node_modules"), join(workspace, "node_modules"), process.platform === "win32" ? "junction" : "dir");
-			copyFileSync(join(root, "svelte.config.mjs"), join(workspace, "svelte.config.mjs"));
-			writeFileSync(join(workspace, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "bundler", lib: ["DOM", "ES2022"], strict: true, skipLibCheck: true }, include: ["*.svelte"] }));
-			writeFileSync(join(workspace, "accessibility.svelte"), "<div onclick={() => {}}>X</div>");
-			writeFileSync(join(workspace, "unused-css.svelte"), "<p>X</p><style>.unused { color: red; }</style>");
-			writeFileSync(join(workspace, "handler.svelte"), '<script lang="ts">const {handler}: {handler: number} = $props();</script><button onclick={handler}>X</button>');
-			writeFileSync(join(workspace, "legacy.svelte"), "<script>let n = 1; $: n = n + 1;</script>{n}");
-			const manifest: { scripts: { check: string } } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-			const result = spawnSync(process.execPath, [join(root, "node_modules/svelte-check/bin/svelte-check"), ...manifest.scripts.check.split(" ").slice(1), "--output", "machine-verbose"], { cwd: workspace, encoding: "utf8", timeout: 30_000 });
-			expect(result.error).toBeUndefined();
-			expect(result.status, result.stderr).toBe(1);
-			for (const filename of ["accessibility.svelte", "unused-css.svelte", "handler.svelte", "legacy.svelte"]) expect(result.stdout).toContain(filename);
-			expect(result.stdout).toContain("a11y_click_events_have_key_events");
-			expect(result.stdout).toContain("css_unused_selector");
-			expect(result.stdout).toContain("legacy_reactive_statement_invalid");
-			expect(result.stdout).toContain("2322");
-		} finally {
-			rmSync(workspace, { recursive: true, force: true });
-		}
-	}, 30_000);
 });
