@@ -15,6 +15,8 @@ const domMethods = new Set([
 	"insertAdjacentText", "prepend", "remove", "replaceChildren", "replaceWith",
 ]);
 const domProperties = new Set(["textContent", "innerHTML", "outerHTML", "innerText", "outerText"]);
+const timerFunctions = new Set(["setTimeout", "setInterval", "execScript"]);
+const globalObjects = new Set(["window", "globalThis", "self", "global"]);
 const specialElements = new Set(["head", "body", "window", "document", "element", "options"]);
 const ignoredKeys = new Set(["loc", "name_loc", "metadata", "css"]);
 
@@ -57,26 +59,49 @@ function references(node) {
 	return names;
 }
 
+function declaresName(statement, name) {
+	const declaration = statement.declaration ?? statement;
+	switch (declaration.type) {
+		case "VariableDeclaration": return declaration.declarations.some(item => patternNames(item.id).includes(name));
+		case "FunctionDeclaration":
+		case "ClassDeclaration": return declaration.id?.name === name;
+		case "ImportDeclaration": return declaration.specifiers.some(item => item.local.name === name);
+		case "SnippetBlock": return declaration.expression.name === name;
+		default: return false;
+	}
+}
+
 function isShadowed(name, ancestors) {
 	for (const ancestor of ancestors) {
 		if (["FunctionExpression", "ClassExpression"].includes(ancestor.type) && ancestor.id?.name === name) return true;
 		if (ancestor.params?.some(param => patternNames(param).includes(name))) return true;
 		if (ancestor.type === "CatchClause" && patternNames(ancestor.param).includes(name)) return true;
 		if (ancestor.type === "EachBlock" && (ancestor.index === name || patternNames(ancestor.context).includes(name))) return true;
+		if (ancestor.type === "SnippetBlock" && ancestor.parameters.some(param => patternNames(param).includes(name))) return true;
+		if (ancestor.type === "AwaitBlock" && ancestors.includes(ancestor.then) && patternNames(ancestor.value).includes(name)) return true;
+		if (ancestor.type === "AwaitBlock" && ancestors.includes(ancestor.catch) && patternNames(ancestor.error).includes(name)) return true;
 		if (["ForStatement", "ForInStatement", "ForOfStatement"].includes(ancestor.type)) {
 			const declaration = ancestor.init ?? ancestor.left;
 			if (declaration?.type === "VariableDeclaration" && declaration.declarations.some(item => patternNames(item.id).includes(name))) return true;
 		}
-		if (ancestor.type === "BlockStatement" && ancestor.body.some(statement =>
-			statement.type === "VariableDeclaration" && statement.declarations.some(item => patternNames(item.id).includes(name))
-			|| ["FunctionDeclaration", "ClassDeclaration"].includes(statement.type) && statement.id?.name === name
-		)) return true;
+		if (["BlockStatement", "Program"].includes(ancestor.type) && ancestor.body.some(statement => declaresName(statement, name))) return true;
+		if (ancestor.type === "Fragment" && ancestor.nodes.some(statement => declaresName(statement, name))) return true;
 	}
 	return false;
 }
 
 function propertyName(node) {
 	return node?.computed ? node.property?.value : node?.property?.name;
+}
+
+function globalIdentifier(node, ancestors) {
+	return node.type === "Identifier" && !isShadowed(node.name, ancestors);
+}
+
+function globalTimer(callee, ancestors) {
+	if (callee.type === "Identifier") return timerFunctions.has(callee.name) && globalIdentifier(callee, ancestors);
+	return callee.type === "MemberExpression" && globalObjects.has(callee.object.name)
+		&& globalIdentifier(callee.object, ancestors) && timerFunctions.has(propertyName(callee));
 }
 
 function fingerprint(node) {
@@ -168,6 +193,7 @@ export function checkSvelte(source, filename = "Component.svelte") {
 		return diagnostics;
 	}
 	checkIgnores(ast, source, filename, report);
+	const componentScopes = [ast.instance?.content, ast.module?.content].filter(Boolean);
 	const boundElements = new Set();
 	walk(ast.fragment, node => {
 		if (!["RegularElement", "SvelteElement"].includes(node.type)) return;
@@ -177,6 +203,7 @@ export function checkSvelte(source, filename = "Component.svelte") {
 	});
 	walk(ast, (node, ancestors) => {
 		const [parent] = ancestors;
+		const globalScopes = ancestors.includes(ast.module?.content) ? ancestors : [...ancestors, ...componentScopes];
 		for (const check of selectors) {
 			if (esquery.matches(node, check.query, ancestors, { fallback: "iteration" })) report(node, check.rule ?? "restricted-syntax", check.message, check.severity ?? "error");
 		}
@@ -202,15 +229,15 @@ export function checkSvelte(source, filename = "Component.svelte") {
 				directives.add(key);
 			}
 		}
-		if (node.type === "MemberExpression" && node.object.type === "Identifier" && boundElements.has(node.object.name) && !isShadowed(node.object.name, ancestors)) {
+		if (node.type === "MemberExpression" && node.object.type === "Identifier" && boundElements.has(node.object.name) && !isShadowed(node.object.name, ancestors.filter(ancestor => ancestor.type !== "Program"))) {
 			const name = propertyName(node);
 			const target = parent?.type === "ChainExpression" ? ancestors[1] : parent;
 			const callee = parent?.type === "ChainExpression" ? parent : node;
 			if (target?.type === "CallExpression" && target.callee === callee && domMethods.has(name) || target?.type === "AssignmentExpression" && target.left === node && domProperties.has(name)) report(node, "no-dom-manipulating", "Let Svelte update bound elements instead of changing their DOM structure or text directly.");
 		}
-		if (node.type === "MemberExpression" && node.object.name === "console" && !["warn", "error"].includes(propertyName(node))) report(node, "no-console", "Use the logger utilities instead of console methods.");
-		if (["CallExpression", "NewExpression"].includes(node.type) && node.callee.name === "Function") report(node, "no-new-func", "Do not construct code from strings.");
-		if (node.type === "CallExpression" && ["setTimeout", "setInterval", "execScript"].includes(node.callee.name ?? propertyName(node.callee)) && ["Literal", "TemplateLiteral"].includes(node.arguments[0]?.type)) report(node, "no-implied-eval", "Pass a callback instead of a code string.");
+		if (node.type === "MemberExpression" && node.object.name === "console" && globalIdentifier(node.object, globalScopes) && !["warn", "error"].includes(propertyName(node))) report(node, "no-console", "Use the logger utilities instead of console methods.");
+		if (["CallExpression", "NewExpression"].includes(node.type) && node.callee.name === "Function" && globalIdentifier(node.callee, globalScopes)) report(node, "no-new-func", "Do not construct code from strings.");
+		if (node.type === "CallExpression" && globalTimer(node.callee, globalScopes) && (typeof node.arguments[0]?.value === "string" || node.arguments[0]?.type === "TemplateLiteral")) report(node, "no-implied-eval", "Pass a callback instead of a code string.");
 	});
 	return diagnostics;
 }

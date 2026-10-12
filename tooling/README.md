@@ -73,9 +73,11 @@ listed as retired below now depend on review.
 
 The component policy checker also applies `no-console`, `no-new-func`, and
 literal string-timer guards to template expressions. These expressions are
-outside Oxlint's extracted scripts. Type-aware promise, deprecation, and
-implied-eval checks still run on TypeScript through Oxlint, with the existing
-test and user-script exceptions.
+outside Oxlint's extracted scripts. These guards respect local script and
+template bindings. String-timer checks apply to global timer functions and
+methods on unshadowed `window`, `globalThis`, `self`, and `global` objects.
+Type-aware promise, deprecation, and implied-eval checks still run on TypeScript
+through Oxlint, with the existing test and user-script exceptions.
 
 ## Verification
 
