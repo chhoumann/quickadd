@@ -1,0 +1,192 @@
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { compile } from "svelte/compiler";
+import { describe, expect, it } from "vitest";
+import { checkSvelte } from "../../tooling/svelte-policy.mjs";
+
+const forbidden = {
+	"create-element": 'document.createElement("div");',
+	"create-fragment": "document.createDocumentFragment();",
+	"create-div": 'createEl("div");',
+	"cross-window": "void (el instanceof HTMLElement);",
+	"slider-tooltip": "el.setDynamicTooltip();",
+	"lookbehind": "void /(?<=a)b/;",
+	"style-property": 'el.style.color = "red";',
+	"style-set-property": 'el.style.setProperty("color", "red");',
+	"style-attribute": 'el.setAttribute("style", "color: red");',
+	"style-helper": 'el.setCssStyles({ "color": "red" });',
+};
+const permitted = {
+	"valid-helper": "el.createDiv();",
+	"valid-window": "el.instanceOf(HTMLElement);",
+	"valid-css-variable": 'el.setCssProps({ "--color": "red" });',
+	"valid-dynamic-style": 'el.style.color = el.dataset.color ?? "";',
+	"valid-forward-regex": "void /a(?=b)/;",
+};
+const contexts = {
+	script: (statement: string) => `<script lang="ts">function probe(el: HTMLElement): void { ${statement} }</script>`,
+	template: (statement: string) => `<button onclick={(event) => { const el = event.currentTarget; ${statement} }}>Text</button>`,
+};
+
+describe("custom syntax guards without ESLint", () => {
+	for (const [context, component] of Object.entries(contexts)) {
+		it.each(Object.entries(forbidden))(`rejects %s in a Svelte ${context}`, (_name, statement) => {
+			const diagnostics = checkSvelte(component(statement));
+			expect(diagnostics.filter(item => item.rule === "restricted-syntax")).toHaveLength(1);
+		});
+		it.each(Object.entries(permitted))(`accepts %s in a Svelte ${context}`, (_name, statement) => {
+			expect(checkSvelte(component(statement))).toEqual([]);
+		});
+	}
+
+	it("rejects the same ten TypeScript violations, accepts valid code, and excludes tests in Oxlint", () => {
+		const root = fileURLToPath(new URL("../../", import.meta.url));
+		const workspace = mkdtempSync(join(tmpdir(), "quickadd-lint-"));
+		try {
+			mkdirSync(join(workspace, "src"));
+			mkdirSync(join(workspace, "tooling"));
+			copyFileSync(join(root, ".oxlintrc.syntax.json"), join(workspace, ".oxlintrc.syntax.json"));
+			copyFileSync(join(root, "tooling/oxlint-plugin.mjs"), join(workspace, "tooling/oxlint-plugin.mjs"));
+			symlinkSync(join(root, "node_modules"), join(workspace, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+			for (const [name, statement] of Object.entries({ ...forbidden, ...permitted })) {
+				writeFileSync(join(workspace, `src/${name}.ts`), `export function probe(el: HTMLElement): void { ${statement} }`);
+			}
+			writeFileSync(join(workspace, "src/excluded.test.ts"), 'document.createElement("div");');
+			writeFileSync(join(workspace, "src/state.svelte.ts"), 'export { writable } from "svelte/store";');
+			writeFileSync(join(workspace, "src/debug.svelte.ts"), 'const value = 1; $inspect(value);');
+			const result = spawnSync(process.execPath, [join(root, "node_modules/oxlint/bin/oxlint"), "-c", ".oxlintrc.syntax.json", "src", "--format", "json"], { cwd: workspace, encoding: "utf8", timeout: 30_000 });
+			expect(result.error).toBeUndefined();
+			expect(result.status, result.stderr).toBe(1);
+			const output: { diagnostics: { filename: string; code: string; message: string }[] } = JSON.parse(result.stdout);
+			const custom = output.diagnostics.filter(item => item.code === "quickadd(restricted-syntax)");
+			expect(custom).toHaveLength(10);
+			for (const [name, statement] of Object.entries(forbidden)) {
+				const diagnostic = custom.find(item => item.filename.endsWith(`${name}.ts`));
+				expect(diagnostic).toBeDefined();
+				expect(diagnostic?.message).toBe(checkSvelte(contexts.template(statement))[0].message);
+			}
+			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-runes)")).toHaveLength(1);
+			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-debug)")).toHaveLength(1);
+			expect(output.diagnostics.filter(item => item.filename.includes("valid-") || item.filename.includes("excluded.test.ts"))).toEqual([]);
+		} finally {
+			rmSync(workspace, { recursive: true, force: true });
+		}
+	});
+
+	it("retains type-aware promise and string-timer checks through the inherited Oxlint config", () => {
+		const root = fileURLToPath(new URL("../../", import.meta.url));
+		const workspace = mkdtempSync(join(tmpdir(), "quickadd-typed-lint-"));
+		try {
+			mkdirSync(join(workspace, "src"));
+			mkdirSync(join(workspace, "tooling"));
+			for (const file of [".oxlintrc.json", ".oxlintrc.syntax.json", "tooling/oxlint-plugin.mjs"]) copyFileSync(join(root, file), join(workspace, file));
+			symlinkSync(join(root, "node_modules"), join(workspace, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+			writeFileSync(join(workspace, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "bundler", lib: ["DOM", "ES2022"], skipLibCheck: true }, include: ["src/**/*.ts"] }));
+			writeFileSync(join(workspace, "src/floating.ts"), "Promise.resolve(1);");
+			writeFileSync(join(workspace, "src/misused.ts"), "[1].forEach(async () => {});");
+			writeFileSync(join(workspace, "src/timer.ts"), 'const code: string = "alert(1)"; setTimeout(code, 10);');
+			writeFileSync(join(workspace, "src/valid.ts"), "void Promise.resolve(1); setTimeout(() => {}, 10);");
+			writeFileSync(join(workspace, "src/excluded.test.ts"), "Promise.resolve(1);");
+			const result = spawnSync(process.execPath, [join(root, "node_modules/oxlint/bin/oxlint"), "--type-aware", "src", "--format", "json"], { cwd: workspace, encoding: "utf8", timeout: 30_000 });
+			expect(result.error).toBeUndefined();
+			expect(result.status, result.stderr).toBe(1);
+			const output: { diagnostics: { filename: string; code: string }[] } = JSON.parse(result.stdout);
+			expect(output.diagnostics.map(item => item.code)).toEqual(expect.arrayContaining([
+				"typescript(no-floating-promises)", "typescript(no-misused-promises)", "typescript(no-implied-eval)",
+			]));
+			expect(output.diagnostics.filter(item => item.filename.endsWith("valid.ts") || item.filename.endsWith("excluded.test.ts"))).toEqual([]);
+		} finally {
+			rmSync(workspace, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("Svelte template policies", () => {
+	const invalid = [
+		["no-at-html-tags", "{@html html}"],
+		["require-each-key", "{#each items as item}<p>{item}</p>{/each}"],
+		["valid-each-key", "{#each items as item (42)}<p>{item}</p>{/each}"],
+		["valid-each-key", "{#each items as item (obj.item)}<p>{item}</p>{/each}"],
+		["valid-each-key", "{#each items as item ((item => item)(1))}<p>{item}</p>{/each}"],
+		["no-dom-manipulating", '<script>let el; function clear() { el.innerHTML = ""; }</script><div bind:this={el}></div>'],
+		["no-dom-manipulating", "<script>let el; function clear() { el?.replaceChildren(); }</script><div bind:this={el}></div>"],
+		["no-dupe-directives", "<div use:action use:action></div>"],
+		["no-dupe-directives", "<button on:click={handler} on:click={handler}>X</button>"],
+		["no-dupe-else-if-blocks", "{#if a || b}A{:else if b && c}B{/if}"],
+		["no-dupe-else-if-blocks", "{#if a}A{:else if b}B{:else if a || b}C{/if}"],
+		["no-object-in-text-mustaches", "<p>{{name: 'value'}}</p>"],
+		["no-raw-special-elements", "<window />"],
+		["no-at-debug-tags", "{@debug value}"],
+		["no-inspect", "<script>let n = $state(1); $inspect(n);</script>"],
+		["runes-only", "<script>let n = 1; $: n = n + 1;</script>"],
+		["restricted-syntax", '<script>import { writable } from "svelte/store";</script>'],
+		["restricted-syntax", '<script>import { effect } from "svelte/internal/client";</script>'],
+		["restricted-syntax", '<script>void import("svelte/internal/client");</script>'],
+		["restricted-syntax", '<script>import { createEventDispatcher as dispatcher } from "svelte"; const dispatch = dispatcher();</script>'],
+		["no-console", "<button onclick={() => console.log('X')}>X</button>"],
+		["no-new-func", "<button onclick={() => new Function('return 1')()}>X</button>"],
+		["no-implied-eval", "<button onclick={() => setTimeout('alert(1)', 10)}>X</button>"],
+		["no-unused-svelte-ignore", "<!-- svelte-ignore a11y_click_events_have_key_events --><p>X</p>"],
+		["no-unused-svelte-ignore", "<!-- svelte-ignore a11y_no_static_element_interactions --><div></div><div onclick={() => {}}>X</div>"],
+	];
+	it.each(invalid)("rejects %s: %s", (rule, source) => {
+		expect(checkSvelte(source).map(item => item.rule)).toContain(rule);
+	});
+	it.each([
+		"{#each items as item (item.id)}<p>{item.name}</p>{/each}",
+		"{#each items as {id, name} (id)}<p>{name}</p>{/each}",
+		"{#each items as item, i (i)}<p>{item}</p>{/each}",
+		"{#if a}A{:else if b}B{/if}",
+		"{#if a}{#if a}A{/if}{/if}",
+		"<Component config={{name: 'value'}} />",
+		"<script>let el; function clear(el) { el.remove(); }</script><div bind:this={el}></div>",
+		"<script>let el; function clear() { const el = {}; el.remove(); }</script><div bind:this={el}></div>",
+		"<script>let el; function inspect() { return el.textContent; }</script><div bind:this={el}></div>",
+		"<button onclick={() => setTimeout(() => {}, 10)}>X</button>",
+		"<button onclick={() => console.error('X')}>X</button>",
+		"<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions --><div onclick={() => {}}>X</div>",
+		"<!-- svelte-ignore a11y_click_events_have_key_events --><!-- svelte-ignore a11y_no_static_element_interactions --><div onclick={() => {}}>X</div>",
+	])("accepts valid template code: %s", source => {
+		expect(checkSvelte(source)).toEqual([]);
+	});
+	it("reports template expressions at their original line and column", () => {
+		const [diagnostic] = checkSvelte("<p>Text</p>\n<button onclick={() => document.createElement('div')}>X</button>", "Probe.svelte");
+		expect(diagnostic).toMatchObject({ filename: "Probe.svelte", line: 2, column: 24, rule: "restricted-syntax" });
+	});
+	it("rejects malformed components instead of skipping them", () => {
+		expect(checkSvelte("{#if ready}<p>X</p>")).toMatchObject([{ severity: "error" }]);
+	});
+	it("uses compiler warnings for accessibility and unused CSS", () => {
+		const inaccessible = compile("<div onclick={() => {}}>X</div>", { generate: false, runes: true });
+		expect(inaccessible.warnings.map(item => item.code)).toContain("a11y_click_events_have_key_events");
+		const unused = compile("<p>X</p><style>.unused { color: red; }</style>", { generate: false, runes: true });
+		expect(unused.warnings.map(item => item.code)).toContain("css_unused_selector");
+	});
+	it("fails strict Svelte checking on warnings, invalid handler types, and legacy reactivity", () => {
+		const root = fileURLToPath(new URL("../../", import.meta.url));
+		const workspace = mkdtempSync(join(tmpdir(), "quickadd-svelte-check-"));
+		try {
+			symlinkSync(join(root, "node_modules"), join(workspace, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+			copyFileSync(join(root, "svelte.config.mjs"), join(workspace, "svelte.config.mjs"));
+			writeFileSync(join(workspace, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "bundler", lib: ["DOM", "ES2022"], strict: true, skipLibCheck: true }, include: ["*.svelte"] }));
+			writeFileSync(join(workspace, "accessibility.svelte"), "<div onclick={() => {}}>X</div>");
+			writeFileSync(join(workspace, "unused-css.svelte"), "<p>X</p><style>.unused { color: red; }</style>");
+			writeFileSync(join(workspace, "handler.svelte"), '<script lang="ts">const {handler}: {handler: number} = $props();</script><button onclick={handler}>X</button>');
+			writeFileSync(join(workspace, "legacy.svelte"), "<script>let n = 1; $: n = n + 1;</script>{n}");
+			const manifest: { scripts: { check: string } } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+			const result = spawnSync(process.execPath, [join(root, "node_modules/svelte-check/bin/svelte-check"), ...manifest.scripts.check.split(" ").slice(1), "--output", "machine-verbose"], { cwd: workspace, encoding: "utf8", timeout: 30_000 });
+			expect(result.error).toBeUndefined();
+			expect(result.status, result.stderr).toBe(1);
+			for (const filename of ["accessibility.svelte", "unused-css.svelte", "handler.svelte", "legacy.svelte"]) expect(result.stdout).toContain(filename);
+			expect(result.stdout).toContain("a11y_click_events_have_key_events");
+			expect(result.stdout).toContain("css_unused_selector");
+			expect(result.stdout).toContain("legacy_reactive_statement_invalid");
+			expect(result.stdout).toContain("2322");
+		} finally {
+			rmSync(workspace, { recursive: true, force: true });
+		}
+	}, 30_000);
+});

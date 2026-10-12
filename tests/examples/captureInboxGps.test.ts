@@ -49,7 +49,7 @@ function makeParams(options: {
 		missing?: boolean;
 	};
 }) {
-	const files = options.files ?? new Map<string, TFile>();
+	const files = options.files ?? new Map<string, TFile | { folder: true; path: string }>();
 	const created: { path: string; content: string }[] = [];
 	const contents = options.contents ?? new Map<string, string>();
 	const written: { path: string; content: string }[] = [];

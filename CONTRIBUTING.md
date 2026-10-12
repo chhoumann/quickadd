@@ -34,6 +34,7 @@ pnpm install
 pnpm run dev    # rebuild main.js on every change
 pnpm run test   # unit tests
 pnpm run build  # type-check and bundle
+pnpm run lint   # Oxlint, Svelte template policies, and strict Svelte checks
 ```
 
 For changes that affect the plugin at runtime, verify the behavior in Obsidian
@@ -46,6 +47,11 @@ obsidian vault=dev plugin:reload id=quickadd
 
 Keep pull requests narrow. Include generated files such as `main.js` and
 `styles.css` when the source change updates them.
+
+TypeScript checks use Oxlint. Svelte compiler and type diagnostics fail on
+warnings, and a small compiler-AST checker enforces template policies and the
+same custom syntax guards. [Tooling checks](tooling/README.md) lists the rules
+and the migration from ESLint.
 
 ### Obsidian's plugin review
 

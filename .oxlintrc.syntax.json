@@ -1,0 +1,242 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": [],
+	"categories": {
+		"correctness": "off"
+	},
+	"options": {
+		"typeAware": false
+	},
+	"env": {
+		"builtin": true
+	},
+	"ignorePatterns": [
+		"node_modules/**",
+		"dist/**",
+		"docs/**",
+		".audit/**",
+		".obsidian-e2e-vaults/**",
+		"main.js",
+		"**/*.d.ts",
+		".svelte-check/**"
+	],
+	"overrides": [
+		{
+			"files": [
+				"**/*.ts"
+			],
+			"rules": {
+				"no-array-constructor": "error",
+				"no-unused-expressions": "error",
+				"no-unused-vars": [
+					"error",
+					{
+						"args": "none"
+					}
+				],
+				"no-prototype-builtins": "off",
+				"no-empty-function": "off",
+				"typescript/ban-ts-comment": "off",
+				"typescript/no-duplicate-enum-values": "error",
+				"typescript/no-empty-object-type": "error",
+				"typescript/no-explicit-any": "off",
+				"typescript/no-extra-non-null-assertion": "error",
+				"typescript/no-misused-new": "error",
+				"typescript/no-namespace": "error",
+				"typescript/no-non-null-asserted-optional-chain": "error",
+				"typescript/no-require-imports": "error",
+				"typescript/no-this-alias": "error",
+				"typescript/no-unnecessary-type-constraint": "error",
+				"typescript/no-unsafe-declaration-merging": "error",
+				"typescript/no-unsafe-function-type": "error",
+				"typescript/no-wrapper-object-types": "error",
+				"typescript/prefer-as-const": "error",
+				"typescript/prefer-namespace-keyword": "error",
+				"typescript/triple-slash-reference": "error",
+				"typescript/consistent-type-imports": "warn",
+				"typescript/no-unsafe-assignment": "off",
+				"typescript/no-unsafe-member-access": "off",
+				"typescript/no-unsafe-call": "off",
+				"typescript/no-unsafe-return": "off",
+				"typescript/no-unsafe-argument": "off",
+				"typescript/restrict-template-expressions": "off"
+			},
+			"plugins": [
+				"typescript"
+			],
+			"env": {
+				"browser": true,
+				"node": true
+			}
+		},
+		{
+			"files": [
+				"*.svelte",
+				"**/*.svelte"
+			],
+			"rules": {
+				"no-inner-declarations": "off",
+				"no-self-assign": "off"
+			}
+		},
+		{
+			"files": [
+				"**/*.svelte",
+				"**/*.svelte.ts"
+			],
+			"env": {
+				"browser": true
+			}
+		},
+		{
+			"files": [
+				"src/**/*.ts"
+			],
+			"rules": {
+				"no-useless-escape": "error",
+				"typescript/no-unnecessary-type-assertion": "error",
+				"typescript/prefer-promise-reject-errors": "error",
+				"typescript/unbound-method": "error",
+				"typescript/no-floating-promises": "error",
+				"typescript/no-misused-promises": "error",
+				"typescript/no-deprecated": "error"
+			},
+			"plugins": [
+				"typescript"
+			]
+		},
+		{
+			"files": [
+				"src/**/*.ts",
+				"src/**/*.svelte"
+			],
+			"rules": {
+				"no-console": [
+					"error",
+					{
+						"allow": [
+							"warn",
+							"error"
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": [
+				"src/gui/components/textareaIndent.ts",
+				"src/gui/imagePasteHandler.ts"
+			],
+			"rules": {
+				"typescript/no-deprecated": [
+					"error",
+					{
+						"allow": [
+							{
+								"from": "lib",
+								"name": "execCommand"
+							}
+						]
+					}
+				]
+			},
+			"plugins": [
+				"typescript"
+			]
+		},
+		{
+			"files": [
+				"src/gui/svelte/mountComponent.ts"
+			],
+			"rules": {
+				"typescript/no-explicit-any": "error"
+			},
+			"plugins": [
+				"typescript"
+			]
+		},
+		{
+			"files": [
+				"src/**/*.ts",
+				"src/**/*.svelte"
+			],
+			"rules": {
+				"no-new-func": "error",
+				"no-implied-eval": "error"
+			}
+		},
+		{
+			"files": [
+				"src/**/*.ts"
+			],
+			"rules": {
+				"no-implied-eval": "off",
+				"typescript/no-implied-eval": "error"
+			},
+			"plugins": [
+				"typescript"
+			]
+		},
+		{
+			"files": [
+				"src/utils/userScript.ts"
+			],
+			"rules": {
+				"no-new-func": "off",
+				"typescript/no-implied-eval": "off"
+			},
+			"plugins": [
+				"typescript"
+			]
+		},
+		{
+			"files": [
+				"src/**/*.test.ts"
+			],
+			"rules": {
+				"no-useless-escape": "off",
+				"typescript/no-unnecessary-type-assertion": "off",
+				"typescript/prefer-promise-reject-errors": "off",
+				"typescript/unbound-method": "off",
+				"typescript/no-floating-promises": "off",
+				"typescript/no-misused-promises": "off",
+				"typescript/no-deprecated": "off",
+				"no-console": "off",
+				"no-new-func": "off",
+				"no-implied-eval": "off",
+				"typescript/no-implied-eval": "off"
+			}
+		},
+		{
+			"files": [
+				"src/**/*.ts"
+			],
+			"rules": {
+				"quickadd/restricted-syntax": "error"
+			}
+		},
+		{
+			"files": [
+				"src/**/*.test.ts"
+			],
+			"rules": {
+				"quickadd/restricted-syntax": "off"
+			}
+		},
+		{
+			"files": [
+				"**/*.svelte.ts"
+			],
+			"rules": {
+				"quickadd/svelte-runes": "error",
+				"quickadd/svelte-debug": "warn"
+			}
+		}
+	],
+	"jsPlugins": [
+		{
+			"name": "quickadd",
+			"specifier": "./tooling/oxlint-plugin.mjs"
+		}
+	]
+}

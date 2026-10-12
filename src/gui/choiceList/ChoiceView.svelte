@@ -102,7 +102,7 @@
 	     (#1451, #1566). The boundary keeps that damage inside this view; the
 	     try/catch in quickAddSettingsTab.renderChoicesView covers the setup this
 	     boundary sits inside. -->
-	<svelte:boundary onerror={(error) => log.logError(
+	<svelte:boundary onerror={(error: unknown) => log.logError(
 		`QuickAdd could not render the choice list: ${error instanceof Error ? error.message : String(error)}`,
 	)}>
 	{#if choices.length === 0 && filterQuery.trim().length === 0}
@@ -213,7 +213,7 @@
 			<AddChoiceControls onAddChoice={actions.onAddChoice} fill={isMobile} />
 		</div>
 	{/if}
-	{#snippet failed(error)}
+	{#snippet failed(error: unknown)}
 		<ChoicesUnavailable
 			detail={error instanceof Error ? error.message : String(error)}
 		/>
