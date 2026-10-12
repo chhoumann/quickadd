@@ -49,7 +49,7 @@ listed as retired below now depend on review.
 | `no-at-debug-tags` | Compiler-AST policy reports a warning. |
 | `no-inspect` | Shared selector reports a warning in components and shared `.svelte.ts` modules. |
 | `no-dom-manipulating` | Compiler-AST policy rejects structural or text changes to named `bind:this` elements and allows local shadowing. It does not follow arbitrary aliases. |
-| `no-dupe-else-if-blocks` | Compiler-AST policy checks duplicate and covered conditions in else-if chains. |
+| `no-dupe-else-if-blocks` | Compiler-AST policy checks duplicate and covered conditions using identifiers, literals, Boolean operators, and strict equality. It skips chains containing calls, property reads, mutations, or coercive operators because their values can change between evaluations. |
 | `no-dupe-on-directives` | Compiler-AST policy rejects identical event directives. |
 | `no-dupe-use-directives` | Compiler-AST policy rejects identical action directives. |
 | `no-not-function-handler` | Svelte type checking verifies event-handler types. |

@@ -48,6 +48,7 @@ function references(node) {
 	walk(node, (child, ancestors) => {
 		const [parent] = ancestors;
 		if (child.type !== "Identifier") return;
+		if (["FunctionExpression", "ClassExpression"].includes(parent?.type) && parent.id === child) return;
 		if (parent?.type === "MemberExpression" && parent.property === child && !parent.computed) return;
 		if (parent?.type === "Property" && parent.key === child && !parent.computed && !parent.shorthand) return;
 		if (isShadowed(child.name, ancestors)) return;
@@ -58,6 +59,7 @@ function references(node) {
 
 function isShadowed(name, ancestors) {
 	for (const ancestor of ancestors) {
+		if (["FunctionExpression", "ClassExpression"].includes(ancestor.type) && ancestor.id?.name === name) return true;
 		if (ancestor.params?.some(param => patternNames(param).includes(name))) return true;
 		if (ancestor.type === "CatchClause" && patternNames(ancestor.param).includes(name)) return true;
 		if (ancestor.type === "EachBlock" && (ancestor.index === name || patternNames(ancestor.context).includes(name))) return true;
@@ -90,6 +92,17 @@ function splitCondition(node, operator) {
 		: [node];
 }
 
+function stableCondition(node) {
+	switch (node.type) {
+		case "Identifier":
+		case "Literal": return true;
+		case "UnaryExpression": return node.operator === "!" && stableCondition(node.argument);
+		case "LogicalExpression": return ["&&", "||"].includes(node.operator) && stableCondition(node.left) && stableCondition(node.right);
+		case "BinaryExpression": return ["===", "!=="].includes(node.operator) && stableCondition(node.left) && stableCondition(node.right);
+		default: return false;
+	}
+}
+
 function coveredCondition(node, ancestors) {
 	let current = node;
 	const previous = [];
@@ -99,6 +112,7 @@ function coveredCondition(node, ancestors) {
 		previous.push(block.test);
 		current = block;
 	}
+	if (![node.test, ...previous].every(stableCondition)) return false;
 	const candidates = node.test.type === "LogicalExpression" && node.test.operator === "&&"
 		? [...splitCondition(node.test, "&&"), node.test] : [node.test];
 	return candidates.some(candidate => {
