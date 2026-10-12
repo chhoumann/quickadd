@@ -1,9 +1,11 @@
 # Tooling checks
 
-`pnpm run lint` runs Oxlint, `svelte-policy.mjs`, and
-`svelte-check --fail-on-warnings`. `pnpm run build-with-lint` runs the
-same checks before producing the application bundle. CI also runs the policy
-tests through `pnpm run test`.
+`pnpm run lint` runs Oxlint, `svelte-policy.mjs`, `tsc --noEmit --noCheck`,
+and `svelte-check --tsgo-experimental-api --fail-on-warnings` in parallel.
+pnpm runs at most four scripts at once, so a fifth `lint:` script would wait
+for a free slot.
+`pnpm run build-with-lint` runs the same checks before producing the
+application bundle. CI also runs the policy tests through `pnpm run test`.
 
 Oxlint checks TypeScript and extracted Svelte scripts. Its JavaScript plugin
 API cannot inspect Svelte template expressions, so `svelte-policy.mjs` uses
@@ -13,9 +15,19 @@ matches these selectors without an ESLint runtime.
 
 Oxlint's JavaScript plugin API is alpha and does not have a semver guarantee.
 The dependency is pinned. The selectors execute in JavaScript, while built-in
-Oxlint rules execute natively. `tsc` uses the native compiler. svelte-check
-uses the TypeScript 6 API package, because svelte-check 4.7.6 exits 0 under
-`--tsgo` when the native compiler cannot start.
+Oxlint rules execute natively. `tsc` uses the native compiler, and so does
+svelte-check through the native compiler's API. svelte-check 4.7.6 exits 0
+when that compiler cannot start, so `patches/svelte-check@4.7.6.patch`
+backports the upstream fix (sveltejs/language-tools#3133). pnpm refuses to
+install with a patch for a version that is no longer installed, so the
+next svelte-check upgrade must delete it, which is why Dependabot skips
+svelte-check. svelte-check still loads the TypeScript 6 package.
+
+svelte-check checks every file in the tsconfig program, but its `FILES` count
+on this path covers only components and files with diagnostics. It also stays
+silent when the tsconfig matches no input files, so `lint` also runs
+`tsc --noEmit --noCheck`. It fails with TS18003 in that case and skips a second
+type check.
 
 All current components use Svelte 5 runes. Svelte checking and production
 compilation require runes mode. The policy checker rejects `$:` statements
@@ -88,7 +100,10 @@ valid examples, the test-file exclusion, matching diagnostics between Oxlint
 and the component checker, and template policy failures. Temporary fixtures
 are private and removed after the test. `tests/tooling/svelteCheck.test.ts`
 requires `pnpm run check`'s command to fail on compiler warnings, legacy
-reactivity, and type errors, including when the native compiler cannot start.
+reactivity, type errors, components that do not parse, imports of missing
+components, and a native compiler that cannot start or crashes. It also
+requires `pnpm run lint` to run `lint:tsconfig`, and that check to fail when
+the tsconfig matches no input files.
 
 ```sh
 pnpm exec vitest run tests/tooling/sveltePolicy.test.ts tests/tooling/svelteCheck.test.ts
@@ -108,7 +123,5 @@ These refinements follow the tooling migration:
 - Review the retired CSS checks and decide which merit separate enforcement.
 - Move checks to upstream Oxlint or Svelte implementations when they cover
 	template expressions, reducing the code maintained here.
-- Remove the TypeScript 6 compatibility package when svelte-check runs on the
-	native compiler's API and fails when that compiler cannot start.
-- Measure the final verification pipeline. Earlier evaluation timings predate
-	the custom-rule port and the removal of ESLint.
+- Remove the TypeScript 6 compatibility package when svelte-check no longer
+	loads the `typescript` package.

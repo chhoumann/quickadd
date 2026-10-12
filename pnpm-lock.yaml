@@ -8,6 +8,11 @@ overrides:
   brace-expansion: 5.0.9
   postcss: 8.5.25
 
+patchedDependencies:
+  svelte-check@4.7.6:
+    hash: 3eddedcd07511c7eb7e4a26f4caeb62396acf984b2300019329f14f3d2c0cf74
+    path: patches/svelte-check@4.7.6.patch
+
 importers:
 
   .:
@@ -77,8 +82,8 @@ importers:
         specifier: ^5.57.2
         version: 5.57.2(@typescript-eslint/types@8.71.1)
       svelte-check:
-        specifier: ^4.7.6
-        version: 4.7.6(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2(@typescript-eslint/types@8.71.1))
+        specifier: 4.7.6
+        version: 4.7.6(patch_hash=3eddedcd07511c7eb7e4a26f4caeb62396acf984b2300019329f14f3d2c0cf74)(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2(@typescript-eslint/types@8.71.1))
       tslib:
         specifier: ^2.8.1
         version: 2.8.1
@@ -3145,7 +3150,7 @@ snapshots:
 
   style-mod@4.1.4: {}
 
-  svelte-check@4.7.6(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2(@typescript-eslint/types@8.71.1)):
+  svelte-check@4.7.6(patch_hash=3eddedcd07511c7eb7e4a26f4caeb62396acf984b2300019329f14f3d2c0cf74)(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2(@typescript-eslint/types@8.71.1)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@sveltejs/load-config': 0.2.3

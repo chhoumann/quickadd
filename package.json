@@ -5,10 +5,10 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"lint": "pnpm run lint:native && pnpm run lint:svelte && pnpm run check",
+		"lint": "pnpm run \"/^(lint:.+|check)$/\"",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"build-with-lint": "tsc -noEmit -skipLibCheck && pnpm lint && node esbuild.config.mjs production",
-		"check": "svelte-check --fail-on-warnings",
+		"build-with-lint": "pnpm lint && node esbuild.config.mjs production",
+		"check": "svelte-check --tsgo-experimental-api --fail-on-warnings",
 		"packages:build": "node docs/packages/build.mjs",
 		"obsidian:e2e": "obsidian-e2e run",
 		"provision:e2e-vault": "obsidian-e2e provision",
@@ -19,7 +19,8 @@
 		"test:e2e": "vitest run --config vitest.e2e.config.mts",
 		"test:e2e:orb": ".agents/run-e2e",
 		"lint:native": "oxlint -c .oxlintrc.syntax.json src tests && oxlint --type-aware --ignore-pattern '**/*.test.ts' src",
-		"lint:svelte": "node tooling/svelte-policy.mjs"
+		"lint:svelte": "node tooling/svelte-policy.mjs",
+		"lint:tsconfig": "tsc --noEmit --noCheck"
 	},
 	"keywords": [],
 	"author": "Christian B. B. Houmann",
@@ -41,7 +42,7 @@
 		"oxlint": "1.87.0",
 		"oxlint-tsgolint": "7.0.2004",
 		"svelte": "^5.57.2",
-		"svelte-check": "^4.7.6",
+		"svelte-check": "4.7.6",
 		"tslib": "^2.8.1",
 		"typescript": "npm:@typescript/typescript6@6.0.2",
 		"vite": "^8.3.4",
@@ -70,6 +71,9 @@
 		"overrides": {
 			"brace-expansion": "5.0.9",
 			"postcss": "8.5.25"
+		},
+		"patchedDependencies": {
+			"svelte-check@4.7.6": "patches/svelte-check@4.7.6.patch"
 		}
 	}
 }
