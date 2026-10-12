@@ -224,6 +224,14 @@
 		},
 		{
 			"files": [
+				"**/*.ts"
+			],
+			"rules": {
+				"quickadd/svelte-internal": "error"
+			}
+		},
+		{
+			"files": [
 				"**/*.svelte.ts"
 			],
 			"rules": {

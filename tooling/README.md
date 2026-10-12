@@ -56,7 +56,7 @@ listed as retired below now depend on review.
 | `no-not-function-handler` | Svelte type checking verifies event-handler types. |
 | `no-object-in-text-mustaches` | Compiler-AST policy rejects object and function literals in text interpolation. |
 | `no-raw-special-elements` | Compiler-AST policy requires the `svelte:` prefix for special elements. |
-| `no-svelte-internal` | Shared selector rejects imports and re-exports from Svelte internals. |
+| `no-svelte-internal` | Shared selector rejects imports and re-exports from Svelte internals in components and all TypeScript files. |
 | `no-unused-svelte-ignore` | Compiler-AST policy compares suppressed warnings with compiler diagnostics for the target element. |
 | `no-inner-declarations` | Removed. Svelte scripts are modules, and block-scoped functions were already allowed. |
 | `no-unused-props` | Removed. This rule required TypeScript parser services that the remaining ESLint fallback did not enable. |
