@@ -22,5 +22,5 @@
 		"verbatimModuleSyntax": true
 	},
 	"include": ["**/*.ts"],
-	"exclude": ["node_modules", "docs", ".svelte-check"]
+	"exclude": ["node_modules", "docs"]
 }

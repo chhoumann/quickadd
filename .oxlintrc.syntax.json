@@ -17,8 +17,7 @@
 		".audit/**",
 		".obsidian-e2e-vaults/**",
 		"main.js",
-		"**/*.d.ts",
-		".svelte-check/**"
+		"**/*.d.ts"
 	],
 	"overrides": [
 		{
