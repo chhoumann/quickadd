@@ -1,0 +1,52 @@
+{
+	"rules": {
+		"no-svelte-store": "error",
+		"runes-only": "error",
+		"no-console": {
+			"severity": "error",
+			"message": "Use the logger utilities instead of console methods."
+		}
+	},
+	"restrictedSyntax": [
+		{
+			"selector": "CallExpression[callee.type=\"MemberExpression\"][callee.property.name=\"createElement\"]",
+			"message": "Use Obsidian DOM helpers; use the owner document window for detached elements."
+		},
+		{
+			"selector": "CallExpression[callee.property.name=\"createDocumentFragment\"]",
+			"message": "Use createFragment(), or the owner document window for a specific realm."
+		},
+		{
+			"selector": "CallExpression:matches([callee.name=\"createEl\"], [callee.property.name=\"createEl\"])[arguments.0.value=/^(div|span)$/]",
+			"message": "Use createDiv() or createSpan() for these tags."
+		},
+		{
+			"selector": "BinaryExpression[operator=\"instanceof\"][right.name=\"HTMLElement\"]",
+			"message": "Use node.instanceOf(HTMLElement) for cross-window checks."
+		},
+		{
+			"selector": "CallExpression[callee.type=\"MemberExpression\"][callee.property.name=\"setDynamicTooltip\"]",
+			"message": "Slider values are shown inline; setDynamicTooltip has no effect."
+		},
+		{
+			"selector": "Literal[regex.pattern=/\\(\\?<[=!]/]",
+			"message": "No regex lookbehind: iOS before 16.4 cannot parse it, and Obsidian runs on iOS 15.6, so QuickAdd would not load at all."
+		},
+		{
+			"selector": "AssignmentExpression[left.object.type=\"MemberExpression\"][left.object.computed=false][left.object.property.name=\"style\"][right.type=\"Literal\"]",
+			"message": "Put a static style in styles.css; set a computed one with setCssStyles, or a CSS variable with setCssProps."
+		},
+		{
+			"selector": "CallExpression[callee.property.name=\"setProperty\"][callee.object.property.name=\"style\"][arguments.1.type=\"Literal\"]",
+			"message": "Put a static style in styles.css; set a computed one with setCssStyles, or a CSS variable with setCssProps."
+		},
+		{
+			"selector": "CallExpression[callee.property.name=\"setAttribute\"][arguments.0.value=\"style\"][arguments.1.type=\"Literal\"]",
+			"message": "Put a static style in styles.css; set a computed one with setCssStyles, or a CSS variable with setCssProps."
+		},
+		{
+			"selector": "CallExpression[callee.property.name=/^setCss(Props|Styles)$/] > ObjectExpression > Property[key.type=\"Literal\"][key.value=/^(?!--)/]",
+			"message": "Put a static style in styles.css; set a computed one with setCssStyles, or a CSS variable with setCssProps."
+		}
+	]
+}

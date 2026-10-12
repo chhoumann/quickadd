@@ -227,7 +227,7 @@
 				"**/*.ts"
 			],
 			"rules": {
-				"quickadd/svelte-internal": "error"
+				"quickadd/no-svelte-internal": "error"
 			}
 		},
 		{
@@ -235,15 +235,16 @@
 				"**/*.svelte.ts"
 			],
 			"rules": {
-				"quickadd/svelte-runes": "error",
-				"quickadd/svelte-debug": "warn"
+				"quickadd/no-svelte-store": "error",
+				"quickadd/runes-only": "error",
+				"quickadd/no-inspect": "warn"
 			}
 		}
 	],
 	"jsPlugins": [
 		{
 			"name": "quickadd",
-			"specifier": "./tooling/oxlint-plugin.mjs"
+			"specifier": "svelte-policy/oxlint"
 		}
 	]
 }
