@@ -57,6 +57,9 @@ describe("custom syntax guards without ESLint", () => {
 			writeFileSync(join(workspace, "src/excluded.test.ts"), 'document.createElement("div");');
 			writeFileSync(join(workspace, "src/state.svelte.ts"), 'export { writable } from "svelte/store";');
 			writeFileSync(join(workspace, "src/debug.svelte.ts"), 'const value = 1; $inspect(value);');
+			writeFileSync(join(workspace, "src/internal.ts"), 'import "svelte/internal/disclose-version";');
+			writeFileSync(join(workspace, "src/internal.svelte.ts"), 'export * from "svelte/internal/client";');
+			writeFileSync(join(workspace, "src/internal.test.ts"), 'export { mount } from "svelte/internal/client";');
 			const result = spawnSync(process.execPath, [join(root, "node_modules/oxlint/bin/oxlint"), "-c", ".oxlintrc.syntax.json", "src", "--format", "json"], { cwd: workspace, encoding: "utf8", timeout: 30_000 });
 			expect(result.error).toBeUndefined();
 			expect(result.status, result.stderr).toBe(1);
@@ -68,8 +71,9 @@ describe("custom syntax guards without ESLint", () => {
 				expect(diagnostic).toBeDefined();
 				expect(diagnostic?.message).toBe(checkSvelte(contexts.template(statement))[0].message);
 			}
-			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-runes)")).toHaveLength(1);
+			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-runes)").map(item => item.filename)).toEqual(["src/state.svelte.ts"]);
 			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-debug)")).toHaveLength(1);
+			expect(output.diagnostics.filter(item => item.code === "quickadd(svelte-internal)").map(item => item.filename).sort()).toEqual(["src/internal.svelte.ts", "src/internal.test.ts", "src/internal.ts"]);
 			expect(output.diagnostics.filter(item => item.filename.includes("valid-") || item.filename.includes("excluded.test.ts"))).toEqual([]);
 		} finally {
 			rmSync(workspace, { recursive: true, force: true });
