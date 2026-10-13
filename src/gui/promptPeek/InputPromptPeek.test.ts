@@ -109,6 +109,23 @@ describe("InputPromptPeek", () => {
 		expect(document.querySelector(".qa-peek-chip")).toBeNull();
 	});
 
+	it("resumes above a modal another plugin opened during the peek", () => {
+		const field = document.createElement("input");
+		field.value = "half written";
+		const host = makeHost({ field });
+		host.containerEl.appendChild(field);
+		field.setSelectionRange(4, 4);
+		new InputPromptPeek(host).peek();
+		const otherModal = document.body.appendChild(document.createElement("div"));
+
+		PromptPeekSession.getActive()?.resume();
+
+		expect(Array.from(document.body.children)).toEqual([otherModal, host.containerEl]);
+		expect(document.activeElement).toBe(field);
+		expect(field.value).toBe("half written");
+		expect(field.selectionStart).toBe(4);
+	});
+
 	it("inserts the selection over the field's own selection range", () => {
 		const field = document.createElement("input");
 		field.value = "Note: ";
