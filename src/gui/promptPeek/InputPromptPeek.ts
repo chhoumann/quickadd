@@ -78,6 +78,9 @@ export class InputPromptPeek {
 
 	private showModal(): void {
 		this.host.app.keymap.pushScope(this.host.scope);
+		// Modals stack in DOM order, so one another plugin opened during the
+		// peek would otherwise cover the prompt that now has the keyboard.
+		this.host.containerEl.parentElement?.appendChild(this.host.containerEl);
 		this.host.containerEl.removeClass(PEEK_HIDDEN_CLASS);
 		markPromptVisible(this.host);
 		// The field kept its selection while hidden; focus restores it.
