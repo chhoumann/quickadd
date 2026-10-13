@@ -850,6 +850,13 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	display: none;
 }
 
+/* Over another modal, peeking would show that modal instead of the
+   note and park the run behind it. InputPromptPeek.peek() matches the same
+   containers for the shortcut. */
+body:has(> .modal-container:not(.quickAddModal)) .quickAddModal .qa-peek-button {
+	display: none;
+}
+
 .quickAddModal.qa-prompt-compact .qa-prompt-actions,
 .is-phone .quickAddModal .qa-prompt-actions {
 	--button-radius: 6px;

@@ -36,7 +36,7 @@ export class InputPromptPeek {
 	constructor(private readonly host: InputPromptPeekHost) {}
 
 	peek(): void {
-		if (this.peeking) return;
+		if (this.peeking || isOverAnotherModal(this.host.containerEl)) return;
 		const field = this.host.getField();
 		if (field) this.host.setValue(field.value);
 		this.host.persistDraft();
@@ -119,6 +119,15 @@ export class InputPromptPeek {
 		this.host.app.keymap.pushScope(this.host.scope);
 		this.host.close();
 	}
+}
+
+/** Mirrors the styles.css rule that hides the Peek button over another modal. */
+function isOverAnotherModal(containerEl: HTMLElement): boolean {
+	return (
+		containerEl.ownerDocument.body.querySelector(
+			":scope > .modal-container:not(.quickAddModal)",
+		) !== null
+	);
 }
 
 function focusActiveEditor(app: App): void {
