@@ -70,7 +70,7 @@ vi.mock("../utils/templaterIntegration", () => ({
 function fixture(content?: string) {
 	const choice = new CaptureChoice("Set status");
 	choice.captureTo = "Inbox.md";
-	choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+	choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 	const executor = { ...createChoiceExecutor(), interactive: false, recordExecutionResult: vi.fn(), signalAbort: vi.fn() };
 	const file = Object.assign(new TFile(), { path: "Inbox.md", basename: "Inbox", name: "Inbox.md", extension: "md" });
 	let stored = content;
@@ -190,7 +190,7 @@ describe("Capture property writes", () => {
 
 	it("seeds property variables and compose-writes when the format contains {{PROPERTY}}", async () => {
 		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
-		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		test.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
 		mocks.value.mockImplementation(async () => {
 			expect(test.executor.variables.get("propertyKey")).toBe("tags");
@@ -207,7 +207,7 @@ describe("Capture property writes", () => {
 
 	it("restores seeds so a second property Capture on the same executor can run", async () => {
 		const first = fixture("---\ntags: [old]\n---\nBody\n");
-		first.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		first.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		first.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
 		mocks.value.mockResolvedValueOnce("work\nold");
 		await first.run();
@@ -215,7 +215,7 @@ describe("Capture property writes", () => {
 		expect(first.executor.variables.has("list")).toBe(false);
 
 		first.overwrite("---\ntags: [work, old]\nstatus: Draft\n---\nBody\n");
-		first.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		first.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 		first.choice.format = { enabled: true, format: "{{PROPERTY}} → Ready" };
 		mocks.value.mockResolvedValueOnce("Draft → Ready");
 		await first.run();
@@ -225,7 +225,7 @@ describe("Capture property writes", () => {
 
 	it("still appends when {{PROPERTY}} is absent from the format", async () => {
 		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
-		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		test.choice.format = { enabled: true, format: "work" };
 		mocks.value.mockResolvedValue("work");
 		await test.run();

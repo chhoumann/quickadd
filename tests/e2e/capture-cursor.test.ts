@@ -372,7 +372,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 
 	it("strips property markers without changing the note body or cursor", async () => {
 		const { choice, path } = await setup("---\nstatus: old\n---\nBody");
-		choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: false };
+		choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: false, sort: "none" };
 		choice.format.format = "before{{CURSOR}}after";
 		await saveAndOpen(choice, path);
 		await getContext().obsidian.dev.evalJson("(() => { app.workspace.activeLeaf.view.editor.setCursor({line:3,ch:2}); return true; })()");

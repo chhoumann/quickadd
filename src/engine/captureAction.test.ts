@@ -152,7 +152,7 @@ describe("getWritePosition", () => {
 		["legacy prepend on the active file", { captureToActiveFile: true, prepend: true }, "bottom"],
 		["active file top", { captureToActiveFile: true, activeFileWritePosition: "top" as const }, "activeTop"],
 		["new line above on the active file", { captureToActiveFile: true, newLineCapture: { enabled: true, direction: "above" as const } }, "newLineAbove"],
-		["property capture over everything", { prepend: true, propertyCapture: { property: { kind: "prompt" as const }, action: "set" as const, createIfMissing: true } }, "property"],
+		["property capture over everything", { prepend: true, propertyCapture: { property: { kind: "prompt" as const }, action: "set" as const, createIfMissing: true, sort: "none" as const } }, "property"],
 	])("resolves %s", (_label, overrides, expected) => {
 		expect(getWritePosition(capture(overrides))).toBe(expected);
 	});

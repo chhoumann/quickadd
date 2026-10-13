@@ -4,10 +4,13 @@ import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 
+export type PropertyListSort = "none" | "asc" | "desc";
+
 export interface PropertyCapture {
 	property: { kind: "named"; format: string } | { kind: "prompt" };
 	action: "set" | "addToList";
 	createIfMissing: boolean;
+	sort: PropertyListSort;
 }
 
 /** How to derive a sort key from a section heading's text (issue #481). */
@@ -111,21 +114,24 @@ export default interface ICaptureChoice extends IChoice {
 }
 
 export function parsePropertyCapture(input: unknown): PropertyCapture {
+	const sort = input && typeof input === "object" && "sort" in input ? input.sort : "none";
 	if (
 		!input || typeof input !== "object" ||
 		!("property" in input) || !input.property ||
 		typeof input.property !== "object" || !("kind" in input.property) ||
 		!("action" in input) || (input.action !== "set" && input.action !== "addToList") ||
-		!("createIfMissing" in input) || typeof input.createIfMissing !== "boolean"
+		!("createIfMissing" in input) || typeof input.createIfMissing !== "boolean" ||
+		(sort !== "none" && sort !== "asc" && sort !== "desc")
 	) {
 		throw new Error("Invalid property capture settings. Choose a property and action in the Capture settings.");
 	}
 	const property = input.property;
+	const options: Omit<PropertyCapture, "property"> = { action: input.action, createIfMissing: input.createIfMissing, sort };
 	if (property.kind === "prompt") {
-		return { property: { kind: "prompt" }, action: input.action, createIfMissing: input.createIfMissing };
+		return { property: { kind: "prompt" }, ...options };
 	}
 	if (property.kind === "named" && "format" in property && typeof property.format === "string") {
-		return { property: { kind: "named", format: property.format }, action: input.action, createIfMissing: input.createIfMissing };
+		return { property: { kind: "named", format: property.format }, ...options };
 	}
 	throw new Error("Invalid property capture selector.");
 }

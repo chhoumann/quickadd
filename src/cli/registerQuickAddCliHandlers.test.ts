@@ -703,7 +703,7 @@ describe("registerQuickAddCliHandlers", () => {
 		underHeading.insertAfter.promptHeading = true;
 		const status = new CaptureChoice("Status");
 		status.captureToActiveFile = true;
-		status.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		status.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 		// The builder hides Task and One entry per line on a property capture; neither applies.
 		status.task = true;
 		status.eachLine = true;

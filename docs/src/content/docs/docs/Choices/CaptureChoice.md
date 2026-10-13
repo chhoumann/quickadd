@@ -401,6 +401,16 @@ For a list property, each line of the Capture format is one item, the same way
 Enter works in Obsidian's List property editor. Lines are trimmed, blank lines
 are ignored, and a comma inside a line stays part of that item.
 
+**Sort list** sets the order of the list QuickAdd writes. **Keep order** is the
+default and keeps the order described above. **Ascending** and **Descending**
+sort the whole list after new items are added and duplicates are removed. This
+applies to both actions and to formats with `{{PROPERTY}}`.
+
+Items sort in natural text order, so `YYYY-MM-DD` dates sort chronologically
+and `item 2` comes before `item 10`. For example, with **Ascending**, adding
+`2026-10-11` to `[2026-10-10, 2026-10-12]` gives
+`[2026-10-10, 2026-10-11, 2026-10-12]`. Adding it again changes nothing.
+
 #### Keep the current value with `{{PROPERTY}}`
 
 In the format, `{{PROPERTY}}` is the property's current value. Put it where

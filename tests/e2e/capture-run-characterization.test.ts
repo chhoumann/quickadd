@@ -864,7 +864,7 @@ const CASES: Case[] = [
 	// Property capture.
 	["setting a property", async (a) => {
 		await note(a);
-		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 		a.choice.format.format = "{{VALUE}}";
 		a.vars.value = "done";
 	}, {
@@ -880,7 +880,7 @@ const CASES: Case[] = [
 	}],
 	["adding to a list property", async (a) => {
 		a.choice.captureTo = await a.file("Target.md", "---\ntags:\n  - a\n---\nbody\n");
-		a.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		a.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		a.choice.format.format = "b";
 	}, {
 		result: { ok: true, verified: true, effect: "changed", file: "Target.md" },
@@ -896,7 +896,7 @@ const CASES: Case[] = [
 	["a property on a new note", async (a) => {
 		a.choice.captureTo = a.path("Created.md");
 		a.choice.createFileIfItDoesntExist.enabled = true;
-		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 		a.choice.format.format = "open";
 	}, {
 		result: { ok: true, verified: true, effect: "created", file: "Created.md" },
@@ -911,7 +911,7 @@ const CASES: Case[] = [
 	}],
 	["a property on a missing note without creation", async (a) => {
 		a.choice.captureTo = a.path("Missing.md");
-		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 		a.choice.format.format = "open";
 	}, {
 		result: { ok: false, aborted: true, error: "Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file." },
@@ -927,7 +927,7 @@ const CASES: Case[] = [
 	["a property on a Canvas text card", async (a) => {
 		a.choice.captureTo = await a.file("Board.canvas", canvasJson([{ id: "card", type: "text", text: CARD }]));
 		a.choice.captureToCanvasNodeId = "card";
-		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 		a.choice.format.format = "open";
 	}, {
 		result: { ok: false, aborted: true, error: "Property capture requires a Markdown note. Canvas text cards do not have note properties." },

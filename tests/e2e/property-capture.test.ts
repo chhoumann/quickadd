@@ -17,7 +17,7 @@ function choiceFor(path: string) {
 	choice.captureTo = path;
 	choice.onePageInput = "never";
 	choice.format = { enabled: true, format: "{{VALUE:input}}" };
-	choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:property}}" }, action: "set", createIfMissing: true };
+	choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:property}}" }, action: "set", createIfMissing: true, sort: "none" };
 	return choice;
 }
 
@@ -48,7 +48,7 @@ describe("property capture in native Obsidian", () => {
 		const { obsidian, sandbox } = getContext();
 		const path = await seedVaultFile(obsidian, sandbox, "list.md", `---\nqa_capture_sources: [old]\n---\n${BODY}`);
 		const choice = choiceFor(path);
-		choice.propertyCapture = { property: { kind: "named", format: "qa_capture_sources" }, action: "addToList", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "qa_capture_sources" }, action: "addToList", createIfMissing: true, sort: "none" };
 		await saveChoice(choice);
 		await obsidian.dev.evalJsonAsync(`(async () => {
 			await app.plugins.plugins.quickadd.api.executeChoice(${JSON.stringify(choice.name)}, { input: ["old", "a,b", "new", "new"] });
@@ -59,12 +59,26 @@ describe("property capture in native Obsidian", () => {
 		expect(outcome).toMatchObject({ ok: true, effect: "unchanged" });
 	});
 
+	it("sorts the list after adding a date, and adding it again leaves the note unchanged", async () => {
+		const { obsidian, sandbox } = getContext();
+		const path = await seedVaultFile(obsidian, sandbox, "sorted.md", `---\ncomplete_instances:\n  - 2026-10-10\n  - 2026-10-12\n---\n${BODY}`);
+		const choice = choiceFor(path);
+		choice.propertyCapture = { property: { kind: "named", format: "complete_instances" }, action: "addToList", createIfMissing: true, sort: "asc" };
+		await saveChoice(choice);
+		for (const effect of ["changed", "unchanged"]) {
+			const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ input: "2026-10-11" }) });
+			expect(outcome).toMatchObject({ ok: true, effect });
+		}
+		await expect.poll(() => readNote(path), { timeout: 10000, interval: 100 })
+			.toEqual({ properties: { complete_instances: ["2026-10-10", "2026-10-11", "2026-10-12"] }, body: BODY });
+	});
+
 	it("adds one item per line of a literal format plus the typed value, keeping commas inside a line", async () => {
 		const { obsidian, sandbox } = getContext();
 		const path = await seedVaultFile(obsidian, sandbox, "lines.md", `---\ntags: [old]\n---\n${BODY}`);
 		const choice = choiceFor(path);
 		choice.format = { enabled: true, format: "{{VALUE:input}}\nwork\n\nSmith, John\nold\n" };
-		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		await saveChoice(choice);
 		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ input: "personal" }) });
 		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
@@ -77,7 +91,7 @@ describe("property capture in native Obsidian", () => {
 		const path = await seedVaultFile(obsidian, sandbox, "multi-picks.md", `---\ntags: [old]\n---\n${BODY}`);
 		const choice = choiceFor(path);
 		choice.format = { enabled: true, format: "{{VALUE:work,home,urgent|multi|format:markdown}}\ninbox" };
-		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		await saveChoice(choice);
 		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ "work,home,urgent": ["work", "urgent"] }) });
 		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
@@ -91,7 +105,7 @@ describe("property capture in native Obsidian", () => {
 		const path = await seedVaultFile(obsidian, sandbox, "included-picks.md", `---\ntags: [clippings]\n---\n${BODY}`);
 		const choice = choiceFor(path);
 		choice.format = { enabled: true, format: `{{TEMPLATE:${template}}}` };
-		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		await saveChoice(choice);
 		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ "business,pricing,marketing": ["business", "pricing"] }) });
 		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
@@ -139,7 +153,7 @@ describe("property capture in native Obsidian", () => {
 		const { obsidian, sandbox } = getContext();
 		const path = sandbox.path("must-not-exist.md");
 		const choice = choiceFor(path);
-		choice.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: true, sort: "none" };
 		choice.createFileIfItDoesntExist.enabled = true;
 		await saveChoice(choice);
 		const outcome = await obsidian.execJson<{ ok: boolean; error?: string }>("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ input: "done" }) });
@@ -151,7 +165,7 @@ describe("property capture in native Obsidian", () => {
 		const { obsidian, sandbox } = getContext();
 		const path = await seedVaultFile(obsidian, sandbox, "casing.md", `---\nStatus: active\n---\n${BODY}`);
 		const choice = choiceFor(path);
-		choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: false };
+		choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: false, sort: "none" };
 		await saveChoice(choice);
 		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ input: "done" }) });
 		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
@@ -163,7 +177,7 @@ describe("property capture in native Obsidian", () => {
 		const { obsidian, sandbox } = getContext();
 		const path = sandbox.path("empty-add/absent.md");
 		const choice = choiceFor(path);
-		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		choice.createFileIfItDoesntExist.enabled = true;
 		await saveChoice(choice);
 		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ input }) });

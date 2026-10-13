@@ -1,6 +1,6 @@
 import { getFrontMatterInfo, parseYaml, stringifyYaml } from "obsidian";
 import { PROPERTY_REGEX } from "../constants";
-import type { PropertyCapture } from "../types/choices/ICaptureChoice";
+import type { PropertyCapture, PropertyListSort } from "../types/choices/ICaptureChoice";
 
 type CapturePropertyValue = string | number | boolean | string[];
 
@@ -193,11 +193,21 @@ function validateType(value: CapturePropertyValue, type: PropertyType, key: stri
 	throw new Error(`Property '${key}' requires ${type}; the capture is ${actual}. Use a matching typed VALUE token or value.`);
 }
 
+const naturalOrder = new Intl.Collator(undefined, { numeric: true });
+
+/** Drops duplicates (first occurrence wins), then orders the list by the Capture's sort. */
+function dedupeAndSort(items: readonly string[], sort: PropertyListSort): string[] {
+	const unique = [...new Set(items)];
+	if (sort === "none") return unique;
+	const direction = sort === "asc" ? 1 : -1;
+	return unique.sort((a, b) => direction * naturalOrder.compare(a, b));
+}
+
 export function planPropertyUpdate(args: {
 	frontmatter: Record<string, unknown>;
 	key: string;
 	value: unknown;
-	config: Pick<PropertyCapture, "action" | "createIfMissing">;
+	config: Pick<PropertyCapture, "action" | "createIfMissing" | "sort">;
 	registeredType: string | null;
 	/**
 	 * When the Capture format contained `{{PROPERTY}}`, the formatted value is
@@ -227,9 +237,9 @@ export function planPropertyUpdate(args: {
 		const items = lines ?? captured;
 		if (!Array.isArray(items)) throw new Error(`Property '${key}' requires text or a list of text to add.`);
 		if (items.length === 0) return current ?? [];
-		// Token present ⇒ write the composed list as-is (first occurrence wins).
-		if (args.compose) return [...new Set(items)];
-		return [...new Set([...(current ?? []), ...items])];
+		// Token present ⇒ the composed list replaces the existing one (first occurrence wins).
+		if (args.compose) return dedupeAndSort(items, config.sort);
+		return dedupeAndSort([...(current ?? []), ...items], config.sort);
 	}
 	if (type === "list" && current !== null && !Array.isArray(current)) {
 		throw new Error(`Property '${key}' contains ${inferType(current)}. Set a list only after correcting the existing property to a list.`);
@@ -242,7 +252,7 @@ export function planPropertyUpdate(args: {
 	}
 	const next = type === "list" ? lines ?? captured : captured;
 	if (type !== null) validateType(next, type, key);
-	return Array.isArray(next) ? [...new Set(next)] : next;
+	return Array.isArray(next) ? dedupeAndSort(next, config.sort) : next;
 }
 
 export function readCaptureFrontmatter(content: string): Record<string, unknown> {

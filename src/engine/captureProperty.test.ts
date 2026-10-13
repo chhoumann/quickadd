@@ -14,8 +14,8 @@ import {
 } from "./captureProperty";
 import { parsePropertyCapture } from "../types/choices/ICaptureChoice";
 
-const set = { action: "set", createIfMissing: true } as const;
-const add = { action: "addToList", createIfMissing: true } as const;
+const set = { action: "set", createIfMissing: true, sort: "none" } as const;
+const add = { action: "addToList", createIfMissing: true, sort: "none" } as const;
 
 describe("captures list items", () => {
 	it.each([
@@ -205,6 +205,44 @@ describe("{{PROPERTY}} compose writes", () => {
 	});
 });
 
+describe("sorted list properties", () => {
+	const ascending = { ...add, sort: "asc" } as const;
+	const dates = { complete_instances: ["2026-10-10", "2026-10-12"] };
+
+	it("adds a date between existing dates, and adding it again changes nothing", () => {
+		const once = planPropertyUpdate({ frontmatter: dates, key: "complete_instances", value: "2026-10-11", config: ascending, registeredType: null });
+		expect(once).toEqual(["2026-10-10", "2026-10-11", "2026-10-12"]);
+		expect(planPropertyUpdate({ frontmatter: { complete_instances: once }, key: "complete_instances", value: "2026-10-11", config: ascending, registeredType: null }))
+			.toEqual(["2026-10-10", "2026-10-11", "2026-10-12"]);
+	});
+	it("sorts descending", () => {
+		expect(planPropertyUpdate({ frontmatter: dates, key: "complete_instances", value: "2026-10-11", config: { ...add, sort: "desc" }, registeredType: null }))
+			.toEqual(["2026-10-12", "2026-10-11", "2026-10-10"]);
+	});
+	it("keeps insertion order with Keep order", () => {
+		expect(planPropertyUpdate({ frontmatter: dates, key: "complete_instances", value: "2026-10-11", config: add, registeredType: null }))
+			.toEqual(["2026-10-10", "2026-10-12", "2026-10-11"]);
+	});
+	it("orders numbers inside items by value", () => {
+		expect(planPropertyUpdate({ frontmatter: { items: ["item 10", "item 1"] }, key: "items", value: "item 2", config: ascending, registeredType: null }))
+			.toEqual(["item 1", "item 2", "item 10"]);
+	});
+	it("sorts a list written by Set value but not a multi-line text value", () => {
+		const config = { ...set, sort: "asc" } as const;
+		expect(planPropertyUpdate({ frontmatter: { tags: ["old"] }, key: "tags", value: "work\nhome\nwork", config, registeredType: "tags" }))
+			.toEqual(["home", "work"]);
+		expect(planPropertyUpdate({ frontmatter: { notes: "old" }, key: "notes", value: "b\na", config, registeredType: "text" })).toBe("b\na");
+	});
+	it("sorts a list composed with {{PROPERTY}}", () => {
+		expect(planPropertyUpdate({ frontmatter: { tags: ["b", "d"] }, key: "tags", value: "c\na\nb\nd", config: ascending, registeredType: null, compose: true }))
+			.toEqual(["a", "b", "c", "d"]);
+	});
+	it("leaves the list as it is when nothing is added", () => {
+		expect(planPropertyUpdate({ frontmatter: { items: ["b", "a"] }, key: "items", value: "", config: ascending, registeredType: null }))
+			.toEqual(["b", "a"]);
+	});
+});
+
 describe("property capture values", () => {
 	it.each(["001", "false", "2026-09-07", "[a, b]", "a,b", "", "a\nb"])("keeps plain text %j as text", (value) => {
 		expect(planPropertyUpdate({ frontmatter: { status: "active" }, key: "status", value, config: set, registeredType: "text" })).toBe(value);
@@ -264,6 +302,15 @@ describe("property capture values", () => {
 	it("rejects malformed settings instead of falling back to body capture", () => {
 		expect(() => parsePropertyCapture({ property: { kind: "named", format: "status" }, action: "append" })).toThrow("Invalid property");
 		expect(() => parsePropertyCapture(null)).toThrow("Invalid property");
+	});
+	it("reads the list sort and loads settings saved without one as Keep order", () => {
+		const saved = { property: { kind: "named", format: "complete_instances" }, action: "addToList", createIfMissing: true };
+		expect(parsePropertyCapture(saved)).toEqual({ ...saved, sort: "none" });
+		expect(parsePropertyCapture({ ...saved, sort: "desc" })).toEqual({ ...saved, sort: "desc" });
+		expect(parsePropertyCapture({ property: { kind: "prompt" }, action: "set", createIfMissing: false, sort: "asc" }))
+			.toEqual({ property: { kind: "prompt" }, action: "set", createIfMissing: false, sort: "asc" });
+		expect(() => parsePropertyCapture({ ...saved, sort: "alphabetical" })).toThrow("Invalid property");
+		expect(() => parsePropertyCapture({ ...saved, sort: null })).toThrow("Invalid property");
 	});
 	it.each(["", "  ", "a\nb", "__proto__"])("rejects unsafe property name %j", (name) => {
 		expect(() => validatePropertyName(name)).toThrow("Property name");

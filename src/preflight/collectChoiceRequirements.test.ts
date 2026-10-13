@@ -2048,7 +2048,7 @@ describe("collectChoiceRequirements - macro form roster", () => {
 describe("property capture requirements", () => {
 	it.each(["number", "checkbox"])("uses a known property's %s widget in the one-page form", async (type) => {
 		const choice = createCaptureChoice("Inbox.md");
-		choice.propertyCapture = { property: { kind: "named", format: "rating" }, action: "set", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "rating" }, action: "set", createIfMissing: true, sort: "none" };
 		choice.format = { enabled: true, format: "{{VALUE:ratingInput}}" };
 		const requirements = await collectChoiceRequirements({
 			vault: { getAbstractFileByPath: () => null },
@@ -2060,7 +2060,7 @@ describe("property capture requirements", () => {
 
 	it("defers only the value whose native property type depends on the runtime selection", async () => {
 		const choice = createCaptureChoice("Inbox.md");
-		choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:propertyName}}" }, action: "set", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:propertyName}}" }, action: "set", createIfMissing: true, sort: "none" };
 		choice.format = { enabled: true, format: "{{VALUE:propertyInput}}" };
 		const requirements = await collectChoiceRequirements({ vault: { getAbstractFileByPath: () => null } } as unknown as App,
 			createPreflightPlugin(false), createChoiceExecutor(), choice);
@@ -2070,7 +2070,7 @@ describe("property capture requirements", () => {
 
 	it("collects property-name and value formats while ignoring dormant body-position fields", async () => {
 		const choice = createCaptureChoice("Inbox.md");
-		choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:property}}" }, action: "set", createIfMissing: true };
+		choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:property}}" }, action: "set", createIfMissing: true, sort: "none" };
 		choice.format = { enabled: true, format: "{{VALUE:amount|type:number}}" };
 		choice.insertAfter.enabled = true;
 		choice.insertAfter.after = "{{VALUE:dormantAfter}}";

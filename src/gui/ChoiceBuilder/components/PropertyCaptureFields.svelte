@@ -37,12 +37,22 @@ let lastNamedFormat = "";
 </LabeledField>
 
 <SettingItem name="Action" desc={config.action === "addToList"
-	? "Each line is one item. New items go below the existing ones. Put {{PROPERTY}} on its own line to choose where the existing items go."
+	? config.sort === "none"
+		? "Each line is one item. New items go below the existing ones. Put {{PROPERTY}} on its own line to choose where the existing items go."
+		: "Each line is one item."
 	: "Replaces the value. For a list, each line is one item. Put {{PROPERTY}} where the current value should stay. A Text property keeps all lines as one value. A property with no type yet rejects several lines. Use Add to list, or set the type to Text in Obsidian first."}>
 	{#snippet control()}
 		<Dropdown value={config.action}
 			options={[{ value: "set", label: "Set value" }, { value: "addToList", label: "Add to list" }]}
 			onchange={(value) => { config.action = value === "addToList" ? "addToList" : "set"; }} />
+	{/snippet}
+</SettingItem>
+
+<SettingItem name="Sort list">
+	{#snippet control()}
+		<Dropdown value={config.sort}
+			options={[{ value: "none", label: "Keep order" }, { value: "asc", label: "Ascending" }, { value: "desc", label: "Descending" }]}
+			onchange={(value) => { config.sort = value === "asc" || value === "desc" ? value : "none"; }} />
 	{/snippet}
 </SettingItem>
 

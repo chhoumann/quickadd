@@ -43,7 +43,7 @@ function choiceFor(name: string, path: string, property: string) {
 	choice.onePageInput = "never";
 	choice.useSelectionAsCaptureValue = false;
 	choice.propertyCapture = {
-		property: { kind: "named", format: property }, action: "set", createIfMissing: true,
+		property: { kind: "named", format: property }, action: "set", createIfMissing: true, sort: "none",
 	};
 	return choice;
 }
@@ -127,7 +127,7 @@ describe("property capture through native keyboard prompts", () => {
 		const path = await seedVaultFile(obsidian, sandbox, "runtime-list.md", `---\ntags: [original]\nstatus: active\n---\n${BODY}`);
 		const choice = choiceFor("Choose a property then capture", path, "unused");
 		choice.onePageInput = "always";
-		choice.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: false };
+		choice.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: false, sort: "none" };
 		await saveChoice(choice, true);
 		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 		await waitForElement(obsidian, PROPERTY_INPUT);
@@ -206,7 +206,7 @@ describe("property capture through native keyboard prompts", () => {
 		capture.useSelectionAsCaptureValue = false;
 		capture.format = { enabled: true, format: "{{VALUE:state}}" };
 		capture.propertyCapture = {
-			property: { kind: "named", format: "status" }, action: "set", createIfMissing: false,
+			property: { kind: "named", format: "status" }, action: "set", createIfMissing: false, sort: "none",
 		};
 		const macro = new MacroChoice("Append project owner and update status");
 		macro.command = true;
