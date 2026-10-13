@@ -984,7 +984,7 @@ describe("buildPackagePreview - inline JavaScript in a choice's own settings", (
 			format: { enabled: true, format: `- ${inline}` },
 			insertAfter: { enabled: true, after: `## ${inline}` },
 			insertBefore: { enabled: false, before: inline },
-			propertyCapture: { property: { kind: "named", format: inline }, action: "set", createIfMissing: true },
+			propertyCapture: { property: { kind: "named", format: inline }, action: "set", createIfMissing: true, sort: "none" },
 		} as unknown as ICaptureChoice;
 		const template = {
 			id: "t1",

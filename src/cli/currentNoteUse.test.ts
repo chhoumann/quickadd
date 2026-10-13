@@ -117,11 +117,11 @@ describe("currentNoteUse", () => {
 
 	it("reads a named property's name, which cannot be empty", () => {
 		expect(use(capture((c) => {
-			c.propertyCapture = { property: { kind: "named", format: "{{FILENAMECURRENT}}" }, action: "set", createIfMissing: true };
+			c.propertyCapture = { property: { kind: "named", format: "{{FILENAMECURRENT}}" }, action: "set", createIfMissing: true, sort: "none" };
 			c.appendLink = { ...optionalLink };
 		}))).toBe("required");
 		expect(use(capture((c) => {
-			c.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: true };
+			c.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: true, sort: "none" };
 		}))).toBe("none");
 	});
 

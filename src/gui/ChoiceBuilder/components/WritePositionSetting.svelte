@@ -52,6 +52,7 @@ function onWritePositionChange(value: string) {
 			property: { kind: "named", format: "" },
 			action: "set",
 			createIfMissing: true,
+			sort: "none",
 		};
 		return;
 	}
