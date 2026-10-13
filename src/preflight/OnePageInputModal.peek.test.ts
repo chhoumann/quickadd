@@ -154,6 +154,25 @@ describe("OnePageInputModal peek", () => {
 		await expect(modal.waitForClose).rejects.toBeInstanceOf(UserCancelError);
 	});
 
+	it("offers no peek over another plugin's modal", async () => {
+		document.body.createDiv({ cls: "modal-container" });
+
+		const modal = new OnePageInputModal(fakeApp as never, [
+			{ id: "title", label: "Title", type: "text" },
+		]);
+		findButton(modal.modalEl, "Peek at note").click();
+		expect(PromptPeekSession.isPeeking()).toBe(false);
+
+		const scope = modal.scope as unknown as {
+			trigger: (key: string) => unknown;
+		};
+		scope.trigger("E");
+		expect(PromptPeekSession.isPeeking()).toBe(false);
+
+		modal.close();
+		await expect(modal.waitForClose).rejects.toBeInstanceOf(UserCancelError);
+	});
+
 	it("inserts the editor selection into the last focused text field", async () => {
 		fakeApp = makeFakeApp("selected");
 		setQuickAddInstance({

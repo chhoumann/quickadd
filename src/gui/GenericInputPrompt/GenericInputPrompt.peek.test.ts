@@ -152,6 +152,38 @@ describe("GenericInputPrompt peek", () => {
 		await expect(waitForClose).resolves.toBe("done");
 	});
 
+	it("offers no peek over another plugin's modal", async () => {
+		document.body.createDiv({ cls: "modal-container" });
+
+		const waitForClose = GenericInputPrompt.Prompt(
+			fakeApp as never,
+			"Name",
+			undefined,
+			undefined,
+			undefined,
+			{ allowPeek: true },
+		);
+		(document.querySelector(".qa-peek-button") as HTMLButtonElement).click();
+		expect(PromptPeekSession.isPeeking()).toBe(false);
+
+		const input = document.querySelector(
+			".qaInputPrompt input",
+		) as HTMLInputElement;
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "E",
+				shiftKey: true,
+				ctrlKey: true,
+			}),
+		);
+		expect(PromptPeekSession.isPeeking()).toBe(false);
+
+		input.value = "Ada";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		await expect(waitForClose).resolves.toBe("Ada");
+	});
+
 	it("keeps Ok ahead of Peek in the tab order", async () => {
 		const waitForClose = GenericInputPrompt.Prompt(
 			fakeApp as never,
