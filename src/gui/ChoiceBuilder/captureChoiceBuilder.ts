@@ -54,5 +54,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder<ICaptureChoice> {
 		if (this.choice.openFile) {
 			this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
 		}
+		if (this.choice.propertyCapture) {
+			this.choice.propertyCapture.sort ??= "none";
+		}
 	}
 }
