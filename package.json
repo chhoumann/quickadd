@@ -70,7 +70,8 @@
 		],
 		"overrides": {
 			"brace-expansion": "5.0.9",
-			"postcss": "8.5.25"
+			"postcss": "8.5.25",
+			"tinypool": "2.1.2"
 		},
 		"patchedDependencies": {
 			"svelte-check@4.7.6": "patches/svelte-check@4.7.6.patch"
