@@ -482,5 +482,5 @@ These options keep the existing file untouched and create a new file instead:
 Selecting **Keep existing file** applies the same result as choosing **Do
 nothing** from the prompt:
 
-- **Do nothing** - leaves the existing file unchanged and opens it
-  automatically. This does not require the separate **Open** setting.
+- **Do nothing** - leaves the existing file unchanged. The **Open** setting
+  decides whether QuickAdd opens it.

@@ -150,7 +150,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			});
 
 			let createdFile: TFile | null;
-			let shouldAutoOpen = false;
 			let createdNew = false;
 			// What this run did to its target note (#1615). Derived from the file-exists
 			// resolution the engine actually performed rather than from a byte compare,
@@ -198,13 +197,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					return;
 				}
 
-				({ createdFile, shouldAutoOpen } = await this.applyFileExistsMode(
+				createdFile = await this.applyFileExistsMode(
 					modeId,
 					targetFilePath,
 					existingFile,
 					templatePath,
 					linkOptions,
-				));
+				);
 				if (!createdFile) {
 					// applyFileExistsMode's write helper has already reported the real
 					// cause (whichever mode ran - create, overwrite or append); prefer it
@@ -276,7 +275,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				await copyChoiceFileLink(createdFile);
 			}
 
-			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
+			if (this.choice.openFile && createdFile) {
 				await openChoiceFile({
 					app: this.app, file: createdFile,
 					opening: this.choice.fileOpening, originLeaf: this.originLeaf,
@@ -290,14 +289,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.placeCursor(createdFile, cursorBeforeLink);
 				}
 			} else if (
-				createdNew &&
+				(createdNew ||
+					(effect === "unchanged" && this.choice.fileExistsBehavior?.kind === "apply")) &&
 				!linkOptions.enabled &&
 				!this.choice.copyLinkToClipboard
 			) {
-				// The note was created but nothing else surfaces it (not opened, no
-				// link appended, not copied to clipboard). Confirm the creation so
-				// the run isn't silent — mirroring Capture's success notice.
-				new Notice(`Created '${createdFile.basename}'.`);
+				// Nothing else surfaces the note (not opened, no link appended, not
+				// copied to clipboard). Say what happened so the run isn't silent -
+				// mirroring Capture's success notice.
+				new Notice(
+					createdNew
+						? `Created '${createdFile.basename}'.`
+						: `'${createdFile.basename}' already exists.`,
+				);
 			}
 		} catch (err) {
 			if (
@@ -472,20 +476,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		existingFile: TFile | null,
 		templatePath: string,
 		linkOptions: NormalizedAppendLinkOptions,
-	): Promise<{ createdFile: TFile | null; shouldAutoOpen: boolean }> {
+	): Promise<TFile | null> {
 		const mode = getFileExistsMode(modeId);
 
 		switch (mode.resolutionKind) {
 			case "modifyExisting":
-				return {
-					createdFile: await this.applyExistingFileUpdate(
-						mode.id,
-						existingFile!,
-						templatePath,
-						linkOptions,
-					),
-					shouldAutoOpen: false,
-				};
+				return await this.applyExistingFileUpdate(
+					mode.id,
+					existingFile!,
+					templatePath,
+					linkOptions,
+				);
 			case "createNew": {
 				const nextFilePath = await resolveCreateNewCollisionFilePath(
 					targetFilePath,
@@ -509,17 +510,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					new Notice(`Created '${createdFile.basename}'.`);
 				}
 
-				return {
-					createdFile,
-					shouldAutoOpen: false,
-				};
+				return createdFile;
 			}
 			case "reuseExisting":
-				log.logMessage(`Opening existing file: ${existingFile!.path}`);
-				return {
-					createdFile: existingFile,
-					shouldAutoOpen: true,
-				};
+				return existingFile;
 		}
 	}
 

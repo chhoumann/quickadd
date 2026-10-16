@@ -330,6 +330,57 @@ describe("functional: file collision behaviors", () => {
 	});
 });
 
+describe("Open off keeps every file-exists mode from opening a note (#2244)", () => {
+	const modes = Object.keys(behavior).filter((mode) => mode !== "prompt") as Array<
+		Exclude<keyof typeof behavior, "prompt">
+	>;
+
+	async function openSandboxNotes(): Promise<string[]> {
+		return obsidian.dev.evalJson<string[]>(`app.workspace.getLeavesOfType("markdown")
+			.map((leaf) => leaf.view.file?.path)
+			.filter((path) => path?.startsWith(${JSON.stringify(sandbox.path(""))}))`);
+	}
+
+	beforeAll(async () => {
+		await qa.data<QuickAddData>().patch((data) => {
+			clearTestChoices(data);
+			data.choices.push(
+				...modes.map((mode) =>
+					templateChoice(`__qa-test-open-off-${mode}`, `${sandbox.root}/open-off-${mode}`, behavior[mode]),
+				),
+			);
+		});
+		await qa.reload({ waitUntilReady: true });
+	}, 15_000);
+
+	beforeEach(async () => {
+		await obsidian.dev.eval(`app.workspace.getLeavesOfType("markdown")
+			.filter((leaf) => leaf.view.file?.path.startsWith(${JSON.stringify(sandbox.path(""))}))
+			.forEach((leaf) => leaf.detach())`);
+	});
+
+	const expectedOutcome = {
+		increment: { file: "open-off-increment1.md", effect: "created" },
+		duplicateSuffix: { file: "open-off-duplicateSuffix (1).md", effect: "created" },
+		appendBottom: { file: "open-off-appendBottom.md", effect: "changed" },
+		appendTop: { file: "open-off-appendTop.md", effect: "changed" },
+		overwrite: { file: "open-off-overwrite.md", effect: "changed" },
+		doNothing: { file: "open-off-doNothing.md", effect: "unchanged" },
+	} satisfies Record<(typeof modes)[number], { file: string; effect: string }>;
+
+	it.each(modes)("%s leaves the note closed", async (mode) => {
+		await seedFile(`open-off-${mode}.md`, "EXISTING");
+		const outcome = await obsidian.execJson("quickadd:run", { choice: `__qa-test-open-off-${mode}`, verify: true });
+		expect(outcome).toMatchObject({
+			ok: true,
+			effect: expectedOutcome[mode].effect,
+			file: sandbox.path(expectedOutcome[mode].file),
+		});
+		await obsidian.sleep(600);
+		expect(await openSandboxNotes()).toEqual([]);
+	});
+});
+
 // ---------------------------------------------------------------------------
 // Phase 2: Migration tests
 // ---------------------------------------------------------------------------

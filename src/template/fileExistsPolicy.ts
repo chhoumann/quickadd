@@ -66,7 +66,7 @@ export const fileExistsModes = [
 		id: "doNothing",
 		category: "keep",
 		label: "Do nothing",
-		description: "Leaves the file unchanged and opens the existing file.",
+		description: "Leaves the existing file unchanged.",
 		requiresExistingFile: true,
 		resolutionKind: "reuseExisting",
 	},
