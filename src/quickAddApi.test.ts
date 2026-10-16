@@ -1007,12 +1007,14 @@ describe("executeChoice", () => {
 		expect(executor.execute).toHaveBeenCalled();
 	});
 
-	it("treats date ask as pickDate and still executes", async () => {
+	it("treats date ask as pickDate for that call only", async () => {
 		const executor = makeChoiceExecutor();
+		let pickDateDuringRun: boolean | undefined;
+		executor.execute.mockImplementation(async () => { pickDateDuringRun = executor.pickDate; });
 		const { api } = getApi(makeApp(), makePlugin(), executor);
 		await api.executeChoice("C", {}, { date: "ask" });
-		expect(executor.execute).toHaveBeenCalled();
-		expect(executor.pickDate).toBe(true);
+		expect(pickDateDuringRun).toBe(true);
+		expect(executor.pickDate).toBe(false);
 		expect(executor.clocks).toBeUndefined();
 	});
 
