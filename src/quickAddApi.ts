@@ -105,6 +105,7 @@ export class QuickAddApi {
 				return;
 			}
 
+			const { clocks, pickDate } = choiceExecutor;
 			if (!applyInvocationDate(choiceExecutor, options?.date)) {
 				reportError(
 					new Error(`Could not parse date origin '${String(options?.date)}'`),
@@ -125,7 +126,13 @@ export class QuickAddApi {
 			// cancelled sub-choice and carries on must not lose them. The cost is
 			// the long-standing quirk that variables seeded into a cancelled call
 			// linger until the next completed one.
-			await choiceExecutor.execute(choice, chain);
+			try {
+				await choiceExecutor.execute(choice, chain);
+			} finally {
+				// options.date is this call's day, not the calling script's.
+				choiceExecutor.clocks = clocks;
+				choiceExecutor.pickDate = pickDate;
+			}
 			const abort = choiceExecutor.consumeAbortSignal?.();
 			choiceExecutor.variables.clear();
 			restoreDateVariableFormats(choiceExecutor.variables, new Map());

@@ -1020,15 +1020,22 @@ describe("ChoiceSuggester", () => {
 			expect(completion).toHaveBeenCalledWith();
 		});
 
-		it("holds Shift to pick a day on a Today choice", () => {
-			const suggester = makeSuggester(rootChoices);
-			suggester.onChooseItem(
-				topNote,
-				new MouseEvent("click", { shiftKey: true }),
-			);
-			expect(executor.pickDate).toBe(true);
-			expect(executed).toEqual([topNote]);
-		});
+		it.each([false, true])(
+			"holds Shift to pick a day for the chosen run only (enclosing pickDate: %s)",
+			async (enclosing) => {
+				let pickDateDuringRun: boolean | undefined;
+				executor.pickDate = enclosing;
+				executor.executeWithFocusedProperty = async () => { pickDateDuringRun = executor.pickDate; };
+				const suggester = makeSuggester(rootChoices);
+				suggester.onChooseItem(
+					topNote,
+					new MouseEvent("click", { shiftKey: true }),
+				);
+				await flushMicrotasks();
+				expect(pickDateDuringRun).toBe(true);
+				expect(executor.pickDate).toBe(enclosing);
+			},
+		);
 
 		it("rejects with the leaf's own error instance", async () => {
 			const leafError = new Error("leaf blew up");

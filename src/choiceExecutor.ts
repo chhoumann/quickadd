@@ -105,7 +105,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.triggerContextOverride = this.triggerContext;
 	}
 
-	private beginExecutionContext(): void {
+	/** Returns the enclosing choice's clocks for {@link endExecutionContext} to restore. */
+	private beginExecutionContext(): RunClocks | undefined {
+		const enclosingClocks = this.clocks;
 		if (this.executionDepth === 0) {
 			this.focusedProperty =
 				this.focusedPropertyOverride !== undefined
@@ -135,11 +137,15 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			};
 		}
 		this.executionDepth++;
+		return enclosingClocks;
 	}
 
-	private endExecutionContext(): void {
+	private endExecutionContext(enclosingClocks: RunClocks | undefined): void {
 		this.executionDepth = Math.max(0, this.executionDepth - 1);
-		if (this.executionDepth === 0) {
+		if (this.executionDepth > 0) {
+			// A choice's Which day covers the choice and what it runs, not the steps after it.
+			this.clocks = enclosingClocks;
+		} else {
 			this.focusedProperty = null;
 			this.triggerContext = null;
 			// A note named with setCurrentFile belongs to the run it was named for,
@@ -168,7 +174,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
 		// choice's recorded result never leaks into the outer choice's reported outcome.
 		const savedResult = this.pendingResult;
-		this.beginExecutionContext();
+		const enclosingClocks = this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
@@ -218,7 +224,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			throw error;
 		} finally {
 			this.pendingResult = savedResult;
-			this.endExecutionContext();
+			this.endExecutionContext(enclosingClocks);
 		}
 	}
 
@@ -259,7 +265,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	): Promise<ChoiceOutcome> {
 		this.pendingAbort = null;
 		this.pendingResult = null;
-		this.beginExecutionContext();
+		const enclosingClocks = this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
@@ -310,7 +316,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				reason: error instanceof Error ? error.message : String(error),
 			};
 		} finally {
-			this.endExecutionContext();
+			this.endExecutionContext(enclosingClocks);
 		}
 	}
 
