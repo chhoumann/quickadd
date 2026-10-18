@@ -3,7 +3,6 @@ import { settingsStore } from "../settingsStore";
 import type { AssetConflict } from "../gui/PackageManager/importDecisions";
 import { defaultAssetDestinationFor } from "../gui/PackageManager/importDecisions";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
-import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { syncImportedChoiceCommands } from "./packageImportCommands";
 import type {
 	ApplyImportResult,
@@ -12,13 +11,27 @@ import type {
 	ChoiceImportDecision,
 	ChoiceImportMode,
 } from "./packageImportService";
-import { analysePackage, applyPackageImport } from "./packageImportService";
+import {
+	analysePackage,
+	analysePackagePreview,
+	applyPackageImport,
+	validateAssetDestination,
+} from "./packageImportService";
+import type { PackagePreview } from "./packagePreview";
+import { requiresAcknowledgement } from "./packagePreview";
 
 /** What an import with nobody to ask does with each choice and file, by whether it is already in the vault. */
-export interface UnattendedImportModes {
+export interface UnattendedImportOptions {
 	choice: (exists: boolean) => ChoiceImportMode;
 	asset: (exists: boolean) => AssetImportMode;
+	/** The user already reviewed the package's code another way, as the CLI's acknowledge=true says. */
+	acknowledged?: boolean;
 }
+
+/** The import's result, or the preview of a package that needs the review modal, in which case nothing changed. */
+export type UnattendedImportOutcome =
+	| { imported: ApplyImportResult }
+	| { needsReview: PackagePreview };
 
 /**
  * Where each bundled file lands when nobody edits the destination. The modal
@@ -59,17 +72,16 @@ let importQueue: Promise<unknown> = Promise.resolve();
 
 /**
  * The import modal's apply step with every decision made up front: the same
- * analysis, the same default destinations (templates land in the template
- * folder) and the same apply, then the choices are stored, their commands
- * synced and the settings saved. The trust gate is the caller's: check
- * `requiresAcknowledgement` first.
+ * trust gate, the same analysis, the same default destinations (templates land
+ * in the template folder) and the same apply, then the choices are stored,
+ * their commands synced and the settings saved.
  */
 export function importPackageUnattended(
 	plugin: QuickAdd,
 	pkg: QuickAddPackage,
-	modes: UnattendedImportModes,
-): Promise<ApplyImportResult> {
-	const run = importQueue.then(() => importNow(plugin, pkg, modes));
+	options: UnattendedImportOptions,
+): Promise<UnattendedImportOutcome> {
+	const run = importQueue.then(() => importNow(plugin, pkg, options));
 	// A failed import must not poison the queue for the next one.
 	importQueue = run.catch(() => undefined);
 	return run;
@@ -78,14 +90,18 @@ export function importPackageUnattended(
 async function importNow(
 	plugin: QuickAdd,
 	pkg: QuickAddPackage,
-	modes: UnattendedImportModes,
-): Promise<ApplyImportResult> {
+	options: UnattendedImportOptions,
+): Promise<UnattendedImportOutcome> {
 	const { app } = plugin;
 	const previousChoices = settingsStore.getState().choices;
+	const preview = await analysePackagePreview(app, previousChoices, pkg);
+	if (requiresAcknowledgement(preview) && !options.acknowledged) {
+		return { needsReview: preview };
+	}
 	const analysis = await analysePackage(app, previousChoices, pkg);
 
 	const choiceDecisions: ChoiceImportDecision[] = analysis.choiceConflicts.map(
-		(conflict) => ({ choiceId: conflict.choiceId, mode: modes.choice(conflict.exists) }),
+		(conflict) => ({ choiceId: conflict.choiceId, mode: options.choice(conflict.exists) }),
 	);
 
 	const destinations = defaultAssetDestinations(
@@ -94,19 +110,16 @@ async function importNow(
 	);
 	const assetDecisions: AssetImportDecision[] = [];
 	for (const conflict of analysis.assetConflicts) {
-		const destinationPath =
-			destinations.get(conflict.originalPath) ?? conflict.originalPath;
-		// applyPackageImport rejects a destination outside the vault; do not
-		// stat it first (the package, and so this path, is untrusted input).
-		const exists =
-			destinationPath === conflict.originalPath
-				? conflict.exists
-				: !escapesVaultBoundary(destinationPath) &&
-					(await app.vault.adapter.exists(destinationPath));
+		// Ask about the path the write will use, so a padded spelling cannot
+		// dodge a skip. Validation also refuses a path outside the vault before
+		// anything stats it.
+		const destinationPath = validateAssetDestination(
+			destinations.get(conflict.originalPath) ?? conflict.originalPath,
+		);
 		assetDecisions.push({
 			originalPath: conflict.originalPath,
 			destinationPath,
-			mode: modes.asset(exists),
+			mode: options.asset(await app.vault.adapter.exists(destinationPath)),
 		});
 	}
 
@@ -122,5 +135,5 @@ async function importNow(
 	settingsStore.setState((state) => ({ ...state, choices: result.updatedChoices }));
 	syncImportedChoiceCommands(plugin, previousChoices, result);
 	await plugin.saveSettings();
-	return result;
+	return { imported: result };
 }

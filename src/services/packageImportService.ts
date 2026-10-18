@@ -226,7 +226,7 @@ export async function analysePackagePreview(
  * out-of-bounds destination so the whole import aborts (surfaced as a Notice by
  * ImportPackageModal). Defensive: imported packages are untrusted shared data.
  */
-function validateAssetDestination(rawPath: string): string {
+export function validateAssetDestination(rawPath: string): string {
 	const rawDestination = rawPath ?? "";
 	const trimmedDestination = rawDestination.trim();
 	if (!trimmedDestination) {

@@ -333,3 +333,16 @@ export function flattenChoicesWithPath(
 	}
 	return result;
 }
+
+/**
+ * The first choice whose `name` or `id` is `value`, in the pre-order the
+ * settings list shows, with its path. Names are not unique, so a name means
+ * the first match.
+ */
+export function findChoiceWithPath(
+	choices: IChoice[],
+	by: "name" | "id",
+	value: string,
+): FlatChoicePathEntry | undefined {
+	return flattenChoicesWithPath(choices).find((entry) => entry.choice[by] === value);
+}

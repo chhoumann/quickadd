@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import { settingsStore } from "../settingsStore";
@@ -57,6 +57,10 @@ describe("importPackage", () => {
 	beforeEach(() => {
 		files = new Map();
 		settingsStore.setState({ choices: [], templateFolderPaths: [] });
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
 	});
 
 	it("adds the package's choices, registers their commands and saves", async () => {
@@ -123,6 +127,31 @@ describe("importPackage", () => {
 		expect(files.get("Templates/Note.md")).toBe("mine");
 	});
 
+	it("keeps an existing file that the package spells with padding", async () => {
+		files.set("Templates/Note.md", "mine");
+		const plugin = fakePlugin(files);
+
+		const summary = await importPackage(plugin, pkg([capture("new", "New")], [template(" Templates/Note.md ", "theirs")]));
+
+		expect(summary.skippedAssets).toEqual(["Templates/Note.md"]);
+		expect(files.get("Templates/Note.md")).toBe("mine");
+	});
+
+	it("writes no file when a later file in the package cannot be decoded", async () => {
+		// Obsidian decodes with the browser's atob, which throws on bad input.
+		vi.stubGlobal("window", { atob });
+		const plugin = fakePlugin(files);
+		const broken = { ...template("Templates/Broken.md", ""), content: "%%%" };
+
+		await expect(
+			importPackage(plugin, pkg([capture("new", "New")], [template("Templates/Fresh.md", "fresh"), broken])),
+		).rejects.toThrow();
+
+		expect(plugin.app.vault.adapter.write).not.toHaveBeenCalled();
+		expect(plugin.app.vault.createFolder).not.toHaveBeenCalled();
+		expect(settingsStore.getState().choices).toEqual([]);
+	});
+
 	it.each([
 		["not JSON", "{"],
 		["not a package", JSON.stringify({ choices: [] })],
@@ -138,7 +167,7 @@ describe("importPackage", () => {
 		expect(plugin.saveSettings).not.toHaveBeenCalled();
 	});
 
-	it("refuses a package that runs code and changes nothing", async () => {
+	it("refuses a package that needs review and changes nothing", async () => {
 		const macro = {
 			id: "macro",
 			name: "Sync",
@@ -155,7 +184,7 @@ describe("importPackage", () => {
 
 		await expect(
 			importPackage(plugin, pkg([macro], [{ ...template("scripts/sync.js", "module.exports = () => {};"), kind: "user-script" }])),
-		).rejects.toThrow("This package runs code");
+		).rejects.toThrow("This package needs review");
 
 		expect(settingsStore.getState().choices).toEqual([]);
 		expect(files.has("scripts/sync.js")).toBe(false);

@@ -1,11 +1,9 @@
 import type { CliData, CliFlags } from "obsidian";
 import type QuickAdd from "../main";
-import { settingsStore } from "../settingsStore";
 import { effectiveChoiceMode, reconcileMode } from "../gui/PackageManager/importDecisions";
 import type { AssetImportMode, ChoiceImportMode } from "../services/packageImportService";
-import { analysePackagePreview, readQuickAddPackage } from "../services/packageImportService";
+import { readQuickAddPackage } from "../services/packageImportService";
 import { importPackageUnattended } from "../services/packageImportUnattended";
-import { requiresAcknowledgement } from "../services/packagePreview";
 import type IChoice from "../types/choices/IChoice";
 import { flattenChoices } from "../utils/choiceUtils";
 import { isTruthy } from "./params";
@@ -66,11 +64,15 @@ export async function importPackageHandler(
 	const choiceMode = parseMode(params.choices, CHOICE_MODES, "choices");
 	const assetMode = parseMode(params.files, ASSET_MODES, "files");
 
-	const { app } = plugin;
-	const { pkg } = await readQuickAddPackage(app, path);
-	const preview = await analysePackagePreview(app, settingsStore.getState().choices, pkg);
-
-	if (requiresAcknowledgement(preview) && !isTruthy(params.acknowledge)) {
+	const { pkg } = await readQuickAddPackage(plugin.app, path);
+	const outcome = await importPackageUnattended(plugin, pkg, {
+		choice: (exists) =>
+			effectiveChoiceMode(choiceMode ?? (exists ? "overwrite" : "import"), exists),
+		asset: (exists) => reconcileMode(assetMode ?? (exists ? "overwrite" : "write"), exists),
+		acknowledged: isTruthy(params.acknowledge),
+	});
+	if ("needsReview" in outcome) {
+		const preview = outcome.needsReview;
 		return {
 			ok: false,
 			error:
@@ -81,12 +83,7 @@ export async function importPackageHandler(
 				.map((row) => ({ flag: row.flag, title: row.title, detail: row.detail })),
 		};
 	}
-
-	const result = await importPackageUnattended(plugin, pkg, {
-		choice: (exists) =>
-			effectiveChoiceMode(choiceMode ?? (exists ? "overwrite" : "import"), exists),
-		asset: (exists) => reconcileMode(assetMode ?? (exists ? "overwrite" : "write"), exists),
-	});
+	const result = outcome.imported;
 
 	// Report final ids: a duplicated choice gets a fresh id during apply.
 	const updatedById = new Map(

@@ -88,13 +88,13 @@ export class QuickAddApi {
 		) => {
 			// Report and return rather than throw: a missing choice must not
 			// abort the calling macro.
-			const choice = findChoice(plugin.settings.choices, ref);
+			const choice = findChoice(plugin.settings.choices, ref)?.choice;
 			if (!choice) {
 				reportError(
 					new Error(
-						typeof ref === "string"
-							? `Choice named '${ref}' not found`
-							: `Choice with id '${String(ref?.id)}' not found`,
+						typeof ref === "object" && ref !== null
+							? `Choice with id '${String(ref.id)}' not found`
+							: `Choice named '${String(ref)}' not found`,
 					),
 					"API executeChoice error",
 				);
@@ -237,8 +237,8 @@ export class QuickAddApi {
 			executeChoice: (...args: Parameters<typeof executeChoice>) =>
 				handledIfCancelled(executeChoice(...args)),
 			getChoice: (ref: ChoiceRef): ChoiceSummary | null => {
-				const choice = findChoice(plugin.settings.choices, ref);
-				return choice ? summarizeChoice(plugin.settings.choices, choice) : null;
+				const found = findChoice(plugin.settings.choices, ref);
+				return found ? summarizeChoice(found) : null;
 			},
 			pickChoice: (options?: { placeholder?: string }) =>
 				handledIfCancelled(pickChoice(plugin, options)),
