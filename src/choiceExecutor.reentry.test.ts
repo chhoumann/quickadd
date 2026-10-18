@@ -53,7 +53,6 @@ const plugin = {
 		if (!choice) throw new Error(`Choice ${id} not found`);
 		return choice;
 	},
-	getChoiceByName: (name: string) => choices.find((c) => c.name === name),
 } as never;
 
 let ran: string[] = [];

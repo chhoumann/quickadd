@@ -226,7 +226,7 @@ export async function analysePackagePreview(
  * out-of-bounds destination so the whole import aborts (surfaced as a Notice by
  * ImportPackageModal). Defensive: imported packages are untrusted shared data.
  */
-function validateAssetDestination(rawPath: string): string {
+export function validateAssetDestination(rawPath: string): string {
 	const rawDestination = rawPath ?? "";
 	const trimmedDestination = rawDestination.trim();
 	if (!trimmedDestination) {
@@ -557,10 +557,12 @@ export async function applyPackageImport(
 		await assertWriteStaysInVault(app, destinationPath);
 	}
 
-	// Decide every write before the first one: a bundled template's
-	// `{{TEMPLATE:...}}` includes must point at where the included file is
-	// actually going, which is only known once all destinations are settled.
-	const plannedWrites: Array<{ asset: QuickAddPackage["assets"][number]; destinationPath: string }> = [];
+	// Decide every write, and decode every file, before the first one: a bundled
+	// template's `{{TEMPLATE:...}}` includes must point at where the included
+	// file is actually going, which is only known once all destinations are
+	// settled, and a file that fails to decode must stop the import before it
+	// writes anything.
+	const plannedWrites: Array<{ destinationPath: string; content: string }> = [];
 	for (const { asset, destinationPath } of resolvedAssetDestinations) {
 		const decision = assetDecisionMap.get(asset.originalPath);
 		const exists = await assetExists(app, destinationPath);
@@ -576,12 +578,14 @@ export async function applyPackageImport(
 				`Refusing to import: "${destinationPath}" is a folder. Choose a file path for "${asset.originalPath}".`,
 			);
 		}
-		plannedWrites.push({ asset, destinationPath });
+		plannedWrites.push({
+			destinationPath,
+			content: importedAssetContent(asset, destinationPath, assetPathOverrides),
+		});
 	}
 
-	for (const { asset, destinationPath } of plannedWrites) {
+	for (const { destinationPath, content } of plannedWrites) {
 		await ensureParentFolders(app, destinationPath);
-		const content = importedAssetContent(asset, destinationPath, assetPathOverrides);
 		await app.vault.adapter.write(destinationPath, content);
 		writtenAssets.push(destinationPath);
 	}

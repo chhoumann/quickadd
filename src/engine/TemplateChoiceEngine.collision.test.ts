@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as ErrorUtils from "../utils/errorUtils";
 
 vi.mock("../quickAddSettingsTab", async () => {
 	const { engineSettingsMock } = await import("../../tests/helpers/engines/settings");
@@ -81,7 +82,7 @@ vi.mock("../utils/templaterIntegration", () => ({
 	jumpToNextTemplaterCursorIfPossible: vi.fn(async () => true),
 }));
 vi.mock("../utils/errorUtils", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../utils/errorUtils")>()),
+	...(await importOriginal<typeof ErrorUtils>()),
 	reportError: vi.fn(),
 }));
 vi.mock("../utils/vaultQueries", () => ({
