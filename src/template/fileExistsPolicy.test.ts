@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	fileExistsBehaviorCategoryOptions,
-	getBehaviorCategory,
 	getDefaultBehaviorForCategory,
 	getFileExistsMode,
 	getExistingNoteAction,
@@ -47,20 +46,8 @@ describe("fileExistsPolicy registry", () => {
 		]);
 		expect(getModesForCategory("keep").map((mode) => mode.id)).toEqual([
 			"doNothing",
+			"leaveUnchanged",
 		]);
-	});
-
-	it("derives behavior category from behavior state", () => {
-		expect(getBehaviorCategory({ kind: "prompt" })).toBe("prompt");
-		expect(
-			getBehaviorCategory({ kind: "apply", mode: "appendBottom" }),
-		).toBe("update");
-		expect(getBehaviorCategory({ kind: "apply", mode: "increment" })).toBe(
-			"create",
-		);
-		expect(getBehaviorCategory({ kind: "apply", mode: "doNothing" })).toBe(
-			"keep",
-		);
 	});
 
 	it("returns category defaults and preserves modes already in-category", () => {

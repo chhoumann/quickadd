@@ -78,6 +78,11 @@ vi.mock("../formatters/completeFormatter", () => {
 vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
+	jumpToNextTemplaterCursorIfPossible: vi.fn(async () => true),
+}));
+vi.mock("../utils/errorUtils", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../utils/errorUtils")>()),
+	reportError: vi.fn(),
 }));
 vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
@@ -125,6 +130,9 @@ vi.mock("./TemplateInsertEngine", () => {
 
 import { TFile, TFolder, type App } from "obsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import { Notice } from "../../tests/obsidian-stub";
+import { openFile as openFileInWorkspace } from "../utils/fileOpening";
+import { reportError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { settingsStore } from "../settingsStore";
 import { getPromptModes } from "../template/fileExistsPolicy";
@@ -738,5 +746,29 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 		expect(GenericSuggester.Suggest).toHaveBeenCalledTimes(1);
 		expect(engine.choice.fileExistsBehavior).toEqual({ kind: "prompt" });
+	});
+
+	it.each([
+		{ mode: "doNothing", openFile: false, opens: true, notice: [] },
+		{ mode: "leaveUnchanged", openFile: false, opens: false, notice: ["'Test Template' already exists."] },
+		{ mode: "leaveUnchanged", openFile: true, opens: true, notice: [] },
+	] as const)("$mode with openFile=$openFile opens the existing note: $opens", async ({ mode, openFile, opens, notice }) => {
+		const { app, engine } = createEngine();
+		const existingFile = createExistingFile("Test Template.md");
+		engine.choice.openFile = openFile;
+		engine.choice.fileExistsBehavior = { kind: "apply", mode };
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(existingFile);
+		vi.mocked(openFileInWorkspace).mockClear();
+		vi.mocked(reportError).mockClear();
+		const noticesBefore = Notice.instances.length;
+
+		await engine.run();
+
+		expect(vi.mocked(openFileInWorkspace).mock.calls.map(([, file]) => file)).toEqual(
+			opens ? [existingFile] : [],
+		);
+		expect(Notice.instances.slice(noticesBefore).map(({ message }) => message)).toEqual(notice);
+		expect(reportError).not.toHaveBeenCalled();
 	});
 });

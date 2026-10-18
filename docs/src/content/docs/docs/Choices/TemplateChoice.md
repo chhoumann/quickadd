@@ -431,6 +431,7 @@ With **Search existing notes before creating** enabled, this setting is called
   existing file**, **Create another file**, or **Keep existing file**.
 - **Update action** - shown only when you choose **Update existing file**.
 - **New file naming** - shown only when you choose **Create another file**.
+- **Keep action** - shown only when you choose **Keep existing file**.
 
 ### Let QuickAdd ask each time {#ask-every-time}
 
@@ -442,7 +443,7 @@ already exists:
 - **Overwrite file**
 - **Increment trailing number**
 - **Append duplicate suffix**
-- **Do nothing**
+- **Open existing file**
 
 ### Update the existing note {#update-existing-file}
 
@@ -479,8 +480,7 @@ These options keep the existing file untouched and create a new file instead:
 
 ### Keep the existing note {#keep-existing-file}
 
-Selecting **Keep existing file** applies the same result as choosing **Do
-nothing** from the prompt:
+These options leave the existing file unchanged:
 
-- **Do nothing** - leaves the existing file unchanged and opens it
-  automatically. This does not require the separate **Open** setting.
+- **Open existing file** - opens the existing file, even when **Open** is off.
+- **Do nothing** - opens the existing file only when **Open** is on.

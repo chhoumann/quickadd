@@ -155,8 +155,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// What this run did to its target note (#1615). Derived from the file-exists
 			// resolution the engine actually performed rather than from a byte compare,
 			// which is exact for the two answers an automation acts on: "createNew"
-			// always writes a new note, and "reuseExisting" — the shipped "Do nothing"
-			// mode — writes nothing at all. Only "modifyExisting" (append/overwrite) is
+			// always writes a new note, and "reuseExisting" — the Keep existing file
+			// modes — writes nothing at all. Only "modifyExisting" (append/overwrite) is
 			// inferred: it always writes, so `changed` can in principle over-report a
 			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
@@ -290,14 +290,18 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.placeCursor(createdFile, cursorBeforeLink);
 				}
 			} else if (
-				createdNew &&
+				(createdNew || effect === "unchanged") &&
 				!linkOptions.enabled &&
 				!this.choice.copyLinkToClipboard
 			) {
-				// The note was created but nothing else surfaces it (not opened, no
-				// link appended, not copied to clipboard). Confirm the creation so
-				// the run isn't silent — mirroring Capture's success notice.
-				new Notice(`Created '${createdFile.basename}'.`);
+				// Nothing else surfaces the note (not opened, no link appended, not
+				// copied to clipboard). Say what happened so the run isn't silent -
+				// mirroring Capture's success notice.
+				new Notice(
+					createdNew
+						? `Created '${createdFile.basename}'.`
+						: `'${createdFile.basename}' already exists.`,
+				);
 			}
 		} catch (err) {
 			if (
@@ -515,10 +519,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				};
 			}
 			case "reuseExisting":
-				log.logMessage(`Opening existing file: ${existingFile!.path}`);
 				return {
 					createdFile: existingFile,
-					shouldAutoOpen: true,
+					shouldAutoOpen: mode.opensExistingFile,
 				};
 		}
 	}

@@ -12,7 +12,7 @@ import type { TFile } from "obsidian";
  * automation asks — it asks "did anything land?". Those came apart in two shipped
  * configurations that need no interactivity at all: a Capture whose formatted payload
  * is empty deliberately leaves the file untouched (inserting would add a blank line
- * or, on `currentLine`, DELETE the selection), and a Template set to "Do nothing" when
+ * or, on `currentLine`, DELETE the selection), and a Template set to "Keep existing file" when
  * the file exists is, by name, a no-op. Both reported an unqualified success, so a
  * caller counting captures or writing an idempotency marker recorded work that never
  * happened (#1615).

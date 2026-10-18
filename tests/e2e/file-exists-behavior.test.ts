@@ -37,6 +37,7 @@ const behavior = {
 	appendTop: { kind: "apply", mode: "appendTop" },
 	overwrite: { kind: "apply", mode: "overwrite" },
 	doNothing: { kind: "apply", mode: "doNothing" },
+	leaveUnchanged: { kind: "apply", mode: "leaveUnchanged" },
 	prompt: { kind: "prompt" },
 } as const;
 
@@ -327,6 +328,52 @@ describe("functional: file collision behaviors", () => {
 		await seedFile("tt0780504.md");
 		await runChoiceAndWaitFor("__qa-test-t15-dupid", "tt0780504 (1).md");
 		expect(await sandbox.exists("tt0780505 (1).md")).toBe(false);
+	});
+});
+
+describe("with Open off, only Open existing file opens the note (#2244)", () => {
+	const expected = {
+		increment: { file: "open-off-increment1.md", effect: "created", opens: false },
+		duplicateSuffix: { file: "open-off-duplicateSuffix (1).md", effect: "created", opens: false },
+		appendBottom: { file: "open-off-appendBottom.md", effect: "changed", opens: false },
+		appendTop: { file: "open-off-appendTop.md", effect: "changed", opens: false },
+		overwrite: { file: "open-off-overwrite.md", effect: "changed", opens: false },
+		doNothing: { file: "open-off-doNothing.md", effect: "unchanged", opens: true },
+		leaveUnchanged: { file: "open-off-leaveUnchanged.md", effect: "unchanged", opens: false },
+	} as const satisfies Record<Exclude<keyof typeof behavior, "prompt">, unknown>;
+	const modes = Object.keys(expected) as Array<keyof typeof expected>;
+
+	async function openSandboxNotes(): Promise<string[]> {
+		return obsidian.dev.evalJson<string[]>(`app.workspace.getLeavesOfType("markdown")
+			.map((leaf) => leaf.view.file?.path)
+			.filter((path) => path?.startsWith(${JSON.stringify(sandbox.path(""))}))`);
+	}
+
+	beforeAll(async () => {
+		await qa.data<QuickAddData>().patch((data) => {
+			clearTestChoices(data);
+			data.choices.push(
+				...modes.map((mode) =>
+					templateChoice(`__qa-test-open-off-${mode}`, `${sandbox.root}/open-off-${mode}`, behavior[mode]),
+				),
+			);
+		});
+		await qa.reload({ waitUntilReady: true });
+	}, 15_000);
+
+	beforeEach(async () => {
+		await obsidian.dev.eval(`app.workspace.getLeavesOfType("markdown")
+			.filter((leaf) => leaf.view.file?.path.startsWith(${JSON.stringify(sandbox.path(""))}))
+			.forEach((leaf) => leaf.detach())`);
+	});
+
+	it.each(modes)("%s", async (mode) => {
+		const { file, effect, opens } = expected[mode];
+		await seedFile(`open-off-${mode}.md`, "EXISTING");
+		const outcome = await obsidian.execJson("quickadd:run", { choice: `__qa-test-open-off-${mode}`, verify: true });
+		expect(outcome).toMatchObject({ ok: true, effect, file: sandbox.path(file) });
+		await obsidian.sleep(600);
+		expect(await openSandboxNotes()).toEqual(opens ? [sandbox.path(file)] : []);
 	});
 });
 

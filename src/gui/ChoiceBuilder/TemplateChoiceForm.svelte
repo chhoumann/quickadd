@@ -9,7 +9,6 @@ import type {
 } from "../../template/fileExistsPolicy";
 import {
 	fileExistsBehaviorCategoryOptions,
-	getBehaviorCategory,
 	getDefaultBehaviorForCategory,
 	getFileExistsMode,
 	getModesForCategory,
@@ -178,18 +177,13 @@ commitPending = addPendingFolder;
 onDestroy(addPendingFolder);
 
 // --- File already exists -------------------------------------------------
-const behaviorCategory = $derived(getBehaviorCategory(choice.fileExistsBehavior));
-const showModeRow = $derived(
-	behaviorCategory !== "prompt" && behaviorCategory !== "keep",
-);
-const modeOptions = $derived(
-	getModesForCategory(behaviorCategory === "update" ? "update" : "create"),
-);
+const modeRowName = { update: "Update action", create: "New file naming", keep: "Keep action" };
 const selectedMode = $derived(
 	choice.fileExistsBehavior.kind === "apply"
-		? choice.fileExistsBehavior.mode
-		: modeOptions[0].id,
+		? getFileExistsMode(choice.fileExistsBehavior.mode)
+		: null,
 );
+const behaviorCategory = $derived(selectedMode?.category ?? "prompt");
 
 function onCategoryChange(value: string) {
 	choice.fileExistsBehavior = getDefaultBehaviorForCategory(
@@ -375,15 +369,15 @@ function onModeChange(value: string) {
 		{/snippet}
 	</SettingItem>
 
-	{#if showModeRow}
+	{#if selectedMode}
 		<SettingItem
-			name={behaviorCategory === "update" ? "Update action" : "New file naming"}
-			desc={getFileExistsMode(selectedMode).description}
+			name={modeRowName[selectedMode.category]}
+			desc={selectedMode.description}
 		>
 			{#snippet control()}
 				<Dropdown
-					value={selectedMode}
-					options={modeOptions.map((mode) => ({
+					value={selectedMode.id}
+					options={getModesForCategory(selectedMode.category).map((mode) => ({
 						value: mode.id,
 						label: mode.label,
 					}))}
@@ -393,7 +387,7 @@ function onModeChange(value: string) {
 		</SettingItem>
 	{/if}
 
-	<OpenFileSetting bind:openFile={choice.openFile} description="Open the created file." />
+	<OpenFileSetting bind:openFile={choice.openFile} description="Open the file." />
 	{#if choice.openFile}
 		<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
 	{/if}
