@@ -244,16 +244,27 @@ describe("TemplateChoiceForm", () => {
 		expect(settingNames(container)).toContain("File opening location");
 	});
 
-	it("shows the file-exists mode row only for update/create categories", () => {
+	it("shows the file-exists mode row for every category except Ask every time", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).not.toContain("New file naming");
+		const modeRows = ["Update action", "New file naming", "Keep action"];
+		expect(settingNames(container).filter((name) => modeRows.includes(name))).toEqual([]);
 
 		props.choice.fileExistsBehavior = { kind: "apply", mode: "increment" };
 		flushSync();
-		const names = settingNames(container);
-		expect(
-			names.includes("New file naming") || names.includes("Update action"),
-		).toBe(true);
+		expect(settingNames(container).filter((name) => modeRows.includes(name))).toEqual(["New file naming"]);
+	});
+
+	it("keeps a saved Keep existing file choice on Open existing file and offers Do nothing", async () => {
+		const { container, props } = mountForm();
+		props.choice.fileExistsBehavior = { kind: "apply", mode: "doNothing" };
+		flushSync();
+		const select = settingItem(container, "Keep action").querySelector("select")!;
+		expect(select.value).toBe("doNothing");
+		expect(Array.from(select.options, (option) => option.text)).toEqual(["Open existing file", "Do nothing"]);
+
+		await fireEvent.change(select, { target: { value: "leaveUnchanged" } });
+		flushSync();
+		expect(props.choice.fileExistsBehavior).toEqual({ kind: "apply", mode: "leaveUnchanged" });
 	});
 
 	it("persists the copy-link-to-clipboard toggle", async () => {
