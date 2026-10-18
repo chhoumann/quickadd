@@ -104,11 +104,8 @@ function makeChoiceExecutor() {
 	};
 }
 
-function makePlugin(overrides: Record<string, unknown> = {}) {
-	return {
-		getChoiceByName: vi.fn(() => ({ name: "choice", id: "1" })),
-		...overrides,
-	} as unknown as QuickAdd;
+function makePlugin(choices: unknown[] = []) {
+	return { settings: { choices } } as unknown as QuickAdd;
 }
 
 function getApi(
@@ -129,19 +126,13 @@ beforeEach(() => {
 });
 
 // ===========================================================================
-// executeChoice — production getChoiceByName THROWS for an unknown name.
+// executeChoice on a name no choice has.
 // (audit: api-execute-choice)
 // ===========================================================================
-describe("executeChoice on an unknown choice (throwing getChoiceByName)", () => {
-	it("reports the error and returns instead of propagating the throw", async () => {
-		// Mirror production main.ts:getChoiceByName, which throws (never returns falsy).
-		const plugin = makePlugin({
-			getChoiceByName: vi.fn(() => {
-				throw new Error("Choice typo not found");
-			}),
-		});
+describe("executeChoice on an unknown choice", () => {
+	it("reports the error and returns instead of throwing", async () => {
 		const executor = makeChoiceExecutor();
-		const { api } = getApi(makeApp(), plugin, executor);
+		const { api } = getApi(makeApp(), makePlugin(), executor);
 
 		await expect(api.executeChoice("typo")).resolves.toBeUndefined();
 		expect(mocks.reportError).toHaveBeenCalled();
@@ -150,10 +141,9 @@ describe("executeChoice on an unknown choice (throwing getChoiceByName)", () => 
 	});
 
 	it("still executes a found choice and clears variables", async () => {
-		const choice = { name: "MyChoice", id: "id1" };
+		const choice = { name: "MyChoice", id: "id1", type: "Template", command: false };
 		const executor = makeChoiceExecutor();
-		const plugin = makePlugin({ getChoiceByName: vi.fn(() => choice) });
-		const { api } = getApi(makeApp(), plugin, executor);
+		const { api } = getApi(makeApp(), makePlugin([choice]), executor);
 
 		await api.executeChoice("MyChoice", { foo: "bar" });
 

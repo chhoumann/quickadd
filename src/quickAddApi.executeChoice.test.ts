@@ -21,7 +21,7 @@ vi.mock("./formatters/completeFormatter", () => ({
 
 describe("QuickAddApi.executeChoice", () => {
 	const app = {} as App;
-	let plugin: QuickAdd & { getChoiceByName: ReturnType<typeof vi.fn>; };
+	let plugin: QuickAdd;
 	let choiceExecutor: IChoiceExecutor;
 	let variables: Map<string, unknown>;
 	const choice: IChoice = {
@@ -39,11 +39,7 @@ describe("QuickAddApi.executeChoice", () => {
 			variables,
 			consumeAbortSignal: vi.fn().mockReturnValue(null),
 		};
-		plugin = {
-			getChoiceByName: vi.fn().mockReturnValue(choice),
-		} as unknown as QuickAdd & {
-			getChoiceByName: ReturnType<typeof vi.fn>;
-		};
+		plugin = { settings: { choices: [choice] } } as unknown as QuickAdd;
 	});
 
 	it("propagates aborts from executed choices", async () => {

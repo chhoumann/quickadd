@@ -190,11 +190,8 @@ function makeChoiceExecutor() {
 	};
 }
 
-function makePlugin(overrides: Record<string, unknown> = {}) {
-	return {
-		getChoiceByName: vi.fn(() => ({ name: "choice", id: "1" })),
-		...overrides,
-	} as unknown as QuickAdd;
+function makePlugin(choices: unknown[] = [{ name: "C", id: "1", type: "Template", command: false }]) {
+	return { settings: { choices } } as unknown as QuickAdd;
 }
 
 function getApi(
@@ -967,25 +964,23 @@ describe("ai.chunkedPrompt validation", () => {
 // ===========================================================================
 describe("executeChoice", () => {
 	it("looks up the choice, sets variables, and executes it", async () => {
-		const choice = { name: "MyChoice", id: "id1" };
+		const choice = { name: "MyChoice", id: "id1", type: "Template", command: false };
 		const executor = makeChoiceExecutor();
-		const plugin = makePlugin({ getChoiceByName: vi.fn(() => choice) });
-		const { api } = getApi(makeApp(), plugin, executor);
+		const { api } = getApi(makeApp(), makePlugin([choice]), executor);
 
 		await api.executeChoice("MyChoice", { foo: "bar" });
 
-		expect(plugin.getChoiceByName).toHaveBeenCalledWith("MyChoice");
 		expect(executor.execute).toHaveBeenCalledWith(choice, undefined);
 		// Variables are cleared after execution.
 		expect(executor.variables.size).toBe(0);
 	});
 
 	it("reports an error when the choice is not found", async () => {
-		const plugin = makePlugin({ getChoiceByName: vi.fn(() => undefined) });
 		const executor = makeChoiceExecutor();
-		const { api } = getApi(makeApp(), plugin, executor);
+		const { api } = getApi(makeApp(), makePlugin(), executor);
 		await api.executeChoice("Missing");
 		expect(mocks.reportError).toHaveBeenCalled();
+		expect(executor.execute).not.toHaveBeenCalled();
 	});
 
 	it("throws the abort signal when the executor reports one", async () => {

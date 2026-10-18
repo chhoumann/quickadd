@@ -95,7 +95,7 @@ describe("ChoiceExecutor date scope", () => {
 			datedTemplate("Today template"),
 			datedTemplate("Variable template", { kind: "variable", name: "day" }),
 		];
-		const plugin = { getChoiceByName: (name: string) => choices.find((c) => c.name === name) } as unknown as QuickAdd;
+		const plugin = { settings: { choices } } as unknown as QuickAdd;
 		const api = QuickAddApi.GetApi(new App(), plugin, runner);
 		const caller = datedTemplate("Caller");
 		runTemplate.mockImplementation(async (active, choice) => {
@@ -124,7 +124,7 @@ describe("ChoiceExecutor date scope", () => {
 	it("keeps the caller's day when an executeChoice call fails", async () => {
 		const runner = executor();
 		const failing = datedTemplate("Failing");
-		const plugin = { getChoiceByName: () => failing } as unknown as QuickAdd;
+		const plugin = { settings: { choices: [failing] } } as unknown as QuickAdd;
 		const api = QuickAddApi.GetApi(new App(), plugin, runner);
 		const caller = datedTemplate("Caller", { kind: "variable", name: "callerDay" });
 		runner.variables.set("callerDay", "2026-01-10");
