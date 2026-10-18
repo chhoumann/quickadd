@@ -320,9 +320,9 @@ obsidian vault=dev quickadd:run choice="Inbox" value-value="  " verify=true
 
 That run is working exactly as designed: the capture's payload was empty, so
 QuickAdd deliberately left `Inbox.md` alone rather than writing a blank line, and
-said so in a notice. A Template set to **Do nothing** when the file already exists
-reports the same. If you are counting captures, writing an idempotency marker, or
-deciding whether to retry, key off `effect`, not `ok`.
+said so in a notice. A Template set to **Keep existing file** when the file
+already exists reports the same `effect`. If you are counting captures, writing an
+idempotency marker, or deciding whether to retry, key off `effect`, not `ok`.
 
 `effect` is present on every **success** payload (`ok:true`), and `unknown` is stated
 rather than omitted - a missing key reads as `false` in both `jq` and JavaScript, which

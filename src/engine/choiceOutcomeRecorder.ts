@@ -50,7 +50,7 @@ export class ChoiceOutcomeRecorder {
 	 *
 	 * `effect` is required rather than defaulted: every call site has to state its claim,
 	 * so a new one cannot inherit a positive "something landed" by omission. The four
-	 * existing sites split evenly — two of them (Template's "Do nothing" mode and its
+	 * existing sites split evenly — two of them (Template's Keep existing file modes and its
 	 * open-an-existing-note discovery path) commit nothing at all.
 	 */
 	success(file: TFile | undefined, effect: ChoiceEffect): void {
