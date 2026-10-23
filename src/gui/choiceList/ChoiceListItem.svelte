@@ -35,7 +35,7 @@
 	// renderChoiceName writes to the DOM (it's a side effect) -> $effect, not $derived.
 	$effect(() => {
 		if (nameElement) {
-			renderChoiceName(choice.name, nameElement, cmp, app);
+			void renderChoiceName(choice.name, nameElement, cmp, app);
 		}
 	});
 

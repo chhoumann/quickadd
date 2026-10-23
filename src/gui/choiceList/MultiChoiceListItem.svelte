@@ -59,7 +59,7 @@
 
 	$effect(() => {
 		if (nameElement) {
-			renderChoiceName(choice.name, nameElement, cmp, app);
+			void renderChoiceName(choice.name, nameElement, cmp, app);
 		}
 	});
 
