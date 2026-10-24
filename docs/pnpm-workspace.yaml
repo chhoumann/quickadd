@@ -8,4 +8,6 @@ allowBuilds:
   esbuild: false
 
 overrides:
-  postcss-nested: 7.0.2
+  # expressive-code still asks for postcss-nested 6, which holds
+  # postcss-selector-parser below the GHSA-rj75-hqrm-r3gf fix (7.1.6).
+  postcss-nested: 9.0.0
