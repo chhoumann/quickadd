@@ -30,6 +30,7 @@ needs logic.
 | --- | --- | --- |
 | Ask for text, selections, dates, or grouped inputs | User input methods | [QuickAdd API Reference](/docs/QuickAddAPI/#user-input-methods) |
 | Run another choice from a script | Choice execution | [Choice Execution](/docs/QuickAddAPI/#choice-execution) |
+| Let the user pick a choice, or install a ready-made one | Choice execution, packages | [Choice Execution](/docs/QuickAddAPI/#choice-execution), [Packages](/docs/QuickAddAPI/#packages) |
 | Read selected text or clipboard content | Utility module | [Utility Module](/docs/QuickAddAPI/#utility-module) |
 | Format dates | Date module | [Date Module](/docs/QuickAddAPI/#date-module) |
 | Call configured AI providers | AI module | [AI Module](/docs/QuickAddAPI/#ai-module) |
