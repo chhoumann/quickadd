@@ -5,7 +5,7 @@ QuickAdd is an Obsidian community plugin that provides four choice types:
 templates, captures, macros, and multis.
 
 ## Project Structure & Module Organization
-QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logic under `engine/`, `services/`, and `utils/`; Svelte UI in `src/gui`; shared types in `src/types`; settings entry in `src/quickAddSettingsTab.ts`. Bundled artifacts `main.js` and `styles.css` stay at the repo root and should be generated, not hand-edited. Place tests and stubs in `tests/`, and keep user-facing docs in `docs/`.
+QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logic under `engine/`, `services/`, and `utils/`; Svelte UI in `src/gui`; shared types in `src/types`; settings entry in `src/quickAddSettingsTab.ts`. The build writes `main.js` and `styles.css` (from `src/styles.css`) to the repo root; both are gitignored, so edit the sources. Place tests and stubs in `tests/`, and keep user-facing docs in `docs/`.
 
 ## Tooling & GitHub
 - Use `pnpm` for package management and scripts. Avoid npm/yarn/bun.
@@ -14,9 +14,11 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
   create/link the working branch before implementation.
 - GitHub does not allow approving your own PR from the same account; do not
   block merge waiting for self-approval.
-- Never merge a `release/*` PR from `quickadd-release-bot`; chhoumann
-  squash-merges those himself. After any other merge, the release workflow
-  refuses to publish, so `master` advertises a version with no GitHub release.
+- Merge a `release/*` PR from `quickadd-release-bot` only when chhoumann
+  explicitly allows it. The bot opens it as a draft: `gh pr ready`, check that
+  the `base=` marker in its body is current `master`, then
+  `gh pr merge --squash`. Merging a stale release PR makes the release workflow
+  refuse to publish, so `master` advertises a version with no GitHub release.
   Obsidian then fails to install QuickAdd and drops it from Community plugins
   (#1763).
 
@@ -32,16 +34,16 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
 The project uses tab indentation and LF endings (see `.editorconfig`); align editor settings. Use camelCase for variables and functions, PascalCase for classes and Svelte components, and kebab-case for directories and utilities. Preserve the hand-ordered imports in `src/main.ts`; disable auto-sorting there. Prefer type-only imports and route logging through the `logger` utilities for consistent output.
 
 ## Testing Guidelines
-Vitest (configured in `vitest.config.mts`) runs in Node and cannot load real Obsidian modules. A test file that needs a DOM or loads Svelte code starts with `// @vitest-environment jsdom`; leave it off otherwise, because jsdom setup is the suite's largest cost. A Node test that loads Svelte code or reads `document` fails with that hint. Structure production code so Obsidian dependencies are injected behind interfaces; unit tests target pure logic and swap in adapters or `tests/obsidian-stub.ts`. Co-locate specs with their source or group them under `tests/feature-name`. Add regression coverage for bug fixes, and ensure `pnpm run test` passes before pushing.
+Vitest (configured in `vitest.config.mts`) runs in Node and cannot load real Obsidian modules. A test file that needs a DOM or loads Svelte code starts with `// @vitest-environment jsdom`; leave it off otherwise, because jsdom setup is the suite's largest cost. A Node test that loads Svelte code or reads `document` fails with that hint. Structure production code so Obsidian dependencies are injected behind interfaces; unit tests target pure logic and swap in adapters or `tests/obsidian-stub.ts`. Co-locate specs with their source or group them under `tests/feature-name`. Add regression coverage for bug fixes and confirm the new test fails with the fix reverted, and ensure `pnpm run test` passes before pushing.
 
 ## Commit & Pull Request Guidelines
-Follow Conventional Commits (`feat:`, `fix:`, `test:`, ...) so the shared release pipeline can determine versions from history. Keep generated files in the same commit as the changes that produced them. Pull requests must include a concise summary, reproduction steps or screenshots for UI changes, linked issues when relevant, and explicit notes on release or migration impact. Request review from maintainers closest to the touched area.
+Follow Conventional Commits (`feat:`, `fix:`, `test:`, ...) so the shared release pipeline can determine versions from history. Pull requests must include a concise summary, reproduction steps or screenshots for UI changes, linked issues when relevant, and explicit notes on release or migration impact. Request review from maintainers closest to the touched area.
 
 ## Documentation
 Docs live in `docs/` (Astro Starlight) and are single-version: pages in `docs/src/content/docs/docs/` serve at `/docs/` on quickadd.obsidian.guide, and edits go live when they land on `master` (deployed by Cloudflare Pages; only pushes touching `docs/` trigger a build, and the Cloudflare check is informational, not required for merge). Every page pins its URL with a `slug:` frontmatter field; keep slugs stable, and add a 301 in `docs/public/_redirects` if one must change.
 
 ## Agent Playbook
-Automation or scripted work should surface disruptive operations in the PR description and rerun `pnpm run build-with-lint` to keep `main.js`, `manifest.json`, and `versions.json` synchronized. Treat unexpected diffs in those artifacts as blockers until a maintainer approves.
+Automation or scripted work should surface disruptive operations in the PR description. Do not edit `manifest.json` or `versions.json`; the release PR bumps them.
 
 ## Obsidian Runtime Workflow
 Agents with the `verify-in-obsidian` skill get the generic workflow there:
@@ -60,12 +62,9 @@ brief that a skill-less agent still needs.
   configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the
   symlinked artifacts, the `data.json` seed, and the `quickadd:list` ready
   probe).
-- Worktrees use the isolated vault (`.obsidian-e2e-vaults/quickadd-<worktree>`)
-  and must not race the shared `dev` vault. The main
-  `/Users/christian/Developer/quickadd` checkout uses the shared `dev` vault
-  (root `/Users/christian/Developer/dev_vault/dev`, plugin folder
-  `.obsidian/plugins/quickadd` symlinked to this checkout's `main.js`); only one
-  checkout can own those symlinks at a time. Run `pnpm run dev` to rebuild.
+- Each checkout gets its own isolated vault
+  (`.obsidian-e2e-vaults/quickadd-<checkout dir>`) with the plugin artifacts
+  symlinked to that checkout's build. Run `pnpm run dev` to rebuild.
 - Always pass the `vault=` selector as a **prefix** argument, never a suffix -
   suffix form can resolve to the wrong vault.
 - `pnpm run obsidian:e2e -- <cmd>` attaches to a running instance without
@@ -74,6 +73,19 @@ brief that a skill-less agent still needs.
   load the new `main.js` with `pnpm run obsidian:e2e -- --reload <cmd>` (or
   `start:e2e-obsidian`, which always reloads and verifies). If no instance is
   running, `obsidian:e2e` launches one first.
+- Run native specs with `.agents/run-e2e <spec paths...> [-t <name>]`. Each
+  run builds `main.js` and replaces any running instance and the vault with
+  fresh ones, so manual-testing state is gone afterwards. The full suite takes
+  several minutes; write its output to a file rather than piping it.
+- Close modals with Escape or their close button (`closeOpenPrompts` in
+  `tests/e2e/uiHelpers.ts`), never by removing their DOM: the dead modal's
+  keymap scope stays on the stack and swallows keys. In manual probes, check
+  that no `.modal-container` is left before a scenario, or probes hit the
+  wrong modal.
+- In specs, click with `clickWhenStill` from `tests/e2e/uiHelpers.ts`, not
+  `el.click()` in an eval. Settings pages and the phone menu slide in, and
+  Obsidian's Menu pushes its keymap scope a tick after showing, so an early
+  click misses or leaves a dead scope that eats the next modal's Enter.
 - Specs that need Templater run only with `OBSIDIAN_E2E_TEMPLATER=1
   .agents/run-e2e`, which installs a pinned Templater into the isolated vault.
   A change that touches a Templater path must also pass that run: CI runs no
@@ -122,7 +134,7 @@ pass code via `code=...` from a heredoc/file to avoid shell-quoting corruption.
 
 ## CLI-Verifiable Development
 - Verifiability is required: work is not complete until behavior can be checked
-  through the Obsidian CLI in the `dev` vault.
+  through the Obsidian CLI in the checkout's isolated vault.
 - If a flow is UI-only (for example forms/modals), add a CLI-native verification
   seam first (command/API entrypoint, inspectable state, and deterministic logs).
 - Prefer verification paths that can run both manually and scripted:
