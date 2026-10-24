@@ -13,7 +13,8 @@ call an AI model, or read values already in your vault.
 | Module | What it does |
 | --- | --- |
 | [User input](#user-input-methods) | Ask for text, pick from a list, confirm, or collect several answers at once |
-| [Choice execution](#choice-execution) | Run another choice, or apply a template to the current note |
+| [Choice execution](#choice-execution) | Pick, look up, or run a choice, or apply a template to the current note |
+| [Packages](#packages) | Install a ready-made package that your plugin ships |
 | [Formatting](#formatting) | Run format syntax such as `{{DATE}}` or `{{VALUE:name}}` on a string |
 | [Utility](#utility-module) | Read and set the clipboard, read the editor's selection |
 | [Date](#date-module) | Format today, tomorrow, yesterday, or any day offset |
@@ -425,15 +426,15 @@ const due = await quickAddApi.datePrompt("Due date", { dateFormat: "YYYY-MM-DD" 
 
 ## Choice Execution
 
-### `executeChoice(choiceName: string, variables?: {[key: string]: any}, options?: { date?: string | Date }): Promise<void>`
+### `executeChoice(choice: string | { id: string }, variables?: {[key: string]: any}, options?: { date?: string | Date }): Promise<void>`
 Executes another QuickAdd choice programmatically. This is a one-way trigger: it passes variables into the target choice, waits for that choice to finish, and resolves with `undefined`. It does not return data from the target choice to the caller. After the target choice finishes, QuickAdd clears the temporary variable map used by that API execution. If you call it from inside a Macro script, do not expect the caller's current `params.variables` values to still be available afterward unless you saved or restored them yourself.
 
 For the Macro data-flow implications, see [`executeChoice` is a trigger](/docs/VariablesDataFlow/#executechoice-is-a-trigger).
 
-**Cancellation:** If the target choice is cancelled or aborted, for example because you pressed Escape at one of its prompts, the promise rejects with `MacroAbortError`, and an uncaught rejection stops your script. If the choice name doesn't match a choice, QuickAdd reports an error and the promise resolves.
+**Cancellation:** If the target choice is cancelled or aborted, for example because you pressed Escape at one of its prompts, the promise rejects with `MacroAbortError`, and an uncaught rejection stops your script. If no choice has that name or id, QuickAdd reports an error and the promise resolves.
 
 **Parameters:**
-- `choiceName`: Name of the choice to execute
+- `choice`: The choice's name, or `{ id }` with the choice's id. A name runs the first choice with that name, in the order the settings list shows them. An id still works after the user renames the choice, so store the id if your code runs the same choice later. `pickChoice` and `getChoice` return it.
 - `variables`: (Optional) Variables to pass to the choice
 - `options.date`: (Optional) The day `{{DATE}}` should use. Pass a `Date`,
   `last week`, or `"ask"` if you want the picker.
@@ -449,6 +450,9 @@ await quickAddApi.executeChoice("Create Meeting Note", {
 });
 
 await quickAddApi.executeChoice("Weekly review", {}, { date: "lw" });
+
+// Run a choice by the id you stored
+await quickAddApi.executeChoice({ id: choiceId }, { value: "Main agenda content" });
 ```
 
 Batch processing example:
@@ -464,6 +468,35 @@ for (const contact of contacts) {
         contactEmail: contact.email,
         contactCompany: contact.company
     });
+}
+```
+
+### `getChoice(choice: string | { id: string }): { id: string; name: string; type: "Template" | "Capture" | "Macro" | "Multi"; path: string[] } | null`
+Looks up a choice without running it. Pass the choice's name or `{ id }`. A name returns the first choice with that name, in the order the settings list shows them. `path` lists the folder names from the top level down, with the choice's own name last. If no choice matches, `getChoice` returns `null` and shows no notice.
+
+**Example:**
+```javascript
+const choice = quickAddApi.getChoice({ id: choiceId });
+if (choice === null) {
+    // The user deleted the choice.
+}
+```
+
+### `pickChoice(options?: { placeholder?: string }): Promise<{ id: string; name: string; type: "Template" | "Capture" | "Macro"; path: string[] }>`
+Opens the picker that **QuickAdd: Run** opens and resolves with the choice the user picks. The picked choice does not run. Folders open as they do in **QuickAdd: Run**, and only a Template, Capture, or Macro can be picked. Typing searches the choices inside folders too and shows each one's folder, whatever **Search nested choices** is set to. The result has the same shape as `getChoice` returns.
+
+**Cancellation:** If the user closes the picker, the promise rejects with a cancellation. If there are no choices to pick, QuickAdd shows the same notice as **QuickAdd: Run**, opens nothing, and the promise rejects with a cancellation.
+
+**Parameters:**
+- `options.placeholder`: (Optional) The hint in the empty search field. The default is "Select a choice".
+
+**Example:**
+```javascript
+try {
+    const choice = await quickAddApi.pickChoice({ placeholder: "Choose a capture choice" });
+    settings.choiceId = choice.id;
+} catch {
+    // The user closed the picker.
 }
 ```
 
@@ -486,6 +519,19 @@ Applies a template to the active note without creating a new file. The template 
 await quickAddApi.applyTemplateToActiveFile("templates/meeting.md", {
     mode: "top"
 });
+```
+
+## Packages
+
+### `importPackage(packageJson: string): Promise<{ addedChoiceIds: string[]; skippedChoiceIds: string[]; writtenAssets: string[]; skippedAssets: string[] }>`
+Imports a [package](/docs/Choices/Packages/) without the **Import package** review, so your plugin can install a ready-made workflow it ships. `packageJson` is the text of a `.quickadd.json` package. QuickAdd adds only what the vault doesn't have yet. It skips a choice whose id is already in the vault and a file that already exists, and never overwrites them, so a second import of the same package changes nothing. QuickAdd registers the commands of the imported choices right away, and the promise resolves after QuickAdd saves its settings.
+
+If `packageJson` isn't a valid package, or the package can run code or runs a choice when Obsidian starts, the promise rejects and nothing changes. This API can't import such a package. The user can review and import it with **Import package…** in QuickAdd's settings, or review it with `quickadd:package-preview path=<file>` and import it with `quickadd:package-import path=<file> acknowledge=true`, where `<file>` is the package's path in the vault.
+
+**Example:**
+```javascript
+const { addedChoiceIds, skippedChoiceIds } = await quickAddApi.importPackage(packageJson);
+const choice = quickAddApi.getChoice({ id: "my-plugin-capture" });
 ```
 
 ## Formatting
