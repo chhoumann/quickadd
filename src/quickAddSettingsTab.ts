@@ -264,6 +264,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// net for the two Svelte mounts.
 		super.hide();
 		this.destroySettingViews();
+		// Closing settings is when a change is done. The pending write waits on
+		// the main window's timer, which the OS throttles while that window is
+		// hidden behind a Settings popout.
+		void this.plugin.flushPendingSave();
 	}
 
 	private destroySettingViews(): void {
