@@ -1,0 +1,15 @@
+# Hold back releases younger than 7 days, so a compromised publish has time to
+# be caught and pulled before it reaches this repo. Exclude a version only when
+# it is ours or fixes an advisory that affects us, say which, and remove the
+# entry once that version is 7 days old.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # Security: rejects registry metadata for a different package (11.28.7).
+  - pnpm@11.28.7
+  # Ours: drops the vulnerable vite-plus 0.1 (0.14.0).
+  - obsidian-e2e@0.14.0
+
+# esbuild's postinstall only swaps its JS launcher for the native binary;
+# the JS API finds the platform package without it.
+allowBuilds:
+  esbuild: false

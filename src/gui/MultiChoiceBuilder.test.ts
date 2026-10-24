@@ -43,14 +43,10 @@ describe("MultiChoiceBuilder", () => {
 		const { page, onSave, icon } = openPage(multiChoice());
 
 		expect(icon.placeholder).toBe("folder");
-		expect(
-			page.containerEl.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "folder");
+		expect(page.containerEl.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("folder");
 
 		await fireEvent.input(icon, { target: { value: "folder-open" } });
-		expect(
-			page.containerEl.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "folder-open");
+		expect(page.containerEl.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("folder-open");
 		expect(onSave).not.toHaveBeenCalled();
 
 		page.hide();
@@ -89,9 +85,7 @@ describe("MultiChoiceBuilder", () => {
 		expect(icon.value).toBe("star");
 
 		await fireEvent.input(icon, { target: { value: "   " } });
-		expect(
-			page.containerEl.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "folder");
+		expect(page.containerEl.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("folder");
 
 		page.hide();
 		expect(onSave.mock.calls[0][0].icon).toBeUndefined();

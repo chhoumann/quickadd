@@ -13,7 +13,6 @@
 		"skipLibCheck": true,
 		"noImplicitAny": true,
 		"moduleResolution": "bundler",
-		"importHelpers": true,
 		"isolatedModules": true,
 		"types": ["svelte", "node"],
 		"strictNullChecks": true,

@@ -135,7 +135,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	// -----------------------------------------------------------------------
 	// Store bridge
 	//
-	// QuickAdd's single source of truth is the zustand `settingsStore`, and the
+	// QuickAdd's single source of truth is `settingsStore`, and the
 	// only persistence path is the subscriber installed in main.ts (which sets
 	// `plugin.settings` and calls `saveSettings()` on every store change). The
 	// declarative `control` API would otherwise bind directly to
@@ -187,7 +187,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			return;
 		}
 
-		settingsStore.setState({ [key]: value } as Partial<QuickAddSettings>);
+		settingsStore.setState({ [key]: value });
 	}
 
 	override getSettingDefinitions(): SettingDefinitionItem<SettingsKey>[] {

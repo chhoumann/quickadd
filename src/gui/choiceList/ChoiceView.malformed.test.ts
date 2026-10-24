@@ -36,15 +36,15 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 
 		// The rows on both sides of the corruption, which is what proves the mount
 		// ran to completion rather than dying partway.
-		expect(getByLabelText("Configure Head template")).toBeInTheDocument();
-		expect(getByLabelText("Configure Tail template")).toBeInTheDocument();
-		expect(getByLabelText("Toggle Healthy folder")).toBeInTheDocument();
+		expect(getByLabelText("Configure Head template").isConnected).toBe(true);
+		expect(getByLabelText("Configure Tail template").isConnected).toBe(true);
+		expect(getByLabelText("Toggle Healthy folder").isConnected).toBe(true);
 		// ...and the malformed folders are present and operable, not swallowed.
 		for (const shape of MALFORMED_CHILDREN_SHAPES) {
-			expect(getByLabelText(`Toggle Broken ${shape.key}`)).toBeInTheDocument();
+			expect(getByLabelText(`Toggle Broken ${shape.key}`).isConnected).toBe(true);
 		}
 		// The whole view is alive, not just the list.
-		expect(getByLabelText("New choice")).toBeInTheDocument();
+		expect(getByLabelText("New choice").isConnected).toBe(true);
 		expect(queryByText("QuickAdd couldn't display your choices")).toBeNull();
 	});
 
@@ -121,7 +121,7 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			leaf("Survivor", "survivor"),
 		]);
 
-		expect(getByLabelText("Configure Survivor")).toBeInTheDocument();
+		expect(getByLabelText("Configure Survivor").isConnected).toBe(true);
 	});
 
 	it("repairs entries that cannot be keyed instead of hiding them", () => {
@@ -137,9 +137,9 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			leaf("Survivor", "survivor"),
 		]);
 
-		expect(getByLabelText("Configure Survivor")).toBeInTheDocument();
-		expect(getByText("Missing id")).toBeInTheDocument();
-		expect(getByText("No id")).toBeInTheDocument();
+		expect(getByLabelText("Configure Survivor").isConnected).toBe(true);
+		expect(getByText("Missing id").isConnected).toBe(true);
+		expect(getByText("No id").isConnected).toBe(true);
 		expect(container.querySelector(".qaChoicesUnavailable")).toBeNull();
 		// Every row keyed, and keyed DISTINCTLY - the repair must not hand the two
 		// id-less entries the same replacement.
@@ -160,9 +160,7 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			saveChoices,
 		);
 
-		expect(
-			getByText("QuickAdd couldn't display your choices"),
-		).toBeInTheDocument();
+		expect(getByText("QuickAdd couldn't display your choices").isConnected).toBe(true);
 		expect(queryByLabelText("New choice")).toBeNull();
 		expect(queryByLabelText("New folder")).toBeNull();
 		expect(saveChoices).not.toHaveBeenCalled();
@@ -234,7 +232,7 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			.querySelector("[data-choice-id]")!
 			.getAttribute("data-choice-id");
 
-		// zustand merges partials, so `state.choices` stays reference-identical.
+		// The store merges partials, so `state.choices` stays reference-identical.
 		settingsStore.setState({ disableOnlineFeatures: true });
 		await tick();
 

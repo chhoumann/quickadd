@@ -839,10 +839,7 @@ describe("ChoiceSuggester", () => {
 
 			const el = await render(suggester, topNote);
 
-			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
-				"data-icon",
-				"file-text",
-			);
+			expect(el.querySelector(".quickadd-choice-icon svg")?.getAttribute("data-icon")).toBe("file-text");
 		});
 
 		it("renders a per-choice icon override", async () => {
@@ -851,10 +848,7 @@ describe("ChoiceSuggester", () => {
 
 			const el = await render(suggester, starred);
 
-			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
-				"data-icon",
-				"star",
-			);
+			expect(el.querySelector(".quickadd-choice-icon svg")?.getAttribute("data-icon")).toBe("star");
 		});
 
 		it("styles the sentinel back item but not a Multi named '← Back'", async () => {
@@ -986,10 +980,7 @@ describe("ChoiceSuggester", () => {
 
 			const el = await render(suggester, row);
 
-			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
-				"data-icon",
-				"file-plus",
-			);
+			expect(el.querySelector(".quickadd-choice-icon svg")?.getAttribute("data-icon")).toBe("file-plus");
 		});
 	});
 

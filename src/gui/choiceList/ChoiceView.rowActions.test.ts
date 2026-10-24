@@ -86,7 +86,7 @@ describe("ChoiceView row actions that fail (#1585)", () => {
 
 		await fireEvent.click(getByLabelText("Configure Choice with a bad type"));
 
-		expect(getByLabelText("Configure Healthy template")).toBeInTheDocument();
-		expect(getByLabelText("New choice")).toBeInTheDocument();
+		expect(getByLabelText("Configure Healthy template").isConnected).toBe(true);
+		expect(getByLabelText("New choice").isConnected).toBe(true);
 	});
 });

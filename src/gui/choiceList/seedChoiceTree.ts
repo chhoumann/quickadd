@@ -28,7 +28,7 @@ const seededByRaw = new WeakMap<object, NormalizedChoiceList>();
  *
  * Hence a module-level WeakMap rather than component state: the cache outlives
  * the component, and is keyed on the array object so an unrelated `setState`
- * (zustand merges partials, leaving `state.choices` reference-identical) hits it
+ * (the store merges partials, leaving `state.choices` reference-identical) hits it
  * while a genuine tree change misses it. Entries die with the array.
  *
  * Keying on the choice's own previous id would NOT work: `undefined` collides

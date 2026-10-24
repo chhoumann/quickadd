@@ -14,7 +14,7 @@ describe("ChoiceView AI Assistant entry point", () => {
 	const initialState = settingsStore.getState();
 
 	afterEach(() => {
-		settingsStore.setState(initialState, true);
+		settingsStore.replaceState(initialState);
 	});
 
 	function renderView(choices: IChoice[], openAISettings = vi.fn()) {

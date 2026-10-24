@@ -1,0 +1,13 @@
+# Same release-age policy as the plugin's pnpm-workspace.yaml.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # Security: rejects registry metadata for a different package (11.28.7).
+  - pnpm@11.28.7
+
+allowBuilds:
+  esbuild: false
+
+overrides:
+  # expressive-code still asks for postcss-nested 6, which holds
+  # postcss-selector-parser below the GHSA-rj75-hqrm-r3gf fix (7.1.6).
+  postcss-nested: 9.0.0

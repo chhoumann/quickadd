@@ -20,12 +20,10 @@ rules and sets the `no-console` message.
 Oxlint's JavaScript plugin API is alpha and does not have a semver guarantee.
 The dependency is pinned. The selectors execute in JavaScript, while built-in
 Oxlint rules execute natively. `tsc` uses the native compiler, and so does
-svelte-check through the native compiler's API. svelte-check 4.7.6 exits 0
-when that compiler cannot start, so `patches/svelte-check@4.7.6.patch`
-backports the upstream fix (sveltejs/language-tools#3133). pnpm refuses to
-install with a patch for a version that is no longer installed, so the
-next svelte-check upgrade must delete it, which is why Dependabot skips
-svelte-check. svelte-check still loads the TypeScript 6 package.
+svelte-check through the native compiler's API. svelte-check needs 4.7.7 or
+later: earlier versions exit 0 when that compiler cannot start
+(sveltejs/language-tools#3133). svelte-check still loads the TypeScript 6
+package.
 
 svelte-check checks every file in the tsconfig program, but its `FILES` count
 on this path covers only components and files with diagnostics. It also stays
