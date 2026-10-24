@@ -118,10 +118,10 @@ export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"
 if [[ "${OBSIDIAN_E2E_TEMPLATER:-}" == "1" ]]; then
 	# The runner resets community-plugins.json on every start, so install the
 	# pinned release into the isolated vault and enable it in the running app.
-	templater_version="2.25.1"
+	templater_version="2.26.0"
 	declare -A templater_sha256=(
-		[main.js]=eb86d9282694ce1f099154c320286fdd89473e60dc2441ee310f3ac331333e94
-		[manifest.json]=b99280d2c4ab2cd22ad010c12faeedf255bcf385d127d973b89f85deb27d23fd
+		[main.js]=0acd45cfdb3a7337e2bef511699bc1f819dc64645ad3480df33579d42d2dcbaa
+		[manifest.json]=91c9fa8510082fffa0b3d022aac4986e3b392295b1126e847ead7ed7289169b8
 		[styles.css]=67a6dd2d1d6dedca1287c334ca884ec4196433f71ca47388a0bd3eac14cf8b5f
 	)
 	templater_cache="$ORIGINAL_HOME/.cache/quickadd-templater/$templater_version"
