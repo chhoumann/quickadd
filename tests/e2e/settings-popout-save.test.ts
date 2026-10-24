@@ -8,8 +8,7 @@ import { setFocusEmulation, setVaultConfig } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("settings-popout-save");
 
-// A change made in the Settings popout is saved after the popout closes right after it (#2182):
-// the debounced settings write must not be scheduled on the popout window.
+// A change made in the Settings popout is saved when the popout closes right after it (#2182, #2213).
 for (const mainWindow of ["visible", "hidden"] as const) {
 	it(`saves a reorder made in the Settings popout that closes right after, main window ${mainWindow}`, async () => {
 		const { obsidian, plugin } = getContext();
@@ -26,7 +25,7 @@ for (const mainWindow of ["visible", "hidden"] as const) {
 		const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
 		try {
 			// Reorder by a native mouse drag in the popout, and close it 300 ms after the drop.
-			const inMemory = await obsidian.dev.evalJsonAsync<string[]>(`(async () => {
+			const { order: inMemory, pendingAtClose } = await obsidian.dev.evalJsonAsync<{ order: string[]; pendingAtClose: boolean }>(`(async () => {
 				const remote = require("@electron/remote");
 				const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 				${setVaultConfig("settingsPopoutWindow", true)};
@@ -69,13 +68,20 @@ for (const mainWindow of ["visible", "hidden"] as const) {
 				await popoutSleep(${mainWindow === "hidden" ? 2500 : 300});
 				contents.sendInputEvent({ type: "mouseUp", x: to.x, y: to.y, button: "left", clickCount: 1 });
 				await popoutSleep(300);
-				const order = app.plugins.plugins.quickadd.settings.choices.map((choice) => choice.name);
+				const plugin = app.plugins.plugins.quickadd;
+				const order = plugin.settings.choices.map((choice) => choice.name);
+				const pendingAtClose = plugin.pendingSave !== null;
 				app.setting.close();
-				return order;
+				// The write that closing started.
+				await plugin.persistChain;
+				return { order, pendingAtClose };
 			})()`);
 			expect(inMemory).not.toEqual(["Alpha", "Bravo", "Charlie"]);
-			// The write is debounced by 1 s, and a hidden window's timers run about once a second.
-			await expect.poll(onDisk, { timeout: 3000, interval: 250 }).toEqual(inMemory);
+			// Otherwise the debounce wrote it already, and closing proves nothing.
+			expect(pendingAtClose).toBe(true);
+			// Closing settings writes the change, rather than leaving it to a
+			// debounce on the main window's timer, which a hidden window throttles.
+			expect(onDisk()).toEqual(inMemory);
 		} finally {
 			await obsidian.dev.evalJson(`(() => {
 				require("@electron/remote").getCurrentWindow().show();
