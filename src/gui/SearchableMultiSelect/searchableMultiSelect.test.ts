@@ -189,14 +189,8 @@ describe("SearchableMultiSelect", () => {
 
 	it("renders a useful empty state and disables search for an empty list", () => {
 		const { container } = createPicker([]);
-		expect(
-			container.querySelector(".qa-searchable-multi-select__empty"),
-		).toHaveTextContent("No options available");
-		expect(
-			container.querySelector<HTMLInputElement>(
-				".qa-searchable-multi-select__search",
-			),
-		).toBeDisabled();
+		expect(container.querySelector(".qa-searchable-multi-select__empty")?.textContent).toContain("No options available");
+		expect(container.querySelector<HTMLInputElement>(".qa-searchable-multi-select__search")?.disabled).toBe(true);
 	});
 
 	it("keeps the complete long label in the accessible row", () => {
@@ -208,8 +202,8 @@ describe("SearchableMultiSelect", () => {
 		const row = container.querySelector<HTMLLabelElement>(
 			".qa-searchable-multi-select__option",
 		);
-		expect(row).toHaveTextContent(label);
-		expect(row?.querySelector("input")).toHaveAttribute("type", "checkbox");
+		expect(row?.textContent).toContain(label);
+		expect(row?.querySelector("input")?.getAttribute("type")).toBe("checkbox");
 	});
 
 	it("caps large result sets while keeping a selected item visible", () => {
@@ -224,8 +218,6 @@ describe("SearchableMultiSelect", () => {
 			container.querySelectorAll(".qa-searchable-multi-select__option"),
 		).toHaveLength(200);
 		expect(optionLabels(container)).toContain("Option 499");
-		expect(
-			container.querySelector(".qa-searchable-multi-select__limit"),
-		).toHaveTextContent("Showing 200 of 500 options");
+		expect(container.querySelector(".qa-searchable-multi-select__limit")?.textContent).toContain("Showing 200 of 500 options");
 	});
 });

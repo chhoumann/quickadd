@@ -1,5 +1,4 @@
-// Global test setup. Under jsdom it adds jest-dom matchers (toBeInTheDocument,
-// toHaveAttribute, ...) to expect() and Obsidian's DOM helpers.
+// Global test setup. Under jsdom it adds Obsidian's DOM helpers.
 import { afterEach } from "vitest";
 
 // Obsidian augments HTMLElement/SVGElement with `setCssStyles`/`setCssProps` at
@@ -122,7 +121,6 @@ export function installObsidianDomHelpers(window: Window): void {
 }
 
 if (typeof window !== "undefined") {
-	await import("@testing-library/jest-dom/vitest");
 	installObsidianDomHelpers(window);
 	// Obsidian's globals for the document and window that have focus.
 	if (!("activeDocument" in globalThis)) {

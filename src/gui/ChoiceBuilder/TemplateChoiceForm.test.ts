@@ -286,23 +286,17 @@ describe("TemplateChoiceForm", () => {
 		const input = choiceIconInput(container);
 
 		expect(input.placeholder).toBe("file-text");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "file-text");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("file-text");
 
 		await fireEvent.input(input, { target: { value: "star" } });
 		flushSync();
 		expect(props.choice.icon).toBe("star");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "star");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("star");
 
 		await fireEvent.input(input, { target: { value: "   " } });
 		flushSync();
 		expect(props.choice.icon).toBeUndefined();
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "file-text");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("file-text");
 	});
 
 	it("keeps the optional icon override at the bottom of the form", () => {

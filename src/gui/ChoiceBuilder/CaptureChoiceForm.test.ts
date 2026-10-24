@@ -132,13 +132,13 @@ describe("CaptureChoiceForm", () => {
 		expect(props.choice.propertyCapture?.property).toEqual({ kind: "prompt" });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
-		expect(getByLabelText("Property")).toHaveValue("{{VALUE:property}}");
+		expect((getByLabelText("Property") as HTMLInputElement).value).toBe("{{VALUE:property}}");
 		expect(props.choice.propertyCapture?.property).toEqual({ kind: "named", format: "{{VALUE:property}}" });
 		await fireEvent.input(getByLabelText("Property"), { target: { value: "status" } });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
-		expect(getByLabelText("Property")).toHaveValue("status");
+		expect((getByLabelText("Property") as HTMLInputElement).value).toBe("status");
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
 		flushSync();
 		expect(props.choice.propertyCapture).toBeUndefined();
@@ -246,17 +246,13 @@ describe("CaptureChoiceForm", () => {
 		const input = choiceIconInput(container);
 
 		expect(input.placeholder).toBe("pencil");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "pencil");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("pencil");
 
 		await fireEvent.input(input, { target: { value: "inbox" } });
 		flushSync();
 
 		expect(props.choice.icon).toBe("inbox");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "inbox");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("inbox");
 	});
 
 	it("keeps the optional icon override at the bottom of the form", () => {

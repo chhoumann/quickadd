@@ -68,11 +68,9 @@ describe("ChoiceView", () => {
 		]);
 
 		// Renders the seeded macro choice row (aria-label = `Configure <name>`).
-		expect(
-			getByLabelText("Configure QA Conditional Macro"),
-		).toBeInTheDocument();
+		expect(getByLabelText("Configure QA Conditional Macro").isConnected).toBe(true);
 		// And the view chrome that proves the full subtree rendered.
-		expect(getByLabelText("New choice")).toBeInTheDocument();
+		expect(getByLabelText("New choice").isConnected).toBe(true);
 	});
 
 	// Complements the local obsidian-e2e conditional-branch-persistence test in CI:
