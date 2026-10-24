@@ -49,12 +49,19 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+# The physical path of an existing directory, or nothing (`realpath -e` is
+# GNU-only). The printed paths must already be physical, so a `..` or a link
+# can't point the run elsewhere. Only the profile root is resolved first: on
+# macOS /tmp is a link to /private/tmp, and the runner prints the /tmp form.
+physical_dir() { (cd -P -- "$1" 2>/dev/null && pwd -P) || true; }
+
 # A running instance keeps its window size, modals and keymap scopes, and the
 # vault keeps data.json and files from manual testing. Start from fresh ones.
 pnpm run --silent stop:e2e-obsidian >/dev/null
 stale_vault="$(pnpm run --silent provision:e2e-vault -- --print-env |
 	sed -n "s/^export OBSIDIAN_E2E_VAULT_PATH='\(.*\)'$/\1/p")"
-if [[ "$(dirname -- "$stale_vault")" == "$REPO_ROOT/.obsidian-e2e-vaults" ]]; then
+if [[ "$(dirname -- "$stale_vault")" == "$REPO_ROOT/.obsidian-e2e-vaults" && \
+	"$(physical_dir "$stale_vault")" == "$stale_vault" ]]; then
 	rm -rf -- "$stale_vault"
 fi
 
@@ -107,11 +114,6 @@ done
 }
 vault_path="${start_env[OBSIDIAN_E2E_VAULT_PATH]}"
 obsidian_home="${start_env[OBSIDIAN_E2E_OBSIDIAN_HOME]}"
-# The physical path of an existing directory, or nothing (`realpath -e` is
-# GNU-only). The printed paths must already be physical, so a `..` or a link
-# can't point the run elsewhere. Only the profile root is resolved first: on
-# macOS /tmp is a link to /private/tmp, and the runner prints the /tmp form.
-physical_dir() { (cd -P -- "$1" 2>/dev/null && pwd -P) || true; }
 readonly PROFILE_ROOT=/tmp/quickadd-obsidian-e2e
 expected_vault_root="$(physical_dir "$REPO_ROOT/.obsidian-e2e-vaults")"
 profile_root="$(physical_dir "$PROFILE_ROOT")"

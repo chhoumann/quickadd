@@ -174,6 +174,31 @@ exit 0
 		expect(fs.readdirSync(sibling)).toEqual(["Note.md"]);
 	});
 
+	it("deletes no vault behind a linked vault directory", () => {
+		const root = fs.realpathSync(temporaryDirectory("quickadd-linked-root-"));
+		fs.mkdirSync(path.join(root, ".agents"));
+		fs.copyFileSync(runE2E, path.join(root, ".agents", "run-e2e"));
+		const outside = temporaryDirectory("quickadd-linked-outside-");
+		fs.mkdirSync(path.join(outside, "quickadd-linked"));
+		fs.writeFileSync(path.join(outside, "quickadd-linked", "Keep.md"), "");
+		fs.symlinkSync(outside, path.join(root, ".obsidian-e2e-vaults"));
+		const bin = temporaryDirectory("quickadd-mock-bin-linked-");
+		fs.writeFileSync(path.join(bin, "pnpm"), `#!/usr/bin/env bash
+if [[ "$*" == *"provision:e2e-vault"* ]]; then
+	echo "export OBSIDIAN_E2E_VAULT_PATH='${root}/.obsidian-e2e-vaults/quickadd-linked'"
+fi
+exit 0
+`, { mode: 0o755 });
+
+		const result = spawnSync(path.join(root, ".agents", "run-e2e"), [], {
+			env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+			encoding: "utf8",
+		});
+
+		expect(result.status).toBe(1);
+		expect(fs.readdirSync(path.join(outside, "quickadd-linked"))).toEqual(["Keep.md"]);
+	});
+
 	it("drops -- so Vitest still applies the filters", () => {
 		const { result, calls } = runWithMockVitest("orb-dashdash-test", ["--", "tests/e2e/field-label.test.ts"], 1);
 		expect(result.status, result.stderr).toBe(0);
