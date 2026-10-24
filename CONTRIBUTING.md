@@ -45,8 +45,7 @@ as well as with automated tests. When working with the local dev vault, use the
 obsidian vault=dev plugin:reload id=quickadd
 ```
 
-Keep pull requests narrow. Include generated files such as `main.js` and
-`styles.css` when the source change updates them.
+Keep pull requests narrow.
 
 TypeScript checks use Oxlint. Svelte compiler and type diagnostics fail on
 warnings, and a small compiler-AST checker enforces template policies and the

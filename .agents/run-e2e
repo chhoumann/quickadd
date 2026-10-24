@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Builds main.js and runs the native E2E suite in this worktree's isolated
-# Obsidian instance. Arguments go to Vitest (a spec path, `-t <name>`).
+# Builds main.js and runs the native E2E suite in a fresh isolated Obsidian
+# instance and vault for this worktree. Arguments go to Vitest (spec paths,
+# `-t <name>`).
 #
 # OBSIDIAN_E2E_TEMPLATER=1 also runs the Templater-only specs, against the
 # Templater release pinned below. Run it that way for any change that touches
@@ -21,6 +22,13 @@ export COREPACK_HOME="${COREPACK_HOME:-$ORIGINAL_HOME/.cache/quickadd-corepack}"
 
 cd "$REPO_ROOT"
 
+# Vitest ignores everything after a `--`, so `run-e2e -- <spec>` (or
+# `pnpm run test:e2e:orb -- <spec>`) would run the whole suite. Drop them.
+for arg; do
+	shift
+	[[ "$arg" == "--" ]] || set -- "$@" "$arg"
+done
+
 # The runner loads whatever main.js is on disk. Build it from the checked-out
 # source so a stale bundle can't pass or fail a run for code it doesn't hold.
 pnpm run --silent build >/dev/null
@@ -40,6 +48,22 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+# The physical path of an existing directory, or nothing (`realpath -e` is
+# GNU-only). The printed paths must already be physical, so a `..` or a link
+# can't point the run elsewhere. Only the profile root is resolved first: on
+# macOS /tmp is a link to /private/tmp, and the runner prints the /tmp form.
+physical_dir() { (cd -P -- "$1" 2>/dev/null && pwd -P) || true; }
+
+# A running instance keeps its window size, modals and keymap scopes, and the
+# vault keeps data.json and files from manual testing. Start from fresh ones.
+pnpm run --silent stop:e2e-obsidian >/dev/null
+stale_vault="$(pnpm run --silent provision:e2e-vault -- --print-env |
+	sed -n "s/^export OBSIDIAN_E2E_VAULT_PATH='\(.*\)'$/\1/p")"
+if [[ "$(dirname -- "$stale_vault")" == "$REPO_ROOT/.obsidian-e2e-vaults" && \
+	"$(physical_dir "$stale_vault")" == "$stale_vault" ]]; then
+	rm -rf -- "$stale_vault"
+fi
 
 # Keep assignment and status checking separate from parsing. Command
 # substitution inside `eval` would otherwise let eval's success mask a runner
@@ -90,11 +114,6 @@ done
 }
 vault_path="${start_env[OBSIDIAN_E2E_VAULT_PATH]}"
 obsidian_home="${start_env[OBSIDIAN_E2E_OBSIDIAN_HOME]}"
-# The physical path of an existing directory, or nothing (`realpath -e` is
-# GNU-only). The printed paths must already be physical, so a `..` or a link
-# can't point the run elsewhere. Only the profile root is resolved first: on
-# macOS /tmp is a link to /private/tmp, and the runner prints the /tmp form.
-physical_dir() { (cd -P -- "$1" 2>/dev/null && pwd -P) || true; }
 readonly PROFILE_ROOT=/tmp/quickadd-obsidian-e2e
 expected_vault_root="$(physical_dir "$REPO_ROOT/.obsidian-e2e-vaults")"
 profile_root="$(physical_dir "$PROFILE_ROOT")"
@@ -140,11 +159,8 @@ if [[ "${OBSIDIAN_E2E_TEMPLATER:-}" == "1" ]]; then
 		echo "${templater_sha256[$file]}  $templater_cache/$file" | sha256sum --check --quiet -
 		cp "$templater_cache/$file" "$templater_dir/$file"
 	done
-	# A reused instance may already run a Templater, and enabling a loaded
-	# plugin keeps its code, so unload it first.
 	enabled="$(pnpm run --silent obsidian:e2e -- eval code='(async () => {
 		await app.plugins.loadManifests();
-		await app.plugins.disablePlugin("templater-obsidian");
 		await app.plugins.enablePlugin("templater-obsidian");
 		return app.plugins.plugins["templater-obsidian"]?.manifest.version ?? "missing";
 	})()')"
@@ -154,8 +170,7 @@ if [[ "${OBSIDIAN_E2E_TEMPLATER:-}" == "1" ]]; then
 	fi
 fi
 
-# No `--`: pnpm passes it through, and Vitest ignores everything after it, so
-# file and `-t` filters would silently run the whole suite.
+# No `--` before the arguments either: pnpm passes it through to Vitest.
 # Vitest also exits 0 when a `-t` filter matches no test, so count what ran.
 results="$(mktemp)"
 pnpm run test:e2e "$@" --reporter=default --reporter=json --outputFile.json="$results"
