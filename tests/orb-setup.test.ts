@@ -111,8 +111,10 @@ exit 0
 		expect(fs.readFileSync(log, "utf8")).not.toContain("test:e2e");
 	});
 
-	// Runs run-e2e against a mock pnpm whose start prints this instance's paths
-	// and whose Vitest run reports `ran` passed tests.
+	// Runs run-e2e against a mock pnpm whose provision and start print this
+	// instance's paths, whose start recreates the vault like the runner does, and
+	// whose Vitest run reports `ran` passed tests. The vault starts with a
+	// leftover note.
 	function runWithMockVitest(name: string, args: string[], ran: number) {
 		const instanceName = `${name}-${process.pid}-${Date.now()}`;
 		const initialRoot = prepareProfileRoot();
@@ -120,11 +122,13 @@ exit 0
 		fs.mkdirSync(home, { recursive: true });
 		const vault = path.join(repoRoot, ".obsidian-e2e-vaults", instanceName);
 		fs.mkdirSync(vault, { recursive: true });
+		fs.writeFileSync(path.join(vault, "Leftover.md"), "");
 		const bin = temporaryDirectory("quickadd-mock-bin-args-");
 		const log = path.join(bin, "calls.log");
 		fs.writeFileSync(path.join(bin, "pnpm"), `#!/usr/bin/env bash
 echo "$*" >> ${JSON.stringify(log)}
-if [[ "$*" == *"start:e2e-obsidian"* ]]; then
+if [[ "$*" == *"start:e2e-obsidian"* || "$*" == *"provision:e2e-vault"* ]]; then
+	[[ "$*" == *"start:e2e-obsidian"* ]] && mkdir -p '${vault}'
 	for prefix in OBSIDIAN QUICKADD; do
 		echo "export \${prefix}_E2E_VAULT='${instanceName}'"
 		echo "export \${prefix}_E2E_VAULT_PATH='${vault}'"
@@ -144,7 +148,7 @@ exit 0
 				env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
 				encoding: "utf8",
 			});
-			return { result, calls: fs.readFileSync(log, "utf8") };
+			return { result, calls: fs.readFileSync(log, "utf8"), vaultFiles: fs.readdirSync(vault) };
 		} finally {
 			fs.rmSync(vault, { recursive: true, force: true });
 			cleanProfileInstance(instanceName, initialRoot);
@@ -155,6 +159,19 @@ exit 0
 		const { result, calls } = runWithMockVitest("orb-args-test", ["tests/e2e/field-label.test.ts", "-t", "label"], 1);
 		expect(result.status, result.stderr).toBe(0);
 		expect(calls).toContain("\nrun test:e2e tests/e2e/field-label.test.ts -t label --reporter=default --reporter=json --outputFile.json=");
+	});
+
+	it("starts from a fresh instance and vault, and keeps other vaults", () => {
+		fs.mkdirSync(path.join(repoRoot, ".obsidian-e2e-vaults"), { recursive: true });
+		const sibling = fs.mkdtempSync(path.join(repoRoot, ".obsidian-e2e-vaults", "orb-sibling-"));
+		temporaryPaths.push(sibling);
+		fs.writeFileSync(path.join(sibling, "Note.md"), "");
+		const { result, calls, vaultFiles } = runWithMockVitest("orb-reset-test", ["tests/e2e/field-label.test.ts"], 1);
+		expect(result.status, result.stderr).toBe(0);
+		expect(calls.indexOf("stop:e2e-obsidian")).toBeLessThan(calls.indexOf("provision:e2e-vault"));
+		expect(calls.indexOf("provision:e2e-vault")).toBeLessThan(calls.indexOf("start:e2e-obsidian"));
+		expect(vaultFiles).toEqual([]);
+		expect(fs.readdirSync(sibling)).toEqual(["Note.md"]);
 	});
 
 	it("drops -- so Vitest still applies the filters", () => {
