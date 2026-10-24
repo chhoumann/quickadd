@@ -6,16 +6,13 @@ minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   # Security: rejects registry metadata for a different package (11.28.7).
   - pnpm@11.28.7
+  # Ours: drops the vulnerable vite-plus 0.1 (0.14.0).
+  - obsidian-e2e@0.14.0
 
 # esbuild's postinstall only swaps its JS launcher for the native binary;
 # the JS API finds the platform package without it.
 allowBuilds:
   esbuild: false
-
-overrides:
-  brace-expansion: 5.0.9
-  postcss: 8.5.25
-  tinypool: 2.1.2
 
 patchedDependencies:
   svelte-check@4.7.6: patches/svelte-check@4.7.6.patch

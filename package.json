@@ -37,7 +37,7 @@
 		"jsdom": "^30.1.3",
 		"moment": "2.31.0",
 		"obsidian": "1.14.4",
-		"obsidian-e2e": "^0.13.0",
+		"obsidian-e2e": "^0.14.0",
 		"oxlint": "1.88.0",
 		"oxlint-tsgolint": "7.0.2004",
 		"svelte": "^5.57.2",
