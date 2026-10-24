@@ -526,7 +526,7 @@ await quickAddApi.applyTemplateToActiveFile("templates/meeting.md", {
 ### `importPackage(packageJson: string): Promise<{ addedChoiceIds: string[]; skippedChoiceIds: string[]; writtenAssets: string[]; skippedAssets: string[] }>`
 Imports a [package](/docs/Choices/Packages/) without the **Import package** review, so your plugin can install a ready-made workflow it ships. `packageJson` is the text of a `.quickadd.json` package. QuickAdd adds only what the vault doesn't have yet. It skips a choice whose id is already in the vault and a file that already exists, and never overwrites them, so a second import of the same package changes nothing. QuickAdd registers the commands of the imported choices right away, and the promise resolves after QuickAdd saves its settings.
 
-If `packageJson` isn't a valid package, or the package runs code, the promise rejects and nothing changes. A package with scripts can only be imported from QuickAdd's settings, where the user reviews it.
+If `packageJson` isn't a valid package, or the package can run code or runs a choice when Obsidian starts, the promise rejects and nothing changes. This API can't import such a package. The user can review and import it with **Import package…** in QuickAdd's settings, or review it with `quickadd:package-preview` and import it with `quickadd:package-import acknowledge=true`.
 
 **Example:**
 ```javascript
