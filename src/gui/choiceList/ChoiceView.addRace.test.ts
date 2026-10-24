@@ -42,7 +42,7 @@ describe("ChoiceView new-choice race (#1625)", () => {
 	const initialState = settingsStore.getState();
 
 	afterEach(() => {
-		settingsStore.setState(initialState, true);
+		settingsStore.replaceState(initialState);
 		configureChoiceMock.mockReset();
 		MenuStub.lastShown = null;
 	});

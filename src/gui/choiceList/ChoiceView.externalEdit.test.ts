@@ -87,7 +87,7 @@ describe("ChoiceView builder and settings synced from elsewhere (#2003)", () => 
 	const initialState = settingsStore.getState();
 
 	afterEach(() => {
-		settingsStore.setState(initialState, true);
+		settingsStore.replaceState(initialState);
 		promptRenameChoiceMock.mockReset();
 		(Notice as unknown as { instances: unknown[] }).instances.length = 0;
 	});

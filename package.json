@@ -53,8 +53,7 @@
 		"chrono-node": "^2.10.3",
 		"fuse.js": "^7.5.0",
 		"svelte-dnd-action": "0.9.80",
-		"three-way-merge": "^0.1.0",
-		"zustand": "^5.0.15"
+		"three-way-merge": "^0.1.0"
 	},
 	"repository": {
 		"type": "git",

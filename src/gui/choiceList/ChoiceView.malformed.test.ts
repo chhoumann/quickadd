@@ -234,7 +234,7 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			.querySelector("[data-choice-id]")!
 			.getAttribute("data-choice-id");
 
-		// zustand merges partials, so `state.choices` stays reference-identical.
+		// The store merges partials, so `state.choices` stays reference-identical.
 		settingsStore.setState({ disableOnlineFeatures: true });
 		await tick();
 

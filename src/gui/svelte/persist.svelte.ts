@@ -2,7 +2,7 @@ declare const PLAIN: unique symbol;
 
 /**
  * A value detached from Svelte's reactive `$state` proxy graph via {@link snapshot},
- * making it safe to hand to a persistence sink (zustand `setState`, Obsidian
+ * making it safe to hand to a persistence sink (`settingsStore.setState`, Obsidian
  * `saveData`, `JSON.stringify`, `structuredClone`, ...).
  *
  * THE RULE (enforced, not by convention):
