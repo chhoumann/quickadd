@@ -1,0 +1,21 @@
+# Hold back releases younger than 7 days, so a compromised publish has time to
+# be caught and pulled before it reaches this repo. Exclude a version only when
+# it is ours or fixes an advisory that affects us, say which, and remove the
+# entry once that version is 7 days old.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # Security: rejects registry metadata for a different package (11.28.7).
+  - pnpm@11.28.7
+
+# esbuild's postinstall only swaps its JS launcher for the native binary;
+# the JS API finds the platform package without it.
+allowBuilds:
+  esbuild: false
+
+overrides:
+  brace-expansion: 5.0.9
+  postcss: 8.5.25
+  tinypool: 2.1.2
+
+patchedDependencies:
+  svelte-check@4.7.6: patches/svelte-check@4.7.6.patch

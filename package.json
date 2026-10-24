@@ -61,20 +61,7 @@
 		"url": "https://github.com/chhoumann/quickadd.git"
 	},
 	"engines": {
-		"node": ">=22.12.0"
+		"node": ">=22.13.0"
 	},
-	"packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"esbuild"
-		],
-		"overrides": {
-			"brace-expansion": "5.0.9",
-			"postcss": "8.5.25",
-			"tinypool": "2.1.2"
-		},
-		"patchedDependencies": {
-			"svelte-check@4.7.6": "patches/svelte-check@4.7.6.patch"
-		}
-	}
+	"packageManager": "pnpm@11.28.7+sha512.2161a30a2dc64b0c0f09786496fbce5f061be96b8ff11f0bc98e6bc675e0074ceb225b9197a278f2f171e6c9fb971bd1df8932e5bc31053baccdd52b15a1ae26"
 }

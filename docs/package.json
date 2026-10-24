@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.32.1",
+  "packageManager": "pnpm@11.28.7+sha512.2161a30a2dc64b0c0f09786496fbce5f061be96b8ff11f0bc98e6bc675e0074ceb225b9197a278f2f171e6c9fb971bd1df8932e5bc31053baccdd52b15a1ae26",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
@@ -17,10 +17,5 @@
     "sharp": "^0.35.5",
     "starlight-llms-txt": "^0.12.0",
     "zod": "4.6.7"
-  },
-  "pnpm": {
-    "overrides": {
-      "postcss-nested": "7.0.2"
-    }
   }
 }

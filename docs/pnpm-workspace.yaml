@@ -1,0 +1,11 @@
+# Same release-age policy as the plugin's pnpm-workspace.yaml.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # Security: rejects registry metadata for a different package (11.28.7).
+  - pnpm@11.28.7
+
+allowBuilds:
+  esbuild: false
+
+overrides:
+  postcss-nested: 7.0.2

@@ -3,8 +3,8 @@ set -euo pipefail
 
 readonly NODE_VERSION="24.19.0"
 readonly NODE_SHA256="14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647"
-readonly PNPM_VERSION="10.32.1"
-readonly PNPM_INTEGRITY="sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+readonly PNPM_VERSION="11.28.7"
+readonly PNPM_INTEGRITY="sha512.2161a30a2dc64b0c0f09786496fbce5f061be96b8ff11f0bc98e6bc675e0074ceb225b9197a278f2f171e6c9fb971bd1df8932e5bc31053baccdd52b15a1ae26"
 readonly OBSIDIAN_VERSION="1.13.7"
 readonly OBSIDIAN_SHA256="17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9ae0"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -70,7 +70,7 @@ fi
 ln -sfn "$NODE_ROOT/bin/node" "$HOME/.local/bin/node"
 ln -sfn "$NODE_ROOT/bin/corepack" "$HOME/.local/bin/corepack"
 
-# The hash in PNPM_SPEC is npm's published SHA-512 integrity for 10.32.1.
+# The hash in PNPM_SPEC is npm's published SHA-512 integrity for PNPM_VERSION.
 # Corepack verifies it before accepting either a cached or downloaded package.
 installed_pnpm=""
 if [[ -x "$HOME/.local/bin/pnpm" ]]; then
