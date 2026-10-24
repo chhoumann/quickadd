@@ -86,7 +86,7 @@ describe("settings user-authored DOM XSS safety", () => {
 		const payload = "<img src=x onerror=globalThis.__qaXss=1>";
 		const container = document.createElement("span");
 
-		renderChoiceName(`**Visible** ${payload}`, container, new Component(), new App());
+		void renderChoiceName(`**Visible** ${payload}`, container, new Component(), new App());
 		await Promise.resolve();
 
 		expect(container.textContent).toContain("Visible");
@@ -95,7 +95,7 @@ describe("settings user-authored DOM XSS safety", () => {
 		expectNoPayloadDom(container);
 
 		const multiContainer = document.createElement("span");
-		renderChoiceName(`Multi ${payload}`, multiContainer, new Component(), new App());
+		void renderChoiceName(`Multi ${payload}`, multiContainer, new Component(), new App());
 		await Promise.resolve();
 
 		expect(multiContainer.textContent).toContain(`Multi ${payload}`);

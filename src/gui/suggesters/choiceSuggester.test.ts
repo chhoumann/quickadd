@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createChoiceExecutor } from "../../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Notice, prepareFuzzySearch } from "obsidian";
+import { App, MarkdownRenderer, Notice, prepareFuzzySearch } from "obsidian";
 
 // Spy on the engine entry while keeping hasConfiguredTemplateFolders real (the
 // constructor's injection gate depends on it).
@@ -817,6 +817,21 @@ describe("ChoiceSuggester", () => {
 
 			expect(el.querySelector(".suggestion-note")).toBeNull();
 			expect(el.textContent).toBe("Top note");
+		});
+
+		it("renders plain names without running other plugins' markdown post processors (#2251)", async () => {
+			const renderSpy = vi.spyOn(MarkdownRenderer, "render");
+			const styled = choice("**Bold** note");
+			const suggester = makeSuggester([topNote, styled]);
+
+			const plainEl = await render(suggester, topNote);
+			const styledEl = await render(suggester, styled);
+
+			expect(plainEl.textContent).toBe("Top note");
+			expect(styledEl.querySelector("strong")?.textContent).toBe("Bold");
+			expect(renderSpy.mock.calls.map(([, source]) => source)).toEqual([
+				"**Bold** note",
+			]);
 		});
 
 		it("renders the default choice-type icon", async () => {

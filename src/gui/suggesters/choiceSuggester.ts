@@ -2,7 +2,6 @@ import type { FuzzyMatch } from "obsidian";
 import {
 	Component,
 	FuzzySuggestModal,
-	MarkdownRenderer,
 	Notice,
 	prepareFuzzySearch,
 	setIcon,
@@ -32,6 +31,7 @@ import {
 } from "../../engine/runTemplateFromFolder";
 import { resolveChoiceIcon } from "../../utils/choiceUtils";
 import { createOwnedElement } from "../../utils/activeWindow";
+import { renderChoiceName } from "../choiceList/renderChoiceName";
 
 const backLabel = "← Back";
 
@@ -435,7 +435,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				cls: "quickadd-choice-suggestion-title quickadd-choice-suggestion-text",
 			});
 		}
-		void MarkdownRenderer.render(this.app, item.item.name, nameEl, "", this.markdownComponent)
+		void renderChoiceName(item.item.name, nameEl, this.markdownComponent, this.app)
 			.catch((error) => {
 				nameEl.textContent = item.item.name;
 				// renderSuggestion runs per row and re-runs on every keystroke, so a
