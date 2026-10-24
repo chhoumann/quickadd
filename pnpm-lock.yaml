@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  svelte-check@4.7.6: 3eddedcd07511c7eb7e4a26f4caeb62396acf984b2300019329f14f3d2c0cf74
-
 importers:
 
   .:
@@ -73,8 +70,8 @@ importers:
         specifier: ^5.57.2
         version: 5.57.2
       svelte-check:
-        specifier: 4.7.6
-        version: 4.7.6(patch_hash=3eddedcd07511c7eb7e4a26f4caeb62396acf984b2300019329f14f3d2c0cf74)(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2)
+        specifier: 4.7.7
+        version: 4.7.7(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2)
       svelte-policy:
         specifier: ^0.1.0
         version: 0.1.0(svelte@5.57.2)
@@ -1247,8 +1244,8 @@ packages:
   style-mod@4.1.4:
     resolution: {integrity: sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw==}
 
-  svelte-check@4.7.6:
-    resolution: {integrity: sha512-t2scM//ZuVbSY/T2w6FSBw1v9s2NEmh/g+sy1lqtosW5ylBV5AF4wFb1Ts9Kf3MbfPDUDJDZ9L436YT0SPTdvw==}
+  svelte-check@4.7.7:
+    resolution: {integrity: sha512-Ge2IMdeTpbJuzNFGRiiMg0RWgbScysKQu7xwcyFJ22+DU9F5nPX51+Q3gHmGqRxYQMx2knreVWt5oCtfe0vf2g==}
     engines: {node: '>= 18.0.0'}
     hasBin: true
     peerDependencies:
@@ -2327,7 +2324,7 @@ snapshots:
 
   style-mod@4.1.4: {}
 
-  svelte-check@4.7.6(patch_hash=3eddedcd07511c7eb7e4a26f4caeb62396acf984b2300019329f14f3d2c0cf74)(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2):
+  svelte-check@4.7.7(@typescript/typescript6@6.0.2)(picomatch@4.0.7)(svelte@5.57.2):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@sveltejs/load-config': 0.2.3

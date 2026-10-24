@@ -13,6 +13,3 @@ minimumReleaseAgeExclude:
 # the JS API finds the platform package without it.
 allowBuilds:
   esbuild: false
-
-patchedDependencies:
-  svelte-check@4.7.6: patches/svelte-check@4.7.6.patch
