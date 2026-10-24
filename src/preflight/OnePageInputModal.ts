@@ -27,6 +27,7 @@ import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInput
 import { createTemplateNoteSelection, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { acceptsDiscoverySelection, resolveDiscoveryFieldRequirement, type DiscoveryFormConfig, type DiscoveryNoteField } from "./discoveryFormPlan";
 import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
+import { fillableFields, type FillFromText } from "./fillFromText";
 
 type OnePageFreeTextField = {
 	id: string;
@@ -121,6 +122,7 @@ export class OnePageInputModal extends Modal {
 		initial?: Map<string, unknown>,
 		computePreview?: PreviewComputer,
 		private readonly discoveryForm?: DiscoveryFormConfig,
+		private readonly fillFromText?: FillFromText,
 	) {
 		super(app);
 		this.requirements = requirements.map((requirement) => ({ ...requirement }));
@@ -233,6 +235,53 @@ export class OnePageInputModal extends Modal {
 				.setButtonText("Peek at note")
 				.onClick(() => this.peek.peek()),
 		);
+		if (this.fillFromText && fillableFields(this.requirements).length > 0) {
+			const fill = new ButtonComponent(secondary)
+				.setButtonText("Fill from clipboard")
+				.onClick(() => void this.fillFromClipboard(fill));
+			fill.buttonEl.addClass("qa-onepage-fill");
+		}
+	}
+
+	/**
+	 * Ask the AI Assistant's default model to fill the empty fields from the
+	 * clipboard text, then type each answer into its field so the field's own
+	 * parsing, validation, and preview apply. What the user already entered wins.
+	 */
+	private async fillFromClipboard(button: ButtonComponent): Promise<void> {
+		// A field still showing its default is a fallback, not an answer.
+		const isEmpty = (req: FieldRequirement) => {
+			const value = this.result.get(req.id);
+			return !value || value === req.defaultValue;
+		};
+		button.setDisabled(true).setButtonText("Filling…");
+		try {
+			const text = (await navigator.clipboard.readText()).trim();
+			if (!text) {
+				new Notice("The clipboard has no text to fill from.");
+				return;
+			}
+			const values = await this.fillFromText!(text, this.activeRequirements.filter(isEmpty));
+			if (this.settled) return;
+			// Re-check: the user may have typed while the model was answering.
+			const filled = this.activeRequirements.filter((req) => values[req.id] && isEmpty(req));
+			for (const req of filled) this.typeIntoField(req.id, values[req.id]);
+			const count = filled.length;
+			new Notice(count ? `Filled ${count} field${count === 1 ? "" : "s"} from the clipboard. Review before submitting.` : "Nothing in the clipboard matched these fields.");
+		} catch (error) {
+			new Notice(`Could not fill the form: ${error instanceof Error ? error.message : String(error)}`);
+		} finally {
+			button.setDisabled(false).setButtonText("Fill from clipboard");
+		}
+	}
+
+	private typeIntoField(id: string, value: string): void {
+		const input = this.fieldElements.get(id)
+			?.map((element) => element.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("textarea, select, input:not([type=range]):not([type=hidden])"))
+			.find((element) => element !== null);
+		if (!input) return;
+		input.value = value;
+		input.dispatchEvent(new Event(input.instanceOf(HTMLSelectElement) ? "change" : "input", { bubbles: true }));
 	}
 
 	// Obsidian focuses the modal's first focusable element after onOpen. When the
