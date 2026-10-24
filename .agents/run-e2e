@@ -21,6 +21,13 @@ export COREPACK_HOME="${COREPACK_HOME:-$ORIGINAL_HOME/.cache/quickadd-corepack}"
 
 cd "$REPO_ROOT"
 
+# Vitest ignores everything after a `--`, so `run-e2e -- <spec>` (or
+# `pnpm run test:e2e:orb -- <spec>`) would run the whole suite. Drop them.
+for arg; do
+	shift
+	[[ "$arg" == "--" ]] || set -- "$@" "$arg"
+done
+
 # The runner loads whatever main.js is on disk. Build it from the checked-out
 # source so a stale bundle can't pass or fail a run for code it doesn't hold.
 pnpm run --silent build >/dev/null
@@ -154,8 +161,7 @@ if [[ "${OBSIDIAN_E2E_TEMPLATER:-}" == "1" ]]; then
 	fi
 fi
 
-# No `--`: pnpm passes it through, and Vitest ignores everything after it, so
-# file and `-t` filters would silently run the whole suite.
+# No `--` before the arguments either: pnpm passes it through to Vitest.
 # Vitest also exits 0 when a `-t` filter matches no test, so count what ran.
 results="$(mktemp)"
 pnpm run test:e2e "$@" --reporter=default --reporter=json --outputFile.json="$results"

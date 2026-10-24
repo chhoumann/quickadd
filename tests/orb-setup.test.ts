@@ -157,6 +157,12 @@ exit 0
 		expect(calls).toContain("\nrun test:e2e tests/e2e/field-label.test.ts -t label --reporter=default --reporter=json --outputFile.json=");
 	});
 
+	it("drops -- so Vitest still applies the filters", () => {
+		const { result, calls } = runWithMockVitest("orb-dashdash-test", ["--", "tests/e2e/field-label.test.ts"], 1);
+		expect(result.status, result.stderr).toBe(0);
+		expect(calls).toContain("\nrun test:e2e tests/e2e/field-label.test.ts --reporter=default");
+	});
+
 	// Vitest exits 0 when a -t filter matches no test.
 	it("fails when its arguments match no test", () => {
 		const { result, calls } = runWithMockVitest("orb-no-spec-test", ["tests/e2e/field-label.test.ts", "-t", "no such test"], 0);
