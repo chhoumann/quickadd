@@ -1,4 +1,8 @@
 version: 2
+# The 7-day cooldown matches minimumReleaseAge in pnpm-workspace.yaml: a
+# release has a week to be caught and pulled before a PR proposes it.
+# Security updates skip this cooldown but not pnpm's, so a security fix
+# younger than 7 days needs a minimumReleaseAgeExclude entry first.
 updates:
   # GitHub Actions across all workflows. Keeps the SHA pins from rotting — the
   # Node 20 deprecation slipped in precisely because nothing watched these.
@@ -7,6 +11,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ["*"]
@@ -22,6 +28,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     groups:
       dev-dependencies:
@@ -44,6 +52,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       docs-dependencies:
