@@ -341,7 +341,7 @@ export default class QuickAdd extends Plugin {
 	 * Start the pending debounced settings write now. Returns the queued
 	 * settings work, or null when there is none to wait for.
 	 */
-	private flushPendingSave(): Promise<void> | null {
+	flushPendingSave(): Promise<void> | null {
 		this.requestSave.run();
 		return this.persistChain;
 	}
