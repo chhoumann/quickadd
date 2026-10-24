@@ -5,13 +5,14 @@ import { expect, it } from "vitest";
 const ROOT = resolve(__dirname, "..");
 const E2E = join(ROOT, "tests/e2e");
 
+// `app.plugins.saveConfig()` writes community-plugins.json, not app.json.
 it("sets vault options in e2e specs without writing app.json", () => {
 	const hits = readdirSync(E2E, { recursive: true, encoding: "utf8" })
 		.filter((file) => file.endsWith(".ts"))
 		.flatMap((file) =>
 			readFileSync(join(E2E, file), "utf8")
 				.split("\n")
-				.flatMap((line, i) => (/\b(setConfig|saveConfig|requestSaveConfig)\s*\(/.test(line) ? [`${relative(ROOT, join(E2E, file))}:${i + 1}`] : [])),
+				.flatMap((line, i) => (/(?<!plugins\.)\b(setConfig|saveConfig|requestSaveConfig)\s*\(/.test(line) ? [`${relative(ROOT, join(E2E, file))}:${i + 1}`] : [])),
 		);
 	expect(
 		hits,
