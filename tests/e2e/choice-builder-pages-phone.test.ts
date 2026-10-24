@@ -21,6 +21,10 @@ let size: number[] = [];
 async function emulateMobile(on: boolean) {
 	const { obsidian } = getContext();
 	const enabled = await obsidian.dev.evalJson<string[]>("Object.keys(app.plugins.plugins)");
+	// Obsidian saves the enabled plugins a second after a plugin is turned on
+	// or off, as the harness does around every spec, and a reload drops that
+	// save. A reload inside that second would come back without QuickAdd.
+	await obsidian.dev.evalJsonAsync("app.plugins.saveConfig().then(() => true)");
 	await obsidian.execText("dev:mobile", on ? { on: true } : { off: true });
 	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(
 		`document.body.classList.contains("is-mobile") === ${on} && Boolean(app.plugins.plugins.quickadd?.api)`,

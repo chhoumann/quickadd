@@ -162,21 +162,35 @@ export async function closeOpenPrompts(obsidian: ObsidianClient) {
 
 /**
  * A real click in the middle of the visible element matching `selector`, once
- * it stops moving: a settings page slides in when it opens or is returned to.
+ * it is still, no animation moves it, and it is what a click there hits: a
+ * settings page slides in when it opens or is returned to, and a phone menu
+ * slides up from below the screen. Under load an animation can stall between
+ * two samples, so holding still alone does not mean it is done.
  */
 export async function clickWhenStill(obsidian: ObsidianClient, selector: string) {
 	// The last two samples go into the timeout, so a failure says whether the
-	// element was missing, hidden, or still moving.
+	// element was missing, hidden, animating, covered, or still moving.
 	let previous = "";
 	let last = "";
 	const point = await obsidian.waitFor(async () => {
-		const sample = await obsidian.dev.evalJson<{ x: number; y: number } | "absent" | "hidden">(`(() => {
+		const sample = await obsidian.dev.evalJson<{ x: number; y: number } | string>(`(() => {
+			${DESCRIBE_ELEMENT}
 			const all = [...document.querySelectorAll(${jsLiteral(selector)})];
 			const el = all.find((el) => el.getClientRects().length > 0);
 			if (!el) return all.length > 0 ? "hidden" : "absent";
+			// Scroll-driven and endless animations never finish, so they cannot be waited out.
+			const moving = document.getAnimations().find((animation) =>
+				animation.playState === "running" && animation.timeline instanceof DocumentTimeline
+				&& animation.effect?.getComputedTiming().endTime !== Infinity
+				&& animation.effect.target?.contains(el));
+			if (moving) return "animating " + describe(moving.effect.target);
 			el.scrollIntoView({ block: "nearest" });
 			const rect = el.getBoundingClientRect();
-			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+			const x = rect.left + rect.width / 2;
+			const y = rect.top + rect.height / 2;
+			const hit = document.elementFromPoint(x, y);
+			if (!el.contains(hit)) return "covered by " + describe(hit);
+			return { x, y };
 		})()`);
 		const key = JSON.stringify(sample);
 		const settled = typeof sample === "object" && key === last;
