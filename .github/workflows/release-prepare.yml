@@ -5,8 +5,8 @@
 # to the reusable prepare workflow, which re-confirms the SHA is still the
 # default-branch head and opens/refreshes the standing release PR.
 #
-# Escape hatch: workflow_dispatch lets you plan manually (e.g. a dry-run smoke
-# test before your first release) without waiting for a CI completion.
+# Escape hatch: workflow_dispatch lets you plan manually without waiting for a
+# CI completion. Set dryRun to plan without opening or refreshing the release PR.
 
 name: Prepare release
 
@@ -21,6 +21,11 @@ on:
                 description: "Commit SHA to plan from (defaults to the default-branch head)"
                 required: false
                 type: string
+            dryRun:
+                description: "Plan only: compute the version and notes, open no release PR"
+                required: false
+                type: boolean
+                default: false
 
 permissions: {}
 
@@ -51,6 +56,6 @@ jobs:
             target-sha: ${{ github.event.workflow_run.head_sha || inputs.targetSha }}
             release-bot-app-slug: quickadd-release-bot
             app-id: ${{ vars.RELEASE_APP_ID }}
-            # dry-run: true   # plan only; skip opening the PR (smoke test)
+            dry-run: ${{ inputs.dryRun == true }}
         secrets:
             release-app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
