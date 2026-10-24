@@ -17,8 +17,8 @@
 // sync); `migrations` is intentionally left empty rather than mirrored.
 export default {
 	pluginId: "quickadd",
-	// QuickAdd ships a hand-written styles.css at the repo root alongside the
-	// compiled main.js, so all three plugin artifacts are symlinked into the vault.
+	// The build writes main.js and styles.css (from src/styles.css) to the repo
+	// root, so all three plugin artifacts are symlinked into the vault.
 	pluginArtifacts: ["manifest.json", "main.js", "styles.css"],
 	defaultData: {
 		choices: [],

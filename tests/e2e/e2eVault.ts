@@ -83,8 +83,8 @@ export const createQuickAddE2EHarness = createPluginHarness({
 		obsidian.dev.evalJson<boolean>(
 			`Boolean(app.plugins.plugins.${PLUGIN_ID}?.api)`,
 		),
-	// QuickAdd ships a hand-written styles.css alongside the compiled main.js, so
-	// the provisioned dev vault symlinks all three plugin artifacts.
+	// The build writes main.js and styles.css (from src/styles.css) to the repo
+	// root, so the provisioned vault symlinks all three plugin artifacts.
 	symlinkArtifacts: ["main.js", "manifest.json", "styles.css"],
 	// QuickAdd debounces settings writes and flushes a pending one on unload
 	// without awaiting it, so that write could land after the harness restores
