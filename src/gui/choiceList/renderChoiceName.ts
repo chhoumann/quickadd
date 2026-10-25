@@ -6,7 +6,7 @@ import { createOwnedElement } from "../../utils/activeWindow";
  * and anything outside ASCII. The Unicode line and paragraph separators are
  * left to the renderer, since a parser may treat them as line breaks.
  */
-const PLAIN_CHARACTERS = /^(?:[a-z0-9 ,.'"?;()-]|[^\x00-\x7f\u2028\u2029])+$/i;
+const PLAIN_CHARACTERS = /^(?:[a-z0-9 ,.'"?;()-]|[^\p{ASCII}\u2028\u2029])+$/iu;
 /** Openings that still make a list or an indented code block from those characters. */
 const BLOCK_OPENING = /^(?:[-\s]|\d+[.)](?:\s|$))/;
 
