@@ -10,12 +10,11 @@ import {
 	QA_INTERNAL_DATE_ORIGIN,
 	VALUE_SYNTAX,
 } from "src/constants";
-import { normalizeDateOrigin } from "src/types/dateOrigin";
-import { dateOriginForPick } from "src/types/dateOriginPresets";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
 import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
+import { dateOriginInput } from "src/utils/resolveDateOrigin";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type { IUserScript } from "src/types/macros/IUserScript";
@@ -528,10 +527,8 @@ function dateOriginRequirement(
 	choice: IChoice,
 	choiceExecutor: IChoiceExecutor,
 ): FieldRequirement | undefined {
-	const dateOrigin = choiceExecutor.pickDate
-		? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
-		: normalizeDateOrigin(choice.dateOrigin);
-	if (dateOrigin?.kind !== "ask" || choiceExecutor.clocks?.date) {
+	const { setting: dateOrigin, clocks } = dateOriginInput(choice, choiceExecutor);
+	if (dateOrigin?.kind !== "ask" || clocks?.date) {
 		return undefined;
 	}
 

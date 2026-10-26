@@ -155,6 +155,27 @@ describe("ChoiceExecutor date scope", () => {
 		expect(days).toEqual({ Variable: "2026-03-01" });
 	});
 
+	it("asks for an executeChoice date of ask under the caller's day", async () => {
+		const runner = executor();
+		const days = recordDays();
+		const child = datedTemplate("Child");
+		const plugin = { settings: { choices: [child] } } as unknown as QuickAdd;
+		const api = QuickAddApi.GetApi(new App(), plugin, runner);
+		const caller = datedTemplate("Caller", { kind: "variable", name: "callerDay" });
+		runner.variables.set("callerDay", "2026-01-05");
+		runTemplate.mockImplementation(async (active, choice) => {
+			if (choice.name === "Caller") {
+				await api.executeChoice("Child", {}, { date: "ask" });
+			}
+			days[choice.name] = day(active.clocks?.date);
+		});
+
+		await runner.execute(caller);
+
+		expect(datePrompt).toHaveBeenCalledTimes(1);
+		expect(days).toEqual({ Child: "2026-03-01", Caller: "2026-01-05" });
+	});
+
 	it("gives each executeChoice call its own day and keeps it out of the caller", async () => {
 		const runner = executor();
 		const days = recordDays();

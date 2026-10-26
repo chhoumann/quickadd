@@ -1,6 +1,12 @@
 import { NLDParser } from "../parsers/NLDParser";
-import type { DateOrigin, DateOriginUnit, RunClocks } from "../types/dateOrigin";
-import { isPickDateToken } from "../types/dateOriginPresets";
+import type IChoice from "../types/choices/IChoice";
+import {
+	normalizeDateOrigin,
+	type DateOrigin,
+	type DateOriginUnit,
+	type RunClocks,
+} from "../types/dateOrigin";
+import { dateOriginForPick, isPickDateToken } from "../types/dateOriginPresets";
 import { parseNaturalLanguageDate } from "./dateParser";
 import { resolveExistingVariableKey } from "./valueSyntax";
 
@@ -40,6 +46,22 @@ export function dateFromStoredValue(stored: unknown): Date | undefined {
 	}
 
 	return undefined;
+}
+
+/**
+ * The Which day a choice resolves with, and the clocks it may inherit a day
+ * from. Pick a day asks even under an enclosing day.
+ */
+export function dateOriginInput(
+	choice: IChoice,
+	executor: { clocks?: RunClocks; pickDate?: boolean },
+): { setting?: DateOrigin; clocks?: RunClocks } {
+	const own = normalizeDateOrigin(choice.dateOrigin);
+	if (!executor.pickDate) return { setting: own, clocks: executor.clocks };
+	return {
+		setting: dateOriginForPick(own),
+		clocks: executor.clocks && { now: executor.clocks.now },
+	};
 }
 
 export function planDateOrigin(input: {

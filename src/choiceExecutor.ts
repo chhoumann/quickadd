@@ -29,12 +29,14 @@ import {
 } from "./utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 import type { RunClocks } from "./types/dateOrigin";
-import { normalizeDateOrigin } from "./types/dateOrigin";
-import { dateOriginForPick } from "./types/dateOriginPresets";
 import { childChoicesOf } from "./utils/choiceUtils";
 import { QA_INTERNAL_DATE_ORIGIN, VALUE_SYNTAX } from "./constants";
 import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
-import { planDateOrigin, dateFromStoredValue } from "./utils/resolveDateOrigin";
+import {
+	planDateOrigin,
+	dateFromStoredValue,
+	dateOriginInput,
+} from "./utils/resolveDateOrigin";
 import { log } from "./logger/logManager";
 import type { ICommand } from "./types/macros/ICommand";
 import type { LoadedUserScript } from "./utils/userScript";
@@ -337,9 +339,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	async resolveDateOrigin(choice: IChoice): Promise<void> {
-		const setting = this.pickDate
-			? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
-			: normalizeDateOrigin(choice.dateOrigin);
+		const { setting, clocks } = dateOriginInput(choice, this);
 		// Pick a day answers this choice's Which day, not the ones it runs.
 		this.pickDate = false;
 		const reservedSeed =
@@ -348,7 +348,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				: undefined;
 		const plan = planDateOrigin({
 			setting,
-			clocks: this.clocks,
+			clocks,
 			variables: this.variables,
 			reservedSeed,
 		});
