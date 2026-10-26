@@ -46,7 +46,7 @@ function previewRunClocks(
 		reservedSeed:
 			setting?.kind === "ask" ? values[QA_INTERNAL_DATE_ORIGIN] : undefined,
 	});
-	if (plan.status !== "set") return choiceExecutor.clocks;
+	if (plan.status !== "set") return clocks;
 	return { now: choiceExecutor.clocks?.now ?? new Date(), date: plan.date };
 }
 
