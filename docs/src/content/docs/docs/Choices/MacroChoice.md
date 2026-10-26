@@ -300,7 +300,9 @@ commands share the same name, rename one before using the selector form.
 
 Same [Which day](/docs/Choices/TemplateChoice/#date-origin) setting as a
 Template. Child choices in the macro inherit that day, so a weekly pack can
-ask once and then write every template for last week.
+ask once and then write every template for last week. A child set to **A
+variable…** keeps its variable's day, even when you run the macro with
+"Name (pick a day)".
 
 ### Run on startup {#run-on-startup}
 

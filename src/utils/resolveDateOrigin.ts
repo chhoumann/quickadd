@@ -48,7 +48,13 @@ export function planDateOrigin(input: {
 	variables?: Map<string, unknown>;
 	reservedSeed?: unknown;
 }): DateOriginPlan {
-	if (input.clocks?.date) return { status: "inherit" };
+	// A variable names its own day, so only the caller's day replaces it.
+	if (
+		input.clocks?.date &&
+		(input.clocks.invoked || input.setting?.kind !== "variable")
+	) {
+		return { status: "inherit" };
+	}
 
 	if (input.reservedSeed !== undefined) {
 		const date = dateFromStoredValue(input.reservedSeed);
@@ -113,6 +119,7 @@ export function applyInvocationDate(
 	executor.clocks = {
 		now: executor.clocks?.now ?? new Date(),
 		date,
+		invoked: true,
 	};
 	return true;
 }

@@ -132,8 +132,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					? this.triggerContextOverride
 					: { activeFile: this.app.workspace.getActiveFile() };
 			this.clocks = {
+				...this.clocks,
 				now: this.clocks?.now ?? new Date(),
-				date: this.clocks?.date,
 			};
 		}
 		this.executionDepth++;
@@ -340,6 +340,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const setting = this.pickDate
 			? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
 			: normalizeDateOrigin(choice.dateOrigin);
+		// Pick a day answers this choice's Which day, not the ones it runs.
+		this.pickDate = false;
 		const reservedSeed =
 			setting?.kind === "ask"
 				? this.variables.get(QA_INTERNAL_DATE_ORIGIN)
@@ -351,7 +353,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			reservedSeed,
 		});
 
-		if (plan.status === "inherit") return;
+		if (plan.status === "inherit") {
+			if (this.clocks?.invoked) {
+				this.clocks = { now: this.clocks.now, date: this.clocks.date };
+			}
+			return;
+		}
 
 		if (plan.status === "error") {
 			log.logError(plan.message);
