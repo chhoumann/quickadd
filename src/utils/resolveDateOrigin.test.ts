@@ -145,20 +145,16 @@ describe("planDateOrigin", () => {
 });
 
 describe("applyInvocationDate", () => {
-	it("treats ask as pickDate and leaves clocks unset", () => {
-		const executor: { clocks?: { now: Date; date?: Date }; pickDate?: boolean } =
-			{};
+	it("treats ask as a pick", () => {
+		const executor: { callerDay?: "pick" | Date } = {};
 		expect(applyInvocationDate(executor, "ask")).toBe(true);
-		expect(executor.pickDate).toBe(true);
-		expect(executor.clocks).toBeUndefined();
+		expect(executor.callerDay).toBe("pick");
 	});
 
-	it("parses a concrete day onto clocks", () => {
-		const executor: { clocks?: { now: Date; date?: Date }; pickDate?: boolean } =
-			{};
+	it("parses a concrete day", () => {
+		const executor: { callerDay?: "pick" | Date } = {};
 		expect(applyInvocationDate(executor, "2026-08-21")).toBe(true);
-		expect(executor.pickDate).toBeUndefined();
-		expect(executor.clocks?.date).toBeInstanceOf(Date);
+		expect(executor.callerDay).toBeInstanceOf(Date);
 	});
 
 	it("rejects an unreadable value", () => {

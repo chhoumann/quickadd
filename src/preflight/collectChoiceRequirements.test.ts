@@ -1371,7 +1371,7 @@ describe("collectChoiceRequirements - path-context memo (issue #1484 review fix)
 	});
 });
 
-describe("collectChoiceRequirements - pickDate", () => {
+describe("collectChoiceRequirements - pick a day", () => {
 	const collect = (choice: IChoice, executor: IChoiceExecutor, options?: Parameters<typeof collectChoiceRequirements>[4]) =>
 		collectChoiceRequirements(app, plugin, executor, choice, options);
 
@@ -1381,7 +1381,7 @@ describe("collectChoiceRequirements - pickDate", () => {
 	} as unknown as App;
 	const plugin = createPreflightPlugin();
 
-	it("collects a date field when pickDate is set on a Today choice", async () => {
+	it("collects a date field when a Today choice is run with Pick a day", async () => {
 		const choice = createCaptureChoice("Inbox.md");
 		const requirements = await collect(
 			choice,
@@ -1389,7 +1389,7 @@ describe("collectChoiceRequirements - pickDate", () => {
 				...createChoiceExecutor(),
 				execute: vi.fn(),
 				variables: new Map<string, unknown>(),
-				pickDate: true,
+				callerDay: "pick",
 			},
 		);
 		expect(
@@ -1397,7 +1397,7 @@ describe("collectChoiceRequirements - pickDate", () => {
 		).toBe(true);
 	});
 
-	it("does not collect a date field for a Today choice without pickDate", async () => {
+	it("does not collect a date field for a Today choice without Pick a day", async () => {
 		const choice = createCaptureChoice("Inbox.md");
 		const requirements = await collect(choice, createChoiceExecutor());
 		expect(

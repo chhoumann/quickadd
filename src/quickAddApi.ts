@@ -101,7 +101,7 @@ export class QuickAddApi {
 				return;
 			}
 
-			const { clocks, pickDate } = choiceExecutor;
+			const { callerDay } = choiceExecutor;
 			if (!applyInvocationDate(choiceExecutor, options?.date)) {
 				reportError(
 					new Error(`Could not parse date origin '${String(options?.date)}'`),
@@ -126,8 +126,7 @@ export class QuickAddApi {
 				await choiceExecutor.execute(choice, chain);
 			} finally {
 				// options.date is this call's day, not the calling script's.
-				choiceExecutor.clocks = clocks;
-				choiceExecutor.pickDate = pickDate;
+				choiceExecutor.callerDay = callerDay;
 			}
 			const abort = choiceExecutor.consumeAbortSignal?.();
 			choiceExecutor.variables.clear();

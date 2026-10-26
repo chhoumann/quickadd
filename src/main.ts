@@ -602,7 +602,7 @@ export default class QuickAdd extends Plugin {
 		try {
 			current = this.getChoiceById(choiceId);
 			const executor = new ChoiceExecutor(this.app, this);
-			executor.pickDate = pickDate;
+			if (pickDate) executor.callerDay = "pick";
 			await executor.execute(current);
 		} catch (err) {
 			// The outermost handler: the last chance to say which choice failed.

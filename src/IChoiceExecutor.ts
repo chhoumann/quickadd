@@ -4,7 +4,7 @@ import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type { MacroAbortError } from "./errors/MacroAbortError";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 import type { FrontmatterPropertyTarget } from "./utils/frontmatterPropertyLinks";
-import type { RunClocks } from "./types/dateOrigin";
+import type { CallerDay, RunClocks } from "./types/dateOrigin";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 import type { PromptProvider } from "./interactive/promptProvider";
 import type IMacroChoice from "./types/choices/IMacroChoice";
@@ -58,11 +58,12 @@ export interface IChoiceExecutor {
 	 */
 	clocks?: RunClocks;
 	/**
-	 * When true, the next choice to resolve its Which day asks for a day even
-	 * if it is set to Today (or another fixed day). Choices it runs keep their
-	 * own Which day. Used by `{name} (pick a day)` and `date=ask`.
+	 * Replaces the Which day of the next choice to resolve one: `"pick"` asks
+	 * even if it is set to Today, a date is that day. Choices it runs inherit
+	 * the result like any enclosing day. Set by `{name} (pick a day)`, Shift in
+	 * the menu, and `date=`.
 	 */
-	pickDate?: boolean;
+	callerDay?: CallerDay;
 	/**
 	 * Sets {@link clocks} from the choice's Which day setting, asking when it is
 	 * Ask each time. A Template that searches existing notes calls this after its

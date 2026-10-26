@@ -7,6 +7,8 @@ import type { IChoiceExecutor } from "./IChoiceExecutor";
 import { TemplateChoice } from "./types/choices/TemplateChoice";
 import { MacroChoice } from "./types/choices/MacroChoice";
 import { NestedChoiceCommand } from "./types/macros/QuickCommands/NestedChoiceCommand";
+import { MultiChoice } from "./types/choices/MultiChoice";
+import { QA_INTERNAL_DATE_ORIGIN } from "./constants";
 import { ChoiceAbortError } from "./errors/ChoiceAbortError";
 
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
@@ -23,6 +25,14 @@ vi.mock("./utils/fileOpening", async (importOriginal) => ({
 }));
 const datePrompt = vi.fn(async () => "@date:2026-03-01");
 vi.mock("./gui/VDateInputPrompt/VDateInputPrompt", () => ({ default: { Prompt: datePrompt } }));
+vi.mock("./gui/suggesters/choiceSuggester", async (importOriginal) => ({
+	...await importOriginal<Record<string, unknown>>(),
+	default: {
+		Open: (_plugin: unknown, choices: IChoice[], options: { choiceExecutor: IChoiceExecutor; completion: (error?: unknown) => void }) => {
+			options.choiceExecutor.execute(choices[0]).then(() => options.completion(), options.completion);
+		},
+	},
+}));
 const runTemplate = vi.fn<(executor: IChoiceExecutor, choice: IChoice) => Promise<void>>();
 vi.mock("./engine/TemplateChoiceEngine", () => ({
 	TemplateChoiceEngine: class {
@@ -104,7 +114,7 @@ describe("ChoiceExecutor date scope", () => {
 		const runner = executor();
 		const days = recordDays();
 		runner.variables.set("testDate", "2026-01-02");
-		runner.pickDate = true;
+		runner.callerDay = "pick";
 
 		await runner.execute(macroOf(
 			datedTemplate("Variable", { kind: "variable", name: "testDate" }),
@@ -174,6 +184,32 @@ describe("ChoiceExecutor date scope", () => {
 
 		expect(datePrompt).toHaveBeenCalledTimes(1);
 		expect(days).toEqual({ Child: "2026-03-01", Caller: "2026-01-05" });
+	});
+
+	it("hands a caller's day past a folder to the picked choice", async () => {
+		const runner = executor();
+		const days = recordDays();
+		const folder = new MultiChoice("Folder");
+		folder.choices = [datedTemplate("Variable", { kind: "variable", name: "unset" })];
+		applyInvocationDate(runner, "2026-03-01");
+
+		await runner.execute(folder);
+
+		expect(days).toEqual({ Variable: "2026-03-01" });
+	});
+
+	it("uses a collected date answer for one ask only", async () => {
+		const runner = executor();
+		const days = recordDays();
+		runner.variables.set(QA_INTERNAL_DATE_ORIGIN, "@date:2026-01-05");
+
+		await runner.execute(macroOf(
+			datedTemplate("First", { kind: "ask" }),
+			datedTemplate("Second", { kind: "ask" }),
+		));
+
+		expect(datePrompt).toHaveBeenCalledTimes(1);
+		expect(days).toEqual({ First: "2026-01-05", Second: "2026-03-01" });
 	});
 
 	it("gives each executeChoice call its own day and keeps it out of the caller", async () => {

@@ -11,12 +11,10 @@ export type DateOrigin =
 export interface RunClocks {
 	now: Date;
 	date?: Date;
-	/**
-	 * The caller chose `date` for the choice it runs, so it replaces that
-	 * choice's Which day. Choices nested under it get the day without this.
-	 */
-	invoked?: boolean;
 }
+
+/** A caller's answer to a choice's Which day: ask for one, or this day. */
+export type CallerDay = "pick" | Date;
 
 export function isDateOriginUnit(value: unknown): value is DateOriginUnit {
 	return (

@@ -28,7 +28,7 @@ import {
 	type FrontmatterPropertyTarget,
 } from "./utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
-import type { RunClocks } from "./types/dateOrigin";
+import type { CallerDay, RunClocks } from "./types/dateOrigin";
 import { childChoicesOf } from "./utils/choiceUtils";
 import { QA_INTERNAL_DATE_ORIGIN, VALUE_SYNTAX } from "./constants";
 import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
@@ -63,7 +63,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	public triggerContext: QuickAddTriggerContext | null = null;
 	public clocks?: RunClocks;
-	public pickDate = false;
+	public callerDay?: CallerDay;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
@@ -134,8 +134,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					? this.triggerContextOverride
 					: { activeFile: this.app.workspace.getActiveFile() };
 			this.clocks = {
-				...this.clocks,
 				now: this.clocks?.now ?? new Date(),
+				date: this.clocks?.date,
 			};
 		}
 		this.executionDepth++;
@@ -154,7 +154,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			// not to a later run on this executor (a script that kept its quickAddApi).
 			this.triggerContextOverride = undefined;
 			this.clocks = undefined;
-			this.pickDate = false;
+			this.callerDay = undefined;
 			// Preloaded script modules are scoped to ONE outermost execution: a
 			// cancelled/aborted run must not strand its entries, or a later
 			// trigger on a long-lived executor (api.executeChoice callers reuse
@@ -323,6 +323,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private async applyDateOrigin(choice: IChoice): Promise<void> {
+		// A folder has no Which day, so the caller's day waits for the picked choice.
+		if (choice.type === "Multi") return;
 		if (
 			isTemplateChoice(choice) &&
 			shouldRunTemplateNoteDiscovery(
@@ -340,12 +342,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	async resolveDateOrigin(choice: IChoice): Promise<void> {
 		const { setting, clocks } = dateOriginInput(choice, this);
-		// Pick a day answers this choice's Which day, not the ones it runs.
-		this.pickDate = false;
+		// The caller's day answers this choice's Which day, not the ones it runs.
+		this.callerDay = undefined;
 		const reservedSeed =
 			setting?.kind === "ask"
 				? this.variables.get(QA_INTERNAL_DATE_ORIGIN)
 				: undefined;
+		// One answer per ask, so a later ask in the run still prompts.
+		if (setting?.kind === "ask") this.variables.delete(QA_INTERNAL_DATE_ORIGIN);
 		const plan = planDateOrigin({
 			setting,
 			clocks,
@@ -354,9 +358,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		});
 
 		if (plan.status === "inherit") {
-			if (this.clocks?.invoked) {
-				this.clocks = { now: this.clocks.now, date: this.clocks.date };
-			}
+			this.clocks = clocks;
 			return;
 		}
 

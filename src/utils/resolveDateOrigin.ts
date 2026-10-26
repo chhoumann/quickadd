@@ -2,6 +2,7 @@ import { NLDParser } from "../parsers/NLDParser";
 import type IChoice from "../types/choices/IChoice";
 import {
 	normalizeDateOrigin,
+	type CallerDay,
 	type DateOrigin,
 	type DateOriginUnit,
 	type RunClocks,
@@ -50,18 +51,20 @@ export function dateFromStoredValue(stored: unknown): Date | undefined {
 
 /**
  * The Which day a choice resolves with, and the clocks it may inherit a day
- * from. Pick a day asks even under an enclosing day.
+ * from. A caller's day replaces both, even under an enclosing day.
  */
 export function dateOriginInput(
 	choice: IChoice,
-	executor: { clocks?: RunClocks; pickDate?: boolean },
+	executor: { clocks?: RunClocks; callerDay?: CallerDay },
 ): { setting?: DateOrigin; clocks?: RunClocks } {
+	const { callerDay, clocks } = executor;
 	const own = normalizeDateOrigin(choice.dateOrigin);
-	if (!executor.pickDate) return { setting: own, clocks: executor.clocks };
-	return {
-		setting: dateOriginForPick(own),
-		clocks: executor.clocks && { now: executor.clocks.now },
-	};
+	if (callerDay === undefined) return { setting: own, clocks };
+	const now = clocks?.now ?? new Date();
+	if (callerDay === "pick") {
+		return { setting: dateOriginForPick(own), clocks: { now } };
+	}
+	return { setting: undefined, clocks: { now, date: callerDay } };
 }
 
 export function planDateOrigin(input: {
@@ -70,11 +73,8 @@ export function planDateOrigin(input: {
 	variables?: Map<string, unknown>;
 	reservedSeed?: unknown;
 }): DateOriginPlan {
-	// A variable names its own day, so only the caller's day replaces it.
-	if (
-		input.clocks?.date &&
-		(input.clocks.invoked || input.setting?.kind !== "variable")
-	) {
+	// A variable names its own day, so an enclosing day doesn't replace it.
+	if (input.clocks?.date && input.setting?.kind !== "variable") {
 		return { status: "inherit" };
 	}
 
@@ -127,21 +127,17 @@ export function planDateOrigin(input: {
 }
 
 export function applyInvocationDate(
-	executor: { clocks?: RunClocks; pickDate?: boolean },
+	executor: { callerDay?: CallerDay },
 	raw: unknown,
 ): boolean {
 	if (raw === undefined || raw === null) return true;
 	if (typeof raw === "string" && !raw.trim()) return true;
 	if (isPickDateToken(raw)) {
-		executor.pickDate = true;
+		executor.callerDay = "pick";
 		return true;
 	}
 	const date = dateFromStoredValue(raw);
 	if (!date) return false;
-	executor.clocks = {
-		now: executor.clocks?.now ?? new Date(),
-		date,
-		invoked: true,
-	};
+	executor.callerDay = date;
 	return true;
 }
