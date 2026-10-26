@@ -21,6 +21,8 @@ vi.mock("./utils/fileOpening", async (importOriginal) => ({
 	...await importOriginal<Record<string, unknown>>(),
 	getOpenFileOriginLeaf: () => null,
 }));
+const datePrompt = vi.fn(async () => "@date:2026-03-01");
+vi.mock("./gui/VDateInputPrompt/VDateInputPrompt", () => ({ default: { Prompt: datePrompt } }));
 const runTemplate = vi.fn<(executor: IChoiceExecutor, choice: IChoice) => Promise<void>>();
 vi.mock("./engine/TemplateChoiceEngine", () => ({
 	TemplateChoiceEngine: class {
@@ -31,6 +33,7 @@ vi.mock("./engine/TemplateChoiceEngine", () => ({
 
 const { ChoiceExecutor } = await import("./choiceExecutor");
 const { QuickAddApi } = await import("./quickAddApi");
+const { applyInvocationDate } = await import("./utils/resolveDateOrigin");
 const originalMoment = window.moment;
 beforeAll(() => { window.moment = realMoment; });
 afterAll(() => { window.moment = originalMoment; });
@@ -48,7 +51,10 @@ describe("ChoiceExecutor date scope", () => {
 		return choice;
 	}
 
-	beforeEach(() => { runTemplate.mockReset(); });
+	beforeEach(() => {
+		runTemplate.mockReset();
+		datePrompt.mockClear();
+	});
 
 	function recordDays() {
 		const days: Record<string, string> = {};
@@ -86,6 +92,67 @@ describe("ChoiceExecutor date scope", () => {
 		await runner.execute(macro);
 
 		expect(days).toEqual({ First: "2026-01-02", Second: "2026-01-02" });
+	});
+
+	function macroOf(...children: IChoice[]) {
+		const macro = new MacroChoice("Macro");
+		macro.macro.commands = children.map((child) => new NestedChoiceCommand(child));
+		return macro;
+	}
+
+	it("keeps a nested variable day when the macro is run with Pick a day", async () => {
+		const runner = executor();
+		const days = recordDays();
+		runner.variables.set("testDate", "2026-01-02");
+		runner.pickDate = true;
+
+		await runner.execute(macroOf(
+			datedTemplate("Variable", { kind: "variable", name: "testDate" }),
+			datedTemplate("Today"),
+		));
+
+		expect(datePrompt).toHaveBeenCalledTimes(1);
+		expect(days).toEqual({ Variable: "2026-01-02", Today: "2026-03-01" });
+	});
+
+	it("keeps a nested variable day under a macro's own Which day", async () => {
+		const runner = executor();
+		const days = recordDays();
+		const macro = macroOf(
+			datedTemplate("Variable", { kind: "variable", name: "testDate" }),
+			datedTemplate("Yesterday", { kind: "relative", offset: -1, unit: "days" }),
+		);
+		macro.dateOrigin = { kind: "variable", name: "macroDay" };
+		runner.variables.set("macroDay", "2026-01-05");
+		runner.variables.set("testDate", "2026-01-02");
+
+		await runner.execute(macro);
+
+		expect(days).toEqual({ Variable: "2026-01-02", Yesterday: "2026-01-05" });
+	});
+
+	it("keeps a nested variable day under an invocation date", async () => {
+		const runner = executor();
+		const days = recordDays();
+		runner.variables.set("testDate", "2026-01-02");
+		applyInvocationDate(runner, "2026-03-01");
+
+		await runner.execute(macroOf(
+			datedTemplate("Variable", { kind: "variable", name: "testDate" }),
+			datedTemplate("Today"),
+		));
+
+		expect(days).toEqual({ Variable: "2026-01-02", Today: "2026-03-01" });
+	});
+
+	it("lets an invocation date replace the invoked choice's own variable day", async () => {
+		const runner = executor();
+		const days = recordDays();
+		applyInvocationDate(runner, "2026-03-01");
+
+		await runner.execute(datedTemplate("Variable", { kind: "variable", name: "unset" }));
+
+		expect(days).toEqual({ Variable: "2026-03-01" });
 	});
 
 	it("gives each executeChoice call its own day and keeps it out of the caller", async () => {
