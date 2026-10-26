@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
+import type { CallerDay } from "./types/dateOrigin";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock state / spies. These back the vi.mock factories below.
@@ -185,7 +186,7 @@ function makeChoiceExecutor() {
 		consumeAbortSignal: vi.fn(
 			(): InstanceType<typeof MacroAbortError> | null => null,
 		),
-		callerDay: undefined as "pick" | Date | undefined,
+		callerDay: undefined as CallerDay | undefined,
 	};
 }
 

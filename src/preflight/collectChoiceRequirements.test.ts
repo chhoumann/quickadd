@@ -1397,6 +1397,22 @@ describe("collectChoiceRequirements - pick a day", () => {
 		).toBe(true);
 	});
 
+	it("does not collect a date field for an Ask choice handed a day", async () => {
+		const choice = Object.assign(createCaptureChoice("Inbox.md"), { dateOrigin: { kind: "ask" } });
+		const requirements = await collect(
+			choice,
+			{
+				...createChoiceExecutor(),
+				execute: vi.fn(),
+				variables: new Map<string, unknown>(),
+				callerDay: new Date(2026, 2, 1),
+			},
+		);
+		expect(
+			requirements.some((requirement) => requirement.id === QA_INTERNAL_DATE_ORIGIN),
+		).toBe(false);
+	});
+
 	it("does not collect a date field for a Today choice without Pick a day", async () => {
 		const choice = createCaptureChoice("Inbox.md");
 		const requirements = await collect(choice, createChoiceExecutor());

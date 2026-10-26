@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import realMoment from "moment";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CallerDay } from "../types/dateOrigin";
 import {
 	addCalendarOffset,
 	applyInvocationDate,
@@ -146,13 +147,13 @@ describe("planDateOrigin", () => {
 
 describe("applyInvocationDate", () => {
 	it("treats ask as a pick", () => {
-		const executor: { callerDay?: "pick" | Date } = {};
+		const executor: { callerDay?: CallerDay } = {};
 		expect(applyInvocationDate(executor, "ask")).toBe(true);
 		expect(executor.callerDay).toBe("pick");
 	});
 
 	it("parses a concrete day", () => {
-		const executor: { callerDay?: "pick" | Date } = {};
+		const executor: { callerDay?: CallerDay } = {};
 		expect(applyInvocationDate(executor, "2026-08-21")).toBe(true);
 		expect(executor.callerDay).toBeInstanceOf(Date);
 	});

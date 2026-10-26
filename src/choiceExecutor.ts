@@ -133,10 +133,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				this.triggerContextOverride !== undefined
 					? this.triggerContextOverride
 					: { activeFile: this.app.workspace.getActiveFile() };
-			this.clocks = {
-				now: this.clocks?.now ?? new Date(),
-				date: this.clocks?.date,
-			};
+			this.clocks = { now: new Date() };
 		}
 		this.executionDepth++;
 		return enclosingClocks;

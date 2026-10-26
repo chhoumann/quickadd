@@ -257,4 +257,14 @@ describe("discovery form planning", () => {
 			expect(executor.variables.get(QA_INTERNAL_DATE_ORIGIN)).toBe("@date:2026-09-05");
 		});
 	});
+
+	it("asks for a picked day on the macro, not on its steps", async () => {
+		executor.callerDay = "pick";
+		const plan = await buildDiscoveryFormPlan(app, plugin, executor,
+			macro(nested(template, "note"), nested(capture, "cap")));
+		if (!plan) throw new Error("Expected discovery form");
+		expect(plan.steps.map((step) => [step.occurrenceId, step.bindings.has(QA_INTERNAL_DATE_ORIGIN)]))
+			.toEqual([["macro", true], ["note", false], ["cap", false]]);
+		expect(executor.callerDay).toBe("pick");
+	});
 });

@@ -593,7 +593,7 @@ export default class QuickAdd extends Plugin {
 	private async runRegisteredChoice(
 		choiceId: string,
 		fallbackName: string,
-		pickDate = false,
+		pickDay = false,
 	): Promise<void> {
 		// Resolved outside the try so the failure can name the choice the user
 		// actually ran; a bare UUID tells them nothing. Falls back to the name
@@ -602,7 +602,7 @@ export default class QuickAdd extends Plugin {
 		try {
 			current = this.getChoiceById(choiceId);
 			const executor = new ChoiceExecutor(this.app, this);
-			if (pickDate) executor.callerDay = "pick";
+			if (pickDay) executor.callerDay = "pick";
 			await executor.execute(current);
 		} catch (err) {
 			// The outermost handler: the last chance to say which choice failed.

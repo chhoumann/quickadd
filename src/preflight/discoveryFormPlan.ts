@@ -164,7 +164,7 @@ export async function buildDiscoveryFormPlan(
 		if (!collectable) continue;
 		const collected = getUnresolvedRequirements(await collectChoiceRequirements(
 			app, plugin, executor, collectable,
-			{ preloadedUserScripts: executor.preloadedUserScripts },
+			{ preloadedUserScripts: executor.preloadedUserScripts, step: true },
 		), executor.variables);
 		const existingNoteInputs = new Map<string, FieldRequirement>();
 		if (discovery && getExistingNoteAction(discovery.existingNoteAction) !== "open") {
@@ -173,7 +173,7 @@ export async function buildDiscoveryFormPlan(
 				fileNameFormat: { enabled: false, format: "" },
 				folder: { ...discovery.folder, enabled: false },
 			};
-			for (const requirement of await collectChoiceRequirements(app, plugin, executor, existingTarget)) {
+			for (const requirement of await collectChoiceRequirements(app, plugin, executor, existingTarget, { step: true })) {
 				existingNoteInputs.set(requirement.id, requirement);
 			}
 		}

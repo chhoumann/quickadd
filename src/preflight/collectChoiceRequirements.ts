@@ -66,6 +66,8 @@ interface CollectChoiceRequirementsOptions {
 	 * The engine consumes these entries instead of re-loading (delete-on-use).
 	 */
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
+	/** A step of the choice being run, so the caller's day isn't its to answer. */
+	step?: boolean;
 }
 
 async function readTemplate(app: App, path: string): Promise<string> {
@@ -525,7 +527,7 @@ function registerSiblingCaptureTargets(
 
 function dateOriginRequirement(
 	choice: IChoice,
-	choiceExecutor: IChoiceExecutor,
+	choiceExecutor: Pick<IChoiceExecutor, "clocks" | "callerDay">,
 ): FieldRequirement | undefined {
 	const { setting: dateOrigin, clocks } = dateOriginInput(choice, choiceExecutor);
 	if (dateOrigin?.kind !== "ask" || clocks?.date) {
@@ -544,7 +546,7 @@ function dateOriginRequirement(
 
 function withDateOriginRequirement(
 	choice: IChoice,
-	choiceExecutor: IChoiceExecutor,
+	choiceExecutor: Pick<IChoiceExecutor, "clocks" | "callerDay">,
 	requirements: FieldRequirement[],
 ): FieldRequirement[] {
 	const dateRequirement = dateOriginRequirement(choice, choiceExecutor);
@@ -579,7 +581,11 @@ export async function collectChoiceRequirements(
 	} else {
 		return [];
 	}
-	return withDateOriginRequirement(choice, choiceExecutor, requirements);
+	return withDateOriginRequirement(
+		choice,
+		options?.step ? { clocks: choiceExecutor.clocks } : choiceExecutor,
+		requirements,
+	);
 }
 
 export function listDeferredMacroSteps(
