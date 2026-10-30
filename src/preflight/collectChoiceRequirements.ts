@@ -66,7 +66,10 @@ interface CollectChoiceRequirementsOptions {
 	 * The engine consumes these entries instead of re-loading (delete-on-use).
 	 */
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
-	/** A step of the choice being run, so the caller's day isn't its to answer. */
+	/**
+	 * A step of the choice being run. The caller's day answers that choice, so
+	 * a step only sees the day it will inherit.
+	 */
 	step?: boolean;
 }
 
@@ -583,7 +586,9 @@ export async function collectChoiceRequirements(
 	}
 	return withDateOriginRequirement(
 		choice,
-		options?.step ? { clocks: choiceExecutor.clocks } : choiceExecutor,
+		options?.step
+			? { clocks: dateOriginInput(choice, choiceExecutor).clocks }
+			: choiceExecutor,
 		requirements,
 	);
 }
