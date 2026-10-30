@@ -344,4 +344,18 @@ describe("the one-page preview follows the choice's Which day", () => {
 		const out = await computePreview!({ title: "Standup" });
 		expect(out[0].text).toBe("Daily/2026-08-21 Standup");
 	});
+
+	it("previews the day the caller handed the choice", async () => {
+		const executor = createExecutor();
+		executor.callerDay = new Date(2026, 2, 1);
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			executor,
+			withDateOrigin({ kind: "relative", offset: -1, unit: "days" }),
+		);
+
+		const out = await computePreview!({ title: "Standup" });
+		expect(out[0].text).toBe("Daily/2026-03-01 Standup");
+	});
 });

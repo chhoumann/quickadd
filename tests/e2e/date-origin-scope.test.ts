@@ -7,9 +7,10 @@ import { CommandType } from "../../src/types/macros/CommandType";
 import type { DateOrigin } from "../../src/types/dateOrigin";
 import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS } from "./uiHelpers";
+import { POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("date-origin-scope");
+const DATE_INPUT = ".qaDatePrompt input.qa-vdate-input";
 
 async function datedTemplate(name: string, folder: string, dateOrigin?: DateOrigin) {
 	const { obsidian, sandbox } = getContext();
@@ -117,4 +118,27 @@ it("keeps an executeChoice options.date out of later macro steps", async () => {
 
 	await expect.poll(() => sandbox.read("after-api/2026-01-04.md").catch(() => null), POLL_OPTS).toBe("2026-01-04");
 	expect(await sandbox.read("after-api/2026-01-02.md")).toBe("2026-01-02");
+});
+
+it("keeps a nested variable day when the macro runs with Pick a day", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const macro = new MacroChoice("Picked macro");
+	macro.command = true;
+	macro.pickDayCommand = true;
+	macro.macro.commands = [
+		await scriptStep("set-test-date.js", `params.variables.testDate = "2026-01-02";`),
+		new NestedChoiceCommand(await datedTemplate("Variable child", "picked/variable", { kind: "variable", name: "testDate" })),
+		new NestedChoiceCommand(await datedTemplate("Today child", "picked/today")),
+	];
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [macro];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	await obsidian.exec("command", { id: `quickadd:choice:${macro.id}:pick-day` });
+	await typeInto(obsidian, DATE_INPUT, "2026-03-01");
+	await pressKey(obsidian, "Enter");
+
+	await expect.poll(() => sandbox.read("picked/today/2026-03-01.md").catch(() => null), POLL_OPTS).toBe("2026-03-01");
+	expect(await sandbox.read("picked/variable/2026-01-02.md")).toBe("2026-01-02");
 });

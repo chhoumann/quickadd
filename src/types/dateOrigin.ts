@@ -13,6 +13,9 @@ export interface RunClocks {
 	date?: Date;
 }
 
+/** A caller's answer to a choice's Which day: ask for one, or this day. */
+export type CallerDay = "pick" | Date;
+
 export function isDateOriginUnit(value: unknown): value is DateOriginUnit {
 	return (
 		typeof value === "string" &&

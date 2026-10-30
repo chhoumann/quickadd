@@ -142,6 +142,8 @@ export async function buildDiscoveryFormPlan(
 			steps.push({ occurrenceId: choice.id, choiceId: choice.id, noteId: null, bindings });
 		}
 	}
+	// A Template run on its own is its only entry, and the caller's day is its to answer.
+	const entriesAreSteps = isMacroChoice(choice);
 	for (const entry of entries) {
 		const group = { ...entry.group, id: entry.occurrenceId };
 		const child = entry.kind === "choice" ? entry.choice : null;
@@ -164,7 +166,7 @@ export async function buildDiscoveryFormPlan(
 		if (!collectable) continue;
 		const collected = getUnresolvedRequirements(await collectChoiceRequirements(
 			app, plugin, executor, collectable,
-			{ preloadedUserScripts: executor.preloadedUserScripts },
+			{ preloadedUserScripts: executor.preloadedUserScripts, step: entriesAreSteps },
 		), executor.variables);
 		const existingNoteInputs = new Map<string, FieldRequirement>();
 		if (discovery && getExistingNoteAction(discovery.existingNoteAction) !== "open") {
@@ -173,7 +175,7 @@ export async function buildDiscoveryFormPlan(
 				fileNameFormat: { enabled: false, format: "" },
 				folder: { ...discovery.folder, enabled: false },
 			};
-			for (const requirement of await collectChoiceRequirements(app, plugin, executor, existingTarget)) {
+			for (const requirement of await collectChoiceRequirements(app, plugin, executor, existingTarget, { step: entriesAreSteps })) {
 				existingNoteInputs.set(requirement.id, requirement);
 			}
 		}

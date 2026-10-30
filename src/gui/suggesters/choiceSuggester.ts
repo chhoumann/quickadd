@@ -549,9 +549,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// leaf inherits the executor's still-live context, which holds the same
 			// values this level was handed. Falls back to execute() only for stub
 			// executors without the method.
-			const enclosingPickDate = this.choiceExecutor.pickDate;
+			const enclosingCallerDay = this.choiceExecutor.callerDay;
 			if ("shiftKey" in evt && evt.shiftKey) {
-				this.choiceExecutor.pickDate = true;
+				this.choiceExecutor.callerDay = "pick";
 			}
 			const run = this.choiceExecutor.executeWithFocusedProperty
 				? this.choiceExecutor.executeWithFocusedProperty(
@@ -563,7 +563,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				: this.choiceExecutor.execute(item, this.ancestry);
 			// Shift picks a day for this choice, not for the Macro steps after it.
 			const execute = run.finally(() => {
-				this.choiceExecutor.pickDate = enclosingPickDate;
+				this.choiceExecutor.callerDay = enclosingCallerDay;
 			});
 			this.settleCompletion(execute, `Could not run "${item.name}"`);
 		}

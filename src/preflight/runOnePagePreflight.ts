@@ -19,9 +19,8 @@ import {
 } from "./collectChoiceRequirements";
 import type { FormAnswer } from "src/interactive/promptProvider";
 import { QA_INTERNAL_DATE_ORIGIN } from "src/constants";
-import { normalizeDateOrigin, type RunClocks } from "src/types/dateOrigin";
-import { dateOriginForPick } from "src/types/dateOriginPresets";
-import { planDateOrigin } from "src/utils/resolveDateOrigin";
+import type { RunClocks } from "src/types/dateOrigin";
+import { dateOriginInput, planDateOrigin } from "src/utils/resolveDateOrigin";
 import { buildDiscoveryFormPlan, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
 import { hasActivePreparedChoiceInputs } from "./preparedChoiceInputs";
 
@@ -36,12 +35,10 @@ function previewRunClocks(
 	choiceExecutor: IChoiceExecutor,
 	values: Record<string, unknown>,
 ): RunClocks | undefined {
-	const setting = choiceExecutor.pickDate
-		? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
-		: normalizeDateOrigin(choice.dateOrigin);
+	const { setting, clocks } = dateOriginInput(choice, choiceExecutor);
 	const plan = planDateOrigin({
 		setting,
-		clocks: choiceExecutor.clocks,
+		clocks,
 		variables: new Map<string, unknown>([
 			...choiceExecutor.variables,
 			...Object.entries(values),
@@ -49,7 +46,7 @@ function previewRunClocks(
 		reservedSeed:
 			setting?.kind === "ask" ? values[QA_INTERNAL_DATE_ORIGIN] : undefined,
 	});
-	if (plan.status !== "set") return choiceExecutor.clocks;
+	if (plan.status !== "set") return clocks;
 	return { now: choiceExecutor.clocks?.now ?? new Date(), date: plan.date };
 }
 

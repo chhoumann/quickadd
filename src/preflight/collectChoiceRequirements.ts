@@ -10,12 +10,11 @@ import {
 	QA_INTERNAL_DATE_ORIGIN,
 	VALUE_SYNTAX,
 } from "src/constants";
-import { normalizeDateOrigin } from "src/types/dateOrigin";
-import { dateOriginForPick } from "src/types/dateOriginPresets";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
 import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
+import { dateOriginInput } from "src/utils/resolveDateOrigin";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type { IUserScript } from "src/types/macros/IUserScript";
@@ -67,6 +66,11 @@ interface CollectChoiceRequirementsOptions {
 	 * The engine consumes these entries instead of re-loading (delete-on-use).
 	 */
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
+	/**
+	 * A step of the choice being run. The caller's day answers that choice, so
+	 * a step only sees the day it will inherit.
+	 */
+	step?: boolean;
 }
 
 async function readTemplate(app: App, path: string): Promise<string> {
@@ -526,12 +530,10 @@ function registerSiblingCaptureTargets(
 
 function dateOriginRequirement(
 	choice: IChoice,
-	choiceExecutor: IChoiceExecutor,
+	choiceExecutor: Pick<IChoiceExecutor, "clocks" | "callerDay">,
 ): FieldRequirement | undefined {
-	const dateOrigin = choiceExecutor.pickDate
-		? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
-		: normalizeDateOrigin(choice.dateOrigin);
-	if (dateOrigin?.kind !== "ask" || choiceExecutor.clocks?.date) {
+	const { setting: dateOrigin, clocks } = dateOriginInput(choice, choiceExecutor);
+	if (dateOrigin?.kind !== "ask" || clocks?.date) {
 		return undefined;
 	}
 
@@ -547,7 +549,7 @@ function dateOriginRequirement(
 
 function withDateOriginRequirement(
 	choice: IChoice,
-	choiceExecutor: IChoiceExecutor,
+	choiceExecutor: Pick<IChoiceExecutor, "clocks" | "callerDay">,
 	requirements: FieldRequirement[],
 ): FieldRequirement[] {
 	const dateRequirement = dateOriginRequirement(choice, choiceExecutor);
@@ -582,7 +584,13 @@ export async function collectChoiceRequirements(
 	} else {
 		return [];
 	}
-	return withDateOriginRequirement(choice, choiceExecutor, requirements);
+	return withDateOriginRequirement(
+		choice,
+		options?.step
+			? { clocks: dateOriginInput(choice, choiceExecutor).clocks }
+			: choiceExecutor,
+		requirements,
+	);
 }
 
 export function listDeferredMacroSteps(

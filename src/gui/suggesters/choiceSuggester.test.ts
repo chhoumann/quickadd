@@ -1026,20 +1026,20 @@ describe("ChoiceSuggester", () => {
 			expect(completion).toHaveBeenCalledWith();
 		});
 
-		it.each([false, true])(
-			"holds Shift to pick a day for the chosen run only (enclosing pickDate: %s)",
+		it.each([undefined, "pick" as const])(
+			"holds Shift to pick a day for the chosen run only (enclosing callerDay: %s)",
 			async (enclosing) => {
-				let pickDateDuringRun: boolean | undefined;
-				executor.pickDate = enclosing;
-				executor.executeWithFocusedProperty = async () => { pickDateDuringRun = executor.pickDate; };
+				let callerDayDuringRun: unknown;
+				executor.callerDay = enclosing;
+				executor.executeWithFocusedProperty = async () => { callerDayDuringRun = executor.callerDay; };
 				const suggester = makeSuggester(rootChoices);
 				suggester.onChooseItem(
 					topNote,
 					new MouseEvent("click", { shiftKey: true }),
 				);
 				await flushMicrotasks();
-				expect(pickDateDuringRun).toBe(true);
-				expect(executor.pickDate).toBe(enclosing);
+				expect(callerDayDuringRun).toBe("pick");
+				expect(executor.callerDay).toBe(enclosing);
 			},
 		);
 

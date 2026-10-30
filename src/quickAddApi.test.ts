@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
+import type { CallerDay } from "./types/dateOrigin";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock state / spies. These back the vi.mock factories below.
@@ -185,8 +186,7 @@ function makeChoiceExecutor() {
 		consumeAbortSignal: vi.fn(
 			(): InstanceType<typeof MacroAbortError> | null => null,
 		),
-		pickDate: false as boolean | undefined,
-		clocks: undefined as { now: Date; date?: Date } | undefined,
+		callerDay: undefined as CallerDay | undefined,
 	};
 }
 
@@ -1002,15 +1002,14 @@ describe("executeChoice", () => {
 		expect(executor.execute).toHaveBeenCalled();
 	});
 
-	it("treats date ask as pickDate for that call only", async () => {
+	it("treats date ask as a pick for that call only", async () => {
 		const executor = makeChoiceExecutor();
-		let pickDateDuringRun: boolean | undefined;
-		executor.execute.mockImplementation(async () => { pickDateDuringRun = executor.pickDate; });
+		let callerDayDuringRun: unknown;
+		executor.execute.mockImplementation(async () => { callerDayDuringRun = executor.callerDay; });
 		const { api } = getApi(makeApp(), makePlugin(), executor);
 		await api.executeChoice("C", {}, { date: "ask" });
-		expect(pickDateDuringRun).toBe(true);
-		expect(executor.pickDate).toBe(false);
-		expect(executor.clocks).toBeUndefined();
+		expect(callerDayDuringRun).toBe("pick");
+		expect(executor.callerDay).toBeUndefined();
 	});
 
 	it("rejects an invalid Date origin and does not execute", async () => {
