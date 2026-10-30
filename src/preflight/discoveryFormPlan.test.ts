@@ -267,4 +267,12 @@ describe("discovery form planning", () => {
 			.toEqual([["macro", true], ["note", false], ["cap", false]]);
 		expect(executor.callerDay).toBe("pick");
 	});
+
+	it("asks for a picked day on a Template run on its own", async () => {
+		executor.callerDay = "pick";
+		const plan = await buildDiscoveryFormPlan(app, plugin, executor, template);
+		if (!plan) throw new Error("Expected discovery form");
+		expect(plan.steps.map((step) => [step.occurrenceId, step.bindings.has(QA_INTERNAL_DATE_ORIGIN)]))
+			.toEqual([[template.id, true]]);
+	});
 });
