@@ -15,6 +15,7 @@ import type { ChoiceRef, ChoiceSummary } from "./api/choiceApi";
 import { findChoice, importPackage, pickChoice, summarizeChoice } from "./api/choiceApi";
 import { PromptApi } from "./api/promptApi";
 import { requestInputs } from "./api/requestInputs";
+import { abortIfHeadless } from "./interactive/routePrompt";
 import { createAiApi } from "./api/aiApi";
 import { createFieldSuggestionsApi } from "./api/fieldSuggestionsApi";
 
@@ -137,17 +138,18 @@ export class QuickAddApi {
 		};
 		return {
 			requestInputs: (inputs: Parameters<typeof requestInputs>[2]) => requestInputs(app, choiceExecutor, inputs),
-			inputPrompt: (
+			inputPrompt: async (
 				header: string,
 				placeholder?: string,
 				value?: string,
 				options?: InputPromptOptions,
 			) => {
 				const provider = choiceExecutor?.promptProvider;
+				abortIfHeadless(choiceExecutor, "an input prompt", header);
 				if (provider) return provider.inputPrompt(header, placeholder, value);
 				return QuickAddApi.inputPrompt(app, header, placeholder, value, options);
 			},
-			datePrompt: (
+			datePrompt: async (
 				header: string,
 				options?: {
 					placeholder?: string;
@@ -156,16 +158,18 @@ export class QuickAddApi {
 				},
 			) => {
 				const provider = choiceExecutor?.promptProvider;
+				abortIfHeadless(choiceExecutor, "a date prompt", header);
 				if (provider) return provider.datePrompt(header, options);
 				return QuickAddApi.datePrompt(app, header, options);
 			},
-			wideInputPrompt: (
+			wideInputPrompt: async (
 				header: string,
 				placeholder?: string,
 				value?: string,
 				options?: InputPromptOptions,
 			) => {
 				const provider = choiceExecutor?.promptProvider;
+				abortIfHeadless(choiceExecutor, "a wide input prompt", header);
 				if (provider) return provider.wideInputPrompt(header, placeholder, value);
 				return QuickAddApi.wideInputPrompt(
 					app,
@@ -175,17 +179,19 @@ export class QuickAddApi {
 					options,
 				);
 			},
-			yesNoPrompt: (header: string, text?: string) => {
+			yesNoPrompt: async (header: string, text?: string) => {
 				const provider = choiceExecutor?.promptProvider;
+				abortIfHeadless(choiceExecutor, "a yes/no prompt", header);
 				if (provider) return provider.yesNoPrompt(header, text);
 				return QuickAddApi.yesNoPrompt(app, header, text);
 			},
-			infoDialog: (header: string, text: string[] | string) => {
+			infoDialog: async (header: string, text: string[] | string) => {
 				const provider = choiceExecutor?.promptProvider;
+				abortIfHeadless(choiceExecutor, "an info dialog", header);
 				if (provider) return provider.infoDialog(header, text);
 				return QuickAddApi.infoDialog(app, header, text);
 			},
-			suggester: (
+			suggester: async (
 				displayItems:
 					| string[]
 					| ((value: string, index?: number, arr?: string[]) => string),
@@ -196,6 +202,7 @@ export class QuickAddApi {
 			) => {
 				// Route to a remote interactive session (Raycast) when one is driving
 				// this execution; otherwise open the Obsidian suggester modal.
+				abortIfHeadless(choiceExecutor, "a suggester", placeholder);
 				const provider = choiceExecutor?.promptProvider;
 				if (provider) {
 					return provider.suggester(
@@ -214,11 +221,12 @@ export class QuickAddApi {
 					options,
 				);
 			},
-			checkboxPrompt: (
+			checkboxPrompt: async (
 				items: string[],
 				selectedItems?: string[],
 				header?: string,
 			) => {
+				abortIfHeadless(choiceExecutor, "a checkbox prompt", header);
 				const provider = choiceExecutor?.promptProvider;
 				if (provider) {
 					return provider.checkboxPrompt(items, selectedItems, header);

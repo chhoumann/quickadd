@@ -215,3 +215,35 @@ describe("getFieldValues frontmatter array safety", () => {
 		expect(values).toEqual(["high"]);
 	});
 });
+
+describe("script prompts in a non-interactive run", () => {
+	type Api = ReturnType<typeof QuickAddApi.GetApi>;
+	const prompts: Array<[string, (api: Api) => Promise<unknown>]> = [
+		["suggester", (api) => api.suggester(["a"], ["a"], "Pick a source")],
+		["inputPrompt", (api) => api.inputPrompt("Title")],
+		["wideInputPrompt", (api) => api.wideInputPrompt("Body")],
+		["yesNoPrompt", (api) => api.yesNoPrompt("Sure?")],
+		["checkboxPrompt", (api) => api.checkboxPrompt(["x"], [], "Tags")],
+		["infoDialog", (api) => api.infoDialog("Heads up", "text")],
+		["datePrompt", (api) => api.datePrompt("When")],
+		["requestInputs", (api) => api.requestInputs([{ id: "q", label: "Question", type: "text" }])],
+	];
+
+	it.each(prompts)("%s rejects with an abort instead of opening a modal", async (_, open) => {
+		const executor = { ...makeChoiceExecutor(), interactive: false };
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+
+		await expect(open(api)).rejects.toMatchObject({
+			name: "MacroAbortError",
+			message: expect.stringContaining("this run is non-interactive"),
+		});
+	});
+
+	it("requestInputs still resolves from variables preset by the caller", async () => {
+		const executor = { ...makeChoiceExecutor(), interactive: false };
+		executor.variables.set("q", "preset");
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+
+		await expect(api.requestInputs([{ id: "q", label: "Question", type: "text" }])).resolves.toEqual({ q: "preset" });
+	});
+});

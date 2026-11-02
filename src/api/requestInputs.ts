@@ -5,6 +5,7 @@ import { OnePageInputModal } from "../preflight/OnePageInputModal";
 import type { NumericInputConfig, SliderConfig } from "../utils/valueSyntax";
 import { formatISODate } from "../utils/dateParser";
 import { rethrowPromptError } from "./promptApi";
+import { abortIfHeadless } from "../interactive/routePrompt";
 
 function sanitizeNumericConfig(
 	value: NumericInputConfig | undefined,
@@ -125,6 +126,12 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 
 	let collected: Record<string, string> = {};
 	if (missing.length > 0) {
+		abortIfHeadless(
+			choiceExecutor,
+			"an input form",
+			missing.map((input) => input.label).join(", "),
+			`Pass ${missing.map((input) => input.id).join(", ")} in vars, or re-run with the ui flag.`,
+		);
 		// Route the batch form to a remote interactive session (Raycast)
 		// when one is driving this run; otherwise open the Obsidian modal.
 		const provider = choiceExecutor?.promptProvider;
