@@ -37,7 +37,7 @@ const behavior = {
 	appendTop: { kind: "apply", mode: "appendTop" },
 	overwrite: { kind: "apply", mode: "overwrite" },
 	doNothing: { kind: "apply", mode: "doNothing" },
-	leaveUnchanged: { kind: "apply", mode: "leaveUnchanged" },
+	leaveClosed: { kind: "apply", mode: "leaveClosed" },
 	prompt: { kind: "prompt" },
 } as const;
 
@@ -331,7 +331,7 @@ describe("functional: file collision behaviors", () => {
 	});
 });
 
-describe("with Open off, only Open existing file opens the note (#2244)", () => {
+describe("Open and the keep modes (#2244, #2279)", () => {
 	const expected = {
 		increment: { file: "open-off-increment1.md", effect: "created", opens: false },
 		duplicateSuffix: { file: "open-off-duplicateSuffix (1).md", effect: "created", opens: false },
@@ -339,7 +339,7 @@ describe("with Open off, only Open existing file opens the note (#2244)", () => 
 		appendTop: { file: "open-off-appendTop.md", effect: "changed", opens: false },
 		overwrite: { file: "open-off-overwrite.md", effect: "changed", opens: false },
 		doNothing: { file: "open-off-doNothing.md", effect: "unchanged", opens: true },
-		leaveUnchanged: { file: "open-off-leaveUnchanged.md", effect: "unchanged", opens: false },
+		leaveClosed: { file: "open-off-leaveClosed.md", effect: "unchanged", opens: false },
 	} as const satisfies Record<Exclude<keyof typeof behavior, "prompt">, unknown>;
 	const modes = Object.keys(expected) as Array<keyof typeof expected>;
 
@@ -375,6 +375,29 @@ describe("with Open off, only Open existing file opens the note (#2244)", () => 
 		await obsidian.sleep(600);
 		expect(await openSandboxNotes()).toEqual(opens ? [sandbox.path(file)] : []);
 	});
+
+	it("with Open on, Do nothing opens the note only on the run that creates it (#2279)", async () => {
+		const name = "__qa-test-open-on-leaveClosed";
+		const file = sandbox.path("open-on-leaveClosed.md");
+		await qa.data<QuickAddData>().patch((data) => {
+			data.choices.push({
+				...templateChoice(name, `${sandbox.root}/open-on-leaveClosed`, behavior.leaveClosed),
+				openFile: true,
+			});
+		});
+		await qa.reload({ waitUntilReady: true });
+
+		expect(await obsidian.execJson("quickadd:run", { choice: name, verify: true })).toMatchObject({ ok: true, effect: "created", file });
+		await obsidian.sleep(600);
+		expect(await openSandboxNotes()).toEqual([file]);
+
+		await obsidian.dev.eval(`app.workspace.getLeavesOfType("markdown")
+			.filter((leaf) => leaf.view.file?.path === ${JSON.stringify(file)})
+			.forEach((leaf) => leaf.detach())`);
+		expect(await obsidian.execJson("quickadd:run", { choice: name, verify: true })).toMatchObject({ ok: true, effect: "unchanged", file });
+		await obsidian.sleep(600);
+		expect(await openSandboxNotes()).toEqual([]);
+	}, 30_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -492,5 +515,31 @@ describe("migration: repairTemplateFileExistsBehavior", () => {
 	it("preserves already-migrated behavior", async () => {
 		const choice = await readChoice("__qa-test-r2-already");
 		expect(choice?.fileExistsBehavior).toEqual(behavior.overwrite);
+	});
+});
+
+describe("migration: retireLeaveUnchangedKeepMode", () => {
+	beforeAll(async () => {
+		const leaveUnchanged = { kind: "apply", mode: "leaveUnchanged" };
+		await qa.data<QuickAddData>().patch((data) => {
+			clearTestChoices(data);
+			data.choices.push(
+				{ ...templateChoice("__qa-test-l1-open-on", `${sandbox.root}/l1`, leaveUnchanged), openFile: true },
+				templateChoice("__qa-test-l2-open-off", `${sandbox.root}/l2`, leaveUnchanged),
+			);
+			data.migrations.retireLeaveUnchangedKeepMode = false;
+		});
+
+		await qa.reload();
+		await qa.waitForData<QuickAddData>(
+			(data) => data.migrations.retireLeaveUnchangedKeepMode === true,
+			{ timeoutMs: 10_000, intervalMs: 300 },
+		);
+	}, 15_000);
+
+	it("keeps each choice's behavior: Open on opens the kept note, Open off leaves it closed", async () => {
+		const data = await qa.data<QuickAddData>().read();
+		expect(findChoice(data, "__qa-test-l1-open-on")?.fileExistsBehavior).toEqual(behavior.doNothing);
+		expect(findChoice(data, "__qa-test-l2-open-off")?.fileExistsBehavior).toEqual(behavior.leaveClosed);
 	});
 });

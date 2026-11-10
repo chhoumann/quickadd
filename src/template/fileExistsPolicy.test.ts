@@ -46,7 +46,7 @@ describe("fileExistsPolicy registry", () => {
 		]);
 		expect(getModesForCategory("keep").map((mode) => mode.id)).toEqual([
 			"doNothing",
-			"leaveUnchanged",
+			"leaveClosed",
 		]);
 	});
 
