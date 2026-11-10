@@ -17,6 +17,7 @@ import migrateProviderApiKeysToSecretStorage from "./migrateProviderApiKeysToSec
 import migrateToMultipleTemplateFolders from "./migrateToMultipleTemplateFolders";
 import refreshStaleDefaultModelSeeds from "./refreshStaleDefaultModelSeeds";
 import pinAiModelRefs from "./pinAiModelRefs";
+import retireLeaveUnchangedKeepMode from "./retireLeaveUnchangedKeepMode";
 import { settingsStore } from "src/settingsStore";
 
 const migrations: Migrations = {
@@ -35,6 +36,7 @@ const migrations: Migrations = {
 	migrateToMultipleTemplateFolders,
 	refreshStaleDefaultModelSeeds,
 	pinAiModelRefs,
+	retireLeaveUnchangedKeepMode,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {

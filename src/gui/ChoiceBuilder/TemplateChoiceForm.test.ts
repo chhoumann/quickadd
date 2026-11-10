@@ -262,9 +262,9 @@ describe("TemplateChoiceForm", () => {
 		expect(select.value).toBe("doNothing");
 		expect(Array.from(select.options, (option) => option.text)).toEqual(["Open existing file", "Do nothing"]);
 
-		await fireEvent.change(select, { target: { value: "leaveUnchanged" } });
+		await fireEvent.change(select, { target: { value: "leaveClosed" } });
 		flushSync();
-		expect(props.choice.fileExistsBehavior).toEqual({ kind: "apply", mode: "leaveUnchanged" });
+		expect(props.choice.fileExistsBehavior).toEqual({ kind: "apply", mode: "leaveClosed" });
 	});
 
 	it("persists the copy-link-to-clipboard toggle", async () => {
