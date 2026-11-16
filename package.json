@@ -33,7 +33,7 @@
 		"@vitest/coverage-v8": "5.1.0",
 		"esbuild": "^0.28.2",
 		"esbuild-svelte": "^0.9.5",
-		"jsdom": "^30.1.3",
+		"jsdom": "^31.0.0",
 		"moment": "2.31.0",
 		"obsidian": "1.14.4",
 		"obsidian-e2e": "^0.15.0",
