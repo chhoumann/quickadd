@@ -11,9 +11,9 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/markdown-satteri": "^0.4.6",
-    "@astrojs/starlight": "^0.42.8",
-    "astro": "^7.4.4",
+    "@astrojs/markdown-satteri": "^0.4.7",
+    "@astrojs/starlight": "^0.42.10",
+    "astro": "^7.4.7",
     "sharp": "^0.35.5",
     "starlight-llms-txt": "^0.12.0"
   }
