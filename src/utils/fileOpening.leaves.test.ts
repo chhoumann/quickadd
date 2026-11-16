@@ -1,8 +1,8 @@
 import {
 	type App,
 	TFile,
+	type WorkspaceContainer,
 	type WorkspaceLeaf,
-	type WorkspaceParent,
 } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import { areSameVaultFilePath, normalizeVaultFilePath, getOpenFileOriginLeaf, openFile } from "./fileOpening";
@@ -15,8 +15,13 @@ type FakeLeaf = WorkspaceLeaf & {
 	setViewState: ReturnType<typeof vi.fn>;
 };
 
-function createLeaf(id: string, pinned = false): FakeLeaf {
+// A leaf's window is its container; a main-area leaf's root is not a sidebar.
+const mainWindow = { id: "main-window" } as unknown as WorkspaceContainer;
+const popoutWindow = { id: "popout-window" } as unknown as WorkspaceContainer;
+
+function createLeaf(id: string, pinned = false, window = mainWindow): FakeLeaf {
 	const leaf = { id, pinned } as FakeLeaf;
+	Object.assign(leaf, { getContainer: () => window, getRoot: () => window });
 
 	leaf.openFile = vi.fn(async () => undefined);
 	leaf.getViewState = vi.fn(() => ({
@@ -54,7 +59,6 @@ function createApp({
 	windowLeaf = createLeaf("window"),
 	leftSidebarLeaf = createLeaf("left-sidebar"),
 	rightSidebarLeaf = createLeaf("right-sidebar"),
-	rootSplit = { id: "root-split" } as unknown as WorkspaceParent,
 }: {
 	rootLeaves: FakeLeaf[];
 	originLeaf: FakeLeaf | null;
@@ -66,7 +70,6 @@ function createApp({
 	windowLeaf?: FakeLeaf;
 	leftSidebarLeaf?: FakeLeaf;
 	rightSidebarLeaf?: FakeLeaf;
-	rootSplit?: WorkspaceParent | null;
 }) {
 	const getLeaf = vi.fn((location?: unknown) => {
 		if (location === "tab") return tabLeaf;
@@ -76,20 +79,28 @@ function createApp({
 		return reuseLeaf;
 	});
 	const setActiveLeaf = vi.fn();
-	const getMostRecentLeaf = vi.fn(() => mostRecentLeaf);
-	const iterateRootLeaves = vi.fn((callback: (leaf: WorkspaceLeaf) => void) => {
+	// Like Obsidian: with a root it searches that root only, and the main
+	// window's root split holds no pop-out leaf.
+	const getMostRecentLeaf = vi.fn((root?: unknown) =>
+		root && mostRecentLeaf?.getContainer() !== mainWindow
+			? (rootLeaves.find((leaf) => leaf.getContainer() === mainWindow) ?? null)
+			: mostRecentLeaf,
+	);
+	const iterateAllLeaves = vi.fn((callback: (leaf: WorkspaceLeaf) => void) => {
 		rootLeaves.forEach(callback);
 	});
 
 	const app = {
 		workspace: {
 			activeLeaf,
-			rootSplit,
+			rootSplit: mainWindow,
+			leftSplit: { id: "left-split" },
+			rightSplit: { id: "right-split" },
 			getMostRecentLeaf,
 			getLeaf,
 			getLeftLeaf: vi.fn(() => leftSidebarLeaf),
 			getRightLeaf: vi.fn(() => rightSidebarLeaf),
-			iterateRootLeaves,
+			iterateAllLeaves,
 			setActiveLeaf,
 			// Obsidian's own getActiveViewOfType reads `activeLeaf`.
 			getActiveViewOfType(this: { activeLeaf?: WorkspaceLeaf | null }) {
@@ -104,39 +115,21 @@ function createApp({
 	return {
 		app,
 		getLeaf,
-		getMostRecentLeaf,
-		rootSplit,
-		iterateRootLeaves,
+		iterateAllLeaves,
 		setActiveLeaf,
 	};
 }
 
 describe("getOpenFileOriginLeaf", () => {
-	it("captures the most recent root-split leaf before tab creation", () => {
-		const activeLeaf = createLeaf("active");
-		const originLeaf = createLeaf("source");
-		const { app, getMostRecentLeaf, rootSplit } = createApp({
-			rootLeaves: [originLeaf],
-			originLeaf: activeLeaf,
-			mostRecentLeaf: originLeaf,
+	it("captures the leaf last used in a pop-out window", () => {
+		const mainLeaf = createLeaf("main");
+		const popoutLeaf = createLeaf("popout", false, popoutWindow);
+		const { app } = createApp({
+			rootLeaves: [mainLeaf, popoutLeaf],
+			originLeaf: popoutLeaf,
 		});
 
-		expect(getOpenFileOriginLeaf(app)).toBe(originLeaf);
-		expect(getMostRecentLeaf).toHaveBeenCalledWith(rootSplit);
-	});
-
-	it("falls back to the most recent leaf when rootSplit is unavailable", () => {
-		const activeLeaf = createLeaf("active");
-		const originLeaf = createLeaf("source");
-		const { app, getMostRecentLeaf } = createApp({
-			rootLeaves: [originLeaf],
-			originLeaf: activeLeaf,
-			mostRecentLeaf: originLeaf,
-			rootSplit: null,
-		});
-
-		expect(getOpenFileOriginLeaf(app)).toBe(originLeaf);
-		expect(getMostRecentLeaf).toHaveBeenCalledWith();
+		expect(getOpenFileOriginLeaf(app)).toBe(popoutLeaf);
 	});
 });
 
@@ -314,12 +307,58 @@ describe("openFile", () => {
 		expect(reuseLeaf.openFile).not.toHaveBeenCalled();
 	});
 
+	it("opens a new tab for a pop-out run while the main window's last tab is pinned", async () => {
+		const pinnedMainLeaf = setParent(createLeaf("pinned-main", true), {
+			id: "left-group",
+		});
+		const unpinnedMainLeaf = setParent(createLeaf("unpinned-main"), {
+			id: "right-group",
+		});
+		const popoutLeaf = setParent(createLeaf("popout", false, popoutWindow), {
+			id: "popout-group",
+		});
+		const tabLeaf = createLeaf("tab", false, popoutWindow);
+		const file = createFile();
+		const { app } = createApp({
+			rootLeaves: [pinnedMainLeaf, unpinnedMainLeaf, popoutLeaf],
+			originLeaf: popoutLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, { location: "tab" });
+
+		expect(leaf).toBe(tabLeaf);
+		expect(unpinnedMainLeaf.openFile).not.toHaveBeenCalled();
+	});
+
+	it("keeps a pinned pop-out origin from taking over a main-window tab", async () => {
+		const unpinnedMainLeaf = setParent(createLeaf("unpinned-main"), {
+			id: "main-group",
+		});
+		const pinnedPopoutLeaf = setParent(
+			createLeaf("pinned-popout", true, popoutWindow),
+			{ id: "popout-group" },
+		);
+		const tabLeaf = createLeaf("tab", false, popoutWindow);
+		const file = createFile();
+		const { app } = createApp({
+			rootLeaves: [unpinnedMainLeaf, pinnedPopoutLeaf],
+			originLeaf: pinnedPopoutLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, { location: "tab" });
+
+		expect(leaf).toBe(tabLeaf);
+		expect(unpinnedMainLeaf.openFile).not.toHaveBeenCalled();
+	});
+
 	it("leaves explicit split behavior unchanged for pinned origins", async () => {
 		const pinnedOriginLeaf = createLeaf("pinned-origin", true);
 		const unpinnedSiblingLeaf = createLeaf("unpinned-sibling");
 		const splitLeaf = createLeaf("split");
 		const file = createFile();
-		const { app, getLeaf, iterateRootLeaves } = createApp({
+		const { app, getLeaf, iterateAllLeaves } = createApp({
 			rootLeaves: [pinnedOriginLeaf, unpinnedSiblingLeaf],
 			originLeaf: pinnedOriginLeaf,
 			splitLeaf,
@@ -333,7 +372,7 @@ describe("openFile", () => {
 
 		expect(leaf).toBe(splitLeaf);
 		expect(getLeaf).toHaveBeenCalledWith("split", "horizontal");
-		expect(iterateRootLeaves).not.toHaveBeenCalled();
+		expect(iterateAllLeaves).not.toHaveBeenCalled();
 		expect(unpinnedSiblingLeaf.openFile).not.toHaveBeenCalled();
 		expect(splitLeaf.openFile).toHaveBeenCalledWith(file);
 	});

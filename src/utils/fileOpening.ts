@@ -1,4 +1,4 @@
-import type { App, WorkspaceLeaf, WorkspaceParent } from "obsidian";
+import type { App, WorkspaceLeaf } from "obsidian";
 import { FileView, normalizePath, TFile, View } from "obsidian";
 import type {
 	OpenLocation as FileOpenLocation,
@@ -28,11 +28,6 @@ type PinnedLeaf = WorkspaceLeaf & {
 	pinned?: boolean;
 };
 
-type WorkspaceWithOriginLeaf = App["workspace"] & {
-	rootSplit?: WorkspaceParent;
-	getMostRecentLeaf?: (root?: WorkspaceParent) => WorkspaceLeaf | null;
-};
-
 function isLeafPinnedForNavigation(
 	leaf: WorkspaceLeaf | null | undefined,
 ): boolean {
@@ -50,15 +45,13 @@ function isLeafPinnedForNavigation(
 	);
 }
 
+/**
+ * The main-area leaf the user last worked in, in the main window or a pop-out.
+ * Obsidian opens a new tab next to this same leaf, so pinned-tab routing looks
+ * at the tab a run started from.
+ */
 export function getOpenFileOriginLeaf(app: App): WorkspaceLeaf | null {
-	const workspace = app.workspace as WorkspaceWithOriginLeaf;
-	const rootLeaf = workspace.rootSplit
-		? workspace.getMostRecentLeaf?.(workspace.rootSplit)
-		: null;
-
-	// `getMostRecentLeaf()` already returns the active main-area leaf, superseding
-	// the deprecated `workspace.activeLeaf` that used to be the final fallback.
-	return rootLeaf ?? workspace.getMostRecentLeaf?.() ?? null;
+	return app.workspace.getMostRecentLeaf();
 }
 
 /**
@@ -69,10 +62,13 @@ function getFocusedLeaf(app: App): WorkspaceLeaf | null {
 	return app.workspace.getActiveViewOfType(View)?.leaf ?? null;
 }
 
-function getRootLeaves(app: App): WorkspaceLeaf[] {
+/** Every leaf outside the sidebars: the main window's and each pop-out window's. */
+function getMainAreaLeaves(app: App): WorkspaceLeaf[] {
+	const { leftSplit, rightSplit } = app.workspace;
 	const leaves: WorkspaceLeaf[] = [];
-	app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
-		if (!leaves.includes(leaf)) leaves.push(leaf);
+	app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
+		const root = leaf.getRoot();
+		if (root !== leftSplit && root !== rightSplit) leaves.push(leaf);
 	});
 	return leaves;
 }
@@ -81,24 +77,29 @@ function getLeafParentId(leaf: WorkspaceLeaf): unknown {
 	return (leaf.parent as { id?: unknown } | undefined)?.id ?? leaf.parent ?? null;
 }
 
+/** An unpinned leaf in another tab group of the origin's own window. */
 function findUnpinnedNavigableSibling(
-	rootLeaves: WorkspaceLeaf[],
+	app: App,
 	originLeaf: WorkspaceLeaf,
 ): WorkspaceLeaf | null {
+	const originWindow = originLeaf.getContainer();
+	const windowLeaves = getMainAreaLeaves(app).filter(
+		(leaf) => leaf.getContainer() === originWindow,
+	);
 	const originParentId = getLeafParentId(originLeaf);
-	const candidates = rootLeaves.filter((leaf) => {
+	const candidates = windowLeaves.filter((leaf) => {
 		if (leaf === originLeaf || isLeafPinnedForNavigation(leaf)) return false;
 		return originParentId === null || getLeafParentId(leaf) !== originParentId;
 	});
 	if (candidates.length === 0) return null;
 
-	const originIndex = rootLeaves.indexOf(originLeaf);
+	const originIndex = windowLeaves.indexOf(originLeaf);
 	const orderedLeaves =
 		originIndex === -1
-			? rootLeaves
+			? windowLeaves
 			: [
-					...rootLeaves.slice(originIndex + 1),
-					...rootLeaves.slice(0, originIndex),
+					...windowLeaves.slice(originIndex + 1),
+					...windowLeaves.slice(0, originIndex),
 				];
 
 	return orderedLeaves.find((leaf) => candidates.includes(leaf)) ?? candidates[0];
@@ -133,11 +134,10 @@ function resolveLeafForOpenFileLocation(
 		(location === "tab" || location === "reuse") &&
 		isLeafPinnedForNavigation(originLeaf)
 	) {
-		const siblingLeaf = findUnpinnedNavigableSibling(
-			getRootLeaves(app),
-			originLeaf,
+		return (
+			findUnpinnedNavigableSibling(app, originLeaf) ??
+			app.workspace.getLeaf("tab")
 		);
-		return siblingLeaf ?? app.workspace.getLeaf("tab");
 	}
 
 	switch (location) {
@@ -272,7 +272,8 @@ export function areSameVaultFilePath(a: string, b: string): boolean {
 }
 
 /**
- * Finds an already-open leaf that is displaying `file` and optionally focuses it.
+ * Finds a leaf already displaying `file`, in any window, and optionally focuses
+ * it. Prefers the focused leaf, then one in the focused window.
  * Returns the leaf if found, otherwise `null`.
  */
 export function openExistingFileTab(
@@ -280,29 +281,22 @@ export function openExistingFileTab(
 	file: TFile,
 	focus = true,
 ): WorkspaceLeaf | null {
-	let leaf: WorkspaceLeaf | undefined = undefined;
 	const focusedLeaf = getFocusedLeaf(app);
-
-	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
-		if (leaf && leaf === focusedLeaf) return;
-		const view = m_leaf.view;
-		if (view instanceof FileView) {
-			if (view.file) {
-				if (
-					view.file === file ||
-					areSameVaultFilePath(file.path, view.file.path)
-				) {
-					leaf = m_leaf;
-					return;
-				}
-			}
-		}
+	const focusedWindow = focusedLeaf?.getContainer();
+	const matches = getMainAreaLeaves(app).filter(({ view }) => {
+		if (!(view instanceof FileView) || !view.file) return false;
+		return (
+			view.file === file || areSameVaultFilePath(file.path, view.file.path)
+		);
 	});
-	if (leaf !== undefined) {
-		if (focus) {
-			app.workspace.setActiveLeaf(leaf, { focus: true });
-		}
-		return leaf;
+	const leaf =
+		matches.find((match) => match === focusedLeaf) ??
+		matches.filter((match) => match.getContainer() === focusedWindow).at(-1) ??
+		matches.at(-1);
+	if (!leaf) return null;
+
+	if (focus) {
+		app.workspace.setActiveLeaf(leaf, { focus: true });
 	}
-	return null;
+	return leaf;
 }

@@ -18,11 +18,10 @@ function makeApp(resolved: unknown): { app: App; leaf: MockLeaf } {
 	const app = {
 		vault: { getAbstractFileByPath: () => resolved },
 		workspace: {
-			rootSplit: {},
 			getMostRecentLeaf: () => null,
 			getLeaf: () => leaf,
 			setActiveLeaf: vi.fn(),
-			iterateRootLeaves: () => {},
+			iterateAllLeaves: () => {},
 			// Obsidian's own getActiveViewOfType reads `activeLeaf`.
 			getActiveViewOfType(this: { activeLeaf?: WorkspaceLeaf | null }) {
 				return this.activeLeaf ? { leaf: this.activeLeaf } : null;
@@ -33,18 +32,73 @@ function makeApp(resolved: unknown): { app: App; leaf: MockLeaf } {
 }
 
 describe("openExistingFileTab", () => {
-	it.each([0, 1, -1])("preserves the active matching tab at index %s", activeIndex => {
+	const mainWindow = {};
+	const popoutWindow = {};
+	const sidebar = {};
+
+	function target(): TFile {
 		const file = new TFile();
 		file.path = "Target.md";
-		const leaves = [0, 1].map(() => ({
+		return file;
+	}
+
+	// A leaf's window is its container; a sidebar leaf's root is its sidebar.
+	function fileLeaf(file: TFile | null, window: object, root = window): WorkspaceLeaf {
+		return {
 			view: Object.assign(Object.create(FileView.prototype), { file }),
-		})) as WorkspaceLeaf[];
+			getContainer: () => window,
+			getRoot: () => root,
+		} as unknown as WorkspaceLeaf;
+	}
+
+	function appWithLeaves(file: TFile, leaves: WorkspaceLeaf[], focused?: WorkspaceLeaf): App {
 		const { app } = makeApp(file);
-		app.workspace.activeLeaf = leaves[activeIndex] ?? null;
-		app.workspace.iterateRootLeaves = callback => { leaves.forEach(callback); };
+		Object.assign(app.workspace, {
+			activeLeaf: focused ?? null,
+			rightSplit: sidebar,
+			iterateAllLeaves: (callback: (leaf: WorkspaceLeaf) => void) => {
+				leaves.forEach(callback);
+			},
+		});
+		return app;
+	}
+
+	it.each([0, 1, -1])("preserves the active matching tab at index %s", activeIndex => {
+		const file = target();
+		const leaves = [fileLeaf(file, mainWindow), fileLeaf(file, mainWindow)];
+		const app = appWithLeaves(file, leaves, leaves[activeIndex]);
 		const expected = leaves[activeIndex] ?? leaves[1];
 		expect(openExistingFileTab(app, file)).toBe(expected);
 		expect(app.workspace.setActiveLeaf).toHaveBeenCalledExactlyOnceWith(expected, { focus: true });
+	});
+
+	it("focuses a tab showing the file in a pop-out window", () => {
+		const file = target();
+		const popoutLeaf = fileLeaf(file, popoutWindow);
+		const app = appWithLeaves(file, [fileLeaf(null, mainWindow), popoutLeaf]);
+
+		expect(openExistingFileTab(app, file)).toBe(popoutLeaf);
+		expect(app.workspace.setActiveLeaf).toHaveBeenCalledExactlyOnceWith(popoutLeaf, { focus: true });
+	});
+
+	it("prefers a matching tab in the focused window over another window's", () => {
+		const file = target();
+		const focused = fileLeaf(null, mainWindow);
+		const mainLeaf = fileLeaf(file, mainWindow);
+		const app = appWithLeaves(
+			file,
+			[focused, mainLeaf, fileLeaf(file, popoutWindow)],
+			focused,
+		);
+
+		expect(openExistingFileTab(app, file)).toBe(mainLeaf);
+	});
+
+	it("does not treat a sidebar leaf showing the file as an open tab", () => {
+		const file = target();
+		const app = appWithLeaves(file, [fileLeaf(file, mainWindow, sidebar)]);
+
+		expect(openExistingFileTab(app, file)).toBeNull();
 	});
 });
 

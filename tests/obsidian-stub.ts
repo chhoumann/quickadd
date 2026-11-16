@@ -503,7 +503,8 @@ export class App {
     getLeaf: () => ({}),
     getLeavesOfType: () => [],
     setActiveLeaf: () => {},
-    iterateRootLeaves: () => {},
+    getMostRecentLeaf: () => null,
+    iterateAllLeaves: () => {},
     getLastOpenFiles: () => [],
   };
   keymap: any = {
