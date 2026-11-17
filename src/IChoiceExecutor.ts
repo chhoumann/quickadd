@@ -13,7 +13,31 @@ import type { PreparedChoiceInputState } from "./preflight/preparedChoiceInputs"
 import type { LoadedUserScript } from "./utils/userScript";
 import type { ChoiceChain } from "./engine/choiceChain";
 
+export interface RunChoiceOptions {
+	/** The chain of the run that starts this one, as for {@link IChoiceExecutor.execute}. */
+	ancestry?: ChoiceChain;
+	/**
+	 * The trigger context of an outermost run whose caller named none, for a
+	 * run that works on a note other than the active one.
+	 */
+	triggerContext?: QuickAddTriggerContext;
+}
+
 export interface IChoiceExecutor {
+	/**
+	 * Runs `work` as a run of `choice`, handing it the run's chain. The run
+	 * first asks for the choice's inputs in the one-page form when that is on,
+	 * resolves its Which day, and sets the run's clocks, trigger context and
+	 * prompt-draft scope. {@link execute} runs a choice's own engine this way.
+	 * Anything else that asks on behalf of a choice, such as applying a
+	 * template to a note, starts here and never builds an engine on its own,
+	 * or the run ignores those settings (#2287).
+	 */
+	runChoice<T>(
+		choice: IChoice,
+		work: (chain: ChoiceChain) => Promise<T>,
+		options?: RunChoiceOptions,
+	): Promise<T>;
 	/**
 	 * Runs `choice`. A run started from inside another passes that run's chain
 	 * as `ancestry`, and the call fails with the cycle when `choice` is already

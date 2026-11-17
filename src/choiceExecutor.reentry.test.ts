@@ -236,7 +236,7 @@ describe("ChoiceExecutor re-entry guard", () => {
 		choices = [a];
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 
-		await new StartupMacroEngine(app, plugin, choices, new ChoiceExecutor(app, plugin)).run();
+		await new StartupMacroEngine(choices, new ChoiceExecutor(app, plugin)).run();
 
 		expect(ran).toEqual(["a"]);
 		expect(logError).toHaveBeenCalledTimes(1);

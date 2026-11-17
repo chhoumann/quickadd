@@ -55,6 +55,28 @@ export function isTemplateInsertMode(
 }
 
 /**
+ * The folder a Template choice would create its note in, as far as it can be
+ * worked out without the choice's folder picker: a folder format to resolve,
+ * or `"note"` for the folder the note is already in. `null` when it takes the
+ * picker, so no move is offered and the choice's file name is never formatted.
+ */
+export function moveOfferFolder(
+	choice: ITemplateChoice,
+): { format: string } | "note" | null {
+	const folder = choice.folder;
+	if (!folder?.enabled) return "note";
+	if (folder.chooseWhenCreatingNote) return null;
+	if (folder.createInSameFolderAsActiveFile) return "note";
+	// chooseFromSubfolders only drives a runtime picker in "specified" mode (the
+	// engine gates its branch on
+	// !(chooseWhenCreatingNote || createInSameFolderAsActiveFile)). A stale flag
+	// left on an active-file-mode choice is inert there and must not suppress
+	// the move offer.
+	if (folder.chooseFromSubfolders || folder.folders.length !== 1) return null;
+	return { format: folder.folders[0] };
+}
+
+/**
  * Splits formatted template content into its YAML frontmatter (without
  * delimiters) and the remaining body.
  */
@@ -234,8 +256,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 	public async computeChoiceTargetPath(
 		choice: ITemplateChoice,
 	): Promise<string | null> {
-		const folderSettings = choice.folder;
-		let folderPath: string;
+		const folder = moveOfferFolder(choice);
+		if (folder === null) return null;
 
 		// This engine's formatter was already used by apply() with the note's
 		// own folder as the {{FOLDER}} target. Clear it so folder-definition
@@ -243,30 +265,9 @@ export class TemplateInsertEngine extends TemplateEngine {
 		// than inheriting that stale value.
 		this.formatter.setTargetFolderPath(null);
 
-		if (folderSettings?.enabled) {
-			if (folderSettings.chooseWhenCreatingNote) {
-				return null;
-			}
-
-			if (folderSettings.createInSameFolderAsActiveFile) {
-				folderPath = this.targetFile.parent?.path ?? "";
-			} else if (folderSettings.chooseFromSubfolders) {
-				// chooseFromSubfolders only drives a runtime picker in "specified"
-				// mode (the engine gates its branch on
-				// !(chooseWhenCreatingNote || createInSameFolderAsActiveFile)). A
-				// stale flag left on an active-file-mode choice is inert there and
-				// must not suppress the move offer here.
-				return null;
-			} else if (folderSettings.folders.length === 1) {
-				folderPath = await this.formatter.formatFolderPath(
-					folderSettings.folders[0],
-				);
-			} else {
-				return null;
-			}
-		} else {
-			folderPath = this.targetFile.parent?.path ?? "";
-		}
+		let folderPath = folder === "note"
+			? this.targetFile.parent?.path ?? ""
+			: await this.formatter.formatFolderPath(folder.format);
 
 		if (folderPath === "/") folderPath = "";
 
@@ -298,7 +299,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 				this.shouldTreatFormattedNameAsVaultRelativePath(
 					routedName,
 					stripped.strippedPrefix,
-					folderSettings?.enabled ?? false,
+					choice.folder?.enabled ?? false,
 				);
 		}
 

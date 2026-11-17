@@ -35,6 +35,7 @@ flowchart LR
 ## State and boundaries
 
 - `settingsStore` is the live configuration source. Its plugin subscriber persists changes through the conflict-aware save path in `main.ts`. Settings UI controls write through the store.
+- Every run of a choice starts in `ChoiceExecutor.runChoice`, which `execute` wraps around the choice's own engine. It owns what a run gets before its engine starts: the one-page form, the choice's Which day, the run's clocks and trigger context, and the prompt-draft scope. Code that asks on behalf of a choice without using its engine, such as applying a template to a note, passes its work to `runChoice`. Building an engine outside it skips those settings.
 - An executor carries variables across nested macro steps. Script API calls have explicit rules for snapshotting or clearing them. Keep those lifetimes at the API boundary.
 - Preflight discovers inputs before an engine writes. It also shares loaded user-script modules with execution so module initialization happens once per run.
 - Formatters evaluate stages in order. Macros, scripts, includes, and global variables can introduce later tokens. Current-file token substitutions deliberately do not rescan their generated text.

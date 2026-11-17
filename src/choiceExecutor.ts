@@ -8,7 +8,7 @@ import type IMacroChoice from "./types/choices/IMacroChoice";
 import { TemplateChoiceEngine } from "./engine/TemplateChoiceEngine";
 import { CaptureChoiceEngine } from "./engine/CaptureChoiceEngine";
 import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
-import type { IChoiceExecutor } from "./IChoiceExecutor";
+import type { IChoiceExecutor, RunChoiceOptions } from "./IChoiceExecutor";
 import type { PromptProvider } from "./interactive/promptProvider";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester, {
@@ -163,67 +163,91 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		}
 	}
 
-	async execute(
+	/**
+	 * Runs `work` as a run of `choice`. Every run of a choice starts here, so
+	 * each one gets the one-page form, the choice's Which day, the run's clocks
+	 * and trigger context, and a prompt-draft scope.
+	 */
+	async runChoice<T>(
 		choice: IChoice,
-		ancestry: ChoiceChain = this.dispatchAncestry,
-	): Promise<void> {
+		work: (chain: ChoiceChain) => Promise<T>,
+		options: RunChoiceOptions = {},
+	): Promise<T> {
 		this.pendingAbort = null;
-		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
-		// another choice through this same executor) transparent to the outcome slot of an
-		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
-		// choice's recorded result never leaks into the outer choice's reported outcome.
-		const savedResult = this.pendingResult;
+		if (
+			options.triggerContext !== undefined &&
+			this.executionDepth === 0 &&
+			this.triggerContextOverride === undefined
+		) {
+			this.triggerContextOverride = options.triggerContext;
+		}
 		const enclosingClocks = this.beginExecutionContext();
-		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
 			// Inside the envelope, so a self-call caught here still ends the run and
 			// clears a note named for it.
-			const chain = enterChoice(choice, ancestry);
+			const chain = enterChoice(choice, options.ancestry ?? this.dispatchAncestry);
 			await this.runOnePagePreflightIfEnabled(choice);
-			await withPreparedChoiceInputs(this, choice.id, async () => {
+			return await withPreparedChoiceInputs(this, choice.id, async () => {
 				await this.applyDateOrigin(choice);
-
-				switch (choice.type) {
-					case "Template": {
-						const templateChoice: ITemplateChoice =
-							choice as ITemplateChoice;
-						await this.onChooseTemplateType(templateChoice, originLeaf, chain);
-						break;
-					}
-					case "Capture": {
-						const captureChoice: ICaptureChoice = choice as ICaptureChoice;
-						await this.onChooseCaptureType(captureChoice, originLeaf, chain);
-						break;
-					}
-					case "Macro": {
-						const macroChoice: IMacroChoice = choice as IMacroChoice;
-						await this.onChooseMacroType(macroChoice, originLeaf, chain);
-						break;
-					}
-					case "Multi": {
-						const multiChoice: IMultiChoice = choice as IMultiChoice;
-						await this.onChooseMultiType(multiChoice, chain);
-						break;
-					}
-					default:
-						break;
-				}
-
+				const result = await work(chain);
 				if (this.pendingAbort) {
 					promptDraftStore.rollbackExecutionScope(draftScope);
-					return;
+				} else {
+					promptDraftStore.commitExecutionScope(draftScope);
 				}
-
-				promptDraftStore.commitExecutionScope(draftScope);
+				return result;
 			});
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope(draftScope);
 			throw error;
 		} finally {
-			this.pendingResult = savedResult;
 			this.endExecutionContext(enclosingClocks);
+		}
+	}
+
+	async execute(
+		choice: IChoice,
+		ancestry: ChoiceChain = this.dispatchAncestry,
+	): Promise<void> {
+		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
+		// another choice through this same executor) transparent to the outcome slot of an
+		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
+		// choice's recorded result never leaks into the outer choice's reported outcome.
+		const savedResult = this.pendingResult;
+		const originLeaf = getOpenFileOriginLeaf(this.app);
+		try {
+			await this.runChoice(
+				choice,
+				(chain) => this.runEngine(choice, originLeaf, chain),
+				{ ancestry },
+			);
+		} finally {
+			this.pendingResult = savedResult;
+		}
+	}
+
+	private async runEngine(
+		choice: IChoice,
+		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
+	): Promise<void> {
+		switch (choice.type) {
+			case "Template":
+				await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf, chain);
+				break;
+			case "Capture":
+				await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf, chain);
+				break;
+			case "Macro":
+				await this.onChooseMacroType(choice as IMacroChoice, originLeaf, chain);
+				break;
+			case "Multi":
+				await this.onChooseMultiType(choice as IMultiChoice, chain);
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -250,9 +274,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	/**
 	 * Executes a Template or Capture choice and returns a structured
-	 * {@link ChoiceOutcome} (used by the URI x-callback handler). Mirrors
-	 * {@link execute}'s envelope (one-page preflight + prompt-draft scope) so behaviour
-	 * is identical to the legacy void path; the only addition is surfacing the outcome.
+	 * {@link ChoiceOutcome} (used by the URI x-callback handler). The run is the
+	 * same as {@link execute}'s; the only addition is surfacing the outcome.
 	 *
 	 * Nesting-safe: Template/Capture never run nested choices through this executor, so
 	 * the single result slot cannot be clobbered. An engine that completed without
@@ -262,46 +285,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async executeWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome> {
-		this.pendingAbort = null;
 		this.pendingResult = null;
-		const enclosingClocks = this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
-		const promptDraftStore = InputPromptDraftStore.getInstance();
-		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
-			const chain = enterChoice(choice, this.dispatchAncestry);
-			await this.runOnePagePreflightIfEnabled(choice);
-			return await withPreparedChoiceInputs(this, choice.id, async (): Promise<ChoiceOutcome> => {
-				await this.applyDateOrigin(choice);
-
-				if (choice.type === "Template") {
-					await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf, chain);
-				} else {
-					await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf, chain);
-				}
-
-				if (this.pendingAbort) {
-					promptDraftStore.rollbackExecutionScope(draftScope);
-					const abort = this.consumeAbortSignal();
-					const isUser = abort instanceof UserCancelError;
-					return {
-						status: "cancelled",
-						cancelKind: isUser ? "user" : "aborted",
-						// Only surface the message for an involuntary abort (e.g. the
-						// non-interactive prompt guards). A user dismissal keeps its stable
-						// "cancelled by user" text and leaks no internals.
-						reason: isUser ? undefined : abort?.message,
-					};
-				}
-
-				promptDraftStore.commitExecutionScope(draftScope);
-				const result = this.pendingResult;
-				this.pendingResult = null;
-				// No success recorded and no abort => the engine swallowed a failure.
-				return result ?? { status: "error" };
-			});
+			await this.runChoice(choice, (chain) => this.runEngine(choice, originLeaf, chain));
 		} catch (error) {
-			promptDraftStore.rollbackExecutionScope(draftScope);
 			if (error instanceof UserCancelError) {
 				// Stable user-facing text; no internal message surfaced.
 				return { status: "cancelled", cancelKind: "user" };
@@ -314,9 +302,25 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				status: "error",
 				reason: error instanceof Error ? error.message : String(error),
 			};
-		} finally {
-			this.endExecutionContext(enclosingClocks);
 		}
+
+		const abort = this.consumeAbortSignal();
+		if (abort) {
+			const isUser = abort instanceof UserCancelError;
+			return {
+				status: "cancelled",
+				cancelKind: isUser ? "user" : "aborted",
+				// Only surface the message for an involuntary abort (e.g. the
+				// non-interactive prompt guards). A user dismissal keeps its stable
+				// "cancelled by user" text and leaks no internals.
+				reason: isUser ? undefined : abort.message,
+			};
+		}
+
+		const result = this.pendingResult;
+		this.pendingResult = null;
+		// No success recorded and no abort => the engine swallowed a failure.
+		return result ?? { status: "error" };
 	}
 
 	private async applyDateOrigin(choice: IChoice): Promise<void> {

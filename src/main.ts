@@ -238,8 +238,6 @@ export default class QuickAdd extends Plugin {
 		const launchStartupMacros = async () => {
 			try {
 				await new StartupMacroEngine(
-					this.app,
-					this,
 					this.settings.choices,
 					new ChoiceExecutor(this.app, this),
 				).run();

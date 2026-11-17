@@ -14,6 +14,7 @@ const {
 	targetPathMock,
 	yesNoPromptMock,
 	suggestMock,
+	preflightMock,
 } =
 	vi.hoisted(() => ({
 		engineApplyMock: vi.fn(),
@@ -29,7 +30,12 @@ const {
 		targetPathMock: vi.fn<() => Promise<string | null>>(async () => null),
 		yesNoPromptMock: vi.fn(async () => true),
 		suggestMock: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+		preflightMock: vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => false),
 	}));
+
+vi.mock("../preflight/runOnePagePreflight", () => ({
+	runOnePagePreflight: (...args: unknown[]) => preflightMock(...args),
+}));
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: { Suggest: (...args: unknown[]) => suggestMock(...args) },
@@ -84,6 +90,8 @@ import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
+import { ChoiceExecutor } from "../choiceExecutor";
+import { settingsStore } from "../settingsStore";
 import {
 	applyTemplateToNote,
 	buildTemplatePickerItems,
@@ -375,11 +383,14 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		const chain = [{ id: "A", name: "A", type: "Macro" }];
 		await applyTemplateToNote(makeApp("CONTENT", makeFile()), plugin, {
 			templatePath: "templates/tpl.md",
-			choiceExecutor: makeExecutor(),
+			choiceExecutor: new ChoiceExecutor(makeApp("CONTENT", makeFile()), plugin),
 			chain: chain as never,
 		});
 
-		expect(chainMock).toHaveBeenCalledWith(chain);
+		expect(chainMock).toHaveBeenCalledWith([
+			chain[0],
+			expect.objectContaining({ id: "template-insert#templates/tpl.md" }),
+		]);
 	});
 
 	it("keeps the draft scope stable across applications of the same template", async () => {
@@ -431,52 +442,71 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		expect(executor.variables.get("value")).toBe("Custom");
 	});
 
-	it("seeds the trigger context with the target note, then restores it (issue #1429)", async () => {
+	it("makes the target note the run's trigger note, then clears it (issue #1429)", async () => {
+		// The file menu applies a template to a note that is not the active one.
 		const file = makeFile();
-		const executor = makeExecutor();
+		const app = makeApp("CONTENT", null);
+		const executor = new ChoiceExecutor(app, plugin);
 		let contextDuringApply: unknown;
 		engineApplyMock.mockImplementationOnce(async () => {
-			contextDuringApply = (
-				executor as unknown as { triggerContext?: unknown }
-			).triggerContext;
+			contextDuringApply = executor.triggerContext;
 			return file;
 		});
 
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		await applyTemplateToNote(app, plugin, {
+			file,
 			templatePath: "templates/tpl.md",
 			choiceExecutor: executor,
 		});
 
 		// During apply, default-from:active resolves against the target note...
 		expect(contextDuringApply).toEqual({ activeFile: file });
-		// ...and the executor is restored afterward so a reused executor (a script
-		// applying templates to several notes) never leaks the stale note.
-		expect(
-			(executor as unknown as { triggerContext?: unknown }).triggerContext,
-		).toBeUndefined();
+		// ...and it is gone afterward, so a reused executor (a script applying
+		// templates to several notes) never leaks the stale note.
+		expect(executor.triggerContext).toBeNull();
 	});
 
 	it("does not clobber a caller-supplied trigger context", async () => {
 		const file = makeFile();
-		const callerContext = { activeFile: makeFile() };
-		const executor = makeExecutor();
-		const ctx = () =>
-			(executor as unknown as { triggerContext?: unknown }).triggerContext;
-		(executor as unknown as { triggerContext?: unknown }).triggerContext =
-			callerContext;
+		const named = makeFile();
+		const app = makeApp("CONTENT", file);
+		const executor = new ChoiceExecutor(app, plugin);
+		executor.setCurrentFile(named);
 		let contextDuringApply: unknown;
 		engineApplyMock.mockImplementationOnce(async () => {
-			contextDuringApply = ctx();
+			contextDuringApply = executor.triggerContext;
 			return file;
 		});
 
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		await applyTemplateToNote(app, plugin, {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: executor,
 		});
 
-		expect(contextDuringApply).toBe(callerContext);
-		expect(ctx()).toBe(callerContext);
+		expect(contextDuringApply).toEqual({ activeFile: named, named: true });
+	});
+
+	it("asks for the template's inputs in the one-page form before applying it (#2287)", async () => {
+		settingsStore.setState({ onePageInputEnabled: true });
+		const app = makeApp("CONTENT", makeFile());
+		try {
+			await applyTemplateToNote(app, plugin, {
+				templatePath: "templates/tpl.md",
+				choiceExecutor: new ChoiceExecutor(app, plugin),
+			});
+		} finally {
+			settingsStore.setState({ onePageInputEnabled: false });
+		}
+
+		expect(preflightMock).toHaveBeenCalledTimes(1);
+		expect(preflightMock.mock.calls[0][3]).toMatchObject({
+			type: "Template",
+			templatePath: "templates/tpl.md",
+			fileNameFormat: { enabled: false },
+		});
+		expect(preflightMock.mock.invocationCallOrder[0]).toBeLessThan(
+			engineApplyMock.mock.invocationCallOrder[0],
+		);
 	});
 
 	it("returns null without an active markdown note", async () => {
@@ -640,5 +670,62 @@ describe("the move offer refuses an impossible target (#1591)", () => {
 
 		expect(yesNoPromptMock).toHaveBeenCalled();
 		expect(renameFile).toHaveBeenCalled();
+	});
+});
+
+
+describe("the one-page form for a picked Template choice (#2287)", () => {
+	const file = new TFile();
+	file.path = "notes/My note.md";
+	file.basename = "My note";
+	file.extension = "md";
+	const app = {
+		workspace: { getActiveFile: () => file, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
+		// Empty, so the insert mode picker is skipped.
+		vault: { read: async () => "" },
+	} as unknown as App;
+
+	async function formChoiceFor(folder: Partial<ITemplateChoice["folder"]>) {
+		const choice = makeTemplateChoice("Client", "templates/tpl.md");
+		choice.onePageInput = "always";
+		choice.discoverExistingNotesBeforeCreate = true;
+		choice.fileNameFormat = { enabled: true, format: "{{VALUE:client}}" };
+		choice.folder = { ...choice.folder, enabled: true, folders: ["Clients/{{VALUE:area}}"], ...folder };
+		const plugin = {
+			settings: { choices: [choice] },
+			getTemplateFiles: () => [],
+		} as unknown as QuickAdd;
+		vi.clearAllMocks();
+		engineApplyMock.mockImplementation(async () => file);
+		suggestMock.mockImplementation(async (_app, _labels, values) => (values as unknown[])[0]);
+
+		await applyTemplateToNote(app, plugin, { file, choiceExecutor: new ChoiceExecutor(app, plugin) });
+
+		expect(preflightMock).toHaveBeenCalledTimes(1);
+		return preflightMock.mock.calls[0][3] as ITemplateChoice;
+	}
+
+	it("asks for the folder and file name the move offer formats", async () => {
+		const asked = await formChoiceFor({});
+
+		expect(asked.id).toBe("id-Client");
+		expect(asked.folder.folders).toEqual(["Clients/{{VALUE:area}}"]);
+		expect(asked.fileNameFormat).toEqual({ enabled: true, format: "{{VALUE:client}}" });
+		// Applying to a note never searches for one.
+		expect(asked.discoverExistingNotesBeforeCreate).toBe(false);
+	});
+
+	it("asks for the file name only when the note stays in its folder", async () => {
+		const asked = await formChoiceFor({ createInSameFolderAsActiveFile: true });
+
+		expect(asked.folder.folders).toEqual([]);
+		expect(asked.fileNameFormat.enabled).toBe(true);
+	});
+
+	it("asks for neither when the folder takes a picker, so no move is offered", async () => {
+		const asked = await formChoiceFor({ chooseWhenCreatingNote: true });
+
+		expect(asked.folder.folders).toEqual([]);
+		expect(asked.fileNameFormat.enabled).toBe(false);
 	});
 });

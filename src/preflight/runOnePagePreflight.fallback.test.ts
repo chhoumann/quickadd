@@ -123,6 +123,21 @@ describe("runOnePagePreflight fallback warning", () => {
 		expect(logWarningMock).not.toHaveBeenCalled();
 	});
 
+	it("leaves a non-interactive run to its step-by-step prompts, which abort", async () => {
+		// Opening the form here would wait on a window nobody is at.
+		let opened = false;
+		modalOutcome = () => {
+			opened = true;
+			return Promise.resolve({ value: "typed" });
+		};
+		const executor = createExecutor();
+		executor.interactive = false;
+		await expect(run(executor)).resolves.toBe(false);
+		expect(opened).toBe(false);
+		expect(executor.variables.has("value")).toBe(false);
+		expect(logWarningMock).not.toHaveBeenCalled();
+	});
+
 	it("rethrows a MacroAbortError without warning", async () => {
 		const abort = new MacroAbortError("Input cancelled by user");
 		modalOutcome = () => Promise.reject(abort);

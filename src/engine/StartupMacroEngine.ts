@@ -1,16 +1,11 @@
-import type { App } from "obsidian";
-import { MacroChoiceEngine } from "./MacroChoiceEngine";
-import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import { flattenChoices } from "../utils/choiceUtils";
-import { reportError } from "../utils/errorUtils";
+import { reportUnlessCancelled } from "../utils/errorUtils";
 
 export class StartupMacroEngine {
 	constructor(
-		private app: App,
-		private plugin: QuickAdd,
 		private choices: IChoice[],
 		private choiceExecutor: IChoiceExecutor
 	) {}
@@ -24,15 +19,9 @@ export class StartupMacroEngine {
 			// dependency, etc.) must not stop the rest from running. Report the
 			// failure naming the macro and continue to the next one.
 			try {
-				await new MacroChoiceEngine(
-					this.app,
-					this.plugin,
-					choice,
-					this.choiceExecutor,
-					new Map()
-				).run();
+				await this.choiceExecutor.execute(choice);
 			} catch (error) {
-				reportError(
+				reportUnlessCancelled(
 					error,
 					`Startup macro '${choice.name}' failed`
 				);

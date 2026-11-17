@@ -218,6 +218,9 @@ export async function runOnePagePreflight(
 		// provider instead of the Obsidian modal. Multi-select FILE answers stay as
 		// arrays across this internal boundary so display labels are never parsed.
 		const provider = choiceExecutor.promptProvider;
+		// Nobody is at the window in a non-interactive run. Each prompt then
+		// aborts and names the input to pass.
+		if (!provider && choiceExecutor.interactive === false) return false;
 		let modal: OnePageInputModal | null = null;
 		let values: Record<string, FormAnswer>;
 		if (provider) {

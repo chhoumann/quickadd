@@ -19,7 +19,10 @@ For a task-oriented overview of prompts in general, see
 
 Go to **Settings → QuickAdd** and toggle **One-page input for choices**.
 
-It works with Template, Capture, and Macro choices.
+It works with Template, Capture, and Macro choices, including a Macro that runs
+when Obsidian starts. It also works when you
+[apply a template to a note](/docs/ApplyTemplateToNote/) or create a
+[new note from a template](/docs/Choices/TemplateChoice/#run-without-choice).
 
 When you run a Macro, the Templates and Captures you added to it share one
 form.

@@ -19,8 +19,10 @@ import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { readNote } from "../utils/noteContent";
+import { TemplateChoice } from "../types/choices/TemplateChoice";
 import {
 	TemplateInsertEngine,
+	moveOfferFolder,
 	templateInsertModes,
 	type TemplateInsertModeId,
 } from "./TemplateInsertEngine";
@@ -135,20 +137,6 @@ export async function applyTemplateToNote(
 		return null;
 	}
 
-	// This path runs a template through the executor WITHOUT going through
-	// ChoiceExecutor.execute(), so beginExecutionContext() never captures the
-	// trigger context. Seed it here so {{FIELD:<field>|default-from:active}} in
-	// the applied template can read the note being applied to (issue #1429): the
-	// active note for the command, or the explicit params.file for the API path.
-	// Seed only when absent (never clobber a caller-supplied context) and restore
-	// the prior value in `finally`, so a reused executor — e.g. a script applying
-	// templates to several notes in turn, or a later `format()` on the same API
-	// object — never inherits this call's note for a subsequent default-from:active.
-	const previousTriggerContext = params.choiceExecutor.triggerContext;
-	if (previousTriggerContext == null) {
-		params.choiceExecutor.triggerContext = { activeFile: file };
-	}
-
 	try {
 		const interactive = !params.templatePath;
 		let source: TemplatePickerItem;
@@ -195,74 +183,108 @@ export async function applyTemplateToNote(
 			params.choiceExecutor.variables.set("value", file.basename);
 		}
 
-		const engine = new TemplateInsertEngine(
-			app,
-			plugin,
-			file,
-			templatePath,
-			mode,
-			params.choiceExecutor,
+		return await params.choiceExecutor.runChoice(
+			appliedTemplateChoice(source),
+			async (chain) => {
+				const engine = new TemplateInsertEngine(
+					app,
+					plugin,
+					file,
+					templatePath,
+					mode,
+					params.choiceExecutor,
+				);
+				engine.choiceChain = chain;
+				// Prompts raised while applying the template say which choice is driving
+				// and which note is being written (issue #1546). Applying a bare template
+				// has no choice, so only the destination is known. Prompts inside the
+				// template SOURCE path do not show the destination - scopeShowsDestination
+				// withholds it, because those answers pick which template to read.
+				engine.setPromptRunContext({
+					choiceName: source.kind === "choice" ? source.choice.name : undefined,
+					draftScopeId:
+						source.kind === "choice"
+							? source.choice.id
+							: `template-insert#${templatePath}`,
+					destination: file.path,
+					destinationKind: "file",
+				});
+
+				// Resolve format tokens in the path (issue #620), then re-validate that
+				// the RESOLVED file is still a markdown template: a token can expand a
+				// markdown-looking path (e.g. "Templates/{{value:t}}") into a .canvas or
+				// .base file, which must not be applied to a markdown note. The raw-path
+				// check above only catches a literal canvas/base extension.
+				const resolvedTemplatePath = await engine.getResolvedTemplatePath();
+				if (!isMarkdownTemplatePath(resolvedTemplatePath)) {
+					new Notice(
+						"QuickAdd: Only markdown templates can be applied to a note. Canvas and base templates create their own file types.",
+					);
+					return null;
+				}
+
+				const result = await engine.apply();
+				if (!result) return null;
+
+				if (interactive && source.kind === "choice") {
+					// Reconciliation computes where the choice WOULD create the note so a
+					// move can be offered. Any prompt it raises does not land in the note
+					// being templated, so drop the destination rather than advertise a
+					// path the answer never reaches (issue #1546).
+					engine.setPromptRunContext({
+						destination: undefined,
+						destinationKind: undefined,
+					});
+					await maybeReconcileNoteLocation(app, engine, source.choice, file);
+				}
+
+				if (!engine.hasTemplaterHandledCursor() && !await jumpToNextTemplaterCursorIfPossible(app, file)) {
+					engine.placeCursor(file);
+				}
+				new Notice(`Applied template to '${file.basename}'.`);
+				return file;
+			},
+			// The note being templated is the run's trigger note, so
+			// {{FIELD:<field>|default-from:active}} reads it (issue #1429) even when
+			// the file menu applied the template to a note that is not the active one.
+			{ ancestry: params.chain, triggerContext: { activeFile: file } },
 		);
-		if (params.chain) engine.choiceChain = params.chain;
-		// Prompts raised while applying the template say which choice is driving
-		// and which note is being written (issue #1546). Applying a bare template
-		// has no choice, so only the destination is known. Prompts inside the
-		// template SOURCE path do not show the destination - scopeShowsDestination
-		// withholds it, because those answers pick which template to read.
-		engine.setPromptRunContext({
-			choiceName: source.kind === "choice" ? source.choice.name : undefined,
-			draftScopeId:
-				source.kind === "choice"
-					? source.choice.id
-					: `template-insert#${templatePath}`,
-			destination: file.path,
-			destinationKind: "file",
-		});
-
-		// Resolve format tokens in the path (issue #620), then re-validate that
-		// the RESOLVED file is still a markdown template: a token can expand a
-		// markdown-looking path (e.g. "Templates/{{value:t}}") into a .canvas or
-		// .base file, which must not be applied to a markdown note. The raw-path
-		// check above only catches a literal canvas/base extension.
-		const resolvedTemplatePath = await engine.getResolvedTemplatePath();
-		if (!isMarkdownTemplatePath(resolvedTemplatePath)) {
-			new Notice(
-				"QuickAdd: Only markdown templates can be applied to a note. Canvas and base templates create their own file types.",
-			);
-			return null;
-		}
-
-		const result = await engine.apply();
-		if (!result) return null;
-
-		if (interactive && source.kind === "choice") {
-			// Reconciliation computes where the choice WOULD create the note so a
-			// move can be offered. Any prompt it raises does not land in the note
-			// being templated, so drop the destination rather than advertise a
-			// path the answer never reaches (issue #1546).
-			engine.setPromptRunContext({
-				destination: undefined,
-				destinationKind: undefined,
-			});
-			await maybeReconcileNoteLocation(app, engine, source.choice, file);
-		}
-
-		if (!engine.hasTemplaterHandledCursor() && !await jumpToNextTemplaterCursorIfPossible(app, file)) {
-			engine.placeCursor(file);
-		}
-		new Notice(`Applied template to '${file.basename}'.`);
-		return file;
 	} catch (err) {
 		if (isCancellationError(err) || isAbortError(err)) {
 			return null;
 		}
 		reportError(err, "Error applying template to note");
 		return null;
-	} finally {
-		// Restore the executor's prior trigger context (see the seeding note above)
-		// so this direct, non-execute() path never leaks state across calls.
-		params.choiceExecutor.triggerContext = previousTriggerContext;
 	}
+}
+
+/**
+ * The Template choice a template is applied as, which is what the run asks
+ * about. A picked choice keeps its own settings, with the folder and file name
+ * that the move offer formats. A template file is a choice with nothing but
+ * that template.
+ */
+function appliedTemplateChoice(source: TemplatePickerItem): ITemplateChoice {
+	if (source.kind === "file") {
+		const choice = new TemplateChoice(source.path);
+		choice.id = `template-insert#${source.path}`;
+		choice.templatePath = source.path;
+		return choice;
+	}
+
+	const { choice } = source;
+	const folder = moveOfferFolder(choice);
+	return {
+		...choice,
+		// Applying to a note never searches for one to open.
+		discoverExistingNotesBeforeCreate: false,
+		folder: {
+			...choice.folder,
+			folders: folder !== null && folder !== "note" ? [folder.format] : [],
+		},
+		fileNameFormat:
+			folder === null ? { enabled: false, format: "" } : choice.fileNameFormat,
+	};
 }
 
 function isAbortError(error: unknown): boolean {
