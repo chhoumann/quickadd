@@ -110,6 +110,7 @@ export interface QuickAddSettings {
 		migrateToMultipleTemplateFolders: boolean;
 		refreshStaleDefaultModelSeeds: boolean;
 		pinAiModelRefs: boolean;
+		retireLeaveUnchangedKeepMode: boolean;
 	};
 }
 
@@ -161,5 +162,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateToMultipleTemplateFolders: false,
 		refreshStaleDefaultModelSeeds: false,
 		pinAiModelRefs: false,
+		retireLeaveUnchangedKeepMode: false,
 	},
 };

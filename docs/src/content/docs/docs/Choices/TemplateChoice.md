@@ -483,4 +483,8 @@ These options keep the existing file untouched and create a new file instead:
 These options leave the existing file unchanged:
 
 - **Open existing file** - opens the existing file, even when **Open** is off.
-- **Do nothing** - opens the existing file only when **Open** is on.
+- **Do nothing** - leaves the existing file closed, even when **Open** is on.
+
+To open a note only on the run that creates it, such as a daily note created
+by a macro with [Run on startup](/docs/Choices/MacroChoice/#run-on-startup), turn **Open**
+on and choose **Do nothing**.

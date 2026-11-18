@@ -74,10 +74,12 @@ export const fileExistsModes = [
 		opensExistingFile: true,
 	},
 	{
-		id: "leaveUnchanged",
+		// Replaces 2.33's leaveUnchanged, which opened the note when Open was on.
+		// normalizeTemplateChoice maps that id to doNothing or leaveClosed.
+		id: "leaveClosed",
 		category: "keep",
 		label: "Do nothing",
-		description: "Leaves the existing file unchanged. It opens only when Open is on.",
+		description: "Leaves the existing file unchanged and closed, even when Open is on.",
 		requiresExistingFile: true,
 		resolutionKind: "reuseExisting",
 		opensExistingFile: false,
@@ -145,7 +147,7 @@ const legacyFileExistsModeMap: Record<string, FileExistsModeId> = {
 	increment: "increment",
 	duplicateSuffix: "duplicateSuffix",
 	doNothing: "doNothing",
-	leaveUnchanged: "leaveUnchanged",
+	leaveClosed: "leaveClosed",
 };
 
 const createNewPathResolvers: Record<
@@ -180,7 +182,7 @@ function getCategoryForMode(
 // existing file with the same behavior. Leaving the note alone from the prompt is
 // what Escape already does.
 export function getPromptModes(): FileExistsModeDefinition[] {
-	return fileExistsModes.filter((mode) => mode.id !== "leaveUnchanged");
+	return fileExistsModes.filter((mode) => mode.id !== "leaveClosed");
 }
 
 export function getDefaultBehaviorForCategory(

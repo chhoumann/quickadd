@@ -150,7 +150,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			});
 
 			let createdFile: TFile | null;
-			let shouldAutoOpen = false;
+			let shouldOpen = this.choice.openFile;
 			let createdNew = false;
 			// What this run did to its target note (#1615). Derived from the file-exists
 			// resolution the engine actually performed rather than from a byte compare,
@@ -198,7 +198,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					return;
 				}
 
-				({ createdFile, shouldAutoOpen } = await this.applyFileExistsMode(
+				let keptFileOpens: boolean | undefined;
+				({ createdFile, keptFileOpens } = await this.applyFileExistsMode(
 					modeId,
 					targetFilePath,
 					existingFile,
@@ -219,6 +220,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					}
 					return;
 				}
+				shouldOpen = keptFileOpens ?? shouldOpen;
 			} else {
 				createdFile = await this.createFileWithTemplate(
 					targetFilePath,
@@ -276,7 +278,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				await copyChoiceFileLink(createdFile);
 			}
 
-			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
+			if (shouldOpen && createdFile) {
 				await openChoiceFile({
 					app: this.app, file: createdFile,
 					opening: this.choice.fileOpening, originLeaf: this.originLeaf,
@@ -476,7 +478,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		existingFile: TFile | null,
 		templatePath: string,
 		linkOptions: NormalizedAppendLinkOptions,
-	): Promise<{ createdFile: TFile | null; shouldAutoOpen: boolean }> {
+	): Promise<{ createdFile: TFile | null; keptFileOpens?: boolean }> {
 		const mode = getFileExistsMode(modeId);
 
 		switch (mode.resolutionKind) {
@@ -488,7 +490,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						templatePath,
 						linkOptions,
 					),
-					shouldAutoOpen: false,
 				};
 			case "createNew": {
 				const nextFilePath = await resolveCreateNewCollisionFilePath(
@@ -513,15 +514,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					new Notice(`Created '${createdFile.basename}'.`);
 				}
 
-				return {
-					createdFile,
-					shouldAutoOpen: false,
-				};
+				return { createdFile };
 			}
 			case "reuseExisting":
 				return {
 					createdFile: existingFile,
-					shouldAutoOpen: mode.opensExistingFile,
+					keptFileOpens: mode.opensExistingFile,
 				};
 		}
 	}
