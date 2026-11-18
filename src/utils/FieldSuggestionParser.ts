@@ -5,6 +5,7 @@ import {
 	splitPipeParts,
 } from "./pipeSyntax";
 import { suggestSimilarKeys } from "./suggestSimilarKeys";
+import { RESERVED_VALUE_NAMES } from "./valueSyntax";
 import {
 	parseMultiValueFormat,
 	type MultiValueFormat,
@@ -36,6 +37,7 @@ export const FIELD_FILTER_KEYS = [
 	"multi",
 	"format",
 	"label",
+	"name",
 ] as const;
 
 /**
@@ -171,6 +173,8 @@ export class FieldSuggestionParser {
 		multiFormat?: MultiValueFormat;
 		/** The prompt's own wording, shown instead of "Enter value for <field>". */
 		label?: string;
+		/** The run variable the answer is read from and written to, as `{{VALUE:<name>}}` does. */
+		name?: string;
 	} {
 		const parts = splitPipeParts(input).map((p) => p.trim());
 		const fieldName = parts[0];
@@ -179,6 +183,7 @@ export class FieldSuggestionParser {
 		let multiFormat: MultiValueFormat = "auto";
 		let multiFormatExplicit = false;
 		let label: string | undefined;
+		let name: string | undefined;
 
 		for (let i = 1; i < parts.length; i++) {
 			const filterPart = parts[i];
@@ -228,6 +233,15 @@ export class FieldSuggestionParser {
 			switch (filterType) {
 				case "label":
 					label = filterValue || undefined;
+					break;
+				case "name":
+					if (!RESERVED_VALUE_NAMES.has(filterValue.toLowerCase())) {
+						name = filterValue || undefined;
+					} else if (options?.warnUnknown) {
+						(options.warn ?? NOTICE_WARN)(
+							`QuickAdd: |name:${filterValue} is reserved and was ignored in "{{FIELD:${input}}}". Choose a different name.`,
+						);
+					}
 					break;
 				case "multi":
 					multiSelect = parseBooleanFlag(filterValue);
@@ -323,6 +337,7 @@ export class FieldSuggestionParser {
 			...(multiSelect ? { multiSelect } : {}),
 			...(multiFormat !== "auto" ? { multiFormat } : {}),
 			...(label ? { label } : {}),
+			...(name ? { name } : {}),
 		};
 	}
 }

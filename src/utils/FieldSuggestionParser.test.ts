@@ -258,6 +258,20 @@ describe("FieldSuggestionParser", () => {
 				"project|label:",
 				{ fieldName: "project", filters: {} },
 			],
+			[
+				"keeps the shared variable's name out of the filters (issue #2289)",
+				"project|folder:Projects|name:client",
+				{
+					fieldName: "project",
+					filters: { folder: "Projects", folders: ["Projects"] },
+					name: "client",
+				},
+			],
+			[
+				"ignores a name QuickAdd fills itself",
+				"title|name:Title",
+				{ fieldName: "title", filters: {} },
+			],
 		])("%s", (_name, input, expected) => {
 			expect(FieldSuggestionParser.parse(input)).toEqual(expected);
 		});

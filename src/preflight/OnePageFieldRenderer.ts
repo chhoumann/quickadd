@@ -345,9 +345,10 @@ export class OnePageFieldRenderer {
 				// Attach inline suggester powered by vault data & filters encoded in
 				// req.id. Collected FIELD requirements are keyed "FIELD:<specifier>";
 				// strip the prefix so the suggester parses the bare field specifier.
-				const fieldSpecifier = req.id.startsWith(FIELD_VARIABLE_PREFIX)
-					? req.id.slice(FIELD_VARIABLE_PREFIX.length)
-					: req.id;
+				const fieldSpecifier = req.fieldSpecifier ??
+					(req.id.startsWith(FIELD_VARIABLE_PREFIX)
+						? req.id.slice(FIELD_VARIABLE_PREFIX.length)
+						: req.id);
 				try {
 					control.suggesters.push(new FieldValueInputSuggest(this.app, input.inputEl, fieldSpecifier));
 				} catch {

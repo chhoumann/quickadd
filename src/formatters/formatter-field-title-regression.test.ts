@@ -24,6 +24,11 @@ class FieldTitleFormatter extends FormatterStub {
 		return await this.format(input);
 	}
 
+	/** Named VALUEs, then FIELDs: the order every formatter replaces them in. */
+	public async runValuesThenFields(input: string): Promise<string> {
+		return await this.format(await this.replaceVariableInString(input));
+	}
+
 	public async runFormatWithPropertyCollection(input: string): Promise<string> {
 		return await this.withTemplatePropertyCollection(() => this.format(input));
 	}
@@ -63,6 +68,28 @@ describe("Formatter FIELD and TITLE namespace handling", () => {
 		expect(formatter.fieldCalls).toEqual(["title"]);
 		expect((formatter as any).variables.get("title")).toBe("My Note");
 		expect((formatter as any).variables.get("FIELD:title")).toBe("YAML Note Title");
+	});
+
+	it("takes the run variable its |name: names instead of asking (#2289)", async () => {
+		formatter.setMockFieldResponse("status|name:status", "picked by name");
+		formatter.setMockFieldResponse("status", "picked");
+		(formatter as any).variables.set("Status", "other");
+
+		const result = await formatter.runFormat("{{FIELD:status|name:status}} / {{FIELD:status}}");
+
+		// Without |name:, a FIELD still keeps to itself.
+		expect(result).toBe("other / picked");
+		expect(formatter.fieldCalls).toEqual(["status"]);
+	});
+
+	it("asks a named FIELD before a {{VALUE}} of that name and shares the pick", async () => {
+		formatter.setMockFieldResponse("status|name:state", "Draft");
+
+		const result = await formatter.runValuesThenFields("{{VALUE:state}} {{FIELD:status|name:state}}");
+
+		expect(result).toBe("Draft Draft");
+		expect(formatter.fieldCalls).toEqual(["status|name:state"]);
+		expect((formatter as any).variables.get("state")).toBe("Draft");
 	});
 
 	it("caches FIELD:title values independently of the title variable", async () => {

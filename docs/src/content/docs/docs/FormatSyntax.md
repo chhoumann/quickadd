@@ -965,6 +965,28 @@ included. To ask twice from the same property, give each placeholder its own
 label: `{{FIELD:person|label:Host}}` and `{{FIELD:person|label:Note taker}}`.
 To ask once, write the same label (or none) everywhere.
 
+#### Share the answer with the rest of the run: `|name:` {#field-name}
+
+A FIELD keeps its answer to itself: a variable called `project` does not answer
+`{{FIELD:project}}`. Add `|name:<variable>` to store the answer in a
+[run variable](/docs/VariablesDataFlow/) instead, the way `{{VALUE:<variable>}}`
+does:
+
+```markdown title="You write"
+---
+project: {{FIELD:project|name:project}}
+---
+# {{VALUE:project}}
+```
+
+You pick the project once, from the values your vault already has, and
+`{{VALUE:project}}` writes the same pick.
+
+- When the variable is already set, the FIELD writes it and does not ask. The value can come from a script (`params.variables.project = "..."`), the CLI or a URI (`value-project=...`), the API, or an earlier `{{VALUE:project}}` or `{{VDATE:project}}` answer.
+- When it is not set, the FIELD asks, and later placeholders and steps read the pick as `{{VALUE:project}}`.
+- The name does not have to be the property's: `{{FIELD:project|name:client}}` shares `client`. Names match case-insensitively, as they do for `{{VALUE}}`.
+- `title` and `value` cannot be used as names: they hold the new note's file name and the unnamed `{{VALUE}}`.
+
 #### Default to the active note's value: `|default-from:active` {#field-default-from-active}
 
 `{{FIELD:project|default-from:active}}` pre-fills the prompt with the value

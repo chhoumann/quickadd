@@ -87,7 +87,7 @@ describe("describeUnknownFieldFilter", () => {
 	it("keeps the full vocabulary when nothing is close", () => {
 		const message = describeUnknownFieldFilter("sortby", "status|sortby:x");
 		expect(message).toBe(
-			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi, format, label.',
+			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi, format, label, name.',
 		);
 	});
 

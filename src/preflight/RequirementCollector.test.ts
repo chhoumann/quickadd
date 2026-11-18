@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { RequirementCollector } from "./RequirementCollector";
+import { getUnresolvedRequirements } from "./collectChoiceRequirements";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
 
 // Light stubs for app/plugin
@@ -319,6 +320,23 @@ Body`);
         id: "FIELD:People|folder:Contacts",
         type: "field-suggest",
       });
+    });
+
+    it("lists a named FIELD under its run variable, as one picker with a same-name VALUE (#2289)", async () => {
+      const rc = new RequirementCollector(makeApp(), makePlugin());
+      await rc.scanString("# {{VALUE:client}}\n{{FIELD:project|folder:Work|name:client}} {{FIELD:project}}");
+
+      expect([...rc.requirements.keys()]).toEqual(["client", "FIELD:project"]);
+      expect(rc.requirements.get("client")).toMatchObject({
+        type: "field-suggest",
+        label: "project",
+        fieldSpecifier: "project|folder:Work|name:client",
+      });
+      // A value passed up front, as the CLI's value-client=..., answers only the named FIELD.
+      expect(
+        getUnresolvedRequirements([...rc.requirements.values()], new Map([["Client", "Acme"]]))
+          .map((requirement) => requirement.id),
+      ).toEqual(["FIELD:project"]);
     });
 
     it("names the one-page field after its |label: (issue #1797)", async () => {

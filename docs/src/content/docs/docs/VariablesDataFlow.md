@@ -48,6 +48,10 @@ placeholder is formatted, the placeholder uses that value and never asks. A key
 that is absent or set to `undefined` counts as missing; an empty string counts
 as a deliberate empty answer.
 
+A [`{{FIELD:project|name:project}}`](/docs/FormatSyntax/#field-name) picker
+reads and writes the same `project` variable. Without `|name:`, a FIELD keeps
+its answer to itself.
+
 When the prompt should be a picker, define the options once with a name, then
 reuse the name on its own:
 

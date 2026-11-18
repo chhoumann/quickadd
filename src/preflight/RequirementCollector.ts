@@ -189,7 +189,7 @@ export class RequirementCollector extends Formatter {
 		const fieldTokens = new RegExp(FIELD_VAR_REGEX_WITH_FILTERS.source, "gi");
 		for (const match of input.matchAll(fieldTokens)) {
 			this.notePosition(
-				`${FIELD_VARIABLE_PREFIX}${match[1]}${match[2] ?? ""}`,
+				this.fieldRequirementId(`${match[1]}${match[2] ?? ""}`),
 				match.index,
 			);
 		}
@@ -608,14 +608,21 @@ export class RequirementCollector extends Formatter {
 		// in the one-page form land where replaceFieldVarInString looks them up
 		// (issue #1184). Actual suggestions are provided by the UI.
 		const parsed = FieldSuggestionParser.parse(variableName);
-		const key = `${FIELD_VARIABLE_PREFIX}${variableName}`;
-		if (!this.requirements.has(key)) {
+		const key = this.fieldRequirementId(variableName);
+		// A named FIELD asks before a {{VALUE:<name>}} of the same text, so its
+		// picker replaces the text input that VALUE was recorded with.
+		const existing = this.requirements.get(key);
+		const replacesTextInput = existing !== undefined &&
+			(existing.type === "text" || existing.type === "textarea") &&
+			!this.hasOptionList(existing);
+		if (!existing || replacesTextInput) {
 			const requirement: FieldRequirement = {
 				id: key,
 				label: parsed.label ?? (parsed.fieldName || variableName),
 				type: "field-suggest",
 				source: "collected",
 				runtimeOnly: parsed.multiSelect,
+				fieldSpecifier: variableName,
 			};
 			// Single-select |default-from:active (issue #1429): resolve the active
 			// note's current value so the one-page form prefills it (OnePageInputModal
@@ -643,6 +650,14 @@ export class RequirementCollector extends Formatter {
 			this.requirements.set(key, requirement);
 		}
 		return "";
+	}
+
+	/** A FIELD's answer is under the run variable its `|name:` names, or else its own FIELD: key. */
+	private fieldRequirementId(fieldSpecifier: string): string {
+		return (
+			FieldSuggestionParser.parse(fieldSpecifier).name ??
+			`${FIELD_VARIABLE_PREFIX}${fieldSpecifier}`
+		);
 	}
 
 	/**

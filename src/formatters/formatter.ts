@@ -19,6 +19,7 @@ import { log } from "../logger/logManager";
 import { escapeValueInsideQuotedYamlScalar } from "../utils/yamlScalarQuoting";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
+import { resolveExistingVariableKey } from "../utils/valueSyntax";
 import { stringifyPropertyTokenValue } from "../engine/captureProperty";
 import type { CompleteFormatter } from "./completeFormatter";
 
@@ -246,18 +247,11 @@ export abstract class Formatter extends ValueFormatter {
 			const fullMatch = match[1] + (match[2] || "");
 
 			if (fullMatch) {
-				const fieldVariableKey = this.getFieldVariableKey(fullMatch);
 				const parsed = FieldSuggestionParser.parse(fullMatch, {
 					warnUnknown: true,
 					warn: this.warnSink,
 				});
-
-				if (!this.hasConcreteVariable(fieldVariableKey)) {
-					this.variables.set(
-						fieldVariableKey,
-						await this.suggestForField(fullMatch, parsed),
-					);
-				}
+				const fieldVariableKey = await this.resolveFieldVariable(fullMatch, parsed);
 
 				// The FIELD key, not the bare specifier. `getVariableValue` is only
 				// reached when the suggester resolved `undefined` (a remote prompt
@@ -265,7 +259,7 @@ export abstract class Formatter extends ValueFormatter {
 				// misses the value that WAS stored and cross-reads the {{VALUE}}
 				// namespace, so a `{{VALUE:status}}` answer could be served to a
 				// `{{FIELD:status}}` token - the separation FIELD_VARIABLE_PREFIX
-				// exists for.
+				// exists for. A FIELD shares its answer only by its own `|name:`.
 				const rawValue = this.hasConcreteVariable(fieldVariableKey)
 					? this.variables.get(fieldVariableKey)
 					: this.getVariableValue(fieldVariableKey);
@@ -290,7 +284,8 @@ export abstract class Formatter extends ValueFormatter {
 						input,
 						match.index,
 						match.index + match[0].length,
-						String(rawValue ?? ""),
+						// A named FIELD reads as {{VALUE:<name>}} writes it, so a date stays formatted.
+						String((parsed.name ? this.getValueTokenText(fieldVariableKey) : rawValue) ?? ""),
 					);
 				}
 
@@ -305,8 +300,33 @@ export abstract class Formatter extends ValueFormatter {
 		return output + input.slice(lastIndex);
 	}
 
-	private getFieldVariableKey(fieldSpecifier: string): string {
-		return `${FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
+	/** Asks for a FIELD that has no answer yet and returns the key its answer is under. */
+	private async resolveFieldVariable(
+		fieldSpecifier: string,
+		parsed: { fieldName: string; name?: string },
+	): Promise<string> {
+		// `|name:` shares a run variable, found as {{VALUE:<name>}} finds it.
+		const key = parsed.name
+			? (resolveExistingVariableKey(this.variables, parsed.name) ?? parsed.name)
+			: `${FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
+		if (!this.hasConcreteVariable(key)) {
+			this.variables.set(key, await this.suggestForField(fieldSpecifier, parsed));
+		}
+		return key;
+	}
+
+	/**
+	 * A FIELD with a `|name:` asks before the named VALUEs, so a
+	 * `{{VALUE:<name>}}` anywhere in the same text reuses the pick instead of
+	 * asking for text.
+	 */
+	protected override async replaceVariableInString(input: string): Promise<string> {
+		for (const match of input.matchAll(new RegExp(FIELD_VAR_REGEX_WITH_FILTERS.source, "gi"))) {
+			const fieldSpecifier = match[1] + (match[2] || "");
+			const parsed = FieldSuggestionParser.parse(fieldSpecifier);
+			if (parsed.name) await this.resolveFieldVariable(fieldSpecifier, parsed);
+		}
+		return super.replaceVariableInString(input);
 	}
 
 	/** Resolve FILE tokens once per identity, retaining real picks and custom text as distinct values. */

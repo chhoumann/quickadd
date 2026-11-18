@@ -43,7 +43,7 @@ const OPTION_INCOMPATIBLE_TYPES = new Set<ValueInputType>([
 export type MultiEmit = "text" | "linklist";
 
 // Variable keys QuickAdd populates itself; a `|name:` alias must not hijack them.
-const RESERVED_VALUE_NAMES = new Set(["value", "title"]);
+export const RESERVED_VALUE_NAMES = new Set(["value", "title"]);
 
 export type ParsedValueToken = {
 	raw: string;
