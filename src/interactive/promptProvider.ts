@@ -283,6 +283,7 @@ export class RemotePromptProvider implements PromptProvider {
 			type: field.type === "file-picker" ? "suggester" : field.type,
 			placeholder: field.placeholder,
 			defaultValue: field.defaultValue,
+			defaultValues: field.defaultValues,
 			description: field.description,
 			options: field.options,
 			displayOptions: field.displayOptions,
