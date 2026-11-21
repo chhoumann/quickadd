@@ -32,7 +32,8 @@ export function toFieldRequirement(input: unknown): FieldRequirement | null {
 	const sliderConfig = parseSliderConfig(value.sliderConfig);
 	const fieldType = type === "slider" && !sliderConfig ? "number" : type;
 	const options = Array.isArray(value.options) ? (value.options as unknown[]) : undefined;
-	const stringOptions = options?.filter((entry): entry is string => typeof entry === "string");
+	const runtimeOnly = hasNonStringOptions(options);
+	const stringOptions = runtimeOnly ? undefined : (options as string[] | undefined);
 	const defaultValue = value.defaultValue;
 	const suggesterConfig = parseSuggesterConfig(value.suggesterConfig);
 	const renderItem = (value.suggesterConfig as { renderItem?: unknown } | undefined)?.renderItem;
@@ -52,10 +53,10 @@ export function toFieldRequirement(input: unknown): FieldRequirement | null {
 		options: stringOptions,
 		displayOptions: stringOptions && parseDisplayOptions(value.displayOptions, stringOptions),
 		suggesterConfig,
-		renderOption: typeof renderItem === "function"
+		renderOption: !runtimeOnly && typeof renderItem === "function"
 			? (option, el) => (renderItem as (value: string, el: HTMLElement) => void)(option, el)
 			: undefined,
-		runtimeOnly: hasNonStringOptions(options) ? true : undefined,
+		runtimeOnly: runtimeOnly ? true : undefined,
 		dateFormat:
 			typeof value.dateFormat === "string" ? value.dateFormat : undefined,
 		description:

@@ -232,7 +232,7 @@ const { lead, attendees } = await quickAddApi.requestInputs([
 // attendees is an array of the picked TFiles and any typed names.
 ```
 
-A `{{VALUE}}` token writes an object answer as text with `String()`. When a template uses the answer, pass strings as `options` and use `displayOptions` for the labels.
+In a note body, a `{{VALUE}}` token writes an object answer with `String()`. In YAML frontmatter, objects with circular references such as `TFile` fail property serialization and write empty values. When a template uses the answer, pass strings as `options` and use `displayOptions` for the labels.
 
 ### `inputPrompt(header: string, placeholder?: string, value?: string, options?: { cursorAtEnd?: boolean, imagePaste?: { sourcePath?: string } }): Promise<string>`
 Opens a prompt that asks for text input.

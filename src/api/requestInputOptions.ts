@@ -35,15 +35,15 @@ export interface RequestInputSpec<T = string> {
 		| "suggester"
 		| "slider";
 	placeholder?: string;
-	defaultValue?: string | T | readonly (string | T)[];
+	defaultValue?: string | NoInfer<T> | readonly (string | NoInfer<T>)[];
 	numericConfig?: NumericInputConfig;
 	sliderConfig?: RequestSliderConfig;
 	options?: readonly T[];
-	displayOptions?: RequestInputDisplayOptions<T>;
+	displayOptions?: RequestInputDisplayOptions<NoInfer<T>>;
 	dateFormat?: string;
 	description?: string;
 	optional?: boolean;
-	suggesterConfig?: RequestInputSuggesterConfig<T>;
+	suggesterConfig?: RequestInputSuggesterConfig<NoInfer<T>>;
 }
 
 /** A spec whose answer is always a string: string options and no `returnArray`. */
@@ -63,12 +63,21 @@ export interface EncodedRequestInputOptions {
 
 const OPTION_TOKEN_PREFIX = `${String.fromCharCode(0)}qa-opt:`;
 
+function optionLabel<T>(
+	display: RequestInputDisplayOptions<T> | undefined,
+	option: T,
+	index: number,
+	raw: readonly T[],
+): string {
+	return normalizeDisplayItem(
+		typeof display === "function" ? display(option, index, raw) : (display?.[index] ?? option),
+	);
+}
+
 export function encodeRequestInputOptions<T>(spec: RequestInputSpec<T>): EncodedRequestInputOptions {
 	const raw = spec.options ?? [];
 	const display = spec.displayOptions;
-	const labels = raw.map((option, index) =>
-		normalizeDisplayItem(typeof display === "function" ? display(option, index, raw) : (display?.[index] ?? option)),
-	);
+	const labels = raw.map((option, index) => optionLabel(display, option, index, raw));
 	const tokens = needsTokens(raw, labels);
 	const wire = raw.map((option, index) => (tokens ? `${OPTION_TOKEN_PREFIX}${index}` : (option as string)));
 	const encode = (value: unknown): string => {
@@ -82,14 +91,17 @@ export function encodeRequestInputOptions<T>(spec: RequestInputSpec<T>): Encoded
 	const renderItem = spec.suggesterConfig?.renderItem;
 	const defaults = spec.defaultValue as unknown;
 	const multiSelect = isMultiSelectSuggester(spec);
+	const defaultIsOption = defaults !== undefined && raw.indexOf(defaults as T) >= 0;
 
 	return {
 		options: spec.options ? wire : undefined,
 		displayOptions: tokens || display !== undefined ? labels : undefined,
-		defaultValue: Array.isArray(defaults)
-			? (multiSelect || defaults.length === 0 ? undefined : encode(defaults[0]))
-			: (defaults === undefined ? undefined : encode(defaults)),
-		defaultValues: multiSelect && Array.isArray(defaults) ? defaults.map(encode) : undefined,
+		defaultValue: defaultIsOption
+			? encode(defaults)
+			: Array.isArray(defaults)
+				? (multiSelect || defaults.length === 0 ? undefined : encode(defaults[0]))
+				: (defaults === undefined ? undefined : encode(defaults)),
+		defaultValues: multiSelect && !defaultIsOption && Array.isArray(defaults) ? defaults.map(encode) : undefined,
 		renderOption: renderItem && ((answer, el) => renderItem(decode(answer) as T, el)),
 		decode,
 		text: (answer) => {
@@ -136,8 +148,18 @@ export function resolveExistingVariableValue(spec: RequestInputSpec<unknown>, va
 		if (Array.isArray(value)) return value;
 		return value === "" ? [] : [value];
 	}
-	if (Array.isArray(value) && isMultiSelectSuggester(spec)) {
-		return value.map(normalizeDisplayItem).join(multiSelectSeparator(spec));
+	if (isMultiSelectSuggester(spec)) {
+		const raw = spec.options ?? [];
+		const items = Array.isArray(value) ? value : (value === "" ? [] : [value]);
+		return items
+			.map((item) => {
+				if (typeof item === "string") return item;
+				const index = raw.indexOf(item);
+				return index >= 0
+					? optionLabel(spec.displayOptions, raw[index], index, raw)
+					: normalizeDisplayItem(item);
+			})
+			.join(multiSelectSeparator(spec));
 	}
 	if ((spec.type === "suggester" || spec.type === "dropdown") && hasNonStringOptions(spec.options)) {
 		return value;

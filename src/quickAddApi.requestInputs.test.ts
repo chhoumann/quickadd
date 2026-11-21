@@ -240,18 +240,27 @@ describe("QuickAddApi.requestInputs", () => {
 
 	it("keeps variables set before the form in the shape the field returns", async () => {
 		const ada = { basename: "Ada" };
+		const grace = { basename: "Grace" };
 		choiceExecutor.variables.set("tags", ["a, b", "c"]);
 		choiceExecutor.variables.set("joined", ["a", "b"]);
 		choiceExecutor.variables.set("lead", ada);
+		choiceExecutor.variables.set("people", [grace, ada]);
 
 		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
 		const result = await api.requestInputs([
 			{ id: "tags", type: "suggester", suggesterConfig: { multiSelect: true, returnArray: true } },
 			{ id: "joined", type: "suggester", suggesterConfig: { multiSelect: true } },
 			{ id: "lead", type: "suggester", options: [ada] },
+			{
+				id: "people",
+				type: "suggester",
+				options: [ada, grace],
+				displayOptions: (person) => person.basename,
+				suggesterConfig: { multiSelect: true, separator: " | " },
+			},
 		]);
 
-		expect(result).toEqual({ tags: ["a, b", "c"], joined: "a, b", lead: ada });
+		expect(result).toEqual({ tags: ["a, b", "c"], joined: "a, b", lead: ada, people: "Grace | Ada" });
 		expect(result.lead).toBe(ada);
 		expect(modalRequirements).toEqual([]);
 	});

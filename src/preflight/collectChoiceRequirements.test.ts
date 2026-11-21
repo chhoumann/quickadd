@@ -753,16 +753,24 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		});
 	});
 
-	it("leaves a script input with non-string options to its runtime prompt", async () => {
+	it("leaves a script input with non-string options to its runtime prompt without running displayOptions", async () => {
+		const displayOptions = vi.fn((option: { name: string }) => {
+			if (typeof option === "string") throw new Error("expected object option");
+			return option.name;
+		});
 		getUserScriptMock.mockResolvedValue({
 			quickadd: {
-				inputs: [{ id: "person", type: "suggester", options: ["Ada", { name: "Grace" }] }],
+				inputs: [
+					{ id: "person", type: "suggester", options: ["Ada", { name: "Grace" }], displayOptions },
+					{ id: "title", type: "text" },
+				],
 			},
 		});
 
 		const requirements = await collect(createMacroChoice(scriptCommand), choiceExecutor);
 
-		expectCollectedFields(requirements, { id: "person", runtimeOnly: true });
+		expectCollectedFields(requirements, { id: "person", runtimeOnly: true }, { id: "title" });
+		expect(displayOptions).not.toHaveBeenCalled();
 	});
 
 	it("downgrades script-declared sliders with invalid config to number", async () => {

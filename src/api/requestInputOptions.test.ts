@@ -108,6 +108,36 @@ describe("encodeRequestInputOptions", () => {
 		expect(codec.defaultValues![1]).toBe("Someone, new");
 	});
 
+	it("encodes an array-valued option passed as defaultValue without unpacking it", () => {
+		const paris = [48.9, 2.3];
+		const tokyo = [35.7, 139.7];
+		const single = encodeRequestInputOptions({
+			id: "city",
+			type: "suggester",
+			options: [tokyo, paris],
+			displayOptions: ["Tokyo", "Paris"],
+			defaultValue: paris,
+		});
+		expect(single.decode(single.defaultValue!)).toBe(paris);
+
+		const dropdown = encodeRequestInputOptions({
+			id: "city",
+			type: "dropdown",
+			options: [tokyo, paris],
+			displayOptions: ["Tokyo", "Paris"],
+			defaultValue: paris,
+		});
+		expect(dropdown.decode(dropdown.defaultValue!)).toBe(paris);
+
+		const multiSingle = encodeRequestInputOptions(multi({
+			options: [tokyo, paris],
+			displayOptions: ["Tokyo", "Paris"],
+			defaultValue: paris,
+		}));
+		expect(multiSingle.defaultValues).toBeUndefined();
+		expect(multiSingle.decode(multiSingle.defaultValue!)).toBe(paris);
+	});
+
 	it("hands renderItem the original option", () => {
 		const ada = { name: "Ada" };
 		const renderItem = vi.fn();
@@ -153,6 +183,26 @@ describe("resolveExistingVariableValue", () => {
 	it("joins an array variable with the field's separator", () => {
 		expect(resolveExistingVariableValue(multi(), ["a", "b"])).toBe("a, b");
 		expect(resolveExistingVariableValue(multi({ suggesterConfig: { separator: " | " } }), ["a", "b"])).toBe("a | b");
+	});
+
+	it("formats pre-existing non-string picks through displayOptions when joining into a string", () => {
+		const ada = { name: "Ada" };
+		const grace = { name: "Grace" };
+		expect(resolveExistingVariableValue(multi({
+			options: [ada, grace],
+			displayOptions: (person: { name: string }) => person.name,
+			suggesterConfig: { separator: " | " },
+		}), [grace, ada])).toBe("Grace | Ada");
+		expect(resolveExistingVariableValue(multi({
+			options: [ada, grace],
+			displayOptions: ["Ada", "Grace"],
+			suggesterConfig: { returnArray: false },
+		}), [grace, ada])).toBe("Grace, Ada");
+		expect(resolveExistingVariableValue(multi({
+			options: [ada, grace],
+			displayOptions: (person: { name: string }) => person.name,
+			suggesterConfig: { separator: "; " },
+		}), ada)).toBe("Ada");
 	});
 
 	it("keeps an object variable for a field with object options", () => {
