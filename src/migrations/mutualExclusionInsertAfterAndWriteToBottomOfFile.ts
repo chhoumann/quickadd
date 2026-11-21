@@ -1,7 +1,6 @@
 import type IChoice from "src/types/choices/IChoice";
 import type { IMacro } from "src/types/macros/IMacro";
-import { isCaptureChoice } from "./helpers/isCaptureChoice";
-import { isMultiChoice } from "./helpers/isMultiChoice";
+import { isCaptureChoice, isMultiChoice } from "src/types/choices/choiceGuards";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration, MigrationResult } from "./Migrations";
 import { deepClone } from "src/utils/deepClone";
@@ -18,14 +17,15 @@ type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
 
 function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
-		if (isMultiChoice(choice)) {
+		// Array.isArray: this walker reassigns `choice.choices`, so a malformed
+		// folder must be SKIPPED, which is what preserves it (#1566).
+		if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
 			choice.choices = recursiveMigrateSettingInChoices(choice.choices);
 		}
 
 		if (isCaptureChoice(choice)) {
 			// `insertAfter` may be absent on legacy/imported/hand-edited choices;
-			// migrations run on raw settings before CaptureChoice.Load normalizes
-			// them. Treat a missing object as not-enabled instead of throwing.
+			// migrations run on raw settings. Treat a missing object as not-enabled instead of throwing.
 			if (choice.insertAfter?.enabled && choice.prepend) {
 				choice.prepend = false;
 			}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { itPerf } from '../../../tests/perfUtils';
-import { sanitizeHeading } from './utils';
+import { sanitizeHeading } from './headingSanitizer';
 
 describe('sanitizeHeading', () => {
 	it.each([

@@ -19,7 +19,7 @@ vi.mock("../engine/SingleInlineScriptEngine", () => ({
 }));
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
-import { findInlineScriptSpans } from "./formatter";
+import { findInlineScriptSpans } from "../utils/inlineScriptSpans";
 
 const createChoice = (
 	overrides: Partial<ICaptureChoice> = {},

@@ -1,15 +1,14 @@
-import type QuickAdd from "../../main";
-import type IChoice from "../../types/choices/IChoice";
-import { isMacroChoice, isMultiChoice } from "../../types/choices/choiceType";
-import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
-import { CommandType } from "../../types/macros/CommandType";
-import type { ICommand } from "../../types/macros/ICommand";
-import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INestedChoiceCommand";
-import { isUnreadableChoiceList } from "../../utils/choiceUtils";
+import type IChoice from "../types/choices/IChoice";
+import { isMacroChoice, isMultiChoice } from "../types/choices/choiceGuards";
+import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
+import { CommandType } from "../types/macros/CommandType";
+import type { ICommand } from "../types/macros/ICommand";
+import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
+import { isUnreadableChoiceList } from "./choiceUtils";
 import {
 	isUnreadableCommandList,
 	macroCommandsValueOf,
-} from "../../utils/macroUtils";
+} from "./macroUtils";
 
 type ChoiceVisitor = (choice: IChoice) => void;
 type CommandVisitor = (command: ICommand) => void;
@@ -38,9 +37,8 @@ function walkChoice(
 	// descend nothing.
 	//
 	// Reported unreadable rather than descended, even though this walk could
-	// descend it. The narrower migrations cannot: `flattenChoices` pushes the array
-	// as if it were a choice, and the increment / mutual-exclusion recursions step
-	// straight past it. Descending here would make the guard say "I saw everything"
+	// descend it. The narrower migrations cannot: `flattenChoices` and the
+	// increment / mutual-exclusion recursions step straight past it. Descending here would make the guard say "I saw everything"
 	// on behalf of traversals that did not, which is exactly the failure #1610 is
 	// about. Staying pending costs one launch: the user opens the settings tab, the
 	// seam splices the entries into real choices, and the next launch is readable.
@@ -158,7 +156,7 @@ function walkSettings(
 }
 
 /**
- * Whether anything in `settings` is hidden from {@link walkAllChoices} behind a
+ * Whether anything in `settings` is hidden from {@link walkChoicesInSettings} behind a
  * container it could not read.
  *
  * This is the question a migration that MOVES data has to ask. Migrations run
@@ -174,7 +172,7 @@ function walkSettings(
  * invisible to both the walk and the guard, and the migrations reported complete
  * anyway (#1610).
  *
- * Ask this only if you migrate through `walkAllChoices`. A migration with its own
+ * Ask this only if you migrate through `walkChoicesInSettings`. A migration with its own
  * narrower traversal must ask the narrower question - see
  * `treeHasUnreadableChildren` - or it blocks itself on data it was never going to
  * touch.
@@ -198,10 +196,6 @@ export function settingsTreeHasUnreadableData(settings: {
  */
 export function walkChoiceTree(choice: IChoice, visitor: ChoiceVisitor): void {
 	walkChoice(choice, { onChoice: visitor }, new Set<IChoice>());
-}
-
-export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
-	walkChoicesInSettings(plugin.settings, visitor);
 }
 
 /**

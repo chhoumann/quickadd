@@ -1,11 +1,11 @@
 import type QuickAdd from "../main";
 import { settingsStore } from "../settingsStore";
-import type { AssetConflict } from "../gui/PackageManager/importDecisions";
-import { defaultAssetDestinationFor } from "../gui/PackageManager/importDecisions";
+import { defaultAssetDestinationFor } from "./packageImportDecisions";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
 import { syncImportedChoiceCommands } from "./packageImportCommands";
 import type {
 	ApplyImportResult,
+	AssetConflict,
 	AssetImportDecision,
 	AssetImportMode,
 	ChoiceImportDecision,

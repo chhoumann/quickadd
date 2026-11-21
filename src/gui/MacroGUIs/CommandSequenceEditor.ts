@@ -39,6 +39,7 @@ import { log } from "../../logger/logManager";
 import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
 import { settingsStore } from "../../settingsStore";
+import { activeModelRef } from "../../ai/Provider";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { getUserScriptMemberAccess } from "../../utils/userScript";
@@ -276,7 +277,14 @@ export class CommandSequenceEditor {
 				quickCommandContainer,
 				"bot",
 				"Add AI Assistant command",
-				() => new AIAssistantCommand(),
+				() => {
+					const ai = settingsStore.getState().ai;
+					return new AIAssistantCommand({
+						model: ai.defaultModel,
+						modelRef: activeModelRef(ai.defaultModel, ai.defaultModelRef),
+						systemPrompt: ai.defaultSystemPrompt,
+					});
+				},
 			);
 		}
 	}

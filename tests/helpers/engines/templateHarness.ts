@@ -17,7 +17,6 @@ class TemplateProbe extends TemplateEngine {
 	normalizePath = this.normalizeTemplateFilePath.bind(this);
 	create = this.createFileWithTemplate.bind(this);
 	overwrite = this.overwriteFileWithTemplate.bind(this);
-	append = this.appendToFileWithTemplate.bind(this);
 }
 
 export function templateHarness(enabled = true) {

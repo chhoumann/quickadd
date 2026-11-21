@@ -96,15 +96,12 @@ export class Agent {
 		private readonly config: AgentConfig,
 	) {
 		// Validate the tool set once, at construction, so authoring errors fail fast.
-		const seen = new Set<string>();
 		for (const [name, tool] of Object.entries(config.tools ?? {})) {
 			if (!TOOL_NAME_RE.test(name)) {
 				throw new Error(
 					`Invalid tool name "${name}". Tool names must match ${TOOL_NAME_RE}.`,
 				);
 			}
-			if (seen.has(name)) throw new Error(`Duplicate tool name "${name}".`);
-			seen.add(name);
 			assertRegisterableSchema(tool.inputSchema, `tool "${name}".inputSchema`);
 		}
 	}
@@ -201,7 +198,6 @@ export class Agent {
 					const turnReq = this.buildTurnRequest(req, ctx.isFinalStep, responseFormat);
 					try {
 						const cr = await chatRequest(
-							this.app,
 							apiKey,
 							model,
 							modelProvider,
@@ -491,7 +487,6 @@ export class Agent {
 		};
 		try {
 			const cr = await chatRequest(
-				this.app,
 				apiKey,
 				model,
 				modelProvider,

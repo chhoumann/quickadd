@@ -1,6 +1,6 @@
 import type { EditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { prepareTemplateContent, rebaseTemplateCursor } from "../utils/templateCursorPlacement";
-import { stripCursorMarkers } from "../formatters/helpers/capturePlacement";
+import { stripCursorMarkers } from "../utils/capturePlacement";
 import { getBodyStartOffset } from "../utils/noteContentInsertion";
 import { getMarkdownEditorViewForFile, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
 import { processNote } from "../utils/noteContent";
@@ -20,7 +20,7 @@ import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import type QuickAdd from "../main";
 import { getTemplateFile, resolveTemplatePath } from "../utils/templateFolderUtils";
-import { getTemplater, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
+import { overwriteTemplaterOnce } from "../utils/templaterIntegration";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,
@@ -34,7 +34,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
-import { restoreUserText, restoreUserTextAt } from "../formatters/helpers/userText";
+import { restoreUserTextAt } from "../formatters/helpers/userText";
 
 function isMacroAbortError(error: unknown): error is MacroAbortError {
 	return (
@@ -48,7 +48,6 @@ function isMacroAbortError(error: unknown): error is MacroAbortError {
 
 export abstract class TemplateEngine extends FolderSelectionEngine {
 	protected formatter: CompleteFormatter;
-	protected readonly templater;
 	protected cursorPlacement: EditorCursorPlacement | null = null;
 	protected templaterCursorHandled = false;
 
@@ -104,7 +103,6 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		inclusion?: TemplateInclusionState,
 	) {
 		super(app);
-		this.templater = getTemplater(app);
 		this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
 		if (inclusion) {
 			this.formatter.setTemplateInclusionState(inclusion);
@@ -427,51 +425,6 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 			}
 			this.noteTemplateFileFailure(err, "Could not overwrite file with template");
 			reportError(err, "Could not overwrite file with template");
-			return null;
-		}
-	}
-
-	protected async appendToFileWithTemplate(
-		file: TFile,
-		resolvedTemplatePath: string,
-		section: "top" | "bottom"
-	) {
-		this.lastTemplateFileFailure = null;
-		try {
-			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
-			);
-
-			this.setTemplateDestination(file.path, file.basename);
-
-			let formattedTemplateContent: string = await this.formatter.withPromptScope(
-				"noteBody",
-				templateContent,
-				() => this.formatter.withUserTextProtected(() =>
-					this.formatter.formatFileContent(templateContent)),
-			);
-			if (file.extension === "md") {
-				formattedTemplateContent = await templaterParseTemplate(
-					this.app,
-					formattedTemplateContent,
-					file,
-				);
-			}
-			formattedTemplateContent = restoreUserText(formattedTemplateContent);
-			const fileContent: string = await this.app.vault.cachedRead(file);
-			const newFileContent: string =
-				section === "top"
-					? `${formattedTemplateContent}\n${fileContent}`
-					: `${fileContent}\n${formattedTemplateContent}`;
-			await this.app.vault.modify(file, newFileContent);
-
-			return file;
-		} catch (err) {
-			if (isMacroAbortError(err)) {
-				throw err;
-			}
-			this.noteTemplateFileFailure(err, "Could not append to file with template");
-			reportError(err, "Could not append to file with template");
 			return null;
 		}
 	}

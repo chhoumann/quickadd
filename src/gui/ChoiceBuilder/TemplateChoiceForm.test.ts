@@ -8,7 +8,8 @@ import { fireEvent, render } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import type QuickAdd from "../../main";
 import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
-import { createTemplateChoiceFormProps } from "./templateChoiceFormProps.svelte";
+import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+import { createChoiceFormProps } from "./choiceFormProps.svelte";
 
 
 
@@ -28,7 +29,7 @@ const plugin = {
 } as unknown as QuickAdd;
 
 function mountForm() {
-	const props = createTemplateChoiceFormProps({
+	const props = createChoiceFormProps<ITemplateChoice>({
 		choice: templateChoice({ discoverExistingNotesBeforeCreate: false }),
 		app: new App(),
 		plugin,
@@ -148,7 +149,7 @@ describe("TemplateChoiceForm", () => {
 	});
 
 	it("opens a legacy choice on its derived mode", () => {
-		const props = createTemplateChoiceFormProps({
+		const props = createChoiceFormProps<ITemplateChoice>({
 			choice: {
 				...templateChoice({ discoverExistingNotesBeforeCreate: false }),
 				folder: {
@@ -171,7 +172,7 @@ describe("TemplateChoiceForm", () => {
 	});
 
 	it("writes the canonical booleans when a mode is selected", async () => {
-		const props = createTemplateChoiceFormProps({
+		const props = createChoiceFormProps<ITemplateChoice>({
 			choice: {
 				...templateChoice({ discoverExistingNotesBeforeCreate: false }),
 				folder: {

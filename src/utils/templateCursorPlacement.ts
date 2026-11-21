@@ -1,4 +1,4 @@
-import { stripCursorMarkers } from "../formatters/helpers/capturePlacement";
+import { stripCursorMarkers } from "./capturePlacement";
 import type { EditorCursorPlacement } from "./editorCursorPlacement";
 import { getBodyStartOffset } from "./noteContentInsertion";
 

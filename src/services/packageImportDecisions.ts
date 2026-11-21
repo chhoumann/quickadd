@@ -1,14 +1,15 @@
 import type { App } from "obsidian";
 import { normalizePath, TFile, TFolder } from "obsidian";
-import { normalizeTemplateFolderPaths } from "../../utils/templateFolderUtils";
-import { escapesVaultBoundary } from "../../utils/vaultPathBoundary";
+import { normalizeTemplateFolderPaths } from "../utils/templateFolderUtils";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import type {
+	AssetConflict,
 	AssetImportMode,
 	AssetImportDecision,
+	ChoiceConflict,
 	ChoiceImportMode,
 	ChoiceImportDecision,
-	PackageAnalysis,
-} from "../../services/packageImportService";
+} from "./packageImportService";
 
 /**
  * The per-file and per-choice import decision model, extracted from
@@ -19,10 +20,7 @@ import type {
  * `$state`-backed references and reassigns them, preserving Svelte reactivity.
  */
 
-export type AssetConflict = PackageAnalysis["assetConflicts"][number];
-type ChoiceConflict = PackageAnalysis["choiceConflicts"][number];
-
-export interface AssetDecisionState {
+interface AssetDecisionState {
 	mode: AssetImportMode;
 	destinationPath: string;
 	destinationExists: boolean;

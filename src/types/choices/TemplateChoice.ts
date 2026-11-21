@@ -42,8 +42,4 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		this.fileOpening = normalizeFileOpening();
 		this.fileExistsBehavior = { kind: "prompt" };
 	}
-
-	public static Load(choice: ITemplateChoice): TemplateChoice {
-		return choice as TemplateChoice;
-	}
 }

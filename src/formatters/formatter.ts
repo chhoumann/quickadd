@@ -1,7 +1,7 @@
 import { ValueFormatter } from "./valueFormatter";
 import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
 export { findDateVariableFormat } from "./helpers/dateTokens";
-import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
+import { findInlineScriptSpans } from "../utils/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
 import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
@@ -34,8 +34,6 @@ export interface TemplateInclusionState {
 }
 
 export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
-
-export { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./helpers/inlineScriptSpans";
 
 export abstract class Formatter extends ValueFormatter {
 	protected dateParser: IDateParser | undefined;
@@ -162,10 +160,6 @@ export abstract class Formatter extends ValueFormatter {
 		return input.replace(regex, () => sectionLink ?? "");
 	}
 
-	/** Resolve link tokens together so generated links containing tokens are never rescanned. */
-	protected replaceCurrentFileLinksInString(input: string): string {
-		return this.replaceCurrentFileTokensInString(input, { links: true });
-	}
 	/** Active-folder path tokens must never silently retarget a write to the vault root. */
 	protected replaceCurrentFileTokensInString(input: string, opts: CurrentFileTokenOptions): string {
 		return replaceCurrentFileTokens(input, opts, {

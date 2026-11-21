@@ -13,7 +13,6 @@ import { dispatchCompletion, renderHighlightRanges } from "./utils";
 const MAX_RESULTS = 200;
 
 export class FieldValueInputSuggest extends TextInputSuggest<string> {
-	private readonly fieldInput: string;
 	private readonly fieldName: string;
 	private readonly filters: FieldFilter;
 	// Match ranges of the last suggestions, for highlighting.
@@ -29,7 +28,6 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 
 	constructor(app: App, inputEl: HTMLInputElement, fieldInput: string) {
 		super(app, inputEl);
-		this.fieldInput = fieldInput;
 		const parsed = FieldSuggestionParser.parse(fieldInput);
 		this.fieldName = parsed.fieldName;
 		this.filters = parsed.filters;

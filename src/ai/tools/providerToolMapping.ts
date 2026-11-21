@@ -237,7 +237,7 @@ function parseOpenAIToolCall(tc: OpenAIToolCallRaw): NormalizedToolCall {
 			id: tc.id,
 			name: tc.function.name,
 			args: null,
-			rawArgs: typeof raw === "string" ? raw : JSON.stringify(raw ?? {}),
+			rawArgs: JSON.stringify(raw ?? {}),
 			parseError: true,
 		};
 	}
@@ -520,7 +520,7 @@ function parseAnthropicResponse(json: Record<string, unknown>): ParsedChatResult
 // ===========================================================================
 // Gemini
 // ===========================================================================
-function buildGeminiBody(modelName: string, req: NormalizedChatRequest): Body {
+function buildGeminiBody(req: NormalizedChatRequest): Body {
 	const systemParts: string[] = [];
 	const contents: Body[] = [];
 	for (const m of req.messages) {
@@ -651,7 +651,7 @@ export function buildChatBody(
 		case "anthropic":
 			return buildAnthropicBody(modelName, req, anthropicDefaultMaxTokens);
 		case "gemini":
-			return buildGeminiBody(modelName, req);
+			return buildGeminiBody(req);
 		case "openai-responses":
 			return buildOpenAIResponsesBody(modelName, req);
 		default:

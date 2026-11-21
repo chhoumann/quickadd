@@ -3,7 +3,7 @@ import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
-import { isCaptureChoice, isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
+import { isCaptureChoice, isMacroChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { VALUE_SYNTAX } from "src/constants";

@@ -25,10 +25,9 @@ import FolderList from "./FolderList.svelte";
 import {
 	applyFolderMode,
 	deriveFolderMode,
-	folderModeDescriptions,
-	folderModeOptions,
 	type FolderMode,
-} from "./folderMode";
+} from "../../utils/folderMode";
+import { folderModeDescriptions, folderModeOptions } from "./folderModeOptions";
 import SettingItem from "../components/SettingItem.svelte";
 import SettingGroup from "../components/SettingGroup.svelte";
 import Toggle from "../components/Toggle.svelte";

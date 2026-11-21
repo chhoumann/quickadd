@@ -13,7 +13,7 @@ import {
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
-import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
+import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
 import { dateOriginInput } from "src/utils/resolveDateOrigin";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";

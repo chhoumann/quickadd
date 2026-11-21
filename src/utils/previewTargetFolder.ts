@@ -1,4 +1,4 @@
-import { findInlineScriptSpans } from "../formatters/helpers/inlineScriptSpans";
+import { findInlineScriptSpans } from "./inlineScriptSpans";
 import type { TemplateFolderConfig } from "../types/choices/ITemplateChoice";
 
 /**

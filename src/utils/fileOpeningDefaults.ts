@@ -16,25 +16,13 @@ const DEFAULT_FILE_OPENING: FileOpeningSettings = {
 
 export function normalizeFileOpening(
 	fileOpening?: Partial<FileOpeningSettings> | null,
-	options?: { fillMissingOnly?: boolean },
 ): FileOpeningSettings;
 export function normalizeFileOpening<TExtras extends object>(
 	fileOpening?: (Partial<FileOpeningSettings> & TExtras) | null,
-	options?: { fillMissingOnly?: boolean },
 ): FileOpeningSettings & TExtras;
 export function normalizeFileOpening<TExtras extends object = Record<string, never>>(
 	fileOpening?: (Partial<FileOpeningSettings> & TExtras) | null,
-	options?: { fillMissingOnly?: boolean },
 ): FileOpeningSettings & TExtras {
-	const fillMissingOnly = options?.fillMissingOnly ?? true;
-
-	if (!fillMissingOnly) {
-		return {
-			...DEFAULT_FILE_OPENING,
-			...(fileOpening ?? {}),
-		} as FileOpeningSettings & TExtras;
-	}
-
 	const normalized = { ...(fileOpening ?? {}) } as FileOpeningSettings & TExtras;
 
 	if (normalized.location == null) {

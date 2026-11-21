@@ -1,6 +1,6 @@
 import type { CliData, CliFlags } from "obsidian";
 import type QuickAdd from "../main";
-import { effectiveChoiceMode, reconcileMode } from "../gui/PackageManager/importDecisions";
+import { effectiveChoiceMode, reconcileMode } from "../services/packageImportDecisions";
 import type { AssetImportMode, ChoiceImportMode } from "../services/packageImportService";
 import { readQuickAddPackage } from "../services/packageImportService";
 import { importPackageUnattended } from "../services/packageImportUnattended";

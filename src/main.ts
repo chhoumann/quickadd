@@ -21,10 +21,12 @@ import { hasTemplateExtension, isPathWithinTemplateFolders, normalizeTemplateFol
 import { openChoiceLauncher } from "./gui/suggesters/openChoiceLauncher";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
-import { walkChoicesInSettings } from "./migrations/helpers/choice-traversal";
+import { walkChoicesInSettings } from "./utils/choiceTraversal";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { FileIndex } from "./utils/vaultIndex/FileIndex";
+import { TagIndex } from "./utils/vaultIndex/TagIndex";
 import { deepClone } from "./utils/deepClone";
 import {
 	reconcileSettingsPersistPlan,
@@ -283,6 +285,8 @@ export default class QuickAdd extends Plugin {
 		// Clean up field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
 		cache.destroy();
+		FileIndex.destroyInstance();
+		TagIndex.destroyInstance();
 
 		// Stop the interactive-prompt bridge (closes the localhost server and drops
 		// any in-flight sessions) so nothing keeps listening after unload.

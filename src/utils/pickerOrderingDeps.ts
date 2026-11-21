@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { FileIndex } from "src/gui/suggesters/FileIndex";
+import { FileIndex } from "./vaultIndex/FileIndex";
 import type { PickerOrderingDeps } from "./fileOrdering";
 
 /**

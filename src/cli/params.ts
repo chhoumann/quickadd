@@ -172,7 +172,6 @@ export function toDetailedFieldSummary(requirement: FieldRequirement) {
 		optional: requirement.optional,
 		runtimeOnly: requirement.runtimeOnly,
 		multiEmit: requirement.multiEmit,
-		filters: requirement.filters,
 		numericConfig: requirement.numericConfig,
 		sliderConfig: requirement.sliderConfig,
 		suggesterConfig: requirement.suggesterConfig,

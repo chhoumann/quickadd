@@ -4,7 +4,7 @@ import {
 	maskFencedHeadings,
 	type MomentLike,
 } from "./orderedSectionPlacement";
-import type { SectionOrdering } from "../../types/choices/ICaptureChoice";
+import type { SectionOrdering } from "../types/choices/ICaptureChoice";
 
 /**
  * A real-enough, lenient date parser injected so the date comparator is exercised

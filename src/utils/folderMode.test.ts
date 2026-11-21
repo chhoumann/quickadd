@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { TemplateFolderConfig } from "../../types/choices/ITemplateChoice";
+import type { TemplateFolderConfig } from "../types/choices/ITemplateChoice";
 import {
 	applyFolderMode,
 	deriveFolderMode,
-	folderModeOptions,
 	type FolderMode,
 } from "./folderMode";
 
@@ -144,11 +143,5 @@ describe("applyFolderMode", () => {
 		const snapshot = JSON.parse(JSON.stringify(original));
 		applyFolderMode(original, "prompt");
 		expect(original).toEqual(snapshot);
-	});
-
-	it("exposes a dropdown option for every mode", () => {
-		expect(folderModeOptions.map((o) => o.value).sort()).toEqual(
-			[...MODES].sort(),
-		);
 	});
 });

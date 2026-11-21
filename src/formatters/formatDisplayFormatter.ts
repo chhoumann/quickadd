@@ -1,7 +1,7 @@
-import { stripCursorMarkers } from "./helpers/capturePlacement";
+import { stripCursorMarkers } from "../utils/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { unescapePipesInTokens } from "./helpers/pipeEscapes";
+import { unescapePipesInTokens } from "../utils/pipeEscapes";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,

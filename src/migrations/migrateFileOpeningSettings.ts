@@ -6,8 +6,8 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import {
 	settingsTreeHasUnreadableData,
-	walkAllChoices,
-} from "./helpers/choice-traversal";
+	walkChoicesInSettings,
+} from "../utils/choiceTraversal";
 import {
 	coerceLegacyOpenFileInNewTab,
 	createFileOpeningFromLegacy,
@@ -52,7 +52,7 @@ const migrateFileOpeningSettings: Migration = {
 		};
 
 		// Apply migration to all choices recursively
-		walkAllChoices(plugin, migrateFileOpening);
+		walkChoicesInSettings(plugin.settings, migrateFileOpening);
 
 		log.logMessage(`Migration complete. Migrated ${migratedCount} choices.`);
 

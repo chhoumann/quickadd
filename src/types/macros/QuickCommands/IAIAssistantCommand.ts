@@ -2,7 +2,7 @@ import type { ICommand } from "../ICommand";
 import type { ModelRef } from "src/ai/Provider";
 import type { OpenAIModelParameters } from "src/ai/OpenAIModelParameters";
 
-interface IBaseAIAssistantCommand extends ICommand {
+export interface IAIAssistantCommand extends ICommand {
 	/** Model name, or the "Ask me" sentinel. Kept in sync with modelRef (legacy readers, downgrades). */
 	model: string;
 	/**
@@ -14,10 +14,6 @@ interface IBaseAIAssistantCommand extends ICommand {
 	systemPrompt: string;
 	outputVariableName: string;
 	modelParameters: Partial<OpenAIModelParameters>;
-}
-
-export interface IAIAssistantCommand extends IBaseAIAssistantCommand {
-	model: string;
 	promptTemplate: {
 		enable: boolean;
 		name: string;

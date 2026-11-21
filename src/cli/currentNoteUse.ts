@@ -5,7 +5,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { SELECTED_REGEX } from "../constants";
 import { CURRENT_FOLDER_TOKEN_REGEX, CURRENT_NOTE_TOKEN_REGEX } from "../formatters/helpers/currentFileTokens";
-import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
+import { deriveFolderMode } from "../utils/folderMode";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";

@@ -13,9 +13,9 @@ import {
 	setAssetPath,
 	snapshotAssetDecisions,
 	snapshotChoiceDecisions,
-	type AssetConflict,
 	type AssetDecisions,
-} from "./importDecisions";
+} from "./packageImportDecisions";
+import type { AssetConflict } from "./packageImportService";
 
 const conflict = (
 	originalPath: string,

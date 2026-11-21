@@ -1,8 +1,7 @@
 import { Command } from "../Command";
 import { CommandType } from "../CommandType";
 import type { IAIAssistantCommand } from "./IAIAssistantCommand";
-import { settingsStore } from "src/settingsStore";
-import { activeModelRef, type ModelRef } from "src/ai/Provider";
+import type { ModelRef } from "src/ai/Provider";
 import type { OpenAIModelParameters } from "src/ai/OpenAIModelParameters";
 
 export class AIAssistantCommand extends Command implements IAIAssistantCommand {
@@ -20,18 +19,16 @@ export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 	};
 	modelParameters: Partial<OpenAIModelParameters>;
 
-	constructor() {
+	constructor(defaults: {
+		model: string;
+		modelRef: ModelRef | undefined;
+		systemPrompt: string;
+	}) {
 		super("AI Assistant", CommandType.AIAssistant);
 
-		const defaults = settingsStore.getState().ai;
-
-		this.model = defaults.defaultModel;
-		const defaultRef = activeModelRef(
-			defaults.defaultModel,
-			defaults.defaultModelRef,
-		);
-		this.modelRef = defaultRef ? { ...defaultRef } : undefined;
-		this.systemPrompt = defaults.defaultSystemPrompt;
+		this.model = defaults.model;
+		this.modelRef = defaults.modelRef ? { ...defaults.modelRef } : undefined;
+		this.systemPrompt = defaults.systemPrompt;
 		this.outputVariableName = "output";
 		this.promptTemplate = { enable: false, name: "" };
 		// Empty on purpose: only sampling parameters the user explicitly sets are

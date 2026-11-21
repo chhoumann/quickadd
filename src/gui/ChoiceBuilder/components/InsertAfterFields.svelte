@@ -173,7 +173,7 @@ const showInsertionFallbackWarning = $derived(
 
 // Single seeder (builder-owned): seed orderBy when "ordered" is first selected,
 // and while the user hasn't pinned a key, keep the date/insertion choice in sync
-// with the `after` text. Resolves the Load-vs-builder two-seeder divergence.
+// with the `after` text.
 $effect(() => {
 	// Only seed when ordered placement is actually active (location ordered AND
 	// creation on), so a merely-selected-but-inert ordered location never persists

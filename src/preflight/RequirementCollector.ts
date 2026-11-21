@@ -1,5 +1,5 @@
 import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
-import { unescapePipesInTokens } from "src/formatters/helpers/pipeEscapes";
+import { unescapePipesInTokens } from "src/utils/pipeEscapes";
 import { normalizeVaultPath } from "../utils/pathUtils";
 import type { App } from "obsidian";
 import {

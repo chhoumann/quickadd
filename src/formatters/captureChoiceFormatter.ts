@@ -1,10 +1,9 @@
-import getEndOfSection from "./helpers/getEndOfSection";
+import getEndOfSection from "../utils/getEndOfSection";
 import { insertOrderedCapture } from "./helpers/orderedCaptureInsertion";
 import type { TFile } from "obsidian";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
 import { currentFile } from "../utils/currentFile";
-import { getLinesInString } from "src/utility";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
@@ -15,10 +14,10 @@ import {
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utils/templaterIntegration";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "./helpers/capturePlacement";
+import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "../utils/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";
 import { restoreUserText, restoreUserTextInCapture } from "./helpers/userText";
-import * as positioning from "./helpers/insertionPositioning";
+import * as positioning from "../utils/insertionPositioning";
 import { blockquoteSeparator, insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
 import {
@@ -252,16 +251,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return await this.formatCapture(input, shouldRunTemplater, format);
 	}
 
-	public async formatContent(
-		input: string,
-		choice: ICaptureChoice,
-	): Promise<string> {
-		this.choice = choice;
-		if (!choice) return input;
-
-		return await this.formatFileContent(input);
-	}
-
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
 		return (await this.formatCapture(input, runTemplater)).content;
 	}
@@ -448,7 +437,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			);
 		}
 
-		const fileContentLines: string[] = getLinesInString(this.fileContent);
+		const fileContentLines: string[] = this.fileContent.split("\n");
 		// A picked (or typed) heading matches only heading lines, never a
 		// same-text line in the frontmatter, a code fence or a paragraph. A typed
 		// line that isn't a heading keeps the plain search, so a second run finds
@@ -533,7 +522,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			);
 		}
 
-		const fileContentLines: string[] = getLinesInString(this.fileContent);
+		const fileContentLines: string[] = this.fileContent.split("\n");
 		// Insert-before anchors on the block's FIRST line so the capture lands
 		// before the whole multi-line anchor (never inside it — issue #742).
 		const { start } = positioning.findInsertAfterRange(fileContentLines, targetLines);
@@ -600,7 +589,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				let position = line;
 				if (settings?.insertAtEnd) {
 					if (!this.file) throw new Error("Tried to get sections without file.");
-					const lines = getLinesInString(this.fileContent);
+					const lines = this.fileContent.split("\n");
 					const end = getEndOfSection(lines, line, this.considerSubsectionsForAnchor(lines, line));
 					position = positioning.findInsertAfterPositionAtSectionEnd(
 						lines, end ?? lines.length - 1, this.fileContent, payload.content,

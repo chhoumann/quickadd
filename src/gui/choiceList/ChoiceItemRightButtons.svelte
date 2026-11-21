@@ -4,7 +4,6 @@
 
     let {
         dragDisabled,
-        showConfigureButton = true,
         showDuplicateButton = true,
         commandEnabled = false,
         choiceName = "",
@@ -18,7 +17,6 @@
         onOpenMenu,
     }: {
         dragDisabled: boolean;
-        showConfigureButton?: boolean;
         showDuplicateButton?: boolean;
         commandEnabled?: boolean;
         choiceName?: string;
@@ -34,14 +32,12 @@
 </script>
 
 <div class="rightButtonsContainer">
-    {#if showConfigureButton}
-        <IconButton
-            iconId="settings"
-            label={`Configure${choiceName ? " " + choiceName : ""}`}
-            extraClass="qa-row-secondary-action"
-            onclick={onConfigureChoice}
-        />
-    {/if}
+    <IconButton
+        iconId="settings"
+        label={`Configure${choiceName ? " " + choiceName : ""}`}
+        extraClass="qa-row-secondary-action"
+        onclick={onConfigureChoice}
+    />
 
     {#if showDuplicateButton}
         <IconButton

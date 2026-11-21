@@ -1,5 +1,5 @@
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
-import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntax";
+import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntaxTypes";
 
 const VALID_FIELD_TYPES: FieldType[] = [
 	"text",

@@ -1,7 +1,7 @@
 import type IChoice from "src/types/choices/IChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { ICommand } from "src/types/macros/ICommand";
-import { walkAllCommandsInSettings } from "src/migrations/helpers/choice-traversal";
+import { walkAllCommandsInSettings } from "src/utils/choiceTraversal";
 import type { AIProvider, ModelRef } from "./Provider";
 
 type AICommandish = ICommand & {

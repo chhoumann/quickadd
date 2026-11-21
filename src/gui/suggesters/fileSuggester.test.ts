@@ -3,7 +3,7 @@ import { installObsidianDomHelpers } from "../../../tests/vitest-setup";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { App, TFile, Vault, MetadataCache, Workspace, Plugin } from 'obsidian';
 import { TFile as RuntimeTFile } from 'obsidian';
-import { FileIndex } from './FileIndex';
+import { FileIndex } from '../../utils/vaultIndex/FileIndex';
 import { FileSuggester } from './fileSuggester';
 import { renderExactHighlight } from './utils';
 
@@ -101,7 +101,7 @@ describe('FileSuggester - Issue #838 and #839', () => {
 
     beforeEach(async () => {
         // Reset the singleton instance
-        (FileIndex as any).instance = null;
+        FileIndex.destroyInstance();
         // Setup test files that reproduce the issues
         files = [
             // Issue #838 - exact short identifier should appear first
@@ -151,7 +151,7 @@ describe('FileSuggester - Issue #838 and #839', () => {
 
     describe('Issue #838 - Unresolved links rank by how well they match', () => {
         function vaultApp(names: string[], unresolved: string[]) {
-            (FileIndex as any).instance = null;
+            FileIndex.destroyInstance();
             const vaultFiles = names.map(name => createMockFile(`${name}.md`, name.split('/').pop()!));
             vi.mocked(mockApp.vault.getMarkdownFiles).mockReturnValue(vaultFiles);
             return {
@@ -300,7 +300,7 @@ describe('FileSuggester - Issue #838 and #839', () => {
     describe('Basename-exact vs Alias-exact ranking', () => {
         it('should rank basename-exact match before alias-exact match', async () => {
             // Reset the singleton instance
-            (FileIndex as any).instance = null;
+            FileIndex.destroyInstance();
             
             // Create files where one has the query as basename, another as alias
             const testFiles = [
@@ -351,7 +351,7 @@ describe('FileSuggester - Issue #838 and #839', () => {
     describe('Issue #509 - Duplicate aliases should show multiple files', () => {
         it('should return all files that share the same exact alias', async () => {
             // Reset the singleton instance
-            (FileIndex as any).instance = null;
+            FileIndex.destroyInstance();
 
             const testFiles = [
                 createMockFile('Notes/Caleb.md', 'Caleb'),
@@ -872,7 +872,7 @@ describe('FileSuggester - Substring search with long aliases', () => {
 
     beforeEach(async () => {
         // Reset the singleton instance
-        (FileIndex as any).instance = null;
+        FileIndex.destroyInstance();
         
         // Create generic test files that demonstrate the substring matching issue
         files = [

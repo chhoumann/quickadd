@@ -1,26 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { itPerf } from '../../../tests/perfUtils';
 import { FileIndex } from './FileIndex';
-import { normalizeForSearch } from './utils';
+import { normalizeForSearch } from './normalizeForSearch';
 import { TFile } from 'obsidian';
 import type { App, Vault, MetadataCache, Workspace } from 'obsidian';
-
-// Test-specific subclass that allows resetting the singleton
-class TestableFileIndex extends FileIndex {
-	static reset(): void {
-		if (FileIndex.instance) {
-			// Clear any pending timeouts
-			if ((FileIndex.instance as any).reindexTimeout !== null) {
-				clearTimeout((FileIndex.instance as any).reindexTimeout);
-			}
-			if ((FileIndex.instance as any).fuseUpdateTimeout !== null) {
-				clearTimeout((FileIndex.instance as any).fuseUpdateTimeout);
-			}
-		}
-		// Clear the instance
-		FileIndex.instance = null as any;
-	}
-}
 
 // Mock Obsidian types
 const createMockApp = (): App => {
@@ -89,7 +72,7 @@ describe('FileIndex', () => {
 			registerEvent: vi.fn((eventRef) => eventRef)
 		} as any;
 		// Reset singleton using the test subclass
-		TestableFileIndex.reset();
+		FileIndex.destroyInstance();
 		fileIndex = FileIndex.getInstance(mockApp, mockPlugin);
 	});
 
@@ -175,7 +158,7 @@ describe('FileIndex', () => {
 			vi.useFakeTimers();
 
 			// Reset the existing index to ensure clean state
-			TestableFileIndex.reset();
+			FileIndex.destroyInstance();
 			const freshPlugin = { registerEvent: vi.fn((eventRef) => eventRef) } as any;
 			const freshIndex = FileIndex.getInstance(mockApp, freshPlugin);
 
@@ -575,7 +558,7 @@ describe('FileIndex recency accessors (note-picker seam)', () => {
 	let fireFileOpen: (file: TFile | null) => void;
 
 	beforeEach(() => {
-		TestableFileIndex.reset();
+		FileIndex.destroyInstance();
 		mockApp = createMockApp();
 		// Capture the 'file-open' handler the index registers so we can drive it.
 		(mockApp.workspace.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(
@@ -592,8 +575,33 @@ describe('FileIndex recency accessors (note-picker seam)', () => {
 
 	it('getInstanceIfExists returns the singleton, and undefined after reset', () => {
 		expect(FileIndex.getInstanceIfExists()).toBe(fileIndex);
-		TestableFileIndex.reset();
+		FileIndex.destroyInstance();
 		expect(FileIndex.getInstanceIfExists()).toBeUndefined();
+	});
+
+	it('destroyInstance cancels a pending debounced reindex', () => {
+		vi.useFakeTimers();
+		try {
+			let fireResolved: (() => void) | undefined;
+			const app = createMockApp();
+			(app.metadataCache.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(
+				(event: string, handler: () => void) => {
+					if (event === 'resolved') fireResolved = handler;
+					return {} as never;
+				},
+			);
+			FileIndex.destroyInstance();
+			FileIndex.getInstance(app, { registerEvent: vi.fn() } as any);
+
+			// An empty index schedules a full reindex on 'resolved'.
+			fireResolved?.();
+			FileIndex.destroyInstance();
+			vi.advanceTimersByTime(1000);
+
+			expect(app.vault.getMarkdownFiles).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it('getLastOpenedAt reports the open timestamp and undefined for unopened files', () => {
@@ -678,7 +686,7 @@ describe('FileIndex reindex atomicity (concurrent vault mutations)', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
 		vaultHandlers = {};
-		TestableFileIndex.reset();
+		FileIndex.destroyInstance();
 		mockApp = createMockApp();
 		// Capture the vault listeners the index registers during construction.
 		(mockApp.vault.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(

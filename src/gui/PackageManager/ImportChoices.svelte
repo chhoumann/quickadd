@@ -2,7 +2,7 @@
 	import type { ChoiceConflict } from "../../services/packageImportService";
 	import type { PreviewChoice } from "../../services/packagePreview";
 	import { textPreview } from "../../services/packagePreview";
-	import { effectiveChoiceMode, type ChoiceDecisions } from "./importDecisions";
+	import { effectiveChoiceMode, type ChoiceDecisions } from "../../services/packageImportDecisions";
 	import CodePreview from "./CodePreview.svelte";
 	import MacroDisclosure from "./MacroDisclosure.svelte";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";

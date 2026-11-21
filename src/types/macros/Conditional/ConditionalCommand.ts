@@ -17,9 +17,7 @@ function createDefaultCondition(): ConditionalCondition {
 }
 
 function cloneCondition(condition: ConditionalCondition): ConditionalCondition {
-	return condition.mode === "variable"
-		? { ...condition }
-		: { ...condition };
+	return { ...condition };
 }
 
 export class ConditionalCommand

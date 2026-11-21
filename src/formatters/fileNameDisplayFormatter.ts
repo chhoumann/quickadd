@@ -1,8 +1,8 @@
-import { stripCursorMarkers } from "./helpers/capturePlacement";
+import { stripCursorMarkers } from "../utils/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { unescapePipesInTokens } from "./helpers/pipeEscapes";
-import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./formatter";
+import { unescapePipesInTokens } from "../utils/pipeEscapes";
+import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "../utils/inlineScriptSpans";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import {
 	describePreviewFailure,

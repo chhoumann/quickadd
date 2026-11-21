@@ -162,7 +162,6 @@ export function OpenAIRequest(
 }
 
 export async function chatRequest(
-	app: App,
 	apiKey: string,
 	model: Model,
 	// Caller-resolved provider; see OpenAIRequest for why it is never re-derived.
@@ -172,7 +171,6 @@ export async function chatRequest(
 	// False when the caller's assistant notice shows the failure itself.
 	reportFailure = true,
 ): Promise<CommonResponse> {
-	void app; // cursor handling is owned by the caller (Agent) for the whole loop
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
 			"Blocking request: Online features are disabled in settings.",

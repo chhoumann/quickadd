@@ -2,7 +2,7 @@ import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import { OnePageInputModal } from "../preflight/OnePageInputModal";
-import type { NumericInputConfig, SliderConfig } from "../utils/valueSyntax";
+import type { NumericInputConfig, SliderConfig } from "../utils/valueSyntaxTypes";
 import { formatISODate } from "../utils/dateParser";
 import { rethrowPromptError } from "./promptApi";
 import { abortIfHeadless } from "../interactive/routePrompt";
@@ -189,8 +189,6 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 	const formattedResult: Record<string, string> = {};
 	for (const spec of inputs) {
 		const value = rawResult[spec.id];
-		if (value === undefined) continue;
-
 		let output = value;
 		if (
 			spec.type === "date" &&

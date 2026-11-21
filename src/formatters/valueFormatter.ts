@@ -31,10 +31,12 @@ import {
 	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
-	type NumericInputConfig,
-	type SliderConfig,
-	type ValueInputType,
 } from "../utils/valueSyntax";
+import type {
+	NumericInputConfig,
+	SliderConfig,
+	ValueInputType,
+} from "../utils/valueSyntaxTypes";
 import { SILENT_WARN, type WarnSink } from "../utils/warnSink";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
 
@@ -158,10 +160,6 @@ export abstract class ValueFormatter {
 	 */
 	public setPromptRunContext(context: PromptRunContext): void {
 		this.promptRunContext = { ...this.promptRunContext, ...context };
-	}
-
-	public getPromptRunContext(): PromptRunContext | undefined {
-		return this.promptRunContext;
 	}
 
 	/**

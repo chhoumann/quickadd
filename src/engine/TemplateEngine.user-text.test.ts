@@ -43,15 +43,6 @@ describe("Template choices keep tokens and Templater tags inside answers literal
 		expect(h.engine.getCursorPlacement()).toEqual({ content: expected, offsets: [expected.length - 3] });
 	});
 
-	it("appends the answer as it is", async () => {
-		const note = h.file("note.md", "existing");
-		h.file("template.md", "<% 'own' %> {{VALUE:answer}}");
-
-		await h.engine.append(note, "template.md", "bottom");
-
-		expect(h.contents.get("note.md")).toBe(`existing\nTP-RAN ${ANSWER}`);
-	});
-
 	it("inserts the answer as it is when applying a template to a note", async () => {
 		const note = h.file("note.md", "existing\n");
 		h.file("template.md", "<% 'own' %> {{VALUE:answer}}\n");

@@ -1,6 +1,7 @@
 import type { App, TFile } from "obsidian";
-import type { IndexedFile } from "./FileIndex";
-import { normalizeForSearch, sanitizeHeading } from "./utils";
+import type { IndexedFile } from "./fileIndexTypes";
+import { sanitizeHeading } from "./headingSanitizer";
+import { normalizeForSearch } from "./normalizeForSearch";
 
 function extractAliases(frontmatter?: Record<string, unknown>): string[] {
 	if (!frontmatter) return [];

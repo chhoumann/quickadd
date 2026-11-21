@@ -4,8 +4,9 @@ import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
-import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
-import { normalizeForSearch } from "./utils";
+import { FileIndex, type SearchResult } from "../../utils/vaultIndex/FileIndex";
+import type { IndexedFile, SearchContext } from "../../utils/vaultIndex/fileIndexTypes";
+import { normalizeForSearch } from "../../utils/vaultIndex/normalizeForSearch";
 import { getQuickAddInstance } from "../../quickAddInstance";
 import { createOwnedElement, getOwnerDocument } from "../../utils/activeWindow";
 

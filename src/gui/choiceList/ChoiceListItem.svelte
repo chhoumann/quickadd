@@ -28,7 +28,6 @@
 		onMoveDown?: () => void;
 	} = $props();
 
-	let showConfigureButton = $state(true);
 	let nameElement = $state<HTMLSpanElement>();
 	const cmp = new Component();
 
@@ -92,7 +91,6 @@
 		{onMoveDown}
 		choiceName={choice.name}
 		commandEnabled={choice.command}
-		{showConfigureButton}
 		{dragDisabled}
 		showDuplicateButton={true}
 	/>

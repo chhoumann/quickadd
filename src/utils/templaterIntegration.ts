@@ -1,6 +1,7 @@
 import { MarkdownView, normalizePath, type App, type EventRef, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "./errorUtils";
+import { waitFor } from "./waitFor";
 
 declare module "obsidian" {
 	interface Workspace {
@@ -135,7 +136,7 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 		// Poll with exponential backoff until the mtime is stable or we hit the timeout.
 		let pollIntervalMs = 30;
 		while (Date.now() - start < timeoutMs) {
-			await sleep(pollIntervalMs);
+			await waitFor(pollIntervalMs);
 			const current = await adapter.stat(file.path);
 			if (!current) return; // stat failed; abort waiting.
 			if (current.mtime === previousMtime) return;
@@ -174,10 +175,6 @@ export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
 		"trigger_on_file_creation" in localSettings &&
 		localSettings.trigger_on_file_creation === true
 	);
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 type TemplaterCreateHandler = (...args: unknown[]) => unknown;
@@ -306,12 +303,12 @@ export async function waitForTemplaterTriggerOnCreateToComplete(
 
 	while (Date.now() - start < appearTimeoutMs) {
 		if (pendingFiles.has(file.path)) break;
-		await sleep(50);
+		await waitFor(50);
 	}
 
 	while (Date.now() - start < timeoutMs) {
 		if (!pendingFiles.has(file.path)) break;
-		await sleep(50);
+		await waitFor(50);
 	}
 
 	await waitForFileSettle(app, file, 800);
@@ -414,7 +411,7 @@ export async function withTemplaterFileCreationSuppressed<T>(
 			if (!state.hadPathInitially) {
 				if (fnSucceeded) {
 					const minHoldMs = TEMPLATER_PENDING_CHECK_BUFFER_MS;
-					await sleep(minHoldMs);
+					await waitFor(minHoldMs);
 				}
 
 				pendingFiles.delete(filePath);
@@ -459,7 +456,7 @@ export async function waitForFileToStopChanging(
 
 		let pollIntervalMs = 50;
 		while (Date.now() - start < timeoutMs) {
-			await sleep(pollIntervalMs);
+			await waitFor(pollIntervalMs);
 			const current = await adapter.stat(file.path);
 			if (!current) return;
 

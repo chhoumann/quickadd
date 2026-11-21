@@ -1,5 +1,5 @@
 import type IChoice from "../types/choices/IChoice";
-import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceGuards";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";

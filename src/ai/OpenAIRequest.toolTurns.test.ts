@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AIProvider, Model } from "./Provider";
 import type { NormalizedChatRequest } from "./tools/NormalizedTools";
 
-import { storeState, mocks, makeApp } from "../../tests/helpers/ai/requestHarness";
+import { storeState, mocks } from "../../tests/helpers/ai/requestHarness";
 
 const { requestUrlMock, noticeMock } = mocks;
 
@@ -82,7 +82,7 @@ describe("OpenAI tool turns use the Responses API on api.openai.com", () => {
 		);
 
 		const res = await chatRequest(
-			makeApp(), "sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest(),
+			"sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest(),
 		);
 
 		const { url, body } = sent(0);
@@ -124,7 +124,7 @@ describe("OpenAI tool turns use the Responses API on api.openai.com", () => {
 			{ role: "tool", results: [{ toolCallId: "call_abc", name: "get_weather", content: "sunny" }] },
 		);
 		const res = await chatRequest(
-			makeApp(), "sk", gpt6, openaiCompatible("https://api.openai.com/v1"), req,
+			"sk", gpt6, openaiCompatible("https://api.openai.com/v1"), req,
 		);
 
 		expect(sent(0).body.input).toEqual([
@@ -146,7 +146,7 @@ describe("OpenAI tool turns use the Responses API on api.openai.com", () => {
 		);
 
 		await expect(
-			chatRequest(makeApp(), "sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest()),
+			chatRequest("sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest()),
 		).rejects.toThrow(/Invalid schema/);
 		expect(requestUrlMock).toHaveBeenCalledTimes(1);
 	});
@@ -165,7 +165,7 @@ describe("OpenAI tool turns use the Responses API on api.openai.com", () => {
 		);
 
 		await expect(
-			chatRequest(makeApp(), "sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest()),
+			chatRequest("sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest()),
 		).rejects.toThrow(/reasoning_effort/);
 		expect(requestUrlMock).toHaveBeenCalledTimes(1);
 	});
@@ -196,7 +196,7 @@ describe("OpenAI-compatible endpoints keep Chat Completions", () => {
 			}),
 		);
 
-		const res = await chatRequest(makeApp(), "sk", gpt6, openaiCompatible(endpoint), toolRequest());
+		const res = await chatRequest("sk", gpt6, openaiCompatible(endpoint), toolRequest());
 
 		const { url, body } = sent(0);
 		expect(url).toBe(`${endpoint}/chat/completions`);
@@ -230,7 +230,7 @@ describe("Anthropic models that reject forced tool use", () => {
 			anthropic400('tool_choice: type "tool" and "any" are not supported for this model.'),
 		);
 
-		const error = await chatRequest(makeApp(), "sk", opus55, anthropic, {
+		const error = await chatRequest("sk", opus55, anthropic, {
 			...toolRequest(),
 			toolChoice: "required",
 		}).catch((e: Error) => e);
@@ -247,7 +247,7 @@ describe("Anthropic models that reject forced tool use", () => {
 			anthropic400("tool_choice.name: Tool 'missing' not found in tools."),
 		);
 
-		const error = await chatRequest(makeApp(), "sk", opus55, anthropic, {
+		const error = await chatRequest("sk", opus55, anthropic, {
 			...toolRequest(),
 			toolChoice: { name: "missing" },
 		}).catch((e: Error) => e);

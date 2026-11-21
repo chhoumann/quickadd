@@ -1,4 +1,4 @@
-import { prepareCapture, type CaptureCursor } from "../formatters/helpers/capturePlacement";
+import { prepareCapture, type CaptureCursor } from "../utils/capturePlacement";
 import { restoreUserText, restoreUserTextInCapture } from "../formatters/helpers/userText";
 import { insertCaptureInEditor, setMarkdownCursorsAtOffsets, appendToCurrentLine, insertOnNewLineAbove, insertOnNewLineBelow, setMarkdownCursorAtOffset } from "../utils/editorInsertion";
 import { mapEditorCursorPlacement, type EditorCursorPlacement, type EditorTextMutationObserver } from "../utils/editorCursorPlacement";
@@ -23,8 +23,7 @@ import {
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
-import { extractHeadingsFromLines } from "../formatters/helpers/sectionLink";
-import { getLinesInString } from "../utility";
+import { extractHeadingsFromLines } from "../utils/sectionLink";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -1004,7 +1003,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		const allowCreate = !!insertAfter.createIfNotFound;
 
-		const lines = getLinesInString(content);
+		const lines = content.split("\n");
 		// The headings Obsidian shows, minus setext ones: the picked line becomes
 		// the insert-after target, and a setext heading's line is its text, so a
 		// capture after it would split the heading from its underline. An ATX

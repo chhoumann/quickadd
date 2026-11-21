@@ -22,7 +22,7 @@ const FUSE_OPTIONS = {
  * into one redundant rebuild per leaked instance.
  */
 export class TagIndex {
-	protected static instance: TagIndex;
+	private static instance: TagIndex | undefined;
 	private app: App;
 	private sortedTags: string[] = [];
 	private fuse: Fuse<string> = new Fuse<string>([], FUSE_OPTIONS);
@@ -43,6 +43,14 @@ export class TagIndex {
 			TagIndex.instance = new TagIndex(app, plugin);
 		}
 		return TagIndex.instance;
+	}
+
+	/**
+	 * Drops the singleton. Its `resolved` listener goes with the plugin's own
+	 * registerEvent cleanup on unload.
+	 */
+	static destroyInstance(): void {
+		TagIndex.instance = undefined;
 	}
 
 	/**

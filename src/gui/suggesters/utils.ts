@@ -104,29 +104,9 @@ export function normalizeQuery(value: unknown): string {
 	return normalizeDisplayItem(value);
 }
 
-export function normalizeForSearch(value: string): string {
-	return value.normalize("NFC").toLowerCase();
-}
-
 // Display-only helper: keep stored path intact, but hide trailing ".md" in UI labels.
 export function stripMdExtensionForDisplay(value: string): string {
 	return value.toLowerCase().endsWith(".md") ? value.slice(0, -3) : value;
-}
-
-/**
- * Insert text at cursor position
- */
-export function insertAtCursor(
-	input: HTMLInputElement | HTMLTextAreaElement,
-	text: string
-): void {
-	const start = input.selectionStart ?? 0;
-	const end = input.selectionEnd ?? 0;
-	const value = input.value;
-	
-	input.value = value.slice(0, start) + text + value.slice(end);
-	input.setSelectionRange(start + text.length, start + text.length);
-	input.trigger("input");
 }
 
 /**
@@ -252,11 +232,6 @@ export function renderHighlightRanges(
 	}
 	if (from < text.length) el.append(createOwnedTextNode(el, text.slice(from)));
 }
-
-// Single-source heading sanitizer; lives in its own dependency-free module
-// (linear scanners - the old chained regexes were quadratic on adversarial
-// headings). Re-exported here so existing imports keep working.
-export { sanitizeHeading } from "./headingSanitizer";
 
 /** Mark input changes made by a picker so its refresh does not reopen a completed selection. */
 export function dispatchCompletion(input: HTMLInputElement | HTMLTextAreaElement, keepOpen = false): void {

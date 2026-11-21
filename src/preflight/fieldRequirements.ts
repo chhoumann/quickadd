@@ -1,4 +1,4 @@
-import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntax";
+import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntaxTypes";
 
 export type FieldType =
 	| "text"
@@ -27,7 +27,6 @@ export interface FieldRequirement {
 	dateFormat?: string; // for VDATE
 	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
 	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]
-	filters?: string; // serialized filters for FIELD variables
 	/** field-suggest: the `{{FIELD:...}}` specifier, when `id` is the run variable its `|name:` names. */
 	fieldSpecifier?: string;
 	source?: "collected" | "script"; // provenance for UX badges

@@ -53,7 +53,6 @@
     // would overwrite the value (the add row and the drop zone are its only two).
     const unreadable = $derived(hasUnreadableChildren(choice));
 
-    let showConfigureButton = $state(true);
     let nameElement = $state<HTMLSpanElement>();
 	const cmp = new Component();
 
@@ -168,7 +167,6 @@
             onOpenMenu={openMenu}
             {onMoveUp}
             {onMoveDown}
-            {showConfigureButton}
             {dragDisabled}
             choiceName={choice.name}
             commandEnabled={choice.command}

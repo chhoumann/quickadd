@@ -9,7 +9,7 @@ import { flushSync } from "svelte";
 import type QuickAdd from "../../main";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
-import { createTemplateChoiceFormProps } from "./templateChoiceFormProps.svelte";
+import { createChoiceFormProps } from "./choiceFormProps.svelte";
 
 
 const plugin = {
@@ -18,7 +18,7 @@ const plugin = {
 } as unknown as QuickAdd;
 
 function mountForm(overrides: Partial<ITemplateChoice> = {}) {
-	const props = createTemplateChoiceFormProps({
+	const props = createChoiceFormProps<ITemplateChoice>({
 		choice: templateChoice({ discoverExistingNotesBeforeCreate: false, ...overrides }),
 		app: new App(),
 		plugin,

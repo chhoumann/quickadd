@@ -612,16 +612,8 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			);
 			templateInsertApplyMock.mockResolvedValue(existingFile);
 
-			const rawAppendSpy = vi.spyOn(
-				engine as unknown as {
-					appendToFileWithTemplate: () => Promise<TFile | null>;
-				},
-				"appendToFileWithTemplate",
-			);
-
 			await engine.run();
 
-			expect(rawAppendSpy).not.toHaveBeenCalled();
 			expect(templateInsertConstructorMock).toHaveBeenCalledWith(
 				app,
 				plugin,
@@ -708,24 +700,10 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			existingFile,
 		);
 
-		const rawAppendSpy = vi
-			.spyOn(
-				engine as unknown as {
-					appendToFileWithTemplate: (
-						file: TFile,
-						templatePath: string,
-						position: "top" | "bottom",
-					) => Promise<TFile | null>;
-				},
-				"appendToFileWithTemplate",
-			)
-			.mockResolvedValue(existingFile);
-
 		await engine.run();
 
-		// Append must NOT proceed through either the raw-concat path or the
-		// markdown insert engine — both would corrupt the canvas JSON.
-		expect(rawAppendSpy).not.toHaveBeenCalled();
+		// Append must NOT proceed through the markdown insert engine or a raw
+		// write - both would corrupt the canvas JSON.
 		expect(templateInsertConstructorMock).not.toHaveBeenCalled();
 		expect(templateInsertSetLinkToCurrentFileBehaviorMock).not.toHaveBeenCalled();
 		expect(app.vault.modify).not.toHaveBeenCalled();

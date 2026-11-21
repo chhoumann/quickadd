@@ -21,9 +21,7 @@ import {
 } from "./scriptCandidates";
 
 function cloneCondition(condition: ConditionalCondition): ConditionalCondition {
-	return condition.mode === "variable"
-		? { ...condition }
-		: { ...condition };
+	return { ...condition };
 }
 
 function createDefaultVariableCondition(): VariableCondition {

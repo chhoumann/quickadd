@@ -1,5 +1,9 @@
-import type { NumericInputConfig, SliderConfig, ValueInputType } from "./valueSyntax";
-import type { ParsedOptions } from "./valueOptions";
+import type {
+	NumericInputConfig,
+	ParsedOptions,
+	SliderConfig,
+	ValueInputType,
+} from "./valueSyntaxTypes";
 import { SILENT_WARN, type WarnSink } from "./warnSink";
 
 function parseFiniteNumber(value: string | undefined): number | undefined {

@@ -1,13 +1,11 @@
 import type QuickAdd from "src/main";
 import { deepClone } from "src/utils/deepClone";
-import {
-	isTemplateChoice,
-	normalizeTemplateChoice,
-} from "./helpers/normalizeTemplateFileExistsBehavior";
+import { isTemplateChoice } from "src/types/choices/choiceGuards";
+import { normalizeTemplateChoice } from "./helpers/normalizeTemplateFileExistsBehavior";
 import {
 	settingsTreeHasUnreadableData,
-	walkAllChoices,
-} from "./helpers/choice-traversal";
+	walkChoicesInSettings,
+} from "src/utils/choiceTraversal";
 import type { Migration, MigrationResult } from "./Migrations";
 import type { IMacro } from "src/types/macros/IMacro";
 
@@ -24,7 +22,7 @@ const consolidateFileExistsBehavior: Migration = {
 		// data.json, which is the opposite of what a migration should do (#1566).
 		// When it is unreadable the walk below covers nothing, so stay pending and
 		// re-run once the user has repaired the file.
-		// This migration walks with `walkAllChoices`, so it must ask the WIDE
+		// This migration walks with `walkChoicesInSettings`, so it must ask the WIDE
 		// question - a nested choice hidden behind an unreadable `macro.commands`
 		// is one this visitor would have normalized (#1610).
 		const treeReadable = !settingsTreeHasUnreadableData(settings);
@@ -35,7 +33,7 @@ const consolidateFileExistsBehavior: Migration = {
 			settings.macros = deepClone(settings.macros);
 		}
 
-		walkAllChoices(plugin, (choice) => {
+		walkChoicesInSettings(plugin.settings, (choice) => {
 			if (isTemplateChoice(choice)) {
 				normalizeTemplateChoice(choice);
 			}

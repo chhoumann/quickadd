@@ -11,7 +11,7 @@
  */
 import { type App, TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "../../../utils/vaultQueries";
-import { insertTextAfterPositionInBody } from "../../../formatters/helpers/insertionPositioning";
+import { insertTextAfterPositionInBody } from "../../../utils/insertionPositioning";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
 import { processNote } from "../../../utils/noteContent";
 import { isWithinAllowedRoots } from "../allowedRoots";

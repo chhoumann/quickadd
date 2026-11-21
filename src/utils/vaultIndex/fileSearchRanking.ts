@@ -1,5 +1,5 @@
-import type { IndexedFile, SearchContext } from "./FileIndex";
-import { normalizeForSearch } from "./utils";
+import type { IndexedFile, SearchContext } from "./fileIndexTypes";
+import { normalizeForSearch } from "./normalizeForSearch";
 
 // Configurable search ranking weights
 export const SearchWeights = {

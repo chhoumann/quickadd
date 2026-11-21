@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LINK_TO_CURRENT_FILE_REGEX, TITLE_REGEX } from '../constants';
-import * as positioning from './helpers/insertionPositioning';
+import * as positioning from '../utils/insertionPositioning';
 
 // Local helper mirroring Formatter.replaceLinkToCurrentFileInString,
 // but without importing Formatter (to avoid obsidian deps in tests).

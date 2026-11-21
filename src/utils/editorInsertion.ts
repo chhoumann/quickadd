@@ -13,7 +13,7 @@ import { buildFileLinkText } from "./fileLinks";
 import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPropertyLinks";
 import { processNoteFrontMatter } from "./noteContent";
 import { appendLinkLineToNote } from "./fileLinks";
-import type { CapturePlacementResult } from "../formatters/helpers/capturePlacement";
+import type { CapturePlacementResult } from "./capturePlacement";
 import type { EditorCursorPlacement, EditorTextMutationObserver } from "./editorCursorPlacement";
 
 export function insertCaptureInEditor(

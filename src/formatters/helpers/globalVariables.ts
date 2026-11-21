@@ -1,5 +1,5 @@
 import { GLOBAL_VAR_REGEX } from "../../constants";
-import { unescapePipesInTokens } from "./pipeEscapes";
+import { unescapePipesInTokens } from "../../utils/pipeEscapes";
 
 /** Globals may nest, but expansion stops after five passes, including cycles. */
 export function expandGlobalVariables(

@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { log } from "../../logger/logManager";
 import { 
-	insertAtCursor, 
 	replaceRange, 
 	renderExactHighlight, 
 	renderHighlightRanges,
@@ -21,10 +20,6 @@ class MockInput {
 		this.selectionEnd = end;
 	}
 	
-	trigger() {
-		// Mock trigger method
-	}
-	
 	dispatchEvent() {
 		// Required by replaceRange but not tested
 	}
@@ -35,30 +30,6 @@ describe("Suggester Utils", () => {
 
 	beforeEach(() => {
 		mockInput = new MockInput();
-	});
-
-	describe("insertAtCursor", () => {
-		it("should insert text at cursor position", () => {
-			mockInput.value = "Hello World";
-			mockInput.selectionStart = 5;
-			mockInput.selectionEnd = 5;
-
-			insertAtCursor(mockInput as any, " Beautiful");
-
-			expect(mockInput.value).toBe("Hello Beautiful World");
-			expect(mockInput.selectionStart).toBe(15);
-		});
-
-		it("should replace selected text", () => {
-			mockInput.value = "Hello World";
-			mockInput.selectionStart = 6;
-			mockInput.selectionEnd = 11;
-
-			insertAtCursor(mockInput as any, "Universe");
-
-			expect(mockInput.value).toBe("Hello Universe");
-			expect(mockInput.selectionStart).toBe(14);
-		});
 	});
 
 	describe("replaceRange", () => {

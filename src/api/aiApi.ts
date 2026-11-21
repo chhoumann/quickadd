@@ -15,7 +15,6 @@ import { createWorkspaceTools } from "../ai/tools/builtins/workspaceTools";
 import { createSystemTools } from "../ai/tools/builtins/systemTools";
 import type { BuiltinGroupOptions } from "../ai/tools/builtins/shared";
 import { settingsStore } from "../settingsStore";
-import { reportError } from "../utils/errorUtils";
 import { log } from "../logger/logManager";
 
 type Format = (text: string, variables?: Record<string, unknown>, clearVariables?: boolean) => Promise<string>;
@@ -49,11 +48,7 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 		};
 	}
 
-	function finishPrompt(result: Awaited<ReturnType<typeof Prompt>>, settings: PromptSettings | undefined, context: string) {
-		if (!result) {
-			reportError(new Error("AI Assistant returned null"), context);
-			return {};
-		}
+	function finishPrompt(result: Awaited<ReturnType<typeof Prompt>>, settings: PromptSettings | undefined) {
 		if (settings?.shouldAssignVariables || settings?.assignToVariable) {
 			for (const [key, value] of Object.entries(result)) choiceExecutor.variables.set(key, value);
 		}
@@ -64,7 +59,7 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 		prompt: async (prompt: string, model: ScriptModelInput, settings?: PromptSettings) => {
 			const result = await Prompt(app, { ...await promptOptions(model, settings), prompt },
 				(text: string, variables?: Record<string, unknown>) => format(text, variables, false));
-			return finishPrompt(result, settings, "AI Prompt error");
+			return finishPrompt(result, settings);
 		},
 		chunkedPrompt: async (
 			text: string,
@@ -87,7 +82,7 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 				shouldMerge: settings?.shouldMerge ?? true,
 				maxChunkTokens: settings?.maxChunkTokens,
 			}, (input, variables) => format(input, { ...existingVariables, ...variables }, false));
-			return finishPrompt(result, settings, "Chunked AI Prompt error");
+			return finishPrompt(result, settings);
 		},
 		getModels: () => {
 			return getModelNames();

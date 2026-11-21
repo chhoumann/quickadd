@@ -890,17 +890,6 @@ describe("ai.prompt validation", () => {
 			showAssistantMessages: true,
 		});
 	});
-
-	it("returns {} and reports error when Prompt resolves null", async () => {
-		mocks.getModelByName.mockReturnValue({ name: "gpt-4", maxTokens: 1 });
-		mocks.getModelProvider.mockReturnValue({ name: "OpenAI" });
-		mocks.resolveProviderApiKey.mockResolvedValue("KEY");
-		mocks.prompt.mockResolvedValue(null);
-		const { api } = getApi();
-		const res = await api.ai.prompt("q", "gpt-4");
-		expect(res).toEqual({});
-		expect(mocks.reportError).toHaveBeenCalled();
-	});
 });
 
 // ===========================================================================
@@ -946,16 +935,6 @@ describe("ai.chunkedPrompt validation", () => {
 			maxChunkTokens: undefined,
 		});
 		expect(opts.chunkSeparator).toBeInstanceOf(RegExp);
-	});
-
-	it("returns {} and reports error when ChunkedPrompt resolves null", async () => {
-		mocks.getModelByName.mockReturnValue({ name: "gpt-4", maxTokens: 1 });
-		mocks.getModelProvider.mockReturnValue({ name: "OpenAI" });
-		mocks.resolveProviderApiKey.mockResolvedValue("KEY");
-		mocks.chunkedPrompt.mockResolvedValue(null);
-		const { api } = getApi();
-		expect(await api.ai.chunkedPrompt("t", "tmpl", "gpt-4")).toEqual({});
-		expect(mocks.reportError).toHaveBeenCalled();
 	});
 });
 

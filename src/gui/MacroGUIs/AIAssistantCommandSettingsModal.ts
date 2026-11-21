@@ -15,7 +15,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand | null>;
 
 	private resolvePromise: (settings: IAIAssistantCommand | null) => void;
-	private rejectPromise: (reason?: unknown) => void;
 
 	private settings: IAIAssistantCommand;
 	// Snapshot of the command as it was opened, so Cancel/Esc can restore the live
@@ -35,12 +34,9 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		this.settings = settings;
 		this.originalSettings = this.cloneSettings(settings);
 
-		this.waitForClose = new Promise<IAIAssistantCommand | null>(
-			(resolve, reject) => {
-				this.rejectPromise = reject;
-				this.resolvePromise = resolve;
-			}
-		);
+		this.waitForClose = new Promise<IAIAssistantCommand | null>((resolve) => {
+			this.resolvePromise = resolve;
+		});
 
 		this.open();
 		this.display();

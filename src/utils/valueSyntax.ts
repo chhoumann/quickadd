@@ -7,28 +7,15 @@ import { splitPipeParts, stripLeadingPipe } from "./pipeSyntax";
 import { isSupportedCaseStyle, SUPPORTED_CASE_STYLES } from "./caseTransform";
 import type { MultiValueFormat } from "./multiValueFormat";
 import { NOTICE_WARN, type WarnSink } from "./warnSink";
+import type {
+	MultiEmit,
+	NumericInputConfig,
+	SliderConfig,
+	ValueInputType,
+} from "./valueSyntaxTypes";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 const VALUE_LABEL_KEY_DELIMITER = "\u001F";
-
-export type ValueInputType =
-	| "multiline"
-	| "number"
-	| "slider"
-	| "checkbox"
-	| "text";
-
-export type NumericInputConfig = {
-	min?: number;
-	max?: number;
-	step?: number;
-};
-
-export type SliderConfig = {
-	min: number;
-	max: number;
-	step: number;
-};
 
 // Types that render a different input widget but are meaningless alongside a
 // comma option-list or |custom (those already pick from a fixed/free set).
@@ -39,8 +26,6 @@ const OPTION_INCOMPATIBLE_TYPES = new Set<ValueInputType>([
 	"checkbox",
 	"text",
 ]);
-
-export type MultiEmit = "text" | "linklist";
 
 // Variable keys QuickAdd populates itself; a `|name:` alias must not hijack them.
 export const RESERVED_VALUE_NAMES = new Set(["value", "title"]);

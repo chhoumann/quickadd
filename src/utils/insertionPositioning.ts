@@ -1,7 +1,7 @@
-import type { BlankLineAfterMatchMode } from "../../types/choices/ICaptureChoice";
+import type { BlankLineAfterMatchMode } from "../types/choices/ICaptureChoice";
 import { extractHeadingsFromLines } from "./sectionLink";
 import { maskFencedHeadings, type OrderedSlot } from "./orderedSectionPlacement";
-import { getBodyStartOffset } from "../../utils/noteContentInsertion";
+import { getBodyStartOffset } from "./noteContentInsertion";
 
 /**
  * Pure document-positioning algorithms for the capture insert-after / insert-before

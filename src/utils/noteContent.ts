@@ -1,5 +1,5 @@
 import { MarkdownView, type App, type TFile } from "obsidian";
-import { waitFor } from "../utility";
+import { waitFor } from "./waitFor";
 import merge from "three-way-merge";
 import invariant from "./invariant";
 import { log } from "../logger/logManager";

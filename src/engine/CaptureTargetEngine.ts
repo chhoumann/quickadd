@@ -2,7 +2,7 @@ import { TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
+import { QuickAddEngine } from "./QuickAddEngine";
 import { BASE_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utils/vaultQueries";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
@@ -22,7 +22,7 @@ import { classifyCaptureTargetScope, markdownFilePathForFolderCandidate, type Ca
 import { resolveCaptureTarget as resolveCaptureTargetFromString, type CaptureTargetResolution } from "./helpers/captureTargetResolution";
 import { currentFile, missingCurrentNoteMessage } from "../utils/currentFile";
 
-export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
+export abstract class CaptureTargetEngine extends QuickAddEngine {
 	public abstract choice: ICaptureChoice;
 	protected abstract formatter: CaptureChoiceFormatter;
 	protected abstract choiceExecutor: IChoiceExecutor;

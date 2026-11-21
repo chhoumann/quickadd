@@ -15,7 +15,7 @@ import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
 import type { ICommand } from "../types/macros/ICommand";
 import type { LoadedUserScript } from "../utils/userScript";
 import { executeUserScript, type ScriptParameters } from "./userScriptExecution";
-import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
+import { QuickAddEngine } from "./QuickAddEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
@@ -26,18 +26,8 @@ import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
 import type { IEditorCommand } from "../types/macros/EditorCommands/IEditorCommand";
-import { EditorCommandType } from "../types/macros/EditorCommands/EditorCommandType";
-import { CutCommand } from "../types/macros/EditorCommands/CutCommand";
-import { CopyCommand } from "../types/macros/EditorCommands/CopyCommand";
-import { PasteCommand } from "../types/macros/EditorCommands/PasteCommand";
-import { PasteWithFormatCommand } from "../types/macros/EditorCommands/PasteWithFormatCommand";
-import { SelectActiveLineCommand } from "../types/macros/EditorCommands/SelectActiveLineCommand";
-import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
-import { MoveCursorToFileStartCommand } from "../types/macros/EditorCommands/MoveCursorToFileStartCommand";
-import { MoveCursorToFileEndCommand } from "../types/macros/EditorCommands/MoveCursorToFileEndCommand";
-import { MoveCursorToLineStartCommand } from "../types/macros/EditorCommands/MoveCursorToLineStartCommand";
-import { MoveCursorToLineEndCommand } from "../types/macros/EditorCommands/MoveCursorToLineEndCommand";
-import { waitFor } from "src/utility";
+import { executeEditorCommand } from "./editorCommands";
+import { waitFor } from "src/utils/waitFor";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
 import type { ResolvedModel } from "src/ai/aiHelpers";
@@ -108,7 +98,7 @@ function getConditionalScriptCacheKey(condition: ScriptCondition): string {
 	return `${condition.scriptPath}::${condition.exportName ?? "default"}`;
 }
 
-export class MacroChoiceEngine extends QuickAddChoiceEngine {
+export class MacroChoiceEngine extends QuickAddEngine {
 	public choice: IMacroChoice;
 	public params: ScriptParameters;
 	protected output: unknown;
@@ -456,51 +446,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeEditorCommand(command: IEditorCommand) {
-		switch (command.editorCommandType) {
-			case EditorCommandType.Cut:
-				await CutCommand.run(this.app);
-				break;
-			case EditorCommandType.Copy:
-				await CopyCommand.run(this.app);
-				break;
-			case EditorCommandType.Paste:
-				await PasteCommand.run(this.app);
-				break;
-			case EditorCommandType.PasteWithFormat:
-				await PasteWithFormatCommand.run(this.app);
-				break;
-			case EditorCommandType.SelectActiveLine:
-				SelectActiveLineCommand.run(this.app);
-				break;
-			case EditorCommandType.SelectLinkOnActiveLine:
-				SelectLinkOnActiveLineCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToFileStart:
-				MoveCursorToFileStartCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToFileEnd:
-				MoveCursorToFileEndCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToLineStart:
-				MoveCursorToLineStartCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToLineEnd:
-				MoveCursorToLineEndCommand.run(this.app);
-				break;
-			default: {
-				// Skip and shout, like the outer loop - this used to throw, which
-				// aborted the whole macro. Same threat model, so it deserves the same
-				// answer: a newer QuickAdd that adds an EditorCommandType writes a
-				// data.json an older one still has to read, and one unknown editor
-				// step is no reason to take the file-writing steps around it down
-				// with it.
-				const exhaustiveCheck: never = command.editorCommandType;
-				this.reportUnrunnableCommand(
-					command,
-					describeUnknownType(exhaustiveCheck, "editor command"),
-				);
-			}
-		}
+		if (await executeEditorCommand(this.app, command)) return;
+		// Skip and shout, like the outer loop - this used to throw, which aborted
+		// the whole macro. Same threat model, so it deserves the same answer: a
+		// newer QuickAdd that adds an EditorCommandType writes a data.json an older
+		// one still has to read, and one unknown editor step is no reason to take
+		// the file-writing steps around it down with it.
+		this.reportUnrunnableCommand(
+			command,
+			describeUnknownType(command.editorCommandType, "editor command"),
+		);
 	}
 
 	private async executeAIAssistant(command: IAIAssistantCommand) {

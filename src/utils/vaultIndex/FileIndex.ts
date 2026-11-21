@@ -2,31 +2,10 @@ import type { App, Plugin } from "obsidian";
 import { TFile } from "obsidian";
 import Fuse from "fuse.js";
 import { createIndexedFile } from "./fileMetadata";
+import type { IndexedFile, SearchContext } from "./fileIndexTypes";
 import { calculateFileScore, SearchWeights } from "./fileSearchRanking";
 import type { SearchWeightsConfig } from "./fileSearchRanking";
-export { SearchWeights } from "./fileSearchRanking";
-import { normalizeForSearch } from "./utils";
-
-export interface IndexedFile {
-	path: string;
-	pathNormalized: string;
-	basename: string;
-	basenameNormalized: string;
-	aliases: string[];
-	aliasesNormalized: string[];
-	headings: string[];
-	blockIds: string[];
-	tags: string[];
-	modified: number;
-	openedAt?: number;
-	folder: string;
-}
-
-export interface SearchContext {
-	currentFile?: TFile;
-	currentFolder?: string;
-	recentFiles?: TFile[];
-}
+import { normalizeForSearch } from "./normalizeForSearch";
 
 export interface SearchResult {
 	file: IndexedFile;
@@ -78,7 +57,7 @@ const ALPHANUMERIC_REGEX = /\w/;
 
 
 export class FileIndex {
-	protected static instance: FileIndex;
+	private static instance: FileIndex | undefined;
 	private app: App;
 	private plugin: Plugin;
 	private fileMap: Map<string, IndexedFile> = new Map();
@@ -147,7 +126,26 @@ export class FileIndex {
 	 * warm, without paying any startup/indexing cost when it is not.
 	 */
 	static getInstanceIfExists(): FileIndex | undefined {
-		return FileIndex.instance ?? undefined;
+		return FileIndex.instance;
+	}
+
+	/**
+	 * Drops the singleton and its pending debounce timers. Its vault and workspace
+	 * listeners go with the plugin's own registerEvent cleanup on unload.
+	 */
+	static destroyInstance(): void {
+		const instance = FileIndex.instance;
+		if (!instance) return;
+		if (instance.reindexTimeout !== null) {
+			window.clearTimeout(instance.reindexTimeout);
+		}
+		if (instance.fuseUpdateTimeout !== null) {
+			window.clearTimeout(instance.fuseUpdateTimeout);
+		}
+		instance.reindexTimeout = null;
+		instance.fuseUpdateTimeout = null;
+		instance.pendingFuseUpdates.clear();
+		FileIndex.instance = undefined;
 	}
 
 	/**

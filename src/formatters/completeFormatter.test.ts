@@ -1811,7 +1811,7 @@ describe("CompleteFormatter - formatTemplateFilePath (issue #620)", () => {
 // --- {{linksection}} runtime resolver (issue #387) -----------------------
 // Exercises CompleteFormatter.getCurrentFileLinkToSection's glue: the active-
 // view/cursor guards and the whole-file / throw fallbacks. The heading parsing
-// and disambiguation logic itself is unit-tested in helpers/sectionLink.test.ts.
+// and disambiguation logic itself is unit-tested in utils/sectionLink.test.ts.
 
 function makeSectionView(opts: {
 	path: string;

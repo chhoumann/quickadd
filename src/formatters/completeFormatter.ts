@@ -1,10 +1,10 @@
-import { stripCursorMarkers } from "./helpers/capturePlacement";
+import { stripCursorMarkers } from "../utils/capturePlacement";
 import { protectUserText, restoreUserText } from "./helpers/userText";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { unescapePipesInTokens } from "./helpers/pipeEscapes";
-import { findNextInlineScript, inlineScriptRescanFrom } from "./helpers/inlineScriptSpans";
+import { unescapePipesInTokens } from "../utils/pipeEscapes";
+import { findNextInlineScript, inlineScriptRescanFrom } from "../utils/inlineScriptSpans";
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -19,10 +19,8 @@ import type QuickAdd from "../main";
 import type { IDateParser } from "../parsers/IDateParser";
 import type { InputPromptOptions } from "../types/inputPrompt";
 import { NLDParser } from "../parsers/NLDParser";
-import { type FieldFilter } from "../utils/FieldSuggestionParser";
 import { type ParsedFileToken } from "../utils/fileSyntax";
 import { normalizeNumericValue } from "../utils/valueSyntax";
-import { collectFieldValuesRaw, generateFieldCacheKey } from "../utils/FieldValueCollector";
 import { currentFile, currentSelection, missingCurrentNoteMessage } from "../utils/currentFile";
 import { Formatter, type PromptContext } from "./formatter";
 import {
@@ -36,7 +34,7 @@ import {
 	buildSectionSubpath,
 	extractHeadingsFromLines,
 	sanitizeHeadingForSubpath,
-} from "./helpers/sectionLink";
+} from "../utils/sectionLink";
 import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { isCancellationError } from "../utils/errorUtils";
@@ -742,9 +740,6 @@ export class CompleteFormatter extends Formatter {
 		return suggestForField({ app: this.app, executor: this.choiceExecutor, getSourcePath: () => this.getLinkSourcePath() }, fieldInput);
 	}
 
-	private generateCacheKey(filters: FieldFilter): string {
-		return generateFieldCacheKey(filters);
-	}
 	protected async suggestForFile(parsed: ParsedFileToken): Promise<string | string[]> {
 		this.assertInteractivePrompt(
 			`{{FILE}} (pick a file from ${parsed.folderPath})`,
@@ -904,12 +899,5 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		return output;
-	}
-
-	private async collectValuesManually(
-		fieldName: string,
-		filters: FieldFilter,
-	): Promise<Set<string>> {
-		return await collectFieldValuesRaw(this.app, fieldName, filters);
 	}
 }

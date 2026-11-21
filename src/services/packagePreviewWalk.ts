@@ -1,8 +1,8 @@
-import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
+import { inlineScriptBodies } from "../utils/inlineScriptSpans";
 import { normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type IChoice from "../types/choices/IChoice";
-import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceGuards";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";

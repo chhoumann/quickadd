@@ -10,8 +10,8 @@ import {
 } from "./helpers/file-opening-legacy";
 import {
 	settingsTreeHasUnreadableData,
-	walkAllChoices,
-} from "./helpers/choice-traversal";
+	walkChoicesInSettings,
+} from "../utils/choiceTraversal";
 import {
 	normalizeFileOpening,
 	type FileOpeningSettings,
@@ -68,7 +68,7 @@ const backfillFileOpeningDefaults: Migration = {
 			migratedCount++;
 		};
 
-		walkAllChoices(plugin, backfillFileOpening);
+		walkChoicesInSettings(plugin.settings, backfillFileOpening);
 
 		log.logMessage(
 			`File opening defaults backfill complete. Updated ${migratedCount} choice(s).`,

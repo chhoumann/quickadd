@@ -4,11 +4,9 @@ import type {
 	BlankLineAfterMatchMode,
 	SectionOrdering,
 } from "./ICaptureChoice";
-import { CREATE_IF_NOT_FOUND_ORDERED } from "../../constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
-import { parsePropertyCapture } from "./ICaptureChoice";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
 	propertyCapture?: ICaptureChoice["propertyCapture"];
@@ -79,7 +77,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		this.format = { enabled: false, format: "" };
 		// Only read once "After line…" is picked. Most After-line captures append
 		// to the section and create a missing heading, so new ones start that way
-		// (#2007). Load() never backfills these, so saved choices keep theirs.
+		// (#2007). Saved choices keep theirs.
 		this.insertAfter = {
 			enabled: false,
 			after: "",
@@ -109,84 +107,5 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		this.templater = {
 			afterCapture: "none",
 		};
-	}
-
-	public static Load(choice: ICaptureChoice): CaptureChoice {
-		const loaded = choice as CaptureChoice;
-		if (loaded.propertyCapture !== undefined) {
-			loaded.propertyCapture = parsePropertyCapture(loaded.propertyCapture);
-		}
-		// Ensure backward compatibility: default to "cursor" if not set
-		if (
-			loaded.activeFileWritePosition !== "cursor" &&
-			loaded.activeFileWritePosition !== "top" &&
-			loaded.activeFileWritePosition !== "bottom"
-		) {
-			loaded.activeFileWritePosition = "cursor";
-		}
-		if (typeof loaded.captureToCanvasNodeId !== "string") {
-			loaded.captureToCanvasNodeId = "";
-		}
-		if (!loaded.insertBefore) {
-			loaded.insertBefore = {
-				enabled: false,
-				before: "",
-				createIfNotFound: false,
-				createIfNotFoundLocation: "top",
-			};
-		}
-		if (
-			loaded.captureToActiveFile &&
-			loaded.prepend &&
-			!loaded.insertAfter?.enabled &&
-			!loaded.insertBefore.enabled &&
-			!loaded.newLineCapture?.enabled
-		) {
-			if (loaded.activeFileWritePosition !== "top") {
-				loaded.activeFileWritePosition = "bottom";
-			}
-			loaded.prepend = false;
-		}
-		if (!loaded.templater) loaded.templater = { afterCapture: "none" };
-		if (loaded.templater.afterCapture !== "wholeFile") {
-			loaded.templater.afterCapture = "none";
-		}
-		if (loaded.insertAfter && !loaded.insertAfter.blankLineAfterMatchMode) {
-			loaded.insertAfter.blankLineAfterMatchMode = "auto";
-		}
-		if (loaded.insertAfter && loaded.insertAfter.inline === undefined) {
-			loaded.insertAfter.inline = false;
-		}
-		if (loaded.insertAfter && loaded.insertAfter.replaceExisting === undefined) {
-			loaded.insertAfter.replaceExisting = false;
-		}
-		if (loaded.insertAfter && loaded.insertAfter.promptHeading === undefined) {
-			loaded.insertAfter.promptHeading = false;
-		}
-		// Ordered create-location needs an ordering descriptor; backfill a safe
-		// insertion default so the formatter never dereferences undefined for a
-		// hand-edited or imported "ordered" choice (issue #481). The builder owns
-		// date auto-detection, so imported configs stay on the parser-free default.
-		if (
-			loaded.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_ORDERED
-		) {
-			// Only backfill orderBy when ordered placement is actually active, so an
-			// inert config (ordered location selected but create-if-not-found off) is
-			// not mutated on load (avoids needless persisted-diff churn).
-			if (loaded.insertAfter.createIfNotFound && !loaded.insertAfter.orderBy) {
-				loaded.insertAfter.orderBy = {
-					by: "insertion",
-					direction: "desc",
-					unparseable: "bottom",
-				};
-			}
-			// Ordered always creates a heading on its own line; inline same-line
-			// insertion is mutually exclusive (the inline create path can't honor
-			// "ordered" and would abort). Enforce the UI invariant here too so a
-			// hand-edited/imported inline+ordered choice can't reach that abort.
-			loaded.insertAfter.inline = false;
-		}
-		return loaded;
 	}
 }

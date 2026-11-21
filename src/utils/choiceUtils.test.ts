@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type IChoice from "src/types/choices/IChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type { ChoiceType } from "src/types/choices/choiceType";
-import { walkChoicesInSettings } from "src/migrations/helpers/choice-traversal";
+import { walkChoicesInSettings } from "src/utils/choiceTraversal";
 import {
 	childChoicesOf,
 	clearEmptyFormatFlag,

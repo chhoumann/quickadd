@@ -3,7 +3,7 @@ export { flagDescription, flagLabel, flagSeverity } from "./packagePreviewFlags"
 import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
-import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
+import { inlineScriptBodies } from "../utils/inlineScriptSpans";
 import type IChoice from "../types/choices/IChoice";
 import type { CapabilityRow, MissingReference, PackagePreview, PreviewChoice, PreviewFile, PreviewFlag, PreviewSeverity, PreviewSummary, PreviewUsageSite } from "../types/packages/PackagePreview";
 import type {

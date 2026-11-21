@@ -3,7 +3,7 @@ import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import NumberInputPrompt from "./NumberInputPrompt/NumberInputPrompt";
 import SliderInputPrompt from "./SliderInputPrompt/SliderInputPrompt";
 import { getQuickAddInstance } from "../quickAddInstance";
-import type { ValueInputType } from "../utils/valueSyntax";
+import type { ValueInputType } from "../utils/valueSyntaxTypes";
 
 export default class InputPrompt {
 	public factory(inputTypeOverride?: ValueInputType) {

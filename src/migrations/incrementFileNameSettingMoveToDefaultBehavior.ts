@@ -2,7 +2,7 @@ import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type { IMacro } from "src/types/macros/IMacro";
 import { deepClone } from "src/utils/deepClone";
-import { isMultiChoice } from "./helpers/isMultiChoice";
+import { isMultiChoice } from "src/types/choices/choiceGuards";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration, MigrationResult } from "./Migrations";
 import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
@@ -35,7 +35,9 @@ function isOldTemplateChoice(
 
 function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
-		if (isMultiChoice(choice)) {
+		// Array.isArray: this walker reassigns `choice.choices`, so a malformed
+		// folder must be SKIPPED, which is what preserves it (#1566).
+		if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
 			choice.choices = recursiveRemoveIncrementFileName(choice.choices);
 		}
 

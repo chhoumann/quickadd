@@ -10,7 +10,7 @@ import { settingsStore } from "src/settingsStore";
 import { deepClone } from "src/utils/deepClone";
 import { log } from "src/logger/logManager";
 import type { Migration } from "./Migrations";
-import { walkAllCommandsInSettings } from "./helpers/choice-traversal";
+import { walkAllCommandsInSettings } from "../utils/choiceTraversal";
 
 /** Lowercased hostname of an endpoint, or "" when unparsable (scheme optional). */
 function endpointHost(endpoint: string): string {

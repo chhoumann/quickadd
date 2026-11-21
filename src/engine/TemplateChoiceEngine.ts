@@ -569,14 +569,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return null;
 		}
 
-		if (existingFile.extension !== "md") {
-			return await this.appendToFileWithTemplate(
-				existingFile,
-				resolvedTemplatePath,
-				position,
-			);
-		}
-
 		const insertEngine = new TemplateInsertEngine(
 			this.app,
 			this.plugin,
@@ -673,7 +665,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	// The branch precedence below is mirrored by the choice builder's folder-mode
-	// dropdown (gui/ChoiceBuilder/folderMode.ts → deriveFolderMode). If you change
+	// dropdown (utils/folderMode.ts → deriveFolderMode). If you change
 	// the order or conditions here, update that helper (and its 16-combo test) so
 	// the dropdown keeps showing the mode that actually runs.
 	private async getFolderPath() {

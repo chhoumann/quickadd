@@ -1,11 +1,10 @@
-import { surroundCapture, placeCapture, type CapturePlacementResult } from "./capturePlacement";
-import { getLinesInString } from "../../utility";
+import { surroundCapture, placeCapture, type CapturePlacementResult } from "../../utils/capturePlacement";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { insertAtNoteBodyStartWithResult } from "../../utils/noteContentInsertion";
-import getEndOfSection from "./getEndOfSection";
-import { extractHeadingsFromLines } from "./sectionLink";
-import { computeOrderedSectionInsertIndex, maskFencedHeadings, type MomentLike } from "./orderedSectionPlacement";
-import * as positioning from "./insertionPositioning";
+import getEndOfSection from "../../utils/getEndOfSection";
+import { extractHeadingsFromLines } from "../../utils/sectionLink";
+import { computeOrderedSectionInsertIndex, maskFencedHeadings, type MomentLike } from "../../utils/orderedSectionPlacement";
+import * as positioning from "../../utils/insertionPositioning";
 
 export function insertOrderedCapture({ capture, targetString, fileContent, insertAfter, task }: {
 	capture: CapturePlacementResult;
@@ -40,7 +39,7 @@ export function insertOrderedCapture({ capture, targetString, fileContent, inser
 
 	// CRLF-safe line model: the helper detects headings on \r-stripped lines;
 	// the splice happens on the original lines to preserve EOL bytes.
-	const rawLines = getLinesInString(fileContent);
+	const rawLines = fileContent.split("\n");
 	const lines = rawLines.map((line) => line.replace(/\r$/, ""));
 
 	// Exclude any YAML frontmatter so a `#`-prefixed YAML line is never treated

@@ -1,17 +1,8 @@
 import type { App, WorkspaceLeaf } from "obsidian";
 import { FileView, normalizePath, TFile, View } from "obsidian";
-import type {
-	OpenLocation as FileOpenLocation,
-	OpenFileOptions as FileOpenOptions,
-	FileViewMode2 as FileViewModeNew,
-} from "../types/fileOpening";
+import type { OpenFileOptions, OpenLocation } from "../types/fileOpening";
 
-// Re-export types for convenience
-export type OpenLocation = FileOpenLocation;
-export type FileViewMode2 = FileViewModeNew;
-export type OpenFileOptions = FileOpenOptions;
-
-export type OpenFileRuntimeOptions = FileOpenOptions & {
+export type OpenFileRuntimeOptions = OpenFileOptions & {
 	/**
 	 * Transient origin leaf captured before Obsidian creates a new tab.
 	 * This is intentionally not persisted in choice settings.
@@ -125,8 +116,8 @@ function isTFileLike(file: unknown): file is TFile {
 
 function resolveLeafForOpenFileLocation(
 	app: App,
-	location: FileOpenLocation,
-	direction: FileOpenOptions["direction"],
+	location: OpenLocation,
+	direction: OpenFileOptions["direction"],
 	originLeaf: WorkspaceLeaf | null,
 ): WorkspaceLeaf | null {
 	if (

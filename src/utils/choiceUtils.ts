@@ -5,19 +5,15 @@ import type IChoice from "../types/choices/IChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceType } from "../types/choices/choiceType";
-
-function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-	// Null-tolerant: `data.json` can hand us a list with a null/primitive hole in
-	// it (see dedupeChoicesById), and every caller below is a total function.
-	return isChoiceLike(choice) && choice.type === "Multi";
-}
+import { isMultiChoice } from "../types/choices/choiceGuards";
 
 /**
- * Whether `value` is shaped enough like a choice to be walked: a non-null object.
- * `data.json` is untrusted, so a list entry can be `null`, a string, or a number.
+ * Whether `value` is shaped enough like a choice to be walked: a non-null,
+ * non-array object. `data.json` is untrusted, so a list entry can be `null`, a
+ * string, a number, or an array.
  */
 export function isChoiceLike(value: unknown): value is IChoice {
-	return typeof value === "object" && value !== null;
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -39,7 +35,7 @@ export function hasChildChoices(choice: IChoice): boolean {
 /**
  * Whether a folder-only traversal would skip recoverable data. Migrations that
  * move data must stay pending when this is true; completing them strands the
- * skipped subtree after the user repairs it. Migrations using walkAllChoices
+ * skipped subtree after the user repairs it. Migrations using walkChoicesInSettings
  * must instead use settingsTreeHasUnreadableData, which also checks commands.
  * The root must be an array; empty values below it contain nothing to migrate.
  */
@@ -122,7 +118,7 @@ export function resolveChoiceIcon(choice: IChoice): string {
 /**
  * Recursively flattens the choice hierarchy into a single array. Total over a
  * malformed tree: unreadable children read as none, and a list hole (`null`, a
- * primitive) is skipped rather than handed on as if it were a choice.
+ * primitive, an array) is skipped rather than handed on as if it were a choice.
  */
 export function flattenChoices(choices: IChoice[]): IChoice[] {
 	const result: IChoice[] = [];

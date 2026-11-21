@@ -9,12 +9,10 @@ export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
 	private resolvePromise: (command: IOpenFileCommand | null) => void;
 	private command: IOpenFileCommand;
-	private originalCommand: IOpenFileCommand;
 	private isResolved = false;
 
 	constructor(app: App, command: IOpenFileCommand) {
 		super(app);
-		this.originalCommand = command;
 		this.command = { ...command, type: CommandType.OpenFile }; // copy and ensure type
 
 		// Backfill defaults for legacy commands

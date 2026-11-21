@@ -7,7 +7,7 @@ import type { TemplateExistingNoteAction, TemplateFileExistsBehavior } from "../
  * Destination configuration for a Template choice. These four booleans encode a
  * set of mutually-exclusive destination modes at runtime (see
  * TemplateChoiceEngine.getFolderPath); the choice builder surfaces them through a
- * single derived dropdown (see gui/ChoiceBuilder/folderMode.ts).
+ * single derived dropdown (see utils/folderMode.ts).
  */
 export type TemplateFolderConfig = {
 	enabled: boolean;

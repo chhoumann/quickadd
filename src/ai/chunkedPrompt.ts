@@ -12,8 +12,8 @@ import {
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 } from "src/constants";
-import { findInlineScriptSpans } from "src/formatters/helpers/inlineScriptSpans";
-import { unescapePipesInTokens } from "src/formatters/helpers/pipeEscapes";
+import { findInlineScriptSpans } from "src/utils/inlineScriptSpans";
+import { unescapePipesInTokens } from "src/utils/pipeEscapes";
 import { transformCase } from "src/utils/caseTransform";
 import { outputVariables, trackPrompt } from "./promptProgress";
 

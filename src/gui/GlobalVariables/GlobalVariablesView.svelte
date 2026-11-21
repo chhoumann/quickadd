@@ -84,7 +84,7 @@
   }
 
   let debounceTimer: number | undefined;
-  function debouncedPersist(it: GV) {
+  function debouncedPersist() {
     if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(() => {
       debounceTimer = undefined;
@@ -134,7 +134,7 @@
           <input type="text"
                  use:attachSuggester
                  bind:value={it.name}
-                 oninput={() => { debouncedPersist(it); }}
+                 oninput={() => { debouncedPersist(); }}
                  placeholder="Name" />
         </div>
         <div class="qa-gv__cell qa-gv__value">
@@ -142,7 +142,7 @@
                     use:attachSuggester
                     use:indentOnTab
                     bind:value={it.value}
-                    oninput={() => debouncedPersist(it)}
+                    oninput={() => debouncedPersist()}
                     placeholder="Snippet value (supports QuickAdd tokens)"></textarea>
         </div>
         <div class="qa-gv__cell qa-gv__ops">

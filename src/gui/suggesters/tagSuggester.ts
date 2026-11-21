@@ -3,7 +3,7 @@ import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
 import { replaceRange } from "./utils";
 import { getQuickAddInstance } from "../../quickAddInstance";
-import { TagIndex } from "./TagIndex";
+import { TagIndex } from "../../utils/vaultIndex/TagIndex";
 
 function isTagInsideUnclosedWikilink(
 	inputBeforeCursor: string,

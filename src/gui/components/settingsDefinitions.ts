@@ -8,7 +8,7 @@ import type { QuickAddSettings } from "../../settings";
 import { createDocsLink, DOCS_URLS, openDocsUrl } from "../../docs";
 
 /** Declarative control keys for fields nested under `ai` (see the tab's store bridge). */
-export type AISettingsKey = `ai.${Extract<
+type AISettingsKey = `ai.${Extract<
 	keyof QuickAddSettings["ai"],
 	"showAssistant" | "confirmToolCalls" | "promptTemplatesFolderPath"
 >}`;

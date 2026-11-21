@@ -1,6 +1,6 @@
 import { extractBareFlagPart, parseBooleanFlag, parsePipeKeyValue } from "./pipeSyntax";
-import { parseMultiValueFormat, type MultiValueFormat } from "./multiValueFormat";
-import type { MultiEmit } from "./valueSyntax";
+import { parseMultiValueFormat } from "./multiValueFormat";
+import type { ParsedOptions } from "./valueSyntaxTypes";
 import type { WarnSink } from "./warnSink";
 
 const NUMERIC_RANGE_OPTION_KEYS = new Set(["min", "max", "step"]);
@@ -22,25 +22,6 @@ const VALUE_OPTION_KEYS = new Set([
 // anonymous `{{VALUE|...}}` grammar (which shares parseOptions). Gating it here
 // keeps `{{VALUE|name:x}}` parsing its old "name:x" default unchanged.
 const NAMED_VALUE_OPTION_KEYS = new Set([...VALUE_OPTION_KEYS, "name"]);
-
-export type ParsedOptions = {
-	label?: string;
-	caseStyle?: string;
-	defaultValue: string;
-	allowCustomInput: boolean;
-	usesOptions: boolean;
-	inputTypeOverride?: string;
-	minRaw?: string;
-	maxRaw?: string;
-	stepRaw?: string;
-	displayValuesRaw?: string;
-	optionalExplicit?: boolean;
-	trimExplicit?: boolean;
-	name?: string;
-	multiSelect?: boolean;
-	multiEmit?: MultiEmit;
-	multiFormat?: MultiValueFormat;
-};
 
 export function extractBareValueFlags(parts: string[]): {
 	remaining: string[];

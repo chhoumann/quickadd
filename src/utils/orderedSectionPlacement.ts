@@ -1,6 +1,6 @@
 import getEndOfSection from "./getEndOfSection";
 import { extractHeadingsFromLines, nonHeadingBlockLines } from "./sectionLink";
-import type { SectionOrdering } from "../../types/choices/ICaptureChoice";
+import type { SectionOrdering } from "../types/choices/ICaptureChoice";
 
 /**
  * Pure placement logic for the "ordered" create-if-not-found location (issue #481).
