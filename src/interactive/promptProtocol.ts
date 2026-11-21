@@ -86,7 +86,7 @@ export type PromptSpec =
 	| { type: "confirm"; header: string; text?: string }
 	| { type: "checkbox"; header?: string; items: CheckboxItem[] }
 	| { type: "info"; header: string; text: string[] }
-	| { type: "form"; fields: FormField[] };
+	| { type: "form"; title?: string; description?: string; fields: FormField[] };
 
 /** Body of a `POST /reply`. Every field is untrusted JSON, hence the `unknown`s. */
 export interface ReplyBody {

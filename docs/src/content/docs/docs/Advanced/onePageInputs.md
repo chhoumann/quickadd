@@ -262,6 +262,25 @@ export default async function entry({ quickAddApi }) {
 }
 ```
 
+Pass a second `options` argument to name the form and add guidance below the
+name. `title` replaces the "Provide inputs" heading, and `description` shows
+below it with its line breaks kept. A blank or omitted value keeps the default.
+
+```js
+export default async function entry({ quickAddApi }) {
+  const values = await quickAddApi.requestInputs(
+    [
+      { id: "wins", label: "Wins", type: "textarea" },
+      { id: "energy", label: "Energy", type: "slider", sliderConfig: { min: 1, max: 5 } },
+    ],
+    {
+      title: "Weekly review",
+      description: "Answer what applies. Leave the rest blank.",
+    }
+  );
+}
+```
+
 Example with dynamic options (from Dataview):
 
 ```js

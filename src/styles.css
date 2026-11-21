@@ -334,6 +334,21 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 
 .quickAddModal .qa-onepage-title {
 	text-align: center;
+	overflow-wrap: break-word;
+}
+
+.quickAddModal .qa-onepage-title:has(+ .qa-onepage-description) {
+	margin-bottom: 0.35rem;
+}
+
+.quickAddModal .qa-onepage-description {
+	margin: 0 0 1rem;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+	white-space: pre-line;
+	overflow-wrap: break-word;
 }
 
 .quickAddModal .qa-onepage-section {

@@ -14,7 +14,11 @@ import type { InputPromptOptions } from "./types/inputPrompt";
 import type { ChoiceRef, ChoiceSummary } from "./api/choiceApi";
 import { findChoice, importPackage, pickChoice, summarizeChoice } from "./api/choiceApi";
 import { PromptApi } from "./api/promptApi";
-import { requestInputs } from "./api/requestInputs";
+import {
+	requestInputs,
+	type RequestInputSpec,
+	type RequestInputsOptions,
+} from "./api/requestInputs";
 import { abortIfHeadless } from "./interactive/routePrompt";
 import { createAiApi } from "./api/aiApi";
 import { createFieldSuggestionsApi } from "./api/fieldSuggestionsApi";
@@ -137,7 +141,8 @@ export class QuickAddApi {
 			}
 		};
 		return {
-			requestInputs: (inputs: Parameters<typeof requestInputs>[2]) => requestInputs(app, choiceExecutor, inputs),
+			requestInputs: (inputs: RequestInputSpec[], options?: RequestInputsOptions) =>
+				requestInputs(app, choiceExecutor, inputs, options),
 			inputPrompt: async (
 				header: string,
 				placeholder?: string,

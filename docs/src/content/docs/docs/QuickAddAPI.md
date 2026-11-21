@@ -57,13 +57,17 @@ tR += result;
 
 ## User Input Methods
 
-### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider"; placeholder?: string; defaultValue?: string; numericConfig?: { min?: number; max?: number; step?: number }; sliderConfig?: { min: number; max: number; step?: number }; options?: string[]; dateFormat?: string; description?: string; optional?: boolean; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
+### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider"; placeholder?: string; defaultValue?: string; numericConfig?: { min?: number; max?: number; step?: number }; sliderConfig?: { min: number; max: number; step?: number }; options?: string[]; dateFormat?: string; description?: string; optional?: boolean; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>, options?: { title?: string; description?: string }): Promise<Record<string, string>>`
 Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
 
 **Behavior:**
 - Uses existing values for any ids that already exist in `variables` (including empty strings).
 - Prompts only for missing (`undefined`/`null`) inputs.
 - If the user closes the modal without submitting, the promise rejects with `MacroAbortError("Input cancelled by user")`.
+
+**Options:**
+- `title`: The form heading. Defaults to "Provide inputs" when omitted or blank.
+- `description`: Guidance shown below the heading. Line breaks are kept. A blank description shows nothing.
 
 **Field Types:**
 - `text`: Single-line text input
@@ -94,6 +98,20 @@ const values = await quickAddApi.requestInputs([
     suggesterConfig: { caseSensitive: false }
   }
 ]);
+```
+
+**Form title and description:**
+```javascript
+const values = await quickAddApi.requestInputs(
+  [
+    { id: "wins", label: "Wins", type: "textarea" },
+    { id: "energy", label: "Energy", type: "slider", sliderConfig: { min: 1, max: 5 } },
+  ],
+  {
+    title: "Weekly review",
+    description: "Answer what applies. Leave the rest blank.",
+  }
+);
 ```
 
 **Suggester with Dynamic Options (e.g., from Dataview):**

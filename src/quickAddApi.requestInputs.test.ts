@@ -122,6 +122,42 @@ describe("QuickAddApi.requestInputs", () => {
 		expect(choiceExecutor.variables.get("rating")).toBe("8");
 	});
 
+	it("forwards a sanitized title and description to the prompt provider", async () => {
+		const providerRequestInputs = vi.fn(async () => ({ x: "asked" }));
+		(choiceExecutor as IChoiceExecutor).promptProvider = {
+			requestInputs: providerRequestInputs,
+		} as unknown as IChoiceExecutor["promptProvider"];
+
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		await api.requestInputs([{ id: "x", type: "text" }], {
+			title: "  Weekly review ",
+			description: " Answer what applies.\nSkip the rest. ",
+		});
+
+		expect(providerRequestInputs.mock.calls[0]).toEqual([
+			[expect.objectContaining({ id: "x" })],
+			{ title: "Weekly review", description: "Answer what applies.\nSkip the rest." },
+		]);
+	});
+
+	it.each([
+		["omitted", undefined],
+		["blank", { title: " ", description: "" }],
+	])("forwards no header to the provider when options are %s", async (_, options) => {
+		const providerRequestInputs = vi.fn(async () => ({ x: "asked" }));
+		(choiceExecutor as IChoiceExecutor).promptProvider = {
+			requestInputs: providerRequestInputs,
+		} as unknown as IChoiceExecutor["promptProvider"];
+
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		await api.requestInputs([{ id: "x", type: "text" }], options);
+
+		expect(providerRequestInputs).toHaveBeenCalledWith(
+			[expect.objectContaining({ id: "x" })],
+			undefined,
+		);
+	});
+
 	it("does not re-ask (nor call the provider) for inputs already in variables", async () => {
 		const providerRequestInputs = vi.fn(async () => ({ x: "asked" }));
 		(choiceExecutor as IChoiceExecutor).promptProvider = {

@@ -140,11 +140,11 @@ vi.mock("src/settingsStore", () => ({
 function discoveryModal(create: FieldRequirement, existing: FieldRequirement) {
 	return new OnePageInputModal({} as App, [
 		{ id: "note", label: "Note", type: "text" }, create,
-	], undefined, undefined, {
+	], undefined, { discoveryForm: {
 		notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 		visibleForNotes: new Map([[create.id, [{ noteId: "note", includeExisting: true }]]]),
 		fieldUsages: new Map([[create.id, [{ kind: "note", noteId: "note", create, existing }]]]),
-	});
+	} });
 }
 
 describe("OnePageInputModal", () => {
@@ -254,11 +254,11 @@ describe("OnePageInputModal", () => {
 			{ id: "owner", label: "Owner", type: "text" },
 			{ id: "update", label: "Update", type: "textarea" },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, requirements, undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["owner", [{ noteId: "note", includeExisting: false }]]]),
-		});
+		} });
 		const owner = modal.contentEl.querySelectorAll<HTMLInputElement>("input")[1];
 		const ownerRow = owner.closest<HTMLElement>(".setting-item")!;
 		expect(ownerRow.hidden).toBe(true);
@@ -287,7 +287,7 @@ describe("OnePageInputModal", () => {
 			{ id: "detail", label: "Detail", type: "text", pathContext: true },
 			{ id: "folder", label: "Folder", type: "text", pathContext: true },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, requirements, undefined, { discoveryForm: {
 			notes: [{ id: "note", choice, group: { id: "project", label: "Project" } }],
 			visibleForNotes: new Map([
 				["detail", [{ noteId: "note", includeExisting: true }]],
@@ -298,7 +298,7 @@ describe("OnePageInputModal", () => {
 				create: { id: "detail", label: "Detail", type: "text", optional: false, pathContext: true },
 				existing: { id: "detail", label: "Detail", type: "text", optional: true, pathContext: false },
 			}]]]),
-		});
+		} });
 		const [, detail, folder] = modal.contentEl.querySelectorAll("input");
 		const detailRow = detail.closest<HTMLElement>(".setting-item")!;
 		const folderRow = folder.closest<HTMLElement>(".setting-item")!;
@@ -339,11 +339,11 @@ describe("OnePageInputModal", () => {
 			{ id: "second", label: "Second", type: "text" },
 			{ id: "owner", label: "Owner", type: "text" },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, requirements, undefined, { discoveryForm: {
 			notes: ["first", "second"].map((id) => ({ id, choice: new TemplateChoice(id), group: { id, label: id } })),
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["owner", ["first", "second"].map((noteId) => ({ noteId, includeExisting: false }))]]),
-		});
+		} });
 		void modal.waitForClose.catch(() => {});
 		const ownerRow = modal.contentEl.querySelectorAll("input")[2].closest<HTMLElement>(".setting-item")!;
 		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
@@ -355,11 +355,11 @@ describe("OnePageInputModal", () => {
 	});
 
 	it("accepts a pending new title on submit", async () => {
-		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map(),
-		});
+		} });
 		modal.contentEl.querySelector("input")!.value = "Project At";
 		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({});
@@ -370,11 +370,11 @@ describe("OnePageInputModal", () => {
 		const modal = new OnePageInputModal({} as App, [
 			{ id: "note", label: "Note", type: "text" },
 			{ id: "detail", label: "Detail", type: "text", optional: true },
-		], undefined, undefined, {
+		], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			visibleForNotes: new Map([["detail", [{ noteId: "note", includeExisting: false }]]]),
 			fieldUsages: new Map([["detail", [{ kind: "note", noteId: "note", create: { id: "detail", label: "Description", type: "textarea" }, existing: null }]]]),
-		});
+		} });
 		document.body.appendChild(modal.containerEl);
 		modal.contentEl.querySelector("input")!.value = "New project";
 		const submitted = vi.fn();
@@ -396,11 +396,11 @@ describe("OnePageInputModal", () => {
 		const modal = new OnePageInputModal({} as App, [
 			{ id: "note", label: "Note", type: "text" },
 			{ id: "owner", label: "Owner", type: "text" },
-		], undefined, undefined, {
+		], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["owner", [{ noteId: "note", includeExisting: false }]]]),
-		});
+		} });
 		document.body.appendChild(modal.containerEl);
 		const [note, owner] = modal.contentEl.querySelectorAll("input");
 		note.value = "Project At";
@@ -423,11 +423,11 @@ describe("OnePageInputModal", () => {
 		const modal = new OnePageInputModal({} as App, [
 			{ id: "note", label: "Note", type: "text" },
 			{ id: "FILE:people", label: "Owner", type: "file-picker", options: ["@file:People/Ada.md"], displayOptions: ["Ada"] },
-		], undefined, undefined, {
+		], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["FILE:people", [{ noteId: "note", includeExisting: false }]]]),
-		});
+		} });
 		document.body.appendChild(modal.containerEl);
 		modal.contentEl.querySelector("input")!.value = "Project At";
 		const submitted = vi.fn();
@@ -445,11 +445,11 @@ describe("OnePageInputModal", () => {
 
 	it("keeps fallback title entry usable when note search cannot be constructed", async () => {
 		noteSuggesterSetup.mockImplementation(() => { throw new Error("Metadata unavailable"); });
-		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map(),
-		});
+		} });
 		const input = modal.contentEl.querySelector("input")!;
 		const submit = modalButton(modal);
 		input.value = "../outside";
@@ -466,8 +466,9 @@ describe("OnePageInputModal", () => {
 			{ id: "update", label: "Update", type: "text", group: { id: "update", label: "Update" } },
 			{ id: "meeting", label: "Next meeting", type: "text", group: { id: "meeting", label: "Next meeting" } },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined,
-			discovery ? { notes: [], visibleForNotes: new Map(), fieldUsages: new Map() } : undefined);
+		const modal = new OnePageInputModal({} as App, requirements, undefined, {
+			discoveryForm: discovery ? { notes: [], visibleForNotes: new Map(), fieldUsages: new Map() } : undefined,
+		});
 		void modal.waitForClose.catch(() => {});
 		expect(modal.contentEl.querySelectorAll(".qa-onepage-section")).toHaveLength(discovery ? 0 : 2);
 		modal.onClose();
@@ -1120,6 +1121,44 @@ describe("OnePageInputModal section headings", () => {
 	});
 });
 
+describe("OnePageInputModal header", () => {
+	beforeEach(() => {
+		ensureObsidianDomPolyfills();
+	});
+
+	function renderHeader(options?: { title?: string; description?: string }) {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, options);
+		void modal.waitForClose.catch(() => {});
+		const title = modal.contentEl.querySelector("h2.qa-onepage-title");
+		const description = modal.contentEl.querySelector(".qa-onepage-description");
+		modal.onClose();
+		return { title: title?.textContent, description: description?.textContent ?? null };
+	}
+
+	it.each([
+		["no options", undefined, { title: "Provide inputs", description: null }],
+		["a custom title", { title: "  Weekly review  " }, { title: "Weekly review", description: null }],
+		["a blank title", { title: "   " }, { title: "Provide inputs", description: null }],
+		["a blank description", { title: "Weekly review", description: " \n " }, { title: "Weekly review", description: null }],
+		["only a description", { description: "Answer what applies." }, { title: "Provide inputs", description: "Answer what applies." }],
+	])("renders the header for %s", (_, options, expected) => {
+		expect(renderHeader(options)).toEqual(expected);
+	});
+
+	it("shows the description right below the title, keeping its line breaks", () => {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, {
+			title: "Weekly review",
+			description: "  Answer what applies.\nSkip the rest.  ",
+			computePreview: () => [],
+		});
+		void modal.waitForClose.catch(() => {});
+		const description = modal.contentEl.querySelector("h2.qa-onepage-title")?.nextElementSibling;
+		expect(description?.matches("p.qa-onepage-description")).toBe(true);
+		expect(description?.textContent).toBe("Answer what applies.\nSkip the rest.");
+		modal.onClose();
+	});
+});
+
 describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
@@ -1243,7 +1282,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			undefined,
-			() => [
+			{ computePreview: () => [
 				{
 					label: "File name",
 					text: "Bad: My Note",
@@ -1251,7 +1290,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 						{ severity: "error", message: "refused", kind: "path" },
 					],
 				},
-			],
+			] },
 		);
 		await settle();
 
@@ -1276,9 +1315,9 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		const withDiagnostics = (
 			diagnostics: { severity: string; message: string; kind?: string }[],
 		) =>
-			new OnePageInputModal({} as App, requirement, undefined, () => [
+			new OnePageInputModal({} as App, requirement, undefined, { computePreview: () => [
 				{ label: "File name", text: "x", diagnostics } as never,
-			]);
+			] });
 
 		const clean = withDiagnostics([]);
 		await settle();
@@ -1317,7 +1356,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			undefined,
-			() => [],
+			{ computePreview: () => [] },
 		);
 		await settle();
 
@@ -1336,10 +1375,10 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			new Map([["title", "Prefilled"]]),
-			(values) => {
+			{ computePreview: (values) => {
 				calls.push({ ...values });
 				return [];
-			},
+			} },
 		);
 		await settle();
 
@@ -1359,10 +1398,10 @@ describe("OnePageInputModal preview block (#1590)", () => {
 				{ id: "due", label: "due", type: "date" },
 			],
 			undefined,
-			(values) => {
+			{ computePreview: (values) => {
 				calls.push({ ...values });
 				return [];
-			},
+			} },
 		);
 		await settle();
 
@@ -1376,10 +1415,10 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			[{ id: "due", label: "due", type: "date", optional: true }],
 			undefined,
-			(values) => {
+			{ computePreview: (values) => {
 				calls.push({ ...values });
 				return [];
-			},
+			} },
 		);
 		await settle();
 
@@ -1395,7 +1434,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			undefined,
-			() => new Promise((resolve) => deferred.push(resolve as never)),
+			{ computePreview: () => new Promise((resolve) => deferred.push(resolve as never)) },
 		);
 		// Second pass starts while the first is still pending.
 		void (modal as any).updatePreviews();

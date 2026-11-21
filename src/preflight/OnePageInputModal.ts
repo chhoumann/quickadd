@@ -27,6 +27,7 @@ import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInput
 import { createTemplateNoteSelection, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { acceptsDiscoverySelection, resolveDiscoveryFieldRequirement, type DiscoveryFormConfig, type DiscoveryNoteField } from "./discoveryFormPlan";
 import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
+import { DEFAULT_ONE_PAGE_FORM_TITLE, type OnePageFormHeader } from "./formHeader";
 
 type OnePageFreeTextField = {
 	id: string;
@@ -66,6 +67,11 @@ type PreviewComputer = (
 	values: Record<string, unknown>,
 ) => Promise<PreviewRow[]> | PreviewRow[];
 
+export interface OnePageInputModalOptions extends OnePageFormHeader {
+	computePreview?: PreviewComputer;
+	discoveryForm?: DiscoveryFormConfig;
+}
+
 
 function controlDefinition(requirement: FieldRequirement): string {
 	return JSON.stringify(Object.entries(requirement)
@@ -100,6 +106,9 @@ export class OnePageInputModal extends Modal {
 	// Date fields whose current (non-blank) text failed to parse.
 	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
+	private readonly discoveryForm?: DiscoveryFormConfig;
+	private readonly formTitle: string;
+	private readonly formDescription?: string;
 	private previewContainerEl: HTMLElement | null = null;
 	/** Monotonic guard so a slow preview pass cannot commit over a newer one. */
 	private previewToken = 0;
@@ -119,14 +128,16 @@ export class OnePageInputModal extends Modal {
 		app: App,
 		requirements: FieldRequirement[],
 		initial?: Map<string, unknown>,
-		computePreview?: PreviewComputer,
-		private readonly discoveryForm?: DiscoveryFormConfig,
+		options?: OnePageInputModalOptions,
 	) {
 		super(app);
+		this.computePreview = options?.computePreview;
+		this.discoveryForm = options?.discoveryForm;
+		this.formTitle = options?.title?.trim() || DEFAULT_ONE_PAGE_FORM_TITLE;
+		this.formDescription = options?.description?.trim() || undefined;
 		this.requirements = requirements.map((requirement) => ({ ...requirement }));
 		this.updateFieldMetadata();
 		this.initialValues = new Map<string, string>();
-		this.computePreview = computePreview;
 		initial?.forEach((v, k) => {
 			if (typeof v === "string") this.initialValues.set(k, v);
 		});
@@ -138,7 +149,7 @@ export class OnePageInputModal extends Modal {
 		);
 		this.peek = new InputPromptPeek({
 			app,
-			title: "Provide inputs",
+			title: this.formTitle,
 			containerEl: this.containerEl,
 			scope: this.scope,
 			getField: () => this.insertTarget()?.el,
@@ -176,8 +187,10 @@ export class OnePageInputModal extends Modal {
 		if (this.discoveryForm) this.containerEl.addClass("qa-discovery-form");
 		this.contentEl.empty();
 
-		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
-		title.addClass("qa-onepage-title");
+		this.contentEl.createEl("h2", { text: this.formTitle, cls: "qa-onepage-title" });
+		if (this.formDescription) {
+			this.contentEl.createEl("p", { text: this.formDescription, cls: "qa-onepage-description" });
+		}
 
 		// Optional live preview area. Created (empty and collapsed) before the
 		// fields so it keeps its place between the title and the first input; the
