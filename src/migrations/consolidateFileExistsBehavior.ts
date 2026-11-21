@@ -1,4 +1,5 @@
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
+import type { QuickAddSettings } from "../settings";
 import { deepClone } from "src/utils/deepClone";
 import { isTemplateChoice } from "src/types/choices/choiceGuards";
 import { normalizeTemplateChoice } from "./helpers/normalizeTemplateFileExistsBehavior";
@@ -9,13 +10,13 @@ import {
 import type { Migration, MigrationResult } from "./Migrations";
 import type { IMacro } from "src/types/macros/IMacro";
 
-type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
+type SettingsWithLegacyMacros = QuickAddSettings & { macros?: IMacro[] };
 
 const consolidateFileExistsBehavior: Migration = {
 	description:
 		"Re-run template file collision normalization for users with older migration state",
 
-	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
+	migrate: async (plugin: MigrationContext): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
 		// Only re-clone a real array. Substituting [] for a corrupt root would
 		// persist that [] on the next save and destroy whatever is still in

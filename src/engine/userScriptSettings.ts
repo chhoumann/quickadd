@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
+import type { SettingsSaver } from "../types/pluginContext";
 import type { IUserScript } from "../types/macros/IUserScript";
 import {
 	migrateUserScriptSecretSettings,
@@ -9,7 +9,7 @@ import {
 
 export async function resolveScriptSettings(
 	app: App,
-	plugin: QuickAdd,
+	plugin: Partial<SettingsSaver>,
 	command: IUserScript,
 	definition: UserScriptSettingsDefinition | undefined,
 ) {

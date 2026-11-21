@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
+import type { AppProvider } from "../types/pluginContext";
 import type IChoice from "../types/choices/IChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -50,7 +50,7 @@ export function currentNoteUse(choice: IChoice, context: CurrentNoteUseContext):
 }
 
 /** {@link currentNoteUse} with the templates the run formats read from the vault. */
-export async function describeCurrentNoteUse(plugin: QuickAdd, choice: IChoice): Promise<CurrentNoteUse> {
+export async function describeCurrentNoteUse(plugin: AppProvider, choice: IChoice): Promise<CurrentNoteUse> {
 	// vault.getConfig is the de-facto (untyped) plugin API for Obsidian's settings.
 	const vault = plugin.app.vault as App["vault"] & { getConfig?: (key: string) => unknown };
 	return currentNoteUse(choice, {

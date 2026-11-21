@@ -1,5 +1,4 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { ChunkedPrompt, Prompt, clearAIRequestLogEntries, getAIRequestLogEntryById, getAIRequestLogEntries, getLastAIRequestLogEntry } from "../ai/AIAssistant";
 import { getModelNames, resolveModelInputOrThrow, type ScriptModelInput } from "../ai/aiHelpers";
@@ -28,7 +27,7 @@ type PromptSettings = Partial<{
 }>;
 let warnedCountTokensDeprecated = false;
 
-export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor, format: Format) {
+export function createAiApi(app: App, choiceExecutor: IChoiceExecutor, format: Format) {
 	async function promptOptions(model: ScriptModelInput, settings?: PromptSettings) {
 		const pluginSettings = settingsStore.getState();
 		if (pluginSettings.disableOnlineFeatures) {
@@ -122,8 +121,9 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 		 * tools/budget, then run `agent.generate({ prompt })` (text + tools) or
 		 * `agent.generate({ prompt, schema })` (structured output).
 		 */
+		// The prompt is formatted like ai.prompt's, inside the variables of the run.
 		agent: (config: AgentConfig): Agent =>
-			new Agent(app, plugin, choiceExecutor, config),
+			new Agent(app, choiceExecutor, config, (input) => format(input, undefined, false)),
 		/** Declare a tool for an Agent's `tools` map. Pairs a JSON-Schema with a JS handler. */
 		tool: (def: ToolDefinitionInput): QATool => ({
 			...def,

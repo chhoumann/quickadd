@@ -16,6 +16,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { InputPromptDraftHandler } from "../utils/InputPromptDraftHandler";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { log } from "../logger/logManager";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const {
 	setUseSelectionAsCaptureValueMock,
@@ -240,7 +241,8 @@ function createCaptureEngine({
 	app = createApp(), choice = createChoice(), executor = createExecutor(), selection = false,
 }: { app?: App; choice?: ICaptureChoice; executor?: IChoiceExecutor; selection?: boolean } = {}) {
 	return new CaptureChoiceEngine(app,
-		{ settings: { useSelectionAsCaptureValue: selection } } as any, choice, executor);
+		{ settings: { useSelectionAsCaptureValue: selection } } as any,
+		testFormatterRuntime(), choice, executor);
 }
 
 describe("CaptureChoiceEngine selection-as-value resolution", () => {
@@ -1136,6 +1138,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad:Title.md",
 				createFileIfItDoesntExist: {
@@ -1185,6 +1188,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureToActiveFile: true,
 				newLineCapture: { enabled: true, direction: "below" },
@@ -1216,6 +1220,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad: Title.md",
 				createFileIfItDoesntExist: {
@@ -1256,6 +1261,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad: Title.md",
 				createFileIfItDoesntExist: {
@@ -1297,6 +1303,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad: Title.md",
 				createFileIfItDoesntExist: {
@@ -1338,6 +1345,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				// A LEGAL target: an impossible one is now refused before the
 				// prompt is ever opened (#1591), which is a different behaviour
@@ -1393,6 +1401,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Recovered.md",
 				createFileIfItDoesntExist: {
@@ -1432,6 +1441,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Issue\n221",
 				createFileIfItDoesntExist: {
@@ -1481,6 +1491,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "New.md",
 				createFileIfItDoesntExist: {
@@ -1666,6 +1677,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: false,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				appendLink,
 				captureToActiveFile: true,
@@ -1805,6 +1817,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				appendLink: true,
 				captureToActiveFile: true,

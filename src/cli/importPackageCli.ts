@@ -1,9 +1,8 @@
 import type { CliData, CliFlags } from "obsidian";
-import type QuickAdd from "../main";
 import { effectiveChoiceMode, reconcileMode } from "../services/packageImportDecisions";
 import type { AssetImportMode, ChoiceImportMode } from "../services/packageImportService";
 import { readQuickAddPackage } from "../services/packageImportService";
-import { importPackageUnattended } from "../services/packageImportUnattended";
+import { importPackageUnattended, type UnattendedImportPlugin } from "../services/packageImportUnattended";
 import type IChoice from "../types/choices/IChoice";
 import { flattenChoices } from "../utils/choiceUtils";
 import { isTruthy } from "./params";
@@ -54,7 +53,7 @@ function parseMode<T extends string>(
  * verified this way.
  */
 export async function importPackageHandler(
-	plugin: QuickAdd,
+	plugin: UnattendedImportPlugin,
 	params: CliData,
 ): Promise<{ ok: boolean; [key: string]: unknown }> {
 	const path = typeof params.path === "string" ? params.path.trim() : "";

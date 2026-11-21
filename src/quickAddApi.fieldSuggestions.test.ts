@@ -4,6 +4,7 @@ import type { App, TFile } from "obsidian";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import { QuickAddApi } from "./quickAddApi";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -56,7 +57,7 @@ describe("QuickAddApi.fieldSuggestions.getFieldValues", () => {
 
 	it("keeps code-block values excluded by default when includeInline is true", async () => {
 		const app = createApp(INLINE_CONTENT);
-		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor, testFormatterRuntime(app, plugin));
 
 		const result = await api.fieldSuggestions.getFieldValues("Id", {
 			includeInline: true,
@@ -67,7 +68,7 @@ describe("QuickAddApi.fieldSuggestions.getFieldValues", () => {
 
 	it("includes allowlisted code-block values when includeInlineCodeBlocks is provided", async () => {
 		const app = createApp(INLINE_CONTENT);
-		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor, testFormatterRuntime(app, plugin));
 
 		const result = await api.fieldSuggestions.getFieldValues("Id", {
 			includeInline: true,
@@ -79,7 +80,7 @@ describe("QuickAddApi.fieldSuggestions.getFieldValues", () => {
 
 	it("does not scan inline values when includeInline is false", async () => {
 		const app = createApp(INLINE_CONTENT);
-		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor, testFormatterRuntime(app, plugin));
 
 		const result = await api.fieldSuggestions.getFieldValues("Id", {
 			includeInline: false,

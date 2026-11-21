@@ -3,9 +3,9 @@
   import { settingsStore } from "../../settingsStore";
   import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
   import { indentOnTab } from "../components/textareaIndent";
-  import type QuickAdd from "../../main";
+  import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 
-  let { app, plugin }: { app: App; plugin: QuickAdd } = $props();
+  let { app, plugin }: { app: App; plugin: ChoiceBuilderPlugin } = $props();
 
   type GV = { name: string; value: string };
   let items = $state<GV[]>([]);

@@ -1,16 +1,9 @@
 import { Notice } from "obsidian";
-import type QuickAdd from "../../main";
+import type { IChoiceExecutor } from "../../IChoiceExecutor";
+import type { AppProvider, PluginManifestInfo, SettingsProvider, TemplateFileSource } from "../../types/pluginContext";
+import { NO_CHOICES_NOTICE } from "../../utils/choiceNotices";
 import { openQuickAddSettings } from "../../utils/openPluginSettings";
 import ChoiceSuggester, { shouldShowTemplateFolderRow } from "./choiceSuggester";
-
-/**
- * What the user is told when "QuickAdd: Run" has nothing to run. Mirrors the
- * shape of the plugin's other "this surface has nothing to offer" notices
- * (runTemplateFromFolder's missing-template-folder notice), which name the exact
- * settings path rather than leaving the user to find it.
- */
-export const NO_CHOICES_NOTICE =
-	"QuickAdd: No choices yet. Create your first one in Settings → QuickAdd.";
 
 /**
  * Opens the top-level choice launcher (the "QuickAdd: Run" command and the
@@ -24,8 +17,14 @@ export const NO_CHOICES_NOTICE =
  *
  * "Nothing to pick" means no choices AND no "New note from template" row, since
  * that synthetic row is a working action in its own right.
+ *
+ * `createExecutor` builds the executor that runs the picked choice, once there
+ * is something to pick.
  */
-export function openChoiceLauncher(plugin: QuickAdd): void {
+export function openChoiceLauncher(
+	plugin: AppProvider & SettingsProvider & TemplateFileSource & PluginManifestInfo,
+	createExecutor: () => IChoiceExecutor,
+): void {
 	// main.ts deliberately leaves a corrupt (non-array) `choices` intact rather
 	// than overwriting the user's data, so normalize here: a broken data.json
 	// should land on the first-run guidance, not a bare TypeError.
@@ -42,6 +41,7 @@ export function openChoiceLauncher(plugin: QuickAdd): void {
 	}
 
 	ChoiceSuggester.Open(plugin, choices, {
+		choiceExecutor: createExecutor(),
 		includeTemplateFolderRow: true,
 	});
 }

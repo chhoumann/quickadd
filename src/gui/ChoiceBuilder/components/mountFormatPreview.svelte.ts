@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { FormatterPluginContext } from "../../../types/pluginContext";
 import { mountComponent, type MountHandle } from "../../svelte/mountComponent";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 
@@ -40,7 +40,7 @@ export function mountFormatPreview(
 	container: HTMLElement,
 	options: {
 		app: App;
-		plugin: QuickAdd;
+		plugin: FormatterPluginContext;
 		/** The field's value at mount time. */
 		value: string;
 	},

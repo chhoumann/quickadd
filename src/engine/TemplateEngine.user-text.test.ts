@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { templateHarness } from "../../tests/helpers/engines/templateHarness";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
 import { overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
@@ -47,7 +48,7 @@ describe("Template choices keep tokens and Templater tags inside answers literal
 		const note = h.file("note.md", "existing\n");
 		h.file("template.md", "<% 'own' %> {{VALUE:answer}}\n");
 
-		await new TemplateInsertEngine(h.app, h.plugin, note, "template.md", "bottom", h.executor).apply();
+		await new TemplateInsertEngine(h.app, h.plugin, testFormatterRuntime(h.app, h.plugin), note, "template.md", "bottom", h.executor).apply();
 
 		expect(h.contents.get("note.md")).toBe(`existing\n\nTP-RAN ${ANSWER}\n`);
 	});

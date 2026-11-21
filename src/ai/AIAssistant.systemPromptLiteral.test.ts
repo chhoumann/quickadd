@@ -199,15 +199,16 @@ describe("the AI system prompt is sent verbatim", () => {
 		// `ai.agent()` falls back to the AI settings modal's default system prompt
 		// when the script passes none, so this path is fed by the same field.
 		const { Agent } = await import("./tools/Agent");
+		const format = vi.fn(async (input: string) => input);
 		const agent = new Agent(
 			makeApp(),
 			{} as never,
-			{} as never,
 			{ model: "test-model", system: SYSTEM_PROMPT },
+			format,
 		);
 
-		// prompt omitted: buildSeedMessages short-circuits to "" and never builds a
-		// CompleteFormatter, so this stays a unit test of the system-message seam.
+		// prompt omitted: buildSeedMessages short-circuits to "" and never formats,
+		// so this stays a unit test of the system-message seam.
 		const messages = await (
 			agent as unknown as {
 				buildSeedMessages: (o: object) => Promise<
@@ -217,6 +218,7 @@ describe("the AI system prompt is sent verbatim", () => {
 		).buildSeedMessages({});
 
 		expect(messages[0]).toEqual({ role: "system", content: SYSTEM_PROMPT });
+		expect(format).not.toHaveBeenCalled();
 	});
 
 	it("keeps the token characters intact rather than stripping them", async () => {

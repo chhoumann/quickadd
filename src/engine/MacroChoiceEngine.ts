@@ -18,8 +18,8 @@ import { executeUserScript, type ScriptParameters } from "./userScriptExecution"
 import { QuickAddEngine } from "./QuickAddEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
-import type QuickAdd from "../main";
-import { getQuickAddInstance } from "../quickAddInstance";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getUserScript } from "../utils/userScript";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
@@ -110,13 +110,13 @@ export class MacroChoiceEngine extends QuickAddEngine {
 	private previousStep: ICommand | undefined;
 	protected macro: IMacro;
 	protected choiceExecutor: IChoiceExecutor;
-	protected readonly plugin: QuickAdd;
+	protected readonly plugin: ChoiceRuntimePlugin;
+	protected readonly runtime: FormatterExecutionRuntime;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 	private readonly preloadedUserScripts: Map<string, LoadedUserScript>;
 	private readonly promptLabel?: string;
 	private buildParams(
 		app: App,
-		plugin: QuickAdd,
 		choiceExecutor: IChoiceExecutor,
 		sharedVariables: Map<string, unknown>
 	) {
@@ -124,7 +124,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 
 		const params = {
 			app,
-			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor, this.chain),
+			quickAddApi: QuickAddApi.GetApi(app, this.plugin, choiceExecutor, this.runtime, this.chain),
 			obsidian,
 			abort: (message?: string) => {
 				throw new MacroAbortError(message);
@@ -183,7 +183,8 @@ export class MacroChoiceEngine extends QuickAddEngine {
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		choice: IMacroChoice,
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, unknown>,
@@ -196,6 +197,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
+		this.runtime = runtime;
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
@@ -205,7 +207,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 			variables
 		);
 		this.choiceExecutor.variables = sharedVariables;
-		this.params = this.buildParams(app, plugin, choiceExecutor, sharedVariables);
+		this.params = this.buildParams(app, choiceExecutor, sharedVariables);
 	}
 
 	async run(): Promise<void> {
@@ -459,7 +461,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 	}
 
 	private async executeAIAssistant(command: IAIAssistantCommand) {
-		return executeMacroAI(this.app, this.choice, this.choiceExecutor, this.chain, command,
+		return executeMacroAI(this.app, this.plugin, this.runtime, this.choice, this.choiceExecutor, this.chain, command,
 			() => this.pickModelInteractively());
 	}
 
@@ -599,8 +601,9 @@ export class MacroChoiceEngine extends QuickAddEngine {
 		try {
 			const formatter = new CompleteFormatter(
 				this.app,
-				getQuickAddInstance(),
-				this.choiceExecutor
+				this.plugin,
+				this.choiceExecutor,
+				this.runtime,
 			);
 			// This formatter is built per command, so a {{VALUE}} in the path only
 			// gets the macro's name and its own draft scope if they are handed over

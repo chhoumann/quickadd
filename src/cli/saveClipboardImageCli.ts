@@ -1,5 +1,5 @@
 import type { CliData, CliFlags } from "obsidian";
-import type QuickAdd from "../main";
+import type { AppProvider, SettingsProvider } from "../types/pluginContext";
 import { saveClipboardImageToVault } from "../utils/clipboardImageAttachments";
 
 export const SAVE_CLIPBOARD_IMAGE_COMMAND = "quickadd:save-clipboard-image";
@@ -49,7 +49,7 @@ function parseOptionalBoolean(value: string | undefined): boolean | undefined {
 }
 
 export async function saveClipboardImageHandler(
-	plugin: QuickAdd,
+	plugin: AppProvider & SettingsProvider,
 	params: CliData,
 ): Promise<string> {
 	try {

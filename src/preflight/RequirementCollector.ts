@@ -19,7 +19,7 @@ import {
 	type PromptScopeKind,
 } from "src/formatters/promptScope";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import type QuickAdd from "src/main";
+import type { SettingsProvider } from "src/types/pluginContext";
 import { NLDParser } from "src/parsers/NLDParser";
 import {
 	parseValueToken,
@@ -76,7 +76,7 @@ export class RequirementCollector extends Formatter {
 
 	constructor(
 		protected app: App,
-		private plugin: QuickAdd,
+		private plugin: SettingsProvider,
 		protected choiceExecutor?: IChoiceExecutor,
 	) {
 		super(app);

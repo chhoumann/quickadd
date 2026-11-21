@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { FormatterPluginContext } from "../../../types/pluginContext";
 import { FormatDisplayFormatter } from "../../../formatters/formatDisplayFormatter";
 import { FileNameDisplayFormatter } from "../../../formatters/fileNameDisplayFormatter";
 import type { PreviewDiagnostic } from "../../../formatters/previewDiagnostics";
@@ -32,7 +32,7 @@ let {
 	 */
 	formatterKind?: "format" | "fileName" | "lineTarget";
 	app: App;
-	plugin: QuickAdd;
+	plugin: FormatterPluginContext;
 	/**
 	 * The choice's configured target folder, so {{FOLDER}} / {{FOLDER|name}}
 	 * preview meaningfully. When `undefined` we fall back to a "Folder/Name"

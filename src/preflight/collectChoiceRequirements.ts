@@ -10,7 +10,10 @@ import {
 	QA_INTERNAL_DATE_ORIGIN,
 	VALUE_SYNTAX,
 } from "src/constants";
-import type QuickAdd from "src/main";
+import type { ChoiceLookup, SettingsProvider } from "src/types/pluginContext";
+
+/** What collecting a choice's inputs reads from the plugin. */
+export type PreflightPlugin = SettingsProvider & Pick<ChoiceLookup, "getChoiceById">;
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
 import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
@@ -175,7 +178,7 @@ async function scanTemplateBody(
 
 async function collectForTemplateChoice(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: ITemplateChoice,
 ): Promise<RequirementCollector> {
@@ -231,7 +234,7 @@ async function collectForTemplateChoice(
 
 async function collectForCaptureChoice(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: ICaptureChoice,
 	seedCaptureSelectionAsValue: boolean,
@@ -450,7 +453,7 @@ async function collectUserScriptRequirements(
 
 async function collectForMacroChoice(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: IMacroChoice,
 	options?: CollectChoiceRequirementsOptions,
@@ -564,7 +567,7 @@ function withDateOriginRequirement(
 
 export async function collectChoiceRequirements(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: IChoice,
 	options?: CollectChoiceRequirementsOptions,
@@ -594,7 +597,7 @@ export async function collectChoiceRequirements(
 }
 
 export function listDeferredMacroSteps(
-	plugin: Pick<QuickAdd, "getChoiceById">,
+	plugin: Pick<ChoiceLookup, "getChoiceById">,
 	choice: IMacroChoice,
 	seededValue: unknown,
 ): DeferredStep[] {

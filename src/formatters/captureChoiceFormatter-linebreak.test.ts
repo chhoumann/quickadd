@@ -19,6 +19,8 @@ vi.mock("../engine/SingleInlineScriptEngine", () => ({
 }));
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 import { findInlineScriptSpans } from "../utils/inlineScriptSpans";
 
 const createChoice = (
@@ -114,7 +116,7 @@ const createFormatter = (
 			globalVariables,
 			useSelectionAsCaptureValue: true,
 		},
-	} as any);
+	} as any, createChoiceExecutor(), testFormatterRuntime());
 
 describe("capture linebreak escapes only apply to the format string (issue #527)", () => {
 	beforeEach(() => {

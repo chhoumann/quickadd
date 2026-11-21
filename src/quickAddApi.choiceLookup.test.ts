@@ -8,6 +8,7 @@ import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import { reportError } from "./utils/errorUtils";
 import type * as ErrorUtils from "./utils/errorUtils";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -38,7 +39,7 @@ describe("QuickAddApi choice lookup", () => {
 	let choices: IChoice[];
 
 	const api = () =>
-		QuickAddApi.GetApi(app, { settings: { choices } } as unknown as QuickAdd, choiceExecutor);
+		QuickAddApi.GetApi(app, { settings: { choices } } as unknown as QuickAdd, choiceExecutor, testFormatterRuntime());
 
 	beforeEach(() => {
 		vi.mocked(reportError).mockClear();

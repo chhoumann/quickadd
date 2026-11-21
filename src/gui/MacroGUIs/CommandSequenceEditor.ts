@@ -11,7 +11,7 @@ import {
 	type CommandListProps,
 } from "./commandListProps.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type { ICommand } from "../../types/macros/ICommand";
 import type IChoice from "../../types/choices/IChoice";
 import { ObsidianCommand } from "../../types/macros/ObsidianCommand";
@@ -66,7 +66,7 @@ export interface CommandSequenceEditorConditionalHandlers {
 
 interface CommandSequenceEditorOptions {
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	/**
 	 * Typed `unknown` because it is not: this is `macro.commands` straight out of
 	 * `data.json` (see commandListOf). The editor normalizes it at construction.
@@ -79,7 +79,7 @@ interface CommandSequenceEditorOptions {
 
 export class CommandSequenceEditor {
 	private readonly app: App;
-	private readonly plugin: QuickAdd;
+	private readonly plugin: ChoiceBuilderPlugin;
 	private readonly choices: IChoice[];
 	private readonly onCommandsChange?: (commands: ICommand[]) => void;
 	private readonly conditionalHandlers?: CommandSequenceEditorConditionalHandlers;

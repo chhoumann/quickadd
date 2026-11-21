@@ -1,5 +1,5 @@
 import type { App, CliData, CliFlags, TFile } from "obsidian";
-import type QuickAdd from "../main";
+import type { AppProvider, ChoiceLookup } from "../types/pluginContext";
 import type IChoice from "../types/choices/IChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
@@ -137,7 +137,7 @@ export function resolveCurrentNote(app: App, params: CliData): TFile | null | un
 	return file;
 }
 
-export function resolveChoiceFromParams(plugin: QuickAdd, params: CliData): IChoice {
+export function resolveChoiceFromParams(plugin: Pick<ChoiceLookup, "getChoiceById" | "getChoiceByName">, params: CliData): IChoice {
 	if (typeof params.id === "string" && params.id.trim().length > 0) {
 		return plugin.getChoiceById(params.id);
 	}
@@ -187,7 +187,7 @@ export function setExecutorVariables(
 	}
 }
 
-export async function describeChoice(plugin: QuickAdd, choice: IChoice) {
+export async function describeChoice(plugin: AppProvider, choice: IChoice) {
 	return {
 		id: choice.id,
 		name: choice.name,

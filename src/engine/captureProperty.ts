@@ -17,29 +17,6 @@ export function formatContainsPropertyToken(format: string): boolean {
 	return PROPERTY_REGEX.test(format);
 }
 
-/**
- * String form of a property's current value for `{{PROPERTY}}` expansion.
- * Lists become one item per line (so captureListItems round-trips). Items that
- * already contain a line break abort — inventing extra items would be wrong.
- */
-export function stringifyPropertyTokenValue(value: unknown): string {
-	if (value === undefined || value === null) return "";
-	if (Array.isArray(value)) {
-		if (!value.every((item): item is string => typeof item === "string")) {
-			throw new Error("{{PROPERTY}} only expands lists of text.");
-		}
-		if (value.some((item) => /[\r\n]/.test(item))) {
-			throw new Error(
-				"{{PROPERTY}} cannot expand a list item that contains a line break. Return a rewritten array from an inline script instead.",
-			);
-		}
-		return value.join("\n");
-	}
-	if (typeof value === "string" || typeof value === "boolean") return String(value);
-	if (typeof value === "number" && Number.isFinite(value)) return String(value);
-	throw new Error("{{PROPERTY}} only expands text, finite numbers, checkboxes, and lists of text.");
-}
-
 /** Variable keys seeded for property Captures. Reserved while that Capture runs. */
 const PROPERTY_CAPTURE_SEED_KEYS = [
 	"propertyKey",
@@ -97,20 +74,11 @@ export function seedPropertyCaptureVariables(
 	}
 	let propertyValue: CapturePropertyValue | undefined;
 	if (existing !== undefined && existing !== null) {
-		propertyValue = propertyValueFromExisting(existing, key);
+		propertyValue = propertyValueOf(existing, key);
 	}
 	variables.set("propertyKey", key);
 	variables.set("propertyValue", propertyValue);
 	variables.set("list", Array.isArray(propertyValue) ? [...propertyValue] : []);
-}
-
-function propertyValueFromExisting(value: unknown, key: string): CapturePropertyValue {
-	if (typeof value === "string" || typeof value === "boolean") return value;
-	if (typeof value === "number" && Number.isFinite(value)) return value;
-	if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) {
-		return [...value];
-	}
-	throw new Error(`Property '${key}' supports text, finite numbers, checkboxes, and lists of text only.`);
 }
 
 export function resolveCapturePropertyKey(frontmatter: Record<string, unknown>, requested: string): string {
@@ -135,7 +103,7 @@ export function isEmptyCaptureListValue(value: unknown): boolean {
 	return Array.isArray(value) && value.length === 0;
 }
 
-function propertyValue(value: unknown, key: string): CapturePropertyValue {
+function propertyValueOf(value: unknown, key: string): CapturePropertyValue {
 	if (typeof value === "string" || typeof value === "boolean") return value;
 	if (typeof value === "number" && Number.isFinite(value)) return value;
 	if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) return [...value];
@@ -223,8 +191,8 @@ export function planPropertyUpdate(args: {
 		throw new Error(`Property '${key}' is missing. Enable 'Create property if missing' to add it.`);
 	}
 	const existing = exists ? frontmatter[key] : undefined;
-	const captured = propertyValue(args.value, key);
-	const current = existing == null ? null : propertyValue(existing, key);
+	const captured = propertyValueOf(args.value, key);
+	const current = existing == null ? null : propertyValueOf(existing, key);
 	const type = propertyType(args.registeredType, key) ?? (current === null ? null : inferType(current));
 	const lines = typeof captured === "string" ? captureListItems(captured) : null;
 	if (config.action === "addToList") {

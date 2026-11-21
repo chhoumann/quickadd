@@ -1,6 +1,6 @@
 import type { CliData } from "obsidian";
 import { ChoiceExecutor } from "../choiceExecutor";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -75,7 +75,7 @@ function describeWrites(choice: IChoice): CliChoiceSummary["writes"] {
 }
 
 async function flattenChoices(
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
 	choices: IChoice[],
 	segments: string[] = [],
 ): Promise<CliChoiceSummary[]> {
@@ -105,7 +105,7 @@ async function flattenChoices(
 	return flattened;
 }
 
-export async function listChoicesHandler(plugin: QuickAdd, params: CliData) {
+export async function listChoicesHandler(plugin: ChoiceRuntimePlugin, params: CliData) {
 	const rawType = typeof params.type === "string" ? params.type.trim() : "";
 	const type = rawType.toLowerCase();
 	if (type && !SUPPORTED_LIST_TYPES.has(type)) {
@@ -119,7 +119,7 @@ export async function listChoicesHandler(plugin: QuickAdd, params: CliData) {
 }
 
 export async function checkChoiceHandler(
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
 	params: CliData,
 ) {
 	const choice = resolveChoiceFromParams(plugin, params);
@@ -172,7 +172,7 @@ export async function checkChoiceHandler(
 }
 
 export async function previewPackageHandler(
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
 	params: CliData,
 ) {
 	const path =

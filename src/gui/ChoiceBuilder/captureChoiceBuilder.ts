@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { CREATE_IF_NOT_FOUND_TOP } from "../../constants";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
@@ -12,7 +12,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder<ICaptureChoice> {
 	constructor(
 		app: App,
 		choice: ICaptureChoice,
-		plugin: QuickAdd,
+		plugin: ChoiceBuilderPlugin,
 		onSave: (choice: IChoice) => void,
 	) {
 		super(app, choice, plugin, onSave, CaptureChoiceForm, "this capture choice's settings");

@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import { getAllFolderPathsInVault } from "../../../utils/vaultQueries";
 import { sortFolderPathsByTree } from "../../../utils/folder-sorting";
@@ -23,7 +23,7 @@ let {
 }: {
 	choice: ICaptureChoice;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 const captureTargetSuggestions = $derived.by(() => {

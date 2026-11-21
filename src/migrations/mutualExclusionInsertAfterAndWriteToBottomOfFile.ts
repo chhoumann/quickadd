@@ -4,7 +4,7 @@ import { isCaptureChoice, isMultiChoice } from "src/types/choices/choiceGuards";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration, MigrationResult } from "./Migrations";
 import { deepClone } from "src/utils/deepClone";
-import type QuickAdd from "src/main";
+import type { QuickAddSettings } from "../settings";
 import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
 import {
 	commandListOf,
@@ -13,7 +13,7 @@ import {
 	rootMacrosOf,
 } from "src/utils/macroUtils";
 
-type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
+type SettingsWithLegacyMacros = QuickAddSettings & { macros?: IMacro[] };
 
 function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {

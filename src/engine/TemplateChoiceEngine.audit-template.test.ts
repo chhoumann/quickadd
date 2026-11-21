@@ -118,6 +118,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { log } from "../logger/logManager";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -187,6 +188,7 @@ function createEngine() {
 	const engine = new TemplateChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		createTemplateChoice(),
 		choiceExecutor,
 	);

@@ -4,7 +4,7 @@
 	import { settingsStore } from "src/settingsStore";
 	import { log } from "src/logger/logManager";
 	import { untrack } from "svelte";
-	import type QuickAdd from "../../main";
+	import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "../../types/pluginContext";
 	import { CommandRegistry } from "../../services/choiceService";
 	import type IChoice from "../../types/choices/IChoice";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
@@ -25,7 +25,7 @@
 		openAISettings,
 	}: {
 		app: App;
-		plugin: QuickAdd;
+		plugin: ChoiceBuilderPlugin & ChoiceCommandRegistrar;
 		choices?: IChoice[];
 		// Accepts only Plain<IChoice[]> (from snapshot()) — see persist.svelte.ts.
 		saveChoices: (choices: Plain<IChoice[]>) => void;

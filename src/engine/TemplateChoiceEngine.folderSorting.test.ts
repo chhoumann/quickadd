@@ -49,6 +49,7 @@ import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { QuickAddTriggerContext } from "../types/QuickAddTriggerContext";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 function createFolder(path: string): TFolder {
 	const folder = new TFolder();
@@ -134,7 +135,7 @@ function createEngine(
 		triggerContext,
 	};
 
-	return new TemplateChoiceEngine(app, plugin, choice, choiceExecutor);
+	return new TemplateChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 }
 
 function getSuggestedItems(): string[] {

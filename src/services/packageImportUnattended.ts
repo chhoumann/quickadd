@@ -1,4 +1,4 @@
-import type QuickAdd from "../main";
+import type { AppProvider, ChoiceCommandRegistrar, SettingsSaver } from "../types/pluginContext";
 import { settingsStore } from "../settingsStore";
 import { defaultAssetDestinationFor } from "./packageImportDecisions";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
@@ -76,8 +76,11 @@ let importQueue: Promise<unknown> = Promise.resolve();
  * in the template folder) and the same apply, then the choices are stored,
  * their commands synced and the settings saved.
  */
+/** What an unattended import needs from the plugin. */
+export type UnattendedImportPlugin = AppProvider & SettingsSaver & ChoiceCommandRegistrar;
+
 export function importPackageUnattended(
-	plugin: QuickAdd,
+	plugin: UnattendedImportPlugin,
 	pkg: QuickAddPackage,
 	options: UnattendedImportOptions,
 ): Promise<UnattendedImportOutcome> {
@@ -88,7 +91,7 @@ export function importPackageUnattended(
 }
 
 async function importNow(
-	plugin: QuickAdd,
+	plugin: UnattendedImportPlugin,
 	pkg: QuickAddPackage,
 	options: UnattendedImportOptions,
 ): Promise<UnattendedImportOutcome> {

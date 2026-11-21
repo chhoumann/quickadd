@@ -31,8 +31,6 @@ const openMock = vi.fn();
 vi.mock("./gui/suggesters/choiceSuggester", () => ({
 	__esModule: true,
 	default: { Open: openMock },
-	emptyFolderNoticeText: (folder: { name: string }) =>
-		`Folder "${folder.name}" is empty.`,
 }));
 
 const { ChoiceExecutor } = await import("./choiceExecutor");

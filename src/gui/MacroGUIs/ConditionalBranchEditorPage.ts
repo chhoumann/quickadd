@@ -1,5 +1,5 @@
 import { type App, SettingGroup } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import type { ICommand } from "../../types/macros/ICommand";
 import { deepClone } from "../../utils/deepClone";
@@ -12,7 +12,7 @@ import {
 
 interface ConditionalBranchEditorPageOptions {
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	choices: IChoice[];
 	title: string;
 	/** Raw `thenCommands`/`elseCommands` out of data.json - see commandListOf. */
@@ -27,7 +27,7 @@ export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> 
 	private commandEditor: CommandSequenceEditor | null = null;
 	private workingCommands: unknown;
 	private edited = false;
-	private readonly plugin: QuickAdd;
+	private readonly plugin: ChoiceBuilderPlugin;
 	private readonly choices: IChoice[];
 	private readonly conditionalHandlers: CommandSequenceEditorConditionalHandlers;
 

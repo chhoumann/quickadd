@@ -6,6 +6,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { insertOnNewLineBelow } from "../utils/editorInsertion";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 vi.mock("../quickAddSettingsTab", () => {
 	const defaultSettings = {
@@ -272,7 +273,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			]),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 
 		await engine.run();
 
@@ -374,7 +375,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			variables: new Map<string, unknown>(),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 		const applyCapturePropertyVars = vi.fn(async () => {});
 		(engine as any).applyCapturePropertyVars = applyCapturePropertyVars;
 
@@ -460,7 +461,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 		await engine.run();
 
 		// The array is inlined as text (no data loss), not collected -> no placeholder, no processFrontMatter.
@@ -538,7 +539,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 		await engine.run();
 
 		expect(written).toContain("cast: [[A]],[[B]]"); // inlined in the body

@@ -2,7 +2,7 @@
 	import { filterFlatChoices, computeRootSelections, computeSummary } from "./exportSelection";
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
-	import type QuickAdd from "../../main";
+	import type { PluginManifestInfo } from "../../types/pluginContext";
 	import type IChoice from "../../types/choices/IChoice";
 
 	import {
@@ -26,7 +26,7 @@
 		close,
 	}: {
 		app: App;
-		plugin: QuickAdd;
+		plugin: PluginManifestInfo;
 		allChoices: IChoice[];
 		close: () => void;
 	} = $props();

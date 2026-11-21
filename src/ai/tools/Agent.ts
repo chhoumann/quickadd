@@ -8,10 +8,8 @@
  * overlapping calls from racing the shared variables map / cursor.
  */
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { settingsStore } from "../../settingsStore";
-import { CompleteFormatter } from "../../formatters/completeFormatter";
 import { makeNoticeHandler } from "../makeNoticeHandler";
 import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
 import { MacroAbortError } from "../../errors/MacroAbortError";
@@ -91,9 +89,10 @@ export class Agent {
 
 	constructor(
 		private readonly app: App,
-		private readonly plugin: QuickAdd,
 		private readonly choiceExecutor: IChoiceExecutor,
 		private readonly config: AgentConfig,
+		/** Runs the prompt through the QuickAdd formatter. */
+		private readonly format: (input: string) => Promise<string>,
 	) {
 		// Validate the tool set once, at construction, so authoring errors fail fast.
 		for (const [name, tool] of Object.entries(config.tools ?? {})) {
@@ -284,13 +283,7 @@ export class Agent {
 		const prompt = options.prompt ?? "";
 		// The prompt is run through the QuickAdd formatter (like ai.prompt). Tool
 		// args, by contrast, are NEVER formatted (that would re-inject {{...}}).
-		const formatted = prompt
-			? await new CompleteFormatter(
-					this.app,
-					this.plugin,
-					this.choiceExecutor,
-			  ).formatFileContent(prompt)
-			: "";
+		const formatted = prompt ? await this.format(prompt) : "";
 		messages.push({ role: "user", content: formatted });
 		return messages;
 	}

@@ -1,6 +1,8 @@
 import { Notice, type App, type TFile, type WorkspaceLeaf } from "obsidian";
 import { currentDispatch, enterChoice, type ChoiceChain } from "./engine/choiceChain";
-import type QuickAdd from "./main";
+import type { ChoiceRuntimePlugin } from "./types/pluginContext";
+import type { FormatterExecutionRuntime } from "./formatters/formatterRuntime";
+import { createFormatterExecutionRuntime } from "./engine/formatterRuntime";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
@@ -11,9 +13,8 @@ import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor, RunChoiceOptions } from "./IChoiceExecutor";
 import type { PromptProvider } from "./interactive/promptProvider";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import ChoiceSuggester, {
-	emptyFolderNoticeText,
-} from "./gui/suggesters/choiceSuggester";
+import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { emptyFolderNoticeText } from "./utils/choiceNotices";
 import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
@@ -76,7 +77,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
 
-	constructor(private app: App, private plugin: QuickAdd) {
+	private readonly formatterRuntime: FormatterExecutionRuntime;
+
+	constructor(private app: App, private plugin: ChoiceRuntimePlugin) {
+		this.formatterRuntime = createFormatterExecutionRuntime(app, plugin);
 		const dispatch = currentDispatch();
 		this.dispatchAncestry = dispatch.chain;
 		if (dispatch.currentNote !== undefined) this.setCurrentFile(dispatch.currentNote);
@@ -463,6 +467,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		await new TemplateChoiceEngine(
 			this.app,
 			this.plugin,
+			this.formatterRuntime,
 			templateChoice,
 			this,
 			originLeaf,
@@ -478,6 +483,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		await new CaptureChoiceEngine(
 			this.app,
 			this.plugin,
+			this.formatterRuntime,
 			captureChoice,
 			this,
 			originLeaf,
@@ -493,6 +499,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
+			this.formatterRuntime,
 			macroChoice,
 			this,
 			this.variables,

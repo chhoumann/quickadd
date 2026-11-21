@@ -22,7 +22,7 @@ import {
 } from "../utils/generatedFilePath";
 import { getTemplateFile } from "../utils/templateFolderUtils";
 
-import type QuickAdd from "../main";
+import type { FormatterPluginContext } from "../types/pluginContext";
 
 /**
  * Includes one preview pass may expand, across the whole format string.
@@ -56,7 +56,7 @@ function textOutsideScriptSpans(text: string): string {
 export class FileNameDisplayFormatter extends PreviewFormatter {
 	constructor(
 		app: App,
-		private readonly plugin?: QuickAdd,
+		private readonly plugin?: FormatterPluginContext,
 		dateParser?: IDateParser,
 	) {
 		super(app);

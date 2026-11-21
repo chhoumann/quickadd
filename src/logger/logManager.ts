@@ -15,6 +15,14 @@ export class LogManager {
 		return this;
 	}
 
+	/**
+	 * Drop every registered logger. The plugin calls this on unload, so loading
+	 * it again registers its loggers once instead of next to the old instance's.
+	 */
+	public clear(): void {
+		LogManager.loggers = [];
+	}
+
 	logError(message: string | Error) {
 		const messageStr = message instanceof Error ? message.message : message;
 		const stack = message instanceof Error ? message.stack : undefined;

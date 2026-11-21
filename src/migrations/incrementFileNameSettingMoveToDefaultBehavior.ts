@@ -1,4 +1,5 @@
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
+import type { QuickAddSettings } from "../settings";
 import type IChoice from "src/types/choices/IChoice";
 import type { IMacro } from "src/types/macros/IMacro";
 import { deepClone } from "src/utils/deepClone";
@@ -19,7 +20,7 @@ type OldTemplateChoice = {
 	setFileExistsBehavior?: boolean;
 	fileExistsMode?: unknown;
 };
-type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
+type SettingsWithLegacyMacros = QuickAddSettings & { macros?: IMacro[] };
 
 function isOldTemplateChoice(
 	choice: unknown,
@@ -78,7 +79,7 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	description:
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
 	 
-	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
+	migrate: async (plugin: MigrationContext): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
 
 		// See the sibling migrations (#1566): never rewrite a corrupt root with [],

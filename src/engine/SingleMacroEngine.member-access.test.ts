@@ -13,6 +13,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
 import { log } from "../logger/logManager";
 import { SingleMacroEngine } from "./SingleMacroEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const { mockInitializeUserScriptSettings, mockGetUserScript } = vi.hoisted(
 	() => ({
@@ -165,6 +166,7 @@ describe("SingleMacroEngine member access", () => {
 			const engine = new SingleMacroEngine(
 				app,
 				plugin,
+				testFormatterRuntime(app, plugin),
 				[macroChoice],
 				choiceExecutor,
 			);
@@ -191,6 +193,7 @@ describe("SingleMacroEngine member access", () => {
 			const engine = new SingleMacroEngine(
 				app,
 				plugin,
+				testFormatterRuntime(app, plugin),
 				[macroChoice],
 				choiceExecutor,
 			);
@@ -221,6 +224,7 @@ describe("SingleMacroEngine member access", () => {
 			const engine = new SingleMacroEngine(
 				app,
 				plugin,
+				testFormatterRuntime(app, plugin),
 				[macroChoice],
 				choiceExecutor,
 			);
@@ -239,7 +243,7 @@ describe("SingleMacroEngine member access", () => {
 		engineInstance.getOutput = vi.fn().mockReturnValue(42);
 		macroEngineFactory = () => engineInstance;
 
-		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const engine = new SingleMacroEngine(app, plugin, testFormatterRuntime(app, plugin), choices, choiceExecutor);
 		const result = await engine.runAndGetOutput("My Macro");
 
 		expect(engineInstance.run).toHaveBeenCalledTimes(1);
@@ -269,7 +273,7 @@ describe("SingleMacroEngine member access", () => {
 			f: exportFn,
 		});
 
-		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const engine = new SingleMacroEngine(app, plugin, testFormatterRuntime(app, plugin), choices, choiceExecutor);
 		const result = await engine.runAndGetOutput("My Macro::f");
 
 		expect(engineInstance.run).not.toHaveBeenCalled();
@@ -322,6 +326,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			secretApp,
 			pluginWithSave,
+			testFormatterRuntime(secretApp, pluginWithSave),
 			choices,
 			choiceExecutor,
 		);
@@ -375,6 +380,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			secretApp,
 			pluginWithSave,
+			testFormatterRuntime(secretApp, pluginWithSave),
 			choices,
 			choiceExecutor,
 		);
@@ -427,7 +433,7 @@ describe("SingleMacroEngine member access", () => {
 			};
 		});
 
-		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const engine = new SingleMacroEngine(app, plugin, testFormatterRuntime(app, plugin), choices, choiceExecutor);
 		const result = await engine.runAndGetOutput("My Macro::beta");
 
 		expect(engineInstance.run).not.toHaveBeenCalled();
@@ -453,6 +459,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -475,6 +482,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -502,6 +510,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -550,6 +559,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([preCommand, scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -574,6 +584,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -611,6 +622,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -640,6 +652,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -667,7 +680,7 @@ describe("SingleMacroEngine member access", () => {
 			f: abortFn,
 		});
 
-		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const engine = new SingleMacroEngine(app, plugin, testFormatterRuntime(app, plugin), choices, choiceExecutor);
 
 		await expect(engine.runAndGetOutput("My Macro::f")).rejects.toBeInstanceOf(
 			MacroAbortError,
@@ -697,7 +710,7 @@ describe("SingleMacroEngine member access", () => {
 			.mockReturnValue(null);
 		choiceExecutor.consumeAbortSignal = consumeAbortSignal;
 
-		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const engine = new SingleMacroEngine(app, plugin, testFormatterRuntime(app, plugin), choices, choiceExecutor);
 
 		await expect(engine.runAndGetOutput("My Macro::run")).rejects.toBe(
 			abortError,
@@ -722,7 +735,7 @@ describe("SingleMacroEngine member access", () => {
 			.mockReturnValue(null);
 		choiceExecutor.consumeAbortSignal = consumeAbortSignal;
 
-		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const engine = new SingleMacroEngine(app, plugin, testFormatterRuntime(app, plugin), choices, choiceExecutor);
 
 		await expect(engine.runAndGetOutput("My Macro")).rejects.toBe(abortError);
 		expect(engineInstance.run).toHaveBeenCalledTimes(1);
@@ -749,6 +762,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -786,6 +800,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -811,6 +826,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
@@ -837,6 +853,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[baseMacroChoice([waitCommand])],
 			choiceExecutor,
 		);
@@ -885,6 +902,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[macroChoice],
 			choiceExecutor,
 		);
@@ -942,6 +960,7 @@ describe("SingleMacroEngine member access", () => {
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			[macroChoice],
 			choiceExecutor,
 		);

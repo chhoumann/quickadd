@@ -1,5 +1,5 @@
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { MigrationContext } from "../types/pluginContext";
 import type { Migration, MigrationResult } from "./Migrations";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -20,7 +20,7 @@ type LegacyFileOpeningChoice = (ITemplateChoice | ICaptureChoice) & {
 
 const migrateFileOpeningSettings: Migration = {
 	description: "Migrate legacy openFileInNewTab settings to new fileOpening format",
-	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
+	migrate: async (plugin: MigrationContext): Promise<MigrationResult | void> => {
 		log.logMessage("Starting migration of file opening settings...");
 
 		// Legacy fields are not read at runtime, so skipped subtrees must retry.

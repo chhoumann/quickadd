@@ -15,6 +15,7 @@ import { CommandType } from "../types/macros/CommandType";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { log } from "../logger/logManager";
 import { settingsStore } from "../settingsStore";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const OBSIDIAN_COMMAND_ID = "app:go-back";
 
@@ -58,6 +59,7 @@ function buildEngine(commands: unknown[], variables: Record<string, unknown> = {
 	const engine = new MacroChoiceEngine(
 		app,
 		{ settings: settingsStore.getState() } as never,
+		testFormatterRuntime(),
 		choice,
 		choiceExecutor,
 		new Map<string, unknown>(Object.entries(variables)),

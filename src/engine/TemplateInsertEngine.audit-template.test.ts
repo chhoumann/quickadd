@@ -48,6 +48,7 @@ import { TFile, type App } from "obsidian";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const TEMPLATE_PATH = "templates/tpl.md";
 
@@ -102,6 +103,7 @@ function makeEngine(file: TFile): TemplateInsertEngine {
 	return new TemplateInsertEngine(
 		makeApp(),
 		{} as QuickAdd,
+		testFormatterRuntime(),
 		file,
 		TEMPLATE_PATH,
 		"replace",

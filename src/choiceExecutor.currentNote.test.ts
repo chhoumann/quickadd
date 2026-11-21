@@ -18,7 +18,7 @@ vi.mock("./utils/fileOpening", async (importOriginal) => ({
 const seen = vi.hoisted(() => ({ contexts: [] as Array<QuickAddTriggerContext | null | undefined> }));
 vi.mock("./engine/CaptureChoiceEngine", () => ({
 	CaptureChoiceEngine: class {
-		constructor(_app: unknown, _plugin: unknown, _choice: unknown, private executor: { triggerContext?: QuickAddTriggerContext | null }) {}
+		constructor(_app: unknown, _plugin: unknown, _runtime: unknown, _choice: unknown, private executor: { triggerContext?: QuickAddTriggerContext | null }) {}
 		async run() {
 			seen.contexts.push(this.executor.triggerContext);
 		}

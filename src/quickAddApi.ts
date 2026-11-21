@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
-import type QuickAdd from "./main";
+import type { ChoiceRuntimePlugin } from "./types/pluginContext";
+import type { FormatterExecutionRuntime } from "./formatters/formatterRuntime";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type { ChoiceChain } from "./engine/choiceChain";
 import { CompleteFormatter } from "./formatters/completeFormatter";
@@ -53,8 +54,9 @@ export class QuickAddApi {
 	 */
 	public static GetApi(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
 		choiceExecutor: IChoiceExecutor,
+		runtime: FormatterExecutionRuntime,
 		chain?: ChoiceChain,
 	) {
 		const format = async (
@@ -75,7 +77,7 @@ export class QuickAddApi {
 			// Restored on failure too: answers given before a cancelled prompt must
 			// not stay behind for the caller's later format calls and Macro steps.
 			try {
-				const formatter = new CompleteFormatter(app, plugin, choiceExecutor);
+				const formatter = new CompleteFormatter(app, plugin, choiceExecutor, runtime);
 				if (chain) formatter.choiceChain = chain;
 				return await formatter.formatFileContent(input);
 			} finally {
@@ -248,7 +250,7 @@ export class QuickAddApi {
 				return found ? summarizeChoice(found) : null;
 			},
 			pickChoice: (options?: { placeholder?: string }) =>
-				handledIfCancelled(pickChoice(plugin, options)),
+				handledIfCancelled(pickChoice(plugin, choiceExecutor, options)),
 			importPackage: (packageJson: string) => importPackage(plugin, packageJson),
 			applyTemplateToActiveFile: async (
 				templatePath: string,
@@ -276,7 +278,7 @@ export class QuickAddApi {
 
 				const snapshot = snapshotVariables(choiceExecutor.variables);
 				try {
-					return await applyTemplateToNote(app, plugin, {
+					return await applyTemplateToNote(app, plugin, runtime, {
 						templatePath,
 						mode: options?.mode,
 						choiceExecutor,
@@ -287,7 +289,7 @@ export class QuickAddApi {
 				}
 			},
 			format,
-			ai: createAiApi(app, plugin, choiceExecutor, format),
+			ai: createAiApi(app, choiceExecutor, format),
 			utility: {
 				getClipboard: async () => {
 					return await navigator.clipboard.readText();

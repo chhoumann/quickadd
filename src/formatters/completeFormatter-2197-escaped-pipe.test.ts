@@ -17,6 +17,7 @@ import { CompleteFormatter } from "./completeFormatter";
 import { RequirementCollector } from "../preflight/RequirementCollector";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 /**
  * Issue #2197. A Markdown table cell needs its pipe written `\|`, so a token
@@ -187,7 +188,8 @@ describe("#2197 escaped pipes inside tokens in a table cell", () => {
 	});
 
 	it("writes an inline script's escaped pipe verbatim", async () => {
-		const f = new CompleteFormatter(app, makePlugin(), createChoiceExecutor());
+		const plugin = makePlugin();
+		const f = new CompleteFormatter(app, plugin, createChoiceExecutor(), testFormatterRuntime(app, plugin));
 		const out = await f.formatFileContent(
 			'```js quickadd\nreturn "{{LITERAL:a\\\\|b}}";\n```',
 		);
@@ -215,7 +217,8 @@ describe("#2197 escaped pipes inside tokens in a table cell", () => {
 		const executor = createChoiceExecutor();
 		executor.interactive = false;
 		executor.variables.set(key, `${FILE_PICK_PREFIX}Templates/Note.md`);
-		const f = new CompleteFormatter(app, makePlugin(globals), executor);
+		const plugin = makePlugin(globals);
+		const f = new CompleteFormatter(app, plugin, executor, testFormatterRuntime(app, plugin));
 
 		await expect(f.formatTemplateFilePath("{{GLOBAL_VAR:source}}")).resolves.toBe(
 			"Templates/Note.md",
@@ -229,7 +232,8 @@ describe("#2197 escaped pipes inside tokens in a table cell", () => {
 			parseFileToken("Templates|path")!.variableKey,
 			`${FILE_PICK_PREFIX}Templates/Note.md`,
 		);
-		const f = new CompleteFormatter(app, makePlugin(), executor);
+		const plugin = makePlugin();
+		const f = new CompleteFormatter(app, plugin, executor, testFormatterRuntime(app, plugin));
 
 		await expect(
 			f.formatTemplateFilePath("{{FILE:Templates\\|path}}"),
@@ -249,11 +253,8 @@ describe("#2197 escaped pipes inside tokens in a table cell", () => {
 				return "@date:2026-10-07T00:00:00.000Z";
 			},
 		} as unknown as IChoiceExecutor["promptProvider"];
-		const f = new CompleteFormatter(
-			app,
-			makePlugin({ row: "| {{VDATE:due\\|optional}} |" }),
-			executor,
-		);
+		const plugin = makePlugin({ row: "| {{VDATE:due\\|optional}} |" });
+		const f = new CompleteFormatter(app, plugin, executor, testFormatterRuntime(app, plugin));
 		const stubMoment = window.moment;
 		window.moment = ((input?: string) => realMoment.utc(input)) as never;
 		let out: string;

@@ -1,6 +1,6 @@
 import type { CliData, CliFlags } from "obsidian";
 import { testProviderConnection } from "../ai/providerConnection";
-import type QuickAdd from "../main";
+import type { AppProvider } from "../types/pluginContext";
 import { settingsStore } from "../settingsStore";
 
 export const AI_TEST_CONNECTION_COMMAND = "quickadd:ai-test-connection";
@@ -15,7 +15,7 @@ export const AI_TEST_CONNECTION_FLAGS: CliFlags = {
  * the key, only whether one is linked.
  */
 export async function aiTestConnectionHandler(
-	plugin: QuickAdd,
+	plugin: AppProvider,
 	params: CliData,
 ): Promise<{ ok: boolean; [key: string]: unknown }> {
 	const selector = String(params.provider ?? "").trim();

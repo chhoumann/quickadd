@@ -6,7 +6,7 @@ import { confirmAction } from "../gui/confirmAction";
 import { MacroBuilder } from "../gui/MacroGUIs/MacroBuilder";
 import { MultiChoiceBuilder } from "../gui/MultiChoiceBuilder";
 import { snapshot } from "../gui/svelte/persist.svelte";
-import type QuickAdd from "../main";
+import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "../types/pluginContext";
 import { settingsStore } from "../settingsStore";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -208,7 +208,7 @@ async function buildSecretOptionNamesByPath(
 export function getChoiceBuilder(
 	choice: IChoice,
 	app: App,
-	plugin: QuickAdd,
+	plugin: ChoiceBuilderPlugin,
 	onSave: (choice: IChoice) => void,
 ): { open(): boolean } {
 	switch (choice.type) {
@@ -331,7 +331,7 @@ export async function deleteChoiceWithConfirmation(
 export function configureChoice(
 	choice: IChoice,
 	app: App,
-	plugin: QuickAdd,
+	plugin: ChoiceBuilderPlugin,
 	onSave: (edited: IChoice, base: IChoice) => void,
 ): boolean {
 	const builder = getChoiceBuilder(choice, app, plugin, (edited) => {
@@ -354,7 +354,7 @@ export function createToggleCommandChoice(choice: IChoice): IChoice {
  * Command registry adapter to decouple plugin interactions
  */
 export class CommandRegistry {
-	constructor(private plugin: QuickAdd) { }
+	constructor(private plugin: ChoiceCommandRegistrar) { }
 
 	enableCommand(choice: IChoice): void {
 		this.plugin.addCommandForChoice(choice);

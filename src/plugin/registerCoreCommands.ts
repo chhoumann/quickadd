@@ -1,18 +1,21 @@
-import { TFile } from "obsidian";
-import type QuickAdd from "../main";
+import { TFile, type Plugin } from "obsidian";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
 import { ChoiceExecutor } from "../choiceExecutor";
 import { QUICK_ADD_COMMAND_LABELS } from "../commandLabels";
 import { runTemplateFromFolder } from "../engine/runTemplateFromFolder";
 import { applyTemplateToNote } from "../engine/applyTemplateToActiveNote";
+import { createFormatterExecutionRuntime } from "../engine/formatterRuntime";
 import { openChoiceLauncher } from "../gui/suggesters/openChoiceLauncher";
 import { PromptPeekSession } from "../gui/promptPeek/PromptPeekSession";
 
-export function registerCoreCommands(plugin: QuickAdd) {
+export function registerCoreCommands(
+	plugin: ChoiceRuntimePlugin & Pick<Plugin, "addCommand" | "registerEvent">,
+) {
 	plugin.addCommand({
 		id: "runQuickAdd",
 		name: QUICK_ADD_COMMAND_LABELS.run,
 		callback: () => {
-			openChoiceLauncher(plugin);
+			openChoiceLauncher(plugin, () => new ChoiceExecutor(plugin.app, plugin));
 		},
 	});
 
@@ -45,7 +48,7 @@ export function registerCoreCommands(plugin: QuickAdd) {
 			if (checking) return available;
 			if (!available) return;
 
-			void applyTemplateToNote(plugin.app, plugin, {
+			void applyTemplateToNote(plugin.app, plugin, createFormatterExecutionRuntime(plugin.app, plugin), {
 				file,
 				choiceExecutor: new ChoiceExecutor(plugin.app, plugin),
 			});
@@ -66,7 +69,7 @@ export function registerCoreCommands(plugin: QuickAdd) {
 					.setTitle(`QuickAdd: ${QUICK_ADD_COMMAND_LABELS.applyTemplate}`)
 					.setIcon("file-plus")
 					.onClick(() => {
-						void applyTemplateToNote(plugin.app, plugin, {
+						void applyTemplateToNote(plugin.app, plugin, createFormatterExecutionRuntime(plugin.app, plugin), {
 							file: abstractFile,
 							choiceExecutor: new ChoiceExecutor(plugin.app, plugin),
 						});

@@ -84,6 +84,7 @@ import {
 	splitTemplateFrontmatter,
 	type TemplateInsertModeId,
 } from "./TemplateInsertEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const TEMPLATE_PATH = "templates/tpl.md";
 
@@ -221,6 +222,7 @@ function makeEngine(
 	return new TemplateInsertEngine(
 		harness.app,
 		{} as QuickAdd,
+		testFormatterRuntime(),
 		file,
 		TEMPLATE_PATH,
 		mode,

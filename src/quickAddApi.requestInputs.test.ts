@@ -4,6 +4,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import { QuickAddApi } from "./quickAddApi";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -59,7 +60,7 @@ describe("QuickAddApi.requestInputs", () => {
 			"my-date": "@date:2025-12-10T15:41:11.393Z",
 		};
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "my-date", type: "date", dateFormat: "YYYY-MM-DD" },
 		]);
@@ -73,7 +74,7 @@ describe("QuickAddApi.requestInputs", () => {
 			"raw-date": "@date:2025-12-10T15:41:11.393Z",
 		};
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "raw-date", type: "date" },
 		]);
@@ -86,7 +87,7 @@ describe("QuickAddApi.requestInputs", () => {
 		// The field reads like this after picking #work and #urgent from its list.
 		modalReturnValue = { tags: "#work, #urgent, ", note: "a, " };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "tags", type: "suggester", options: ["#work", "#urgent"], suggesterConfig: { multiSelect: true } },
 			{ id: "note", type: "text" },
@@ -107,7 +108,7 @@ describe("QuickAddApi.requestInputs", () => {
 			requestInputs: providerRequestInputs,
 		} as unknown as IChoiceExecutor["promptProvider"];
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "rating", type: "suggester", options: ["10", "9", "8"] },
 		]);
@@ -129,7 +130,7 @@ describe("QuickAddApi.requestInputs", () => {
 		} as unknown as IChoiceExecutor["promptProvider"];
 		choiceExecutor.variables.set("x", "preset");
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([{ id: "x", type: "text" }]);
 
 		expect(providerRequestInputs).not.toHaveBeenCalled();

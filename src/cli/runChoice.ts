@@ -4,7 +4,7 @@ import { QA_INTERNAL_DATE_ORIGIN } from "../constants";
 import { createFolderTemplateChoice } from "../engine/runTemplateFromFolder";
 import { interactivePromptServer } from "../interactive/interactivePromptServer";
 import { RemotePromptProvider } from "../interactive/promptProvider";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
 import { collectChoiceRequirements, getUnresolvedRequirements } from "../preflight/collectChoiceRequirements";
 import type IChoice from "../types/choices/IChoice";
 import { getTemplateFile } from "../utils/templateFolderUtils";
@@ -17,7 +17,7 @@ import {
 } from "./params";
 
 async function runResolvedChoice(
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
 	params: CliData,
 	choice: IChoice,
 	reservedParams: Set<string>,
@@ -58,12 +58,12 @@ async function runResolvedChoice(
 	return { ...result, choice: summary, durationMs: Date.now() - startedAt };
 }
 
-export function runChoice(plugin: QuickAdd, params: CliData) {
+export function runChoice(plugin: ChoiceRuntimePlugin, params: CliData) {
 	return runResolvedChoice(plugin, params, resolveChoiceFromParams(plugin, params),
 		RESERVED_RUN_PARAMS, isTruthy(params.verify));
 }
 
-export async function runTemplate(plugin: QuickAdd, params: CliData) {
+export async function runTemplate(plugin: ChoiceRuntimePlugin, params: CliData) {
 	const path = typeof params.path === "string" ? params.path.trim() : "";
 	if (!path) return { ok: false, error: "Missing template path. Provide path=<vault-path>." };
 	const file = getTemplateFile(plugin.app, path);
@@ -84,7 +84,7 @@ export async function runTemplate(plugin: QuickAdd, params: CliData) {
 	return runResolvedChoice(plugin, params, choice, RESERVED_RUN_TEMPLATE_PARAMS, true);
 }
 
-export async function runInteractive(plugin: QuickAdd, params: CliData) {
+export async function runInteractive(plugin: ChoiceRuntimePlugin, params: CliData) {
 	const choice = resolveChoiceFromParams(plugin, params);
 	const summary = await describeChoice(plugin, choice);
 	if (choice.type === "Multi") {

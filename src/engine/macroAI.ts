@@ -7,7 +7,8 @@ import { runAIAssistant } from "../ai/AIAssistant";
 import { resolveProviderApiKey } from "../ai/providerSecrets";
 import { settingsStore } from "../settingsStore";
 import { CompleteFormatter } from "../formatters/completeFormatter";
-import { getQuickAddInstance } from "../quickAddInstance";
+import type { FormatterPluginContext } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import { resolveModel, type ResolvedModel } from "../ai/aiHelpers";
 import { activeModelRef, sortModelsForDisplay } from "../ai/Provider";
 import { isCancellationError } from "../utils/errorUtils";
@@ -16,7 +17,8 @@ import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 
 export async function executeMacroAI(
-	app: App, choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
+	app: App, plugin: FormatterPluginContext, runtime: FormatterExecutionRuntime,
+	choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
 	command: IAIAssistantCommand, chooseModel: () => Promise<ResolvedModel>,
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
@@ -47,11 +49,7 @@ export async function executeMacroAI(
 
 	const { model, provider: modelProvider } = resolved;
 
-	const formatter = new CompleteFormatter(
-		app,
-		getQuickAddInstance(),
-		executor
-	);
+	const formatter = new CompleteFormatter(app, plugin, executor, runtime);
 	// Same run context every other prompt surface gets (issue #1546): a
 	// {{VALUE}} inside the AI prompt template names the choice that is asking
 	// instead of prompting generically. Scoped per command id, like

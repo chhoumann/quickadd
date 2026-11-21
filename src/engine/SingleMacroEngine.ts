@@ -1,7 +1,8 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IUserScript } from "../types/macros/IUserScript";
@@ -74,7 +75,8 @@ export class SingleMacroEngine {
 
 	constructor(
 		private readonly app: App,
-		private readonly plugin: QuickAdd,
+		private readonly plugin: ChoiceRuntimePlugin,
+		private readonly runtime: FormatterExecutionRuntime,
 		private readonly choices: IChoice[],
 		choiceExecutor: IChoiceExecutor,
 		variables?: Map<string, unknown>,
@@ -147,6 +149,7 @@ export class SingleMacroEngine {
 		const engine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
+			this.runtime,
 			macroChoice,
 			this.choiceExecutor,
 			this.variables,

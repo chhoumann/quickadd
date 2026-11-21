@@ -1,15 +1,8 @@
 import type IChoice from "../types/choices/IChoice";
+import type { ChoiceCommandRegistrar } from "../types/pluginContext";
 import { flattenChoices, flattenChoicesWithPath } from "../utils/choiceUtils";
 import type { ApplyImportResult } from "./packageImportService";
 
-/** The two plugin methods the command palette sync needs; QuickAdd (main.ts) satisfies it. */
-export interface ChoiceCommandRegistrar {
-	addCommandForChoice(choice: IChoice): void;
-	removeCommandForChoice(
-		choice: IChoice,
-		options?: { recursive?: boolean },
-	): void;
-}
 
 /**
  * Register palette commands for the choices a package import just added or

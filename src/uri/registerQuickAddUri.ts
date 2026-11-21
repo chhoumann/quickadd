@@ -1,5 +1,5 @@
-import type { TFile } from "obsidian";
-import type QuickAdd from "../main";
+import type { Plugin, TFile } from "obsidian";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
 import { ChoiceExecutor } from "../choiceExecutor";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -16,7 +16,7 @@ type UriParameters = { choice?: string; date?: string } &
 { "x-success"?: string; "x-error"?: string; "x-cancel"?: string; "x-callback-url"?: string };
 
 export function registerQuickAddUri(
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin & Pick<Plugin, "registerObsidianProtocolHandler">,
 	getChoice: (name: string) => IChoice | null,
 	warnIfChoiceNameAmbiguous: (name: string) => void,
 ) {

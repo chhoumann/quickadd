@@ -4,6 +4,7 @@ import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import type QuickAdd from "../main";
 import { CompleteFormatter } from "./completeFormatter";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const { prompt } = vi.hoisted(() => ({
 	prompt: vi.fn<() => Promise<string>>(),
@@ -51,7 +52,7 @@ function makeHarness(templates: Record<string, string> = {}) {
 		},
 	} as unknown as QuickAdd;
 	const executor = createChoiceExecutor();
-	const formatter = new CompleteFormatter(app, plugin, executor);
+	const formatter = new CompleteFormatter(app, plugin, executor, testFormatterRuntime(app, plugin));
 	const formatTemplate = (input: string) => formatter.withPromptScope(
 		"noteBody", input, () => formatter.formatTemplateContent(input),
 	);
@@ -122,7 +123,7 @@ describe("Template cursor formatting scope", () => {
 			"Seed.md": "seed{{CURSOR}}{{TEMPLATE:Inner.md}}",
 			"Inner.md": "inner{{cursor}}end",
 		});
-		const engine = new SingleTemplateEngine(app, plugin, "Seed.md", executor);
+		const engine = new SingleTemplateEngine(app, plugin, testFormatterRuntime(app, plugin), "Seed.md", executor);
 		engine.setDestinationPath("Captured.md");
 		expect(await engine.run()).toBe("seedinnerend");
 	});

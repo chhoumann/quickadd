@@ -1,6 +1,6 @@
 import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import { replaceRange } from "./utils";
 import { flattenChoices } from "../../utils/choiceUtils";
 import type {
@@ -36,7 +36,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 	constructor(
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
-		private plugin: QuickAdd,
+		private plugin: ChoiceBuilderPlugin,
 		private context: FormatSuggestContext = "noteContent",
 	) {
 		super(app, inputEl);

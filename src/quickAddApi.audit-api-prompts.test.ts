@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import type { MacroAbortError } from "./errors/MacroAbortError";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 // ---------------------------------------------------------------------------
 // Minimal hoisted mocks. We keep the AI/format/settings subsystems stubbed out
@@ -114,7 +115,7 @@ function getApi(
 	executor = makeChoiceExecutor(),
 ) {
 	return {
-		api: QuickAddApi.GetApi(app, plugin, executor as never),
+		api: QuickAddApi.GetApi(app, plugin, executor as never, testFormatterRuntime(app, plugin)),
 		app,
 		plugin,
 		executor,

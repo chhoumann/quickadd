@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import type { Component } from "svelte";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 import { snapshot } from "../svelte/persist.svelte";
@@ -27,7 +27,7 @@ export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoi
 	protected constructor(
 		app: App,
 		public readonly choice: C,
-		private readonly plugin: QuickAdd,
+		private readonly plugin: ChoiceBuilderPlugin,
 		onSave: (choice: IChoice) => void,
 		private readonly form: Component<ChoiceFormProps<C>>,
 		/** What the form shows, for the card shown if it fails to mount. */

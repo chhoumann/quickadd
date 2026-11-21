@@ -20,3 +20,26 @@ export function inheritPropertyValueType(format: string, propertyType: string | 
 	}
 	return `${format.slice(0, -2)}|type:${type}}}`;
 }
+
+/**
+ * String form of a property's current value for `{{PROPERTY}}` expansion.
+ * Lists become one item per line (so captureListItems round-trips). Items that
+ * already contain a line break abort — inventing extra items would be wrong.
+ */
+export function stringifyPropertyTokenValue(value: unknown): string {
+	if (value === undefined || value === null) return "";
+	if (Array.isArray(value)) {
+		if (!value.every((item): item is string => typeof item === "string")) {
+			throw new Error("{{PROPERTY}} only expands lists of text.");
+		}
+		if (value.some((item) => /[\r\n]/.test(item))) {
+			throw new Error(
+				"{{PROPERTY}} cannot expand a list item that contains a line break. Return a rewritten array from an inline script instead.",
+			);
+		}
+		return value.join("\n");
+	}
+	if (typeof value === "string" || typeof value === "boolean") return String(value);
+	if (typeof value === "number" && Number.isFinite(value)) return String(value);
+	throw new Error("{{PROPERTY}} only expands text, finite numbers, checkboxes, and lists of text.");
+}

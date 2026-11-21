@@ -5,6 +5,7 @@ import { TFile as ObsidianTFile } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { templaterParseTemplate } from "../utils/templaterIntegration";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 // The real CaptureChoiceFormatter runs here: only the executable steps
 // (inline scripts, macros, Templater) are replaced with recorders.
@@ -94,7 +95,7 @@ function captureChoice(format: string, configure?: (choice: CaptureChoice) => vo
 
 async function run(format: string, options: Parameters<typeof setup>[0], configure?: (choice: CaptureChoice) => void) {
 	const { app, plugin, executor, files } = setup(options);
-	await new CaptureChoiceEngine(app, plugin, captureChoice(format, configure), executor).run();
+	await new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), captureChoice(format, configure), executor).run();
 	return files.get(TARGET);
 }
 

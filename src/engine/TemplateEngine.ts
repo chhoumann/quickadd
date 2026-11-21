@@ -18,7 +18,8 @@ import type { PromptRunContext } from "../formatters/promptScope";
 import type { ChoiceChain } from "./choiceChain";
 import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import { getTemplateFile, resolveTemplatePath } from "../utils/templateFolderUtils";
 import { overwriteTemplaterOnce } from "../utils/templaterIntegration";
 import {
@@ -98,12 +99,13 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 	protected constructor(
 		app: App,
-		protected plugin: QuickAdd,
-		choiceFormatter?: IChoiceExecutor,
+		protected plugin: ChoiceRuntimePlugin,
+		protected readonly runtime: FormatterExecutionRuntime,
+		choiceExecutor?: IChoiceExecutor,
 		inclusion?: TemplateInclusionState,
 	) {
 		super(app);
-		this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
+		this.formatter = new CompleteFormatter(app, plugin, choiceExecutor, runtime);
 		if (inclusion) {
 			this.formatter.setTemplateInclusionState(inclusion);
 		}

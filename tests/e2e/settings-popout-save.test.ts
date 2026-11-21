@@ -70,10 +70,10 @@ for (const mainWindow of ["visible", "hidden"] as const) {
 				await popoutSleep(300);
 				const plugin = app.plugins.plugins.quickadd;
 				const order = plugin.settings.choices.map((choice) => choice.name);
-				const pendingAtClose = plugin.pendingSave !== null;
+				const pendingAtClose = plugin.settingsPersistence.pendingSave !== null;
 				app.setting.close();
 				// The write that closing started.
-				await plugin.persistChain;
+				await plugin.settingsPersistence.persistChain;
 				return { order, pendingAtClose };
 			})()`);
 			expect(inMemory).not.toEqual(["Alpha", "Bravo", "Charlie"]);

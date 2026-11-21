@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { App } from "obsidian";
 import { Notice } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import type { SectionOrdering } from "../../../types/choices/ICaptureChoice";
 import {
@@ -30,7 +30,7 @@ let {
 }: {
 	insertAfter: ICaptureChoice["insertAfter"];
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 // Defaults the imperative builder set when this section rendered (insertAfter

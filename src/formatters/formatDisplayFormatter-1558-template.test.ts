@@ -21,6 +21,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		constructor(
 			_app: unknown,
 			_plugin: unknown,
+			_runtime: unknown,
 			public templatePath: string,
 		) {}
 		run(): Promise<string> {

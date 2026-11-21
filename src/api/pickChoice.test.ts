@@ -5,7 +5,7 @@ import type QuickAdd from "../main";
 import { ChoiceExecutor } from "../choiceExecutor";
 import { UserCancelError } from "../errors/UserCancelError";
 import ChoiceSuggester, { BACK_CHOICE_ID } from "../gui/suggesters/choiceSuggester";
-import { NO_CHOICES_NOTICE } from "../gui/suggesters/openChoiceLauncher";
+import { NO_CHOICES_NOTICE } from "../utils/choiceNotices";
 import { settingsStore } from "../settingsStore";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
@@ -31,6 +31,9 @@ describe("pickChoice", () => {
 
 	const plugin = (choices: IChoice[]) =>
 		({ app: new App(), settings: { choices } }) as unknown as QuickAdd;
+	// A real executor, so the tests can tell that pick mode runs nothing.
+	const pick = (p: QuickAdd, options?: { placeholder?: string }) =>
+		pickChoice(p, new ChoiceExecutor(p.app, p), options);
 	const current = () => opened[opened.length - 1];
 	const choose = (item: IChoice) => current().selectSuggestion({ item, match }, pressed);
 
@@ -59,7 +62,7 @@ describe("pickChoice", () => {
 	});
 
 	it("resolves the picked choice and runs nothing", async () => {
-		const picked = pickChoice(plugin([inbox, podcasts]));
+		const picked = pick(plugin([inbox, podcasts]));
 
 		choose(inbox);
 
@@ -73,7 +76,7 @@ describe("pickChoice", () => {
 	});
 
 	it("keeps pick mode through a folder and Back", async () => {
-		const picked = pickChoice(plugin([inbox, podcasts]));
+		const picked = pick(plugin([inbox, podcasts]));
 
 		choose(podcasts);
 		const back = current().getItems().find((item) => item.id === BACK_CHOICE_ID);
@@ -90,7 +93,7 @@ describe("pickChoice", () => {
 	});
 
 	it("searches nested choices even with Search nested choices off", () => {
-		void pickChoice(plugin([inbox, podcasts]));
+		void pick(plugin([inbox, podcasts]));
 
 		const found = current().getSuggestions("timestamp").map((result) => result.item);
 
@@ -98,7 +101,7 @@ describe("pickChoice", () => {
 	});
 
 	it("rejects with a cancellation when the picker is dismissed", async () => {
-		const picked = pickChoice(plugin([inbox, podcasts]));
+		const picked = pick(plugin([inbox, podcasts]));
 
 		current().close();
 
@@ -107,7 +110,7 @@ describe("pickChoice", () => {
 	});
 
 	it("shows the launcher's notice and opens nothing when there are no choices", async () => {
-		await expect(pickChoice(plugin([]))).rejects.toBeInstanceOf(UserCancelError);
+		await expect(pick(plugin([]))).rejects.toBeInstanceOf(UserCancelError);
 
 		expect(opened).toEqual([]);
 		expect(
@@ -118,7 +121,7 @@ describe("pickChoice", () => {
 	});
 
 	it("shows the caller's placeholder", () => {
-		void pickChoice(plugin([inbox]), { placeholder: "Pick a capture choice" });
+		void pick(plugin([inbox]), { placeholder: "Pick a capture choice" });
 
 		expect(current().inputEl.placeholder).toBe("Pick a capture choice");
 	});

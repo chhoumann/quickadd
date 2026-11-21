@@ -91,6 +91,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { settingsStore } from "../settingsStore";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 function createTestFile(path: string): TFile {
 	const file = new TFile();
@@ -170,7 +171,7 @@ function harness({ exists, existing }: { exists: boolean; existing: string }) {
 		choiceExecutor,
 		captureFile,
 		created,
-		engine: new CaptureChoiceEngine(app, plugin, choice, choiceExecutor),
+		engine: new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor),
 	};
 }
 

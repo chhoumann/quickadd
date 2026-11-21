@@ -10,7 +10,8 @@ import { confirmAction } from "../gui/confirmAction";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceChain } from "./choiceChain";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin, SettingsProvider, TemplateFileSource } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
@@ -128,7 +129,8 @@ export function buildTemplatePickerItems(
  */
 export async function applyTemplateToNote(
 	app: App,
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
+	runtime: FormatterExecutionRuntime,
 	params: ApplyTemplateToNoteParams,
 ): Promise<TFile | null> {
 	const file = params.file ?? app.workspace.getActiveFile();
@@ -189,6 +191,7 @@ export async function applyTemplateToNote(
 				const engine = new TemplateInsertEngine(
 					app,
 					plugin,
+					runtime,
 					file,
 					templatePath,
 					mode,
@@ -297,7 +300,7 @@ function isAbortError(error: unknown): boolean {
 
 async function pickTemplate(
 	app: App,
-	plugin: QuickAdd,
+	plugin: SettingsProvider & TemplateFileSource,
 ): Promise<TemplatePickerItem | null> {
 	const items = buildTemplatePickerItems(
 		plugin.settings.choices,

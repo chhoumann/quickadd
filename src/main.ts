@@ -1,56 +1,28 @@
-/** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
 import type { TFile } from "obsidian";
 import { Plugin } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
-import { DEFAULT_SETTINGS } from "./settings";
 import type { QuickAddSettings } from "./settings";
 import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
-import { LogManager } from "./logger/logManager";
-import {
-	reportError,
-	reportUnlessCancelled,
-} from "./utils/errorUtils";
+import { reportError } from "./utils/errorUtils";
 import { registerUnhandledRejectionReporter } from "./utils/unhandledRejectionReporter";
 import { openQuickAddSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
+import { createFormatterExecutionRuntime } from "./engine/formatterRuntime";
 import type IChoice from "./types/choices/IChoice";
 import { hasTemplateExtension, isPathWithinTemplateFolders, normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { openChoiceLauncher } from "./gui/suggesters/openChoiceLauncher";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
-import { walkChoicesInSettings } from "./utils/choiceTraversal";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FileIndex } from "./utils/vaultIndex/FileIndex";
 import { TagIndex } from "./utils/vaultIndex/TagIndex";
-import { deepClone } from "./utils/deepClone";
-import {
-	reconcileSettingsPersistPlan,
-	settingsValuesEqual,
-	shouldApplyPersistedWriteToStore,
-	threeWayMergeSettings,
-} from "./utils/settingsPersistMerge";
 import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
-import {
-	childChoicesOf,
-	clearEmptyFormatFlag,
-	dedupeChoicesById,
-	findChoiceWithPath,
-	isChoiceLike,
-	resolveChoiceIcon,
-	rootChoicesOf,
-} from "./utils/choiceUtils";
-import {
-	choiceCommandId,
-	pickDayCommandId,
-	pickDayCommandName,
-	shouldRegisterPickDayCommand,
-} from "./types/choiceCommands";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
@@ -59,85 +31,38 @@ import { ingestImagesIntoActivePrompt as ingestPromptImages } from "./gui/imageP
 import { setQuickAddInstance } from "./quickAddInstance";
 import { registerQuickAddUri } from "./uri/registerQuickAddUri";
 import { registerCoreCommands } from "./plugin/registerCoreCommands";
+import { ChoiceCommandManager } from "./plugin/choiceCommandManager";
+import { SettingsPersistence } from "./plugin/settingsPersistence";
 import { scheduleStartupModelSync } from "./ai/startupModelSync";
 import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
 import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
 import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
 
-// The settingsStore subscriber fires on every store change — including high-frequency
-// ones like folder collapse toggles. Coalesce those full-settings disk writes into one
-// per burst (saveData rewrites the whole data.json); flushed on unload so nothing is lost.
-const SETTINGS_SAVE_DEBOUNCE_MS = 1000;
-
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
-	/**
-	 * Snapshot of settings as of the last successful load/save. Used as the
-	 * 3-way-merge base so a whole-file write cannot clobber newer on-disk fields
-	 * that this instance never edited (see #1749 / background model sync).
-	 */
-	private lastPersistedSettings: QuickAddSettings | null = null;
-	/**
-	 * When true, the settingsStore subscriber updates `this.settings` but does
-	 * not schedule a disk write. Set while applying a conflict-merge result back
-	 * into the store after that result has already been (or is about to be) saved.
-	 */
-	private suppressSettingsSave = false;
-	/**
-	 * Work started before unload (a settings read, an import) can finish after
-	 * it. Obsidian keeps commands an unloaded plugin adds and never removes them,
-	 * and command ids are shared with the instance that loads next, so an
-	 * unloaded instance must not add or remove any (#2210).
-	 */
+	/** Work started before unload can finish after it, and must not touch commands or settings then (#2210). */
 	private unloaded = false;
-	/**
-	 * Serialize persist calls so overlapping debounced/immediate saves cannot
-	 * race. Null when nothing is queued, so quit can tell there is nothing to
-	 * wait for.
-	 */
-	private persistChain: Promise<void> | null = null;
-	// Debounced disk write for the store subscriber. saveSettings() stays immediate
-	// (migrations await it) and cancels this; onunload flushes it.
-	//
-	// The async IIFE is load-bearing, not style: floating `saveData()` straight from a
-	// non-async arrow leaves NO QuickAdd frame on the rejection's stack (it is
-	// constructed inside Obsidian's own FS plumbing, after an await), so a failed
-	// settings write would be invisible to the unhandled-rejection reporter - which is
-	// the one failure here the user most needs to hear about, since their settings
-	// silently did not persist. Awaiting inside a QuickAdd frame puts us on the stack.
-	//
-	// Not Obsidian's debounce: that schedules on whichever window is active when it is
-	// called, so a change made in the Settings popout would be written on the popout's
-	// timer, which closing the popout drops. `window` is the main window.
-	private pendingSave: number | null = null;
-	private requestSave = Object.assign(
-		() => {
-			this.pendingSave ??= window.setTimeout(
-				() => this.requestSave.run(),
-				SETTINGS_SAVE_DEBOUNCE_MS,
-			);
+	private readonly settingsPersistence = new SettingsPersistence({
+		// Arrows, not bound methods: a test can replace loadData/saveData on the instance.
+		loadData: () => this.loadData(),
+		saveData: (data) => this.saveData(data),
+		getSettings: () => this.settings,
+		setSettings: (settings) => {
+			this.settings = settings;
 		},
-		{
-			run: () => {
-				if (this.pendingSave === null) return;
-				this.requestSave.cancel();
-				void (async () => {
-					await this.persistSettings();
-				})();
-			},
-			cancel: () => {
-				if (this.pendingSave !== null) window.clearTimeout(this.pendingSave);
-				this.pendingSave = null;
-			},
-		},
-	);
+		isUnloaded: () => this.unloaded,
+		onChoicesReplacedFromDisk: (previousChoices) =>
+			this.choiceCommands.replaceCommands(previousChoices),
+	});
+	private readonly choiceCommands = new ChoiceCommandManager(this, () => this.unloaded);
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(
 			this.app,
 			this,
 			new ChoiceExecutor(this.app, this),
+			createFormatterExecutionRuntime(this.app, this),
 		);
 	}
 
@@ -151,12 +76,9 @@ export default class QuickAdd extends Plugin {
 
 		await this.loadSettings();
 		settingsStore.replaceState(this.settings);
-		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
-			this.settings = settings;
-			if (!this.suppressSettingsSave) {
-				this.requestSave();
-			}
-		});
+		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) =>
+			this.settingsPersistence.onStoreChange(settings),
+		);
 
 		registerCoreCommands(this);
 		registerSaveOnExit(this, () => this.flushPendingSave());
@@ -180,11 +102,11 @@ export default class QuickAdd extends Plugin {
 
 		registerQuickAddUri(
 			this,
-			(name) => this.getChoice("name", name),
-			(name) => this.warnIfChoiceNameAmbiguous(name),
+			(name) => this.findChoiceByName(name),
+			(name) => this.choiceCommands.warnIfChoiceNameAmbiguous(name),
 		);
 
-		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
+		log.register(new ConsoleErrorLogger()).register(new GuiLogger());
 
 		// Must come after the loggers: a QuickAdd promise that rejects with nobody
 		// awaiting it (a settings click handler, a floated call) used to leave the user
@@ -195,7 +117,7 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
-				openChoiceLauncher(this);
+				openChoiceLauncher(this, () => new ChoiceExecutor(this.app, this));
 			});
 		}
 
@@ -214,7 +136,7 @@ export default class QuickAdd extends Plugin {
 		// and no startup macros, and no way for the user to tell why (#1566).
 		// The accessors below handle the corrupt shapes we know about; this is the
 		// blast radius bound for the ones nobody has thought of yet.
-		this.addCommandsForChoices(this.settings.choices);
+		this.choiceCommands.addCommandsForChoices(this.settings.choices);
 
 		try {
 			await migrate(this);
@@ -275,13 +197,6 @@ export default class QuickAdd extends Plugin {
 		void this.flushPendingSave();
 		this.unsubscribeSettingsStore?.call(this);
 
-		// Clear the error log to prevent memory leaks
-		LogManager.loggers.forEach((logger) => {
-			if (logger instanceof ConsoleErrorLogger) {
-				logger.clearErrorLog();
-			}
-		});
-
 		// Clean up field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
 		cache.destroy();
@@ -292,51 +207,14 @@ export default class QuickAdd extends Plugin {
 		// any in-flight sessions) so nothing keeps listening after unload.
 		interactivePromptServer.stop();
 		PromptPeekSession.getActive()?.cancel();
-	}
 
-	/**
-	 * Normalize raw `data.json` into the in-memory settings shape. Shared by the
-	 * initial load and by conflict-aware saves so the 3-way-merge base/disk legs
-	 * use the same defaults / coerce / id-heal rules.
-	 */
-	private normalizeLoadedSettings(loadedData: unknown): QuickAddSettings {
-		const settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			loadedData ?? {},
-		) as QuickAddSettings & {
-			announceUpdates: QuickAddSettings["announceUpdates"] | boolean;
-		};
-
-		if (typeof settings.announceUpdates === "boolean") {
-			settings.announceUpdates = settings.announceUpdates ? "all" : "none";
-		}
-
-		// Heal duplicate choice ids (#1451): a repeated id makes the settings tab's
-		// keyed {#each} throw each_key_duplicate and render blank (commands keep
-		// working, so it looks like "corrupted data"). Cheap and idempotent, so it
-		// runs every load; the next ordinary save rewrites data.json cleaned. No
-		// data is lost - see dedupeChoicesById. Only touch a real array: a missing
-		// `choices` already defaults to [] via the merge above, and a null/corrupt
-		// value is left exactly as-is rather than being silently replaced with []
-		// (which a later save would persist, destroying recoverable data).
-		if (Array.isArray(settings.choices)) {
-			settings.choices = dedupeChoicesById(settings.choices);
-		}
-
-		// Runs every load, not as a one-time migration: QuickAdd 2.29 still saves
-		// this shape, so a downgrade and a later upgrade can bring it back (#2047).
-		walkChoicesInSettings(settings, clearEmptyFormatFlag);
-
-		return settings;
+		// Loading QuickAdd again registers its own loggers and instance.
+		log.clear();
+		setQuickAddInstance(undefined);
 	}
 
 	async loadSettings() {
-		const loadedData = await this.loadData();
-		const settings = this.normalizeLoadedSettings(loadedData);
-		this.settings = settings;
-		// Deep-clone so later in-place store edits cannot mutate the merge base.
-		this.lastPersistedSettings = deepClone(settings);
+		await this.settingsPersistence.load();
 	}
 
 	/**
@@ -344,355 +222,44 @@ export default class QuickAdd extends Plugin {
 	 * settings work, or null when there is none to wait for.
 	 */
 	flushPendingSave(): Promise<void> | null {
-		this.requestSave.run();
-		return this.persistChain;
+		return this.settingsPersistence.flushPendingSave();
 	}
 
-	private queuePersistRun(run: () => Promise<void>): Promise<void> {
-		const chain: Promise<void> = (this.persistChain ?? Promise.resolve())
-			.then(run, run)
-			.finally(() => {
-				if (this.persistChain === chain) this.persistChain = null;
-			});
-		this.persistChain = chain;
-		return chain;
-	}
-
+	/** Immediate, awaitable settings write (migrations rely on this). */
 	async saveSettings() {
-		// Immediate, awaitable write (migrations rely on this). Supersede any pending
-		// debounced write so the same settings aren't redundantly rewritten after.
-		this.requestSave.cancel();
-		await this.persistSettings();
+		await this.settingsPersistence.saveNow();
 	}
 
-	/**
-	 * Whole-file settings write with a disk-aware merge. If `data.json` changed
-	 * since `lastPersistedSettings` (another device/sync, hand edit, …), local
-	 * mutations are three-way-merged onto the on-disk value instead of replacing
-	 * the file with a stale in-memory snapshot (#1749).
-	 *
-	 * Obsidian's `loadData` / `saveData` expose no compare-and-swap, file lock, or
-	 * version token, so a TOCTOU window remains between the final re-read below
-	 * and `saveData`. We narrow that window with a last-look revalidation; we
-	 * cannot close it with the public Plugin API alone.
-	 */
-	private persistSettings(): Promise<void> {
-		const run = async () => {
-			const base = this.lastPersistedSettings;
-
-			const readDisk = async (): Promise<QuickAddSettings | null> => {
-				if (!base) return null;
-				return this.normalizeLoadedSettings(await this.loadData());
-			};
-
-			let disk = await readDisk();
-
-			const buildPlan = (diskSnapshot: QuickAddSettings | null) => {
-				// Capture local AFTER the disk read so updates that landed while
-				// loadData() was in flight are included, then fold any further
-				// live-store drift onto that plan (Codex P1 / CodeRabbit on #1750).
-				const local = deepClone(this.settings);
-				return reconcileSettingsPersistPlan({
-					base,
-					disk: diskSnapshot,
-					local,
-					currentStore: this.settings,
-				});
-			};
-
-			const applyStoreReplace = (
-				plan: ReturnType<typeof reconcileSettingsPersistPlan<QuickAddSettings>>,
-			) => {
-				if (
-					plan.shouldReplaceStore &&
-					settingsValuesEqual(this.settings, plan.local)
-				) {
-					this.publishSettingsFromDisk(plan.toWrite);
-				}
-			};
-
-			let plan = buildPlan(disk);
-
-			if (plan.didMerge) {
-				log.logMessage(
-					"[Settings] data.json changed on disk since the last QuickAdd write; merged in-memory changes with on-disk settings before saving.",
-				);
-			}
-
-			applyStoreReplace(plan);
-
-			// Last-look disk revalidation before saveData. Still racy without CAS
-			// (see method doc); this only shrinks the window after the first merge.
-			if (base) {
-				const freshDisk = await readDisk();
-				if (
-					freshDisk &&
-					(!disk || !settingsValuesEqual(freshDisk, disk))
-				) {
-					log.logMessage(
-						"[Settings] data.json changed again before save; re-merging with the fresher on-disk snapshot.",
-					);
-					disk = freshDisk;
-					plan = buildPlan(disk);
-					applyStoreReplace(plan);
-				}
-			}
-
-			// Fold any last-moment store drift onto the planned write, using the
-			// plan's local snapshot as the 3-way base so disk-only fields survive.
-			const storeAtFinalMerge = deepClone(this.settings);
-			let toWrite = plan.toWrite;
-			if (!settingsValuesEqual(storeAtFinalMerge, plan.local)) {
-				toWrite = threeWayMergeSettings(
-					plan.local,
-					storeAtFinalMerge,
-					plan.toWrite,
-				);
-			}
-
-			// Keep the live store aligned with what we persist. Otherwise disk-only
-			// fields preserved in toWrite stay missing from this.settings, and the
-			// next save treats that gap as a local deletion (CodeRabbit on #1750).
-			if (
-				shouldApplyPersistedWriteToStore(
-					toWrite,
-					this.settings,
-					storeAtFinalMerge,
-				)
-			) {
-				this.publishSettingsFromDisk(toWrite);
-			}
-
-			await this.saveData(toWrite);
-			this.lastPersistedSettings = deepClone(toWrite);
-		};
-
-		return this.queuePersistRun(run);
-	}
-
-	/**
-	 * Obsidian calls this when `data.json` is newer than QuickAdd's last write:
-	 * Sync or another sync tool delivered it, another instance on the same
-	 * vault wrote it, or someone edited it by hand. Apply it now instead of at
-	 * the next reload. Edits made here and not yet saved (the debounced save)
-	 * are three-way merged on top, the same way a save merges (#1749). Queued
-	 * with the saves so the two never interleave.
-	 */
+	/** Obsidian calls this when `data.json` is newer than QuickAdd's last write. */
 	async onExternalSettingsChange(): Promise<void> {
-		const run = async () => {
-			let loadedData: unknown;
-			try {
-				loadedData = await this.loadData();
-			} catch (err) {
-				// A sync client can leave a half-written file behind; the next
-				// complete write triggers this again.
-				log.logWarning(`QuickAdd could not read its changed settings: ${String(err)}`);
-				return;
-			}
-			// A missing file is not a request to reset every setting.
-			if (!loadedData) return;
-			// The next instance reads the file itself. A save that unload flushed
-			// is queued behind this run and merges with disk on its own.
-			if (this.unloaded) return;
-
-			const base = this.lastPersistedSettings;
-			const disk = this.normalizeLoadedSettings(loadedData);
-			if (base && settingsValuesEqual(disk, base)) return;
-
-			const merged = base
-				? threeWayMergeSettings(base, deepClone(this.settings), disk)
-				: disk;
-			this.lastPersistedSettings = deepClone(disk);
-			if (!settingsValuesEqual(merged, this.settings)) {
-				this.publishSettingsFromDisk(merged);
-			}
-			if (settingsValuesEqual(merged, disk)) {
-				// Everything this instance holds is on disk already.
-				this.requestSave.cancel();
-			} else {
-				// Local edits were merged in; they still need writing.
-				this.requestSave();
-			}
-			log.logMessage("[Settings] Applied settings that changed outside this Obsidian instance.");
-		};
-
-		await this.queuePersistRun(run);
-	}
-
-	/**
-	 * Replace the live settings with values that came from disk, without
-	 * scheduling a save of them, and bring the choice commands in line: the
-	 * choices may have been added, removed or renamed elsewhere.
-	 */
-	private publishSettingsFromDisk(next: QuickAddSettings): void {
-		const previousChoices = this.settings.choices;
-		this.suppressSettingsSave = true;
-		try {
-			settingsStore.replaceState(next);
-			this.settings = next;
-		} finally {
-			this.suppressSettingsSave = false;
-		}
-		if (settingsValuesEqual(previousChoices, next.choices)) return;
-		for (const choice of rootChoicesOf(previousChoices)) {
-			if (isChoiceLike(choice)) this.removeCommandForChoice(choice, { recursive: true });
-		}
-		this.addCommandsForChoices(next.choices);
-	}
-
-	private addCommandsForChoices(choices: IChoice[]) {
-		for (const choice of rootChoicesOf(choices)) {
-			// A list entry can be a hole (`null`, a stray primitive) left by a bad
-			// edit or a truncated write; it is not a choice, so there is no command
-			// to register for it.
-			if (!isChoiceLike(choice)) continue;
-			// Fault-isolate the loop. This runs from onload against untrusted
-			// data.json, and everything after it - migrations, the CLI handlers,
-			// startup macros - used to be lost to a single bad choice (#1566: a
-			// folder with no `choices` key took the whole plugin down with
-			// "Plugin failure: quickadd"). One defect should cost one command.
-			try {
-				this.addCommandForChoice(choice);
-			} catch (err) {
-				reportError(err, `Could not add a command for a QuickAdd choice`);
-			}
-		}
+		await this.settingsPersistence.onExternalSettingsChange();
 	}
 
 	public addCommandForChoice(choice: IChoice) {
-		if (this.unloaded) return;
-		if (choice.type === "Multi") {
-			this.addCommandsForChoices(childChoicesOf(choice));
-		}
-
-		if (choice.command) {
-			const choiceId = choice.id;
-
-			this.addCommand({
-				id: choiceCommandId(choiceId),
-				name: choice.name,
-				icon: resolveChoiceIcon(choice),
-				callback: () => this.runRegisteredChoice(choiceId, choice.name),
-			});
-
-			if (
-				shouldRegisterPickDayCommand({
-					origin: choice.dateOrigin,
-					enabled: choice.pickDayCommand,
-				})
-			) {
-				this.addCommand({
-					id: pickDayCommandId(choiceId),
-					name: pickDayCommandName(choice.name),
-					icon: resolveChoiceIcon(choice),
-					callback: () =>
-						this.runRegisteredChoice(choiceId, choice.name, true),
-				});
-			}
-		}
-	}
-
-	private async runRegisteredChoice(
-		choiceId: string,
-		fallbackName: string,
-		pickDay = false,
-	): Promise<void> {
-		// Resolved outside the try so the failure can name the choice the user
-		// actually ran; a bare UUID tells them nothing. Falls back to the name
-		// captured at registration when the lookup itself is what failed.
-		let current: IChoice | undefined;
-		try {
-			current = this.getChoiceById(choiceId);
-			const executor = new ChoiceExecutor(this.app, this);
-			if (pickDay) executor.callerDay = "pick";
-			await executor.execute(current);
-		} catch (err) {
-			// The outermost handler: the last chance to say which choice failed.
-			// It reports only what nothing below it already reported (#1601), and
-			// stays silent when the user simply dismissed a prompt - Escape on the
-			// one-page input modal used to raise a 15-second ERROR notice here.
-			reportUnlessCancelled(
-				err,
-				`Could not run "${current?.name ?? fallbackName}"`,
-			);
-		}
-	}
-
-	public getChoiceById(choiceId: string): IChoice {
-		const choice = this.getChoice("id", choiceId);
-
-		if (!choice) {
-			throw new Error(`Choice ${choiceId} not found`);
-		}
-
-		return choice;
-	}
-
-	public getChoiceByName(choiceName: string): IChoice {
-		const choice = this.getChoice("name", choiceName);
-
-		if (!choice) {
-			throw new Error(`Choice ${choiceName} not found`);
-		}
-
-		return choice;
-	}
-
-	private getChoice(by: "name" | "id", value: string): IChoice | null {
-		return findChoiceWithPath(this.settings.choices, by, value)?.choice ?? null;
-	}
-
-	/** Count how many choices anywhere in the tree carry `name` (names aren't unique).
-	 * Choices hidden inside an unreadable `choices` value are not counted - the
-	 * warning this feeds can only ever under-report, never mis-fire. */
-	private countChoicesByName(
-		name: string,
-		choices: IChoice[] = this.settings.choices,
-	): number {
-		let count = 0;
-		for (const choice of rootChoicesOf(choices)) {
-			if (!isChoiceLike(choice)) continue;
-			if (choice.name === name) count++;
-			if (choice.type === "Multi") {
-				count += this.countChoicesByName(name, childChoicesOf(choice));
-			}
-		}
-		return count;
-	}
-
-	/** Surface a Notice when a URI's `choice=<name>` is ambiguous, so an automation
-	 * that ran the wrong (first-matching) choice is at least diagnosable. */
-	private warnIfChoiceNameAmbiguous(name: string): void {
-		const matches = this.countChoicesByName(name);
-		if (matches > 1) {
-			log.logWarning(
-				`QuickAdd URI: ${matches} choices are named '${name}'. Ran the first match — rename choices to keep names unique so URIs target the right one.`,
-			);
-		}
+		this.choiceCommands.addCommandForChoice(choice);
 	}
 
 	public removeCommandForChoice(
 		choice: IChoice,
 		options?: { recursive?: boolean },
 	) {
-		if (this.unloaded) return;
-		// Recurse ONLY when the whole subtree is going away (a folder DELETE):
-		// a Multi (folder) registers commands for its command-enabled descendants,
-		// so tearing it down must remove theirs too, or deleting a folder leaves
-		// orphaned palette entries that throw "Choice <id> not found" when invoked.
-		//
-		// Do NOT recurse when only the folder's OWN command is being removed (e.g.
-		// toggling the folder's command off, or the remove half of an update): the
-		// children remain and their still-enabled commands must stay registered.
-		if (options?.recursive && choice.type === "Multi") {
-			for (const child of childChoicesOf(choice)) {
-				if (!isChoiceLike(child)) continue;
-				this.removeCommandForChoice(child, options);
-			}
-		}
+		this.choiceCommands.removeCommandForChoice(choice, options);
+	}
 
-		this.removeCommand(choiceCommandId(choice.id));
-		this.removeCommand(pickDayCommandId(choice.id));
+	public getChoiceById(choiceId: string): IChoice {
+		return this.choiceCommands.getChoiceById(choiceId);
+	}
+
+	public getChoiceByName(choiceName: string): IChoice {
+		return this.choiceCommands.getChoiceByName(choiceName);
+	}
+
+	public findChoiceById(choiceId: string): IChoice | null {
+		return this.choiceCommands.findChoiceById(choiceId);
+	}
+
+	public findChoiceByName(choiceName: string): IChoice | null {
+		return this.choiceCommands.findChoiceByName(choiceName);
 	}
 
 	public getTemplateFiles(): TFile[] {

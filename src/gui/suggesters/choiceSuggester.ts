@@ -7,10 +7,9 @@ import {
 	setIcon,
 } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
-import { ChoiceExecutor } from "../../choiceExecutor";
 import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
-import type QuickAdd from "../../main";
+import type { AppProvider, PluginManifestInfo, SettingsProvider, TemplateFileSource } from "../../types/pluginContext";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import type { ChoiceChain } from "../../engine/choiceChain";
 import { createRenderFallbackWarner } from "./utils";
@@ -22,6 +21,7 @@ import {
 	flattenChoicesWithPath,
 	hasUnreadableChildren,
 } from "../../utils/choiceUtils";
+import { emptyFolderNoticeText } from "../../utils/choiceNotices";
 import type { FrontmatterPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import { getFocusedPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "../../types/QuickAddTriggerContext";
@@ -42,21 +42,6 @@ const backLabel = "← Back";
  * custom placeholder.
  */
 const DEFAULT_PLACEHOLDER = "Select a choice";
-
-/**
- * Shared wording for "you opened a folder that has nothing in it", so the
- * picker's drill-down and the command/URI execute path (choiceExecutor) say the
- * same thing.
- */
-export function emptyFolderNoticeText(folder: IChoice): string {
-	// A folder whose `choices` value could still be HOLDING choices is not empty,
-	// it is unreadable, and saying "empty" here would contradict what the settings
-	// list says about the same folder. Same predicate on both surfaces (#1566).
-	if (hasUnreadableChildren(folder)) {
-		return `QuickAdd couldn't read the contents of "${folder.name}". They're still in data.json.`;
-	}
-	return `Folder "${folder.name}" is empty.`;
-}
 
 /**
  * Trailing marker on a folder row the picker cannot drill into. Same word the
@@ -153,8 +138,12 @@ type NestedSearchCandidate = {
 	nameOffset: number;
 };
 
+/** What the picker reads from the plugin, including for its "New note from template" row. */
+type ChoiceSuggesterPlugin = AppProvider & SettingsProvider & TemplateFileSource & PluginManifestInfo;
+
 type ChoiceSuggesterOptions = {
-	choiceExecutor?: IChoiceExecutor;
+	/** Runs the picked choice. */
+	choiceExecutor: IChoiceExecutor;
 	focusedProperty?: FrontmatterPropertyTarget | null;
 	/**
 	 * Trigger-time editor context (the active note) captured when the launcher
@@ -203,7 +192,7 @@ type ChoiceSuggesterOptions = {
  * the top-level launcher. Exported so the launcher entry point can tell whether
  * the picker has anything at all to show before opening it (issue #1540).
  */
-export function shouldShowTemplateFolderRow(plugin: QuickAdd): boolean {
+export function shouldShowTemplateFolderRow(plugin: SettingsProvider): boolean {
 	const rowPosition = plugin.settings.templateFolderLauncherRow ?? "bottom";
 	return rowPosition !== "off" && hasConfiguredTemplateFolders(plugin);
 }
@@ -248,44 +237,41 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	);
 
 	public static Open(
-		plugin: QuickAdd,
+		plugin: ChoiceSuggesterPlugin,
 		choices: IChoice[],
-		options?: ChoiceSuggesterOptions
+		options: ChoiceSuggesterOptions
 	) {
 		new ChoiceSuggester(plugin, choices, options).open();
 	}
 
 	constructor(
-		private plugin: QuickAdd,
+		private plugin: ChoiceSuggesterPlugin,
 		private choices: IChoice[],
-		options?: ChoiceSuggesterOptions
+		options: ChoiceSuggesterOptions
 	) {
 		super(plugin.app);
 		// `qa-choice-suggester` is a stable hook for user CSS snippets (see SuggesterModal).
 		this.modalEl.addClass("qa-choice-suggester");
-		// Initialize here (not as a field initializer) so the `plugin` parameter
-		// property is already assigned; a field initializer runs before it.
-		this.choiceExecutor =
-			options?.choiceExecutor ?? new ChoiceExecutor(this.app, this.plugin);
+		this.choiceExecutor = options.choiceExecutor;
 		this.focusedProperty =
-			options && "focusedProperty" in options
+			"focusedProperty" in options
 				? options.focusedProperty ?? null
 				: getFocusedPropertyTarget(this.app);
 		// Capture the trigger-time active note when the launcher opens (top level),
 		// or reuse the one threaded down from a parent Multi level. getActiveFile()
 		// reads the active markdown leaf, which the suggester overlay doesn't change.
 		this.triggerContext =
-			options && "triggerContext" in options
+			"triggerContext" in options
 				? options.triggerContext ?? null
 				: { activeFile: this.app.workspace.getActiveFile() };
-		this.placeholderStack = options?.placeholderStack ?? [];
-		this.completion = options?.completion;
-		this.ancestry = options?.ancestry;
-		this.onPick = options?.onPick;
+		this.placeholderStack = options.placeholderStack ?? [];
+		this.completion = options.completion;
+		this.ancestry = options.ancestry;
+		this.onPick = options.onPick;
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
-		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER;
+		this.currentPlaceholder = options.placeholder?.trim() || DEFAULT_PLACEHOLDER;
 		this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
 
@@ -296,7 +282,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// first-Enter slot, "top" makes it first, "off" hides it. Settings are read
 		// inside this guard so nested-level opens (no settings on the test plugin)
 		// never touch them.
-		if (options?.includeTemplateFolderRow) {
+		if (options.includeTemplateFolderRow) {
 			const rowPosition =
 				this.plugin.settings.templateFolderLauncherRow ?? "bottom";
 			if (shouldShowTemplateFolderRow(this.plugin)) {

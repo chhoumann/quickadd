@@ -10,6 +10,7 @@ import { NestedChoiceCommand } from "./types/macros/QuickCommands/NestedChoiceCo
 import { MultiChoice } from "./types/choices/MultiChoice";
 import { QA_INTERNAL_DATE_ORIGIN } from "./constants";
 import { ChoiceAbortError } from "./errors/ChoiceAbortError";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
@@ -36,7 +37,7 @@ vi.mock("./gui/suggesters/choiceSuggester", async (importOriginal) => ({
 const runTemplate = vi.fn<(executor: IChoiceExecutor, choice: IChoice) => Promise<void>>();
 vi.mock("./engine/TemplateChoiceEngine", () => ({
 	TemplateChoiceEngine: class {
-		constructor(_app: unknown, _plugin: unknown, private choice: IChoice, private executor: IChoiceExecutor) {}
+		constructor(_app: unknown, _plugin: unknown, _runtime: unknown, private choice: IChoice, private executor: IChoiceExecutor) {}
 		async run() { await runTemplate(this.executor, this.choice); }
 	},
 }));
@@ -170,7 +171,7 @@ describe("ChoiceExecutor date scope", () => {
 		const days = recordDays();
 		const child = datedTemplate("Child");
 		const plugin = { settings: { choices: [child] } } as unknown as QuickAdd;
-		const api = QuickAddApi.GetApi(new App(), plugin, runner);
+		const api = QuickAddApi.GetApi(new App(), plugin, runner, testFormatterRuntime());
 		const caller = datedTemplate("Caller", { kind: "variable", name: "callerDay" });
 		runner.variables.set("callerDay", "2026-01-05");
 		runTemplate.mockImplementation(async (active, choice) => {
@@ -220,7 +221,7 @@ describe("ChoiceExecutor date scope", () => {
 			datedTemplate("Variable template", { kind: "variable", name: "day" }),
 		];
 		const plugin = { settings: { choices } } as unknown as QuickAdd;
-		const api = QuickAddApi.GetApi(new App(), plugin, runner);
+		const api = QuickAddApi.GetApi(new App(), plugin, runner, testFormatterRuntime());
 		const caller = datedTemplate("Caller");
 		runTemplate.mockImplementation(async (active, choice) => {
 			if (choice.name !== "Caller") {
@@ -249,7 +250,7 @@ describe("ChoiceExecutor date scope", () => {
 		const runner = executor();
 		const failing = datedTemplate("Failing");
 		const plugin = { settings: { choices: [failing] } } as unknown as QuickAdd;
-		const api = QuickAddApi.GetApi(new App(), plugin, runner);
+		const api = QuickAddApi.GetApi(new App(), plugin, runner, testFormatterRuntime());
 		const caller = datedTemplate("Caller", { kind: "variable", name: "callerDay" });
 		runner.variables.set("callerDay", "2026-01-10");
 		let callerDay: string | undefined;

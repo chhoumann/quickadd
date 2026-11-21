@@ -1,12 +1,12 @@
 import { log } from "src/logger/logManager";
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
 import { normalizeTemplateFolderPaths } from "src/utils/templateFolderUtils";
 
 export default {
 	description:
 		"Use QuickAdd template folder instead of Obsidian templates plugin folder / Templater templates folder.",
 
-	migrate: async (plugin: QuickAdd): Promise<void> => {
+	migrate: async (plugin: MigrationContext): Promise<void> => {
 		try {
 			const templaterPlugin = plugin.app.plugins.plugins["templater"];
 			const obsidianTemplatesPlugin =

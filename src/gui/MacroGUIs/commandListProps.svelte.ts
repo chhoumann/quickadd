@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type { ICommand } from "../../types/macros/ICommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import type { Plain } from "../svelte/persist.svelte";
@@ -16,7 +16,7 @@ import type { Plain } from "../svelte/persist.svelte";
 export interface CommandListProps {
 	commands: ICommand[];
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	deleteCommand: (commandId: string) => void | Promise<void>;
 	// Accepts only Plain<ICommand[]> (from snapshot()) so a live $state proxy can't
 	// be persisted without snapshotting — see persist.svelte.ts.

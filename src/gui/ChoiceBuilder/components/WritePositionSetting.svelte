@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { App } from "obsidian";
 import { FileView } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import { isCanvasTargetPath } from "../canvasNodes";
 import SettingItem from "../../components/SettingItem.svelte";
@@ -24,7 +24,7 @@ let {
 }: {
 	choice: ICaptureChoice;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 const isActiveFile = $derived(!!choice.captureToActiveFile);

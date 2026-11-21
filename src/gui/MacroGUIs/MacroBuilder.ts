@@ -3,7 +3,7 @@ import type { App } from "obsidian";
 import { Setting, SettingGroup } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,
@@ -76,13 +76,13 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	public macro: IMacro;
 	private readonly choices: IChoice[] = [];
 	private commandEditor: CommandSequenceEditor | null = null;
-	private plugin: QuickAdd;
+	private plugin: ChoiceBuilderPlugin;
 	private readonly openedName: string;
 	private pickDaySetting: Setting | null = null;
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceBuilderPlugin,
 		choice: IMacroChoice,
 		choices: IChoice[],
 		onSave: (choice: IMacroChoice) => void,

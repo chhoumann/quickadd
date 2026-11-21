@@ -4,6 +4,7 @@ import type { App } from "obsidian";
 import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
 import type { CallerDay } from "./types/dateOrigin";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock state / spies. These back the vi.mock factories below.
@@ -200,7 +201,7 @@ function getApi(
 	executor = makeChoiceExecutor(),
 ) {
 	return {
-		api: QuickAddApi.GetApi(app, plugin, executor as never),
+		api: QuickAddApi.GetApi(app, plugin, executor as never, testFormatterRuntime(app, plugin)),
 		app,
 		plugin,
 		executor,

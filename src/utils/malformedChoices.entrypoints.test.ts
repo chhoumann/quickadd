@@ -33,10 +33,10 @@ import {
 } from "../gui/choiceList/contextMenu";
 import { uniqueDefaultChoiceName } from "../gui/choiceList/choiceTypeMeta";
 import {
-	emptyFolderNoticeText,
 	folderFlairFor,
 	isEmptyFolderChoice,
 } from "../gui/suggesters/choiceSuggester";
+import { emptyFolderNoticeText } from "./choiceNotices";
 import { getChoicesAsList as macroBuilderChoiceList } from "../gui/MacroGUIs/MacroBuilder";
 import {
 	commandListOf,

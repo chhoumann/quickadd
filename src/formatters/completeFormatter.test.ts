@@ -4,6 +4,7 @@ import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TemplateInclusionState } from "./formatter";
 import type { FieldValueProcessor as FieldValueProcessorType } from "../utils/FieldValueProcessor";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 /**
  * Unit tests for the concrete CompleteFormatter.
@@ -61,6 +62,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		constructor(
 			_app: unknown,
 			_plugin: unknown,
+			_runtime: unknown,
 			templatePath: string,
 			_choiceExecutor?: unknown,
 			inclusion?: TemplateInclusionState,
@@ -237,7 +239,7 @@ function defaultFormatter(
 		generatedLink: appOverrides.generatedLink ?? "",
 	});
 	const plugin = makePlugin(pluginOverrides);
-	return new CompleteFormatter(app as any, plugin as any);
+	return new CompleteFormatter(app as any, plugin as any, createChoiceExecutor(), testFormatterRuntime(app, plugin));
 }
 
 function mockTemplateVault(templates: Record<string, string>) {
@@ -999,7 +1001,7 @@ describe("CompleteFormatter - selection handling", () => {
 			},
 			fileManager: { generateMarkdownLink: () => "" },
 		};
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFolderPath("[{{SELECTED}}]")).resolves.toBe("[]");
 	});
 
@@ -1117,7 +1119,7 @@ describe("CompleteFormatter - non-interactive guard (CLI without ui)", () => {
 			variables: new Map<string, unknown>(),
 			interactive: false,
 			execute: vi.fn(),
-		} as any);
+		} as any, testFormatterRuntime(app, plugin));
 	};
 
 	it("aborts on an unresolved anonymous {{VALUE}} without opening the prompt", async () => {
@@ -1146,7 +1148,7 @@ describe("CompleteFormatter - non-interactive guard (CLI without ui)", () => {
 			variables: new Map<string, unknown>([["value", "Given"]]),
 			interactive: false,
 			execute: vi.fn(),
-		} as any);
+		} as any, testFormatterRuntime(app, plugin));
 		await expect(f.formatFolderPath("{{VALUE}}")).resolves.toBe("Given");
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
@@ -1234,7 +1236,7 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		const variables = new Map<string, unknown>();
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
 		const format = (input: string) =>
-			new CompleteFormatter(app as any, makePlugin() as any, { variables } as any)
+			new CompleteFormatter(app as any, makePlugin() as any, { variables } as any, testFormatterRuntime())
 				.formatFolderPath(input);
 
 		// A later macro step or an included {{TEMPLATE:}} formats with its own
@@ -1261,7 +1263,7 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
 		const variables = new Map<string, unknown>([["due", "@date:not-a-date"]]);
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
-		const f = new CompleteFormatter(app as any, makePlugin() as any, { variables } as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, { variables } as any, testFormatterRuntime());
 		await expect(f.formatFolderPath("{{VALUE:due}}")).resolves.toBe("@date:not-a-date");
 	});
 });
@@ -1489,6 +1491,7 @@ describe("CompleteFormatter - FIELD default-from:active (issue #1429)", () => {
 			app as any,
 			makePlugin() as any,
 			choiceExecutor as any,
+			testFormatterRuntime(),
 		);
 	}
 
@@ -1705,6 +1708,7 @@ describe("CompleteFormatter - constructor / dateParser injection", () => {
 			app as any,
 			makePlugin() as any,
 			undefined,
+			undefined,
 			injectedParser,
 		);
 		await f.formatFolderPath("{{VDATE:when,YYYY-MM-DD}}");
@@ -1723,6 +1727,7 @@ describe("CompleteFormatter - constructor / dateParser injection", () => {
 			app as any,
 			makePlugin() as any,
 			choiceExecutor as any,
+			testFormatterRuntime(),
 		);
 		// preset already lives in the shared map, so no prompt should fire.
 		await expect(
@@ -1906,7 +1911,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		const app = makeSectionApp({
 			view: makeSectionView({ path: "Note.md", cursorLine: 3, value: BODY }),
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Tasks]]",
 		);
@@ -1922,7 +1927,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			}),
 			cache: COMMENTED_CACHE,
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Tasks]]",
 		);
@@ -1938,7 +1943,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			}),
 			cache: COMMENTED_CACHE,
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Tasks]]",
 		);
@@ -1950,7 +1955,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			view: makeSectionView({ path: "Note.md", cursorLine: 3, value, data: value }),
 			cache: {},
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note]]",
 		);
@@ -1963,7 +1968,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			view: makeSectionView({ path: "Note.md", cursorLine: 2, value, data: value }),
 			cache: COMMENTED_CACHE,
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Todo]]",
 		);
@@ -1984,7 +1989,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 				],
 			},
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#B#X]]",
 		);
@@ -1998,7 +2003,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			view: makeSectionView({ path: "Note.md", cursorLine: 8, value, data: value }),
 			cache: COMMENTED_CACHE,
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Rollout]]",
 		);
@@ -2021,7 +2026,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 				],
 			},
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Tasks]]",
 		);
@@ -2048,7 +2053,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 				view: makeSectionView({ path: "Note.md", cursorLine, value, data: value }),
 				cache,
 			});
-			return new CompleteFormatter(app as any, makePlugin() as any).formatFileContent("{{linksection}}");
+			return new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime()).formatFileContent("{{linksection}}");
 		};
 		await expect(link(5)).resolves.toBe("[[Note#Tasks]]");
 		await expect(link(7)).resolves.toBe("[[Note#Rollout]]");
@@ -2065,7 +2070,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			}),
 			cache: COMMENTED_CACHE,
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Rollout]]",
 		);
@@ -2079,7 +2084,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 				value: BODY.replace(/\n/g, "\r\n"),
 			}),
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Tasks]]",
 		);
@@ -2094,7 +2099,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 				value: BODY,
 			}),
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note]]",
 		);
@@ -2104,7 +2109,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		const app = makeSectionApp({
 			view: makeSectionView({ path: "Other.md", cursorLine: 3, value: BODY }),
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note]]",
 		);
@@ -2112,7 +2117,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 
 	it("falls back when there is no active markdown view", async () => {
 		const app = makeSectionApp({ view: undefined });
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note]]",
 		);
@@ -2126,7 +2131,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 				getValueThrows: true,
 			}),
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note]]",
 		);
@@ -2134,7 +2139,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 
 	it("throws (required) when there is no active file", async () => {
 		const app = makeSectionApp({ activeFile: null, view: undefined });
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).rejects.toThrow(
 			"Unable to get current file path",
 		);
@@ -2147,7 +2152,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			activeFile: { basename: "{{linksection}}", path: "{{linksection}}.md" },
 			view: undefined,
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linkcurrent}}")).resolves.toBe(
 			"[[{{linksection}}]]",
 		);
@@ -2158,7 +2163,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			activeFile: { basename: "{{linkcurrent}}", path: "{{linkcurrent}}.md" },
 			view: undefined,
 		});
-		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, undefined, testFormatterRuntime());
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[{{linkcurrent}}]]",
 		);
@@ -2180,7 +2185,7 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 			interactive: true,
 			promptProvider: provider,
 			execute: vi.fn(),
-		} as any);
+		} as any, testFormatterRuntime(app, plugin));
 	};
 
 	it("routes {{VALUE:opts}} to the provider's suggester, not the Obsidian modal", async () => {
@@ -2310,7 +2315,7 @@ describe("property value formatting", () => {
 		const executor = createChoiceExecutor();
 		executor.variables.set("input", value);
 		executor.variables.set("value", value);
-		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 	}
 
 	it("keeps a number or list returned by a whole-format inline script", async () => {
@@ -2326,7 +2331,7 @@ describe("property value formatting", () => {
 	function formatterWithPicks(picks: string[]) {
 		const executor = createChoiceExecutor();
 		executor.variables.set("A,B,C", picks);
-		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 	}
 
 	it.each([
@@ -2346,7 +2351,7 @@ describe("property value formatting", () => {
 	])("titles the picker of %s after the property unless it has a label", async (format, title) => {
 		const executor = createChoiceExecutor();
 		executor.variables.set("propertyKey", "tags");
-		const f = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const f = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		mocks.multiSuggesterSuggest.mockResolvedValue(["A"]);
 		await f.formatPropertyValue(format, { listItems: true });
 		expect(mocks.multiSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({ placeholder: title });
@@ -2437,7 +2442,7 @@ describe("property value formatting", () => {
 		executor.variables.set("propertyValue", ["old", "keep"]);
 		executor.variables.set("propertyKey", "tags");
 		executor.variables.set("list", ["old", "keep"]);
-		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		expect(await formatter.formatPropertyValue("work\n{{PROPERTY}}")).toBe("work\nold\nkeep");
 		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
 		expect(await formatter.formatPropertyValue("{{PROPERTY}}\nwork")).toBe("old\nkeep\nwork");
@@ -2454,6 +2459,7 @@ describe("property value formatting", () => {
 			makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any,
 			makePlugin({ globalVariables: { prepend: "work\n{{PROPERTY}}" } }) as any,
 			executor,
+			testFormatterRuntime(),
 		);
 		expect(await formatter.formatPropertyValue("{{GLOBAL_VAR:prepend}}")).toBe("work\nold");
 		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
@@ -2467,7 +2473,7 @@ describe("property value formatting", () => {
 		const executor = createChoiceExecutor();
 		const originalValue = structuredClone(value);
 		executor.variables.set("propertyValue", value);
-		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		expect(await formatter.formatPropertyValue(format)).toEqual(expected);
 		expect(executor.variables.get("propertyValue")).toEqual(originalValue);
 		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
@@ -2481,7 +2487,7 @@ describe("property value formatting", () => {
 
 	it("does not mark the property token when the format never expands it", async () => {
 		const executor = createChoiceExecutor();
-		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		expect(await formatter.formatPropertyValue("work")).toBe("work");
 		expect(formatter.consumePropertyTokenExpanded()).toBe(false);
 	});
@@ -2494,6 +2500,7 @@ describe("property value formatting", () => {
 			makeApp({ activeFile: { basename: "Note" }, selection: null, generatedLink: "" }) as any,
 			makePlugin() as any,
 			executor,
+			testFormatterRuntime(),
 		);
 		formatter.setTitle("DocTitle");
 		expect(await formatter.formatPropertyValue("{{PROPERTY}}")).toBe(
@@ -2508,20 +2515,20 @@ describe("property value formatting", () => {
 		const executor = createChoiceExecutor();
 		executor.variables.set("propertyValue", ["old"]);
 		executor.variables.set("item", "work");
-		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		expect(await formatter.formatPropertyValue("{{VALUE:item}}\n{{PROPERTY}}")).toBe("work\nold");
 	});
 
 	it("weaves a scalar {{PROPERTY}} into surrounding text", async () => {
 		const executor = createChoiceExecutor();
 		executor.variables.set("propertyValue", "Draft");
-		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		expect(await formatter.formatPropertyValue("{{PROPERTY}} → Ready")).toBe("Draft → Ready");
 	});
 
 	it("expands a missing {{PROPERTY}} to empty and rejects the token outside property formats", async () => {
 		const executor = createChoiceExecutor();
-		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		expect(await formatter.formatPropertyValue("{{PROPERTY}}")).toBe("");
 		await expect(formatter.formatFileContent("{{PROPERTY}}")).rejects.toThrow(/property Capture/);
 	});
@@ -2529,7 +2536,7 @@ describe("property value formatting", () => {
 	it("aborts {{PROPERTY}} when a list item contains a line break", async () => {
 		const executor = createChoiceExecutor();
 		executor.variables.set("propertyValue", ["a\nb", "c"]);
-		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor, testFormatterRuntime());
 		await expect(formatter.formatPropertyValue("{{PROPERTY}}")).rejects.toThrow(/line break/);
 	});
 });
@@ -2562,7 +2569,7 @@ describe("CompleteFormatter - the run's current note", () => {
 			editorFile ? { file: editorFile, editor: { getSelection: () => selection } } : undefined;
 		app.fileManager.generateMarkdownLink = ((file: { basename: string }) => `[[${file.basename}]]`) as never;
 		const choiceExecutor = { variables: new Map<string, unknown>(), triggerContext: named ? { activeFile: current, named: true } : { activeFile: current } };
-		return new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any);
+		return new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any, testFormatterRuntime());
 	}
 
 	const today = { path: "Daily/Today.md", basename: "Today" };
@@ -2587,7 +2594,7 @@ describe("CompleteFormatter - the run's current note", () => {
 	it("tells an in-app run with no file open to open one", async () => {
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
 		const choiceExecutor = { variables: new Map<string, unknown>(), triggerContext: { activeFile: null } };
-		const f = new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any, testFormatterRuntime());
 		await expect(f.formatFileContent("{{LINKCURRENT}}")).rejects.toThrow(
 			"Unable to get current file path. Make sure you have a file open in the editor.",
 		);

@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -25,7 +25,7 @@ let {
 }: {
 	insertBefore: NonNullable<ICaptureChoice["insertBefore"]>;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 // Default the create-line fields synchronously at init (before bind:checked /

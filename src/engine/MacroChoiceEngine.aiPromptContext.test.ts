@@ -78,6 +78,7 @@ import type { IAIAssistantCommand } from "../types/macros/QuickCommands/IAIAssis
 import type { IMacro } from "../types/macros/IMacro";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 function createEngine() {
 	const app = {} as unknown as App;
@@ -121,6 +122,7 @@ function createEngine() {
 	return new MacroChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		choice,
 		choiceExecutor,
 		new Map<string, unknown>()

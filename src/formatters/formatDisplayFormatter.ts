@@ -7,7 +7,7 @@ import {
 	PreviewDiagnostics,
 } from "./previewDiagnostics";
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
+import type { FormatterPluginContext } from "../types/pluginContext";
 import { getTemplateFile } from "../utils/templateFolderUtils";
 import { DATE_VARIABLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
@@ -18,7 +18,7 @@ import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 export class FormatDisplayFormatter extends PreviewFormatter {
 	constructor(
 		app: App,
-		private readonly plugin: QuickAdd,
+		private readonly plugin: FormatterPluginContext,
 		dateParser?: IDateParser,
 		// Line-target fields (insert-after/before) preview with
 		// { resolveActiveFolder: false }: their runtime path

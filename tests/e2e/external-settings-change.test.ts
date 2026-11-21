@@ -183,7 +183,7 @@ function afterDisableDuring(id: string, start: string): Promise<AfterDisable> {
 			${start};
 			await app.plugins.disablePlugin("quickadd");
 			release();
-			await plugin.persistChain;
+			await plugin.settingsPersistence.persistChain;
 			return {
 				command: Boolean(app.commands.commands[${jsLiteral(`quickadd:choice:${id}`)}]),
 				disk: JSON.parse(await app.vault.adapter.read(path)),
@@ -205,7 +205,7 @@ it("registers no commands when it is disabled while reading changed settings", a
 it("registers no commands when its save on disable finds changed settings", async () => {
 	// Disabling flushes this pending save, which reads data.json first.
 	const id = `${CHOICE_ID}-save`;
-	const { command, disk } = await afterDisableDuring(id, "plugin.requestSave()");
+	const { command, disk } = await afterDisableDuring(id, "plugin.settingsPersistence.requestSave()");
 	expect(command).toBe(false);
 	expect(disk.choices.some((c) => c.id === id)).toBe(true);
 });

@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onDestroy } from "svelte";
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type {
 	FileExistsBehaviorCategoryId,
@@ -61,7 +61,7 @@ let {
 }: {
 	choice: ITemplateChoice;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	/** Set by the form: adds a folder typed but not added (see ChoiceFormProps). */
 	commitPending?: () => void;
 } = $props();

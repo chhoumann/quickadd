@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
@@ -10,7 +10,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder<ITemplateChoice> {
 	constructor(
 		app: App,
 		choice: ITemplateChoice,
-		plugin: QuickAdd,
+		plugin: ChoiceBuilderPlugin,
 		onSave: (choice: IChoice) => void,
 	) {
 		super(app, choice, plugin, onSave, TemplateChoiceForm, "this template choice's settings");

@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App, Notice } from "obsidian";
 import type QuickAdd from "../../main";
+import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import type IChoice from "../../types/choices/IChoice";
+import { NO_CHOICES_NOTICE } from "../../utils/choiceNotices";
 import ChoiceSuggester from "./choiceSuggester";
-import { NO_CHOICES_NOTICE, openChoiceLauncher } from "./openChoiceLauncher";
+import { openChoiceLauncher } from "./openChoiceLauncher";
 
 type LauncherPluginSettings = {
 	choices: unknown;
@@ -24,6 +26,8 @@ describe("openChoiceLauncher", () => {
 	let openSpy: ReturnType<typeof vi.spyOn>;
 	let openTabById: ReturnType<typeof vi.fn>;
 	let app: App;
+	const executor = {} as IChoiceExecutor;
+	const createExecutor = vi.fn(() => executor);
 
 	function pluginWith(settings: LauncherPluginSettings): QuickAdd {
 		return {
@@ -50,6 +54,7 @@ describe("openChoiceLauncher", () => {
 			openTabById,
 		};
 		openSpy = vi.spyOn(ChoiceSuggester, "Open").mockImplementation(() => {});
+		createExecutor.mockClear();
 		(Notice as unknown as { instances: unknown[] }).instances = [];
 	});
 
@@ -60,9 +65,10 @@ describe("openChoiceLauncher", () => {
 	// Issue #1540: the fresh-install path. An empty picker over "No results
 	// found." is a dead end; send the user to where choices are made instead.
 	it("opens settings instead of an empty picker when there is nothing to run", () => {
-		openChoiceLauncher(pluginWith({ choices: [] }));
+		openChoiceLauncher(pluginWith({ choices: [] }), createExecutor);
 
 		expect(openSpy).not.toHaveBeenCalled();
+		expect(createExecutor).not.toHaveBeenCalled();
 		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
 		expect(openTabById).toHaveBeenCalledWith("quickadd");
 	});
@@ -73,17 +79,18 @@ describe("openChoiceLauncher", () => {
 		const plugin = pluginWith({ choices: [] });
 		(plugin.app as unknown as { setting: unknown }).setting = undefined;
 
-		openChoiceLauncher(plugin);
+		openChoiceLauncher(plugin, createExecutor);
 
 		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
 	});
 
 	it("opens the picker as soon as there is a choice", () => {
-		openChoiceLauncher(pluginWith({ choices: [aChoice()] }));
+		openChoiceLauncher(pluginWith({ choices: [aChoice()] }), createExecutor);
 
 		expect(noticeMessages()).toEqual([]);
 		expect(openTabById).not.toHaveBeenCalled();
 		expect(openSpy).toHaveBeenCalledWith(expect.anything(), [aChoice()], {
+			choiceExecutor: executor,
 			includeTemplateFolderRow: true,
 		});
 	});
@@ -99,6 +106,7 @@ describe("openChoiceLauncher", () => {
 					templateFolderPaths: ["Templates"],
 					templateFolderLauncherRow,
 				}),
+				createExecutor,
 			);
 
 			expect(openSpy).toHaveBeenCalled();
@@ -113,6 +121,7 @@ describe("openChoiceLauncher", () => {
 				templateFolderPaths: ["Templates"],
 				templateFolderLauncherRow: "off",
 			}),
+			createExecutor,
 		);
 
 		expect(openSpy).not.toHaveBeenCalled();
@@ -128,6 +137,7 @@ describe("openChoiceLauncher", () => {
 				templateFolderPaths: ["Templates"],
 				templateFolderLauncherRow: undefined,
 			}),
+			createExecutor,
 		);
 
 		expect(openSpy).toHaveBeenCalled();
@@ -137,7 +147,7 @@ describe("openChoiceLauncher", () => {
 	// A corrupt data.json keeps a non-array `choices` (main.ts deliberately does
 	// not overwrite it), which used to make "QuickAdd: Run" throw a TypeError.
 	it("falls back to the first-run guidance on a corrupt choices list", () => {
-		openChoiceLauncher(pluginWith({ choices: null }));
+		openChoiceLauncher(pluginWith({ choices: null }), createExecutor);
 
 		expect(openSpy).not.toHaveBeenCalled();
 		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);

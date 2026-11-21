@@ -1,4 +1,4 @@
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
 import { normalizeTemplateFolderPaths } from "src/utils/templateFolderUtils";
 
 /**
@@ -11,7 +11,7 @@ import { normalizeTemplateFolderPaths } from "src/utils/templateFolderUtils";
 export default {
 	description:
 		"Move the single template folder path into the multi-folder list.",
-	migrate: async (plugin: QuickAdd): Promise<void> => {
+	migrate: async (plugin: MigrationContext): Promise<void> => {
 		const settings = plugin.settings as typeof plugin.settings & {
 			templateFolderPath?: unknown;
 		};

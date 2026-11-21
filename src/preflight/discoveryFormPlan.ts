@@ -1,7 +1,7 @@
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import type QuickAdd from "src/main";
+import type { PreflightPlugin } from "./collectChoiceRequirements";
 import type IChoice from "src/types/choices/IChoice";
 import { isCaptureChoice, isMacroChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
@@ -100,7 +100,7 @@ function needsDiscovery(choice: IChoice, executor: IChoiceExecutor): choice is I
 
 export async function buildDiscoveryFormPlan(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	executor: IChoiceExecutor,
 	choice: IChoice,
 ): Promise<DiscoveryFormPlan | null> {

@@ -20,7 +20,7 @@ import { escapeValueInsideQuotedYamlScalar } from "../utils/yamlScalarQuoting";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { resolveExistingVariableKey } from "../utils/valueSyntax";
-import { stringifyPropertyTokenValue } from "../engine/captureProperty";
+import { stringifyPropertyTokenValue } from "../utils/propertyCaptureFormat";
 import type { CompleteFormatter } from "./completeFormatter";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";

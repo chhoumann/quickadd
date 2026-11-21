@@ -1,12 +1,12 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import { snapshot } from "../svelte/persist.svelte";
 import type IChoice from "../../types/choices/IChoice";
 
 export interface ChoiceFormProps<C extends IChoice> {
 	choice: C;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	/**
 	 * Set by a form that holds input not yet in `choice` (the Template form's
 	 * folder field): writes it into `choice`, leaving the form mounted.

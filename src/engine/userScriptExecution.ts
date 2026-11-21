@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import type * as obsidian from "obsidian";
 import type { QuickAddApi } from "../quickAddApi";
-import type QuickAdd from "../main";
+import type { SettingsSaver } from "../types/pluginContext";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { getUserScriptMemberAccess, getUserScriptPreloadKey, type LoadedUserScript, loadUserScript } from "../utils/userScript";
@@ -26,7 +26,7 @@ export type ScriptParameters = {
 
 type ScriptContext = {
 	app: App;
-	plugin: QuickAdd;
+	plugin: Partial<SettingsSaver>;
 	choiceName: string;
 	params: ScriptParameters;
 	executor: IChoiceExecutor;

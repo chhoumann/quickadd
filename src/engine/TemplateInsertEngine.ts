@@ -2,7 +2,8 @@ import type { App, MarkdownView, TFile } from "obsidian";
 import { getFrontMatterInfo, parseYaml } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { getMarkdownEditorViewForFile, insertCaptureInBoundEditor } from "../utils/editorInsertion";
 import { templaterParseTemplate } from "../utils/templaterIntegration";
@@ -187,14 +188,15 @@ function mergeSetLikeValues(
 export class TemplateInsertEngine extends TemplateEngine {
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		private readonly targetFile: TFile,
 		private readonly templatePath: string,
 		private readonly mode: TemplateInsertModeId,
 		choiceExecutor?: IChoiceExecutor,
 		resolvedTemplatePath?: string,
 	) {
-		super(app, plugin, choiceExecutor);
+		super(app, plugin, runtime, choiceExecutor);
 		this.resolvedTemplatePath = resolvedTemplatePath ?? null;
 	}
 

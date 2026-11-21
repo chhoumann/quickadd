@@ -117,6 +117,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { insertFileLinkToCurrentNote } from "../utils/editorInsertion";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -187,6 +188,7 @@ const createEngine = (
 	const engine = new TemplateChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		createTemplateChoice(),
 		choiceExecutor,
 	);

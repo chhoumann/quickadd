@@ -99,6 +99,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { settingsStore } from "../settingsStore";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const realCanvasCapture = await vi.importActual<typeof CanvasCapture>("./canvasCapture");
 
@@ -176,7 +177,7 @@ function harness({
 	choice.format = { enabled: true, format: "captured\n" };
 	configure(choice);
 	const plugin = { settings: { ...settingsStore.getState(), showCaptureNotification: false } } as never;
-	return { app, executor, contents, engine: new CaptureChoiceEngine(app, plugin, choice as ICaptureChoice, executor) };
+	return { app, executor, contents, engine: new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice as ICaptureChoice, executor) };
 }
 
 describe("CaptureChoiceEngine and the run's current note", () => {

@@ -1,5 +1,5 @@
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { MigrationContext } from "../types/pluginContext";
 import type { Migration, MigrationResult } from "./Migrations";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
@@ -19,7 +19,7 @@ import {
 
 const backfillFileOpeningDefaults: Migration = {
 	description: "Backfill missing file opening defaults for older choices",
-	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
+	migrate: async (plugin: MigrationContext): Promise<MigrationResult | void> => {
 		log.logMessage("Starting file opening defaults backfill...");
 
 		// Legacy fields are not read at runtime, so skipped subtrees must retry.

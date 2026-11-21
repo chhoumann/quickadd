@@ -1,6 +1,7 @@
 import { TemplateEngine } from "./TemplateEngine";
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type { TemplateInclusionState } from "../formatters/formatter";
@@ -19,12 +20,13 @@ export class SingleTemplateEngine extends TemplateEngine {
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		private templatePath: string,
 		choiceExecutor?: IChoiceExecutor,
 		inclusion?: TemplateInclusionState,
 	) {
-		super(app, plugin, choiceExecutor, inclusion);
+		super(app, plugin, runtime, choiceExecutor, inclusion);
 	}
 
 	public setPreserveCursorMarkers(preserve: boolean): void {

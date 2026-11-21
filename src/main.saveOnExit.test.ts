@@ -5,10 +5,12 @@ import { DEFAULT_SETTINGS } from "./settings";
 
 function setup() {
 	const plugin = new (QuickAdd as unknown as new () => QuickAdd)();
-	const internals = plugin as unknown as {
-		requestSave: () => void;
-		saveSettings: () => Promise<void>;
-		flushPendingSave: () => Promise<void> | null;
+	const internals = {
+		requestSave: () =>
+			(plugin as unknown as { settingsPersistence: { requestSave: () => void } })
+				.settingsPersistence.requestSave(),
+		saveSettings: () => plugin.saveSettings(),
+		flushPendingSave: () => plugin.flushPendingSave(),
 	};
 	const writes: { resolve: () => void; reject: (error: Error) => void }[] = [];
 	const saveData = vi.fn(

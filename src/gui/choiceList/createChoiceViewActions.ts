@@ -1,6 +1,6 @@
 import { Notice, type App } from "obsidian";
 import { tick } from "svelte";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type { ChoiceType } from "../../types/choices/choiceType";
@@ -34,7 +34,7 @@ import { settingsStore } from "../../settingsStore";
 
 interface ChoiceViewContext {
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	choices: IChoice[];
 	filterQuery: string;
 	commandRegistry: CommandRegistry;

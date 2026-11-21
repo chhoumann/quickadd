@@ -1,6 +1,7 @@
 import type {
 	App,
 	ButtonComponent,
+	Plugin,
 	Setting,
 	SettingDefinitionGroup,
 	SettingDefinitionItem,
@@ -8,7 +9,7 @@ import type {
 	TextAreaComponent,
 } from "obsidian";
 import { Notice, PluginSettingTab } from "obsidian";
-import type QuickAdd from "./main";
+import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "./types/pluginContext";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import ChoicesUnavailable from "./gui/choiceList/ChoicesUnavailable.svelte";
@@ -54,8 +55,15 @@ import { isCancellationError } from "./utils/errorUtils";
 
 const AI_KEY_PREFIX = "ai.";
 
+/** What the settings tab needs from the plugin. */
+type SettingsTabPlugin = Plugin &
+	ChoiceBuilderPlugin &
+	ChoiceCommandRegistrar & {
+		flushPendingSave(): Promise<void> | null;
+	};
+
 export class QuickAddSettingsTab extends PluginSettingTab {
-	public plugin: QuickAdd;
+	public plugin: SettingsTabPlugin;
 	/**
 	 * The choice list, kept mounted while the tab is shown. Obsidian tears the
 	 * tab down when a settings page opens over it (a choice's settings) and
@@ -68,7 +76,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	/** Live store subscription behind the Packages row's Export state. */
 	private packagesUnsubscribe: (() => void) | null = null;
 
-	constructor(app: App, plugin: QuickAdd) {
+	constructor(app: App, plugin: SettingsTabPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.icon = "zap";

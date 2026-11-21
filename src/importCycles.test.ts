@@ -13,13 +13,12 @@ import { describe, expect, it } from "vitest";
  * specific manifestation it happens to trigger. Reverting one half of the fix can
  * leave every behavioural test green while re-arming the landmine.
  *
- * This test encodes the actual invariant the fix established and must preserve:
+ * The second test encodes the invariant the fix established:
  *   No `class X extends Y` where Y is a *value* import from a module in the same
  *   strongly-connected component as X.
  *
- * Benign cycles (mutually-recursive functions, recursive Svelte components) are
- * fine and intentionally NOT failed — only cross-cycle class inheritance, the
- * thing that throws at module-eval time, is forbidden.
+ * Since then every cycle except a recursive Svelte component pair is gone, and
+ * the first test keeps it that way, so the second only matters if one returns.
  */
 
 const ROOT = resolve(__dirname, "..");
@@ -195,6 +194,28 @@ function stronglyConnectedComponents(): Map<string, number> {
 }
 
 describe("import cycles (#1249 regression guard)", () => {
+	it("has no value-import cycle other than the recursive choice list", () => {
+		// A folder row renders a nested list of rows, so these two components
+		// import each other. Svelte reaches them while rendering, never while
+		// the modules load.
+		const allowed = new Set([
+			"src/gui/choiceList/ChoiceList.svelte",
+			"src/gui/choiceList/MultiChoiceListItem.svelte",
+		]);
+		const members = new Map<number, string[]>();
+		for (const [file, id] of stronglyConnectedComponents()) {
+			members.set(id, [...(members.get(id) ?? []), relative(ROOT, file)]);
+		}
+		const cycles = [...members.values()].filter(
+			(cycle) => cycle.length > 1 && !cycle.every((file) => allowed.has(file)),
+		);
+
+		expect(
+			cycles,
+			"These modules value-import each other. Pass the dependency in from the module that builds them, or move the shared part to a module both can import.",
+		).toEqual([]);
+	});
+
 	it("no class extends a base value-imported from its own dependency cycle", () => {
 		const sccId = stronglyConnectedComponents();
 		const offenders: string[] = [];

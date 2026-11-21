@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { Modal } from "obsidian";
-import type QuickAdd from "../../main";
+import type { PluginManifestInfo } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import ExportPackageModalComponent from "./ExportPackageModal.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
@@ -10,7 +10,7 @@ export class ExportPackageModal extends Modal {
 
 	constructor(
 		app: App,
-		private plugin: QuickAdd,
+		private plugin: PluginManifestInfo,
 		private choices: IChoice[],
 	) {
 		super(app);

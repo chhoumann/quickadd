@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
-import {
-	syncImportedChoiceCommands,
-	type ChoiceCommandRegistrar,
-} from "./packageImportCommands";
+import type { ChoiceCommandRegistrar } from "../types/pluginContext";
+import { syncImportedChoiceCommands } from "./packageImportCommands";
 
 function choice(id: string, name: string, command = true): IChoice {
 	return { id, name, type: "Template", command } as IChoice;

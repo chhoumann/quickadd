@@ -25,7 +25,8 @@ import {
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import { extractHeadingsFromLines } from "../utils/sectionLink";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { parsePropertyCapture, type PropertyCapture } from "../types/choices/ICaptureChoice";
 import {
@@ -133,7 +134,7 @@ type CaptureWriteResult = {
 export class CaptureChoiceEngine extends CaptureTargetEngine {
 	choice: ICaptureChoice;
 	protected formatter: CaptureChoiceFormatter;
-	private readonly plugin: QuickAdd;
+	private readonly plugin: ChoiceRuntimePlugin;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
 	// Set per run: true when the capture content lands in a note BODY (any capture
@@ -150,7 +151,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		private readonly runtime: FormatterExecutionRuntime,
 		choice: ICaptureChoice,
 		protected choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
@@ -160,7 +162,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		this.choice = choice;
 		this.plugin = plugin;
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
-		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor, runtime);
 		this.formatter.choiceChain = chain;
 		// Every prompt this run opens can say which choice is asking (issue #1546).
 		this.formatter.setPromptRunContext({
@@ -755,7 +757,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			: createWithTemplate ? "" : await this.periodicNoteContent(filePath) ?? "";
 		let templateVars = new Map<string, unknown>();
 		if (createWithTemplate) {
-			const template = new SingleTemplateEngine(this.app, this.plugin,
+			const template = new SingleTemplateEngine(this.app, this.plugin, this.runtime,
 				this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
 			template.setDestinationPath(filePath);
 			template.setPromptRunContext({
@@ -1218,6 +1220,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				new SingleTemplateEngine(
 					this.app,
 					this.plugin,
+					this.runtime,
 					this.choice.createFileIfItDoesntExist.template,
 					this.choiceExecutor,
 				);

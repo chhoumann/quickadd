@@ -1,4 +1,4 @@
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
 import { log } from "src/logger/logManager";
 import { settingsStore } from "src/settingsStore";
 import { deepClone } from "src/utils/deepClone";
@@ -7,7 +7,7 @@ import { storeProviderApiKeyInSecretStorage } from "src/ai/providerSecrets";
 
 const migrateProviderApiKeysToSecretStorage: Migration = {
 	description: "Move AI provider API keys into Obsidian SecretStorage",
-	migrate: async (plugin: QuickAdd) => {
+	migrate: async (plugin: MigrationContext) => {
 		const providers = settingsStore.getState().ai.providers ?? [];
 		// The migration's single invariant: it is complete iff no provider
 		// still holds a plaintext apiKey. SecretStorage availability only

@@ -2,7 +2,7 @@ import GenericWideInputPrompt from "./GenericWideInputPrompt/GenericWideInputPro
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import NumberInputPrompt from "./NumberInputPrompt/NumberInputPrompt";
 import SliderInputPrompt from "./SliderInputPrompt/SliderInputPrompt";
-import { getQuickAddInstance } from "../quickAddInstance";
+import { settingsStore } from "../settingsStore";
 import type { ValueInputType } from "../utils/valueSyntaxTypes";
 
 export default class InputPrompt {
@@ -19,7 +19,7 @@ export default class InputPrompt {
 		// "checkbox" is resolved before the factory (a true/false suggester),
 		// and "text" only affects YAML quoting at write time — both fall
 		// through to the standard single-line prompt below.
-		if (getQuickAddInstance().settings.inputPrompt === "multi-line") {
+		if (settingsStore.getState().inputPrompt === "multi-line") {
 			return GenericWideInputPrompt;
 		} else {
 			return GenericInputPrompt;

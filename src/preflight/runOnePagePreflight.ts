@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatter";
-import type QuickAdd from "src/main";
+import type { PreflightPlugin } from "./collectChoiceRequirements";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { MacroAbortError } from "src/errors/MacroAbortError";
@@ -119,7 +119,7 @@ export function orderOnePageFilePicks(
 
 export async function runOnePagePreflight(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: IChoice,
 ): Promise<boolean> {

@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { getTemplateFile } from "../../utils/templateFolderUtils";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
@@ -36,7 +36,7 @@ let {
 }: {
 	choice: ICaptureChoice;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 const templateFilePaths = $derived(

@@ -7,7 +7,8 @@ import { isMarkdownTemplatePath } from "./applyTemplateToActiveNote";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import {
 	getFileExistsMode,
 	getExistingNoteAction,
@@ -61,13 +62,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		choice: ITemplateChoice,
 		choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
 		private readonly chain: ChoiceChain = [choice],
 	) {
-		super(app, plugin, choiceExecutor);
+		super(app, plugin, runtime, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.choice = choice;
@@ -572,6 +574,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const insertEngine = new TemplateInsertEngine(
 			this.app,
 			this.plugin,
+			this.runtime,
 			existingFile,
 			resolvedTemplatePath,
 			position,

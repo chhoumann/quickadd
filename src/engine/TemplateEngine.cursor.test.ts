@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { templateHarness } from "../../tests/helpers/engines/templateHarness";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
 import { overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
@@ -238,7 +239,7 @@ describe("Template write cursor snapshots", () => {
 			h.contents.set(target.path, content);
 			return content;
 		};
-		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", mode, h.executor);
+		const engine = new TemplateInsertEngine(h.app, h.plugin, testFormatterRuntime(h.app, h.plugin), file, "template.md", mode, h.executor);
 		await engine.apply();
 		expect(h.contents.get(file.path)).toBe(expected);
 		expect(engine.getCursorPlacement()).toEqual({ content: expected, offsets: [expected.indexOf("after")] });
@@ -267,7 +268,7 @@ describe("Template write cursor snapshots", () => {
 		} as unknown as MarkdownView;
 		vi.spyOn(h.app.workspace, "getActiveViewOfType").mockReturnValue(view);
 		h.app.workspace.getLeavesOfType = () => [Object.assign(new WorkspaceLeaf(), { view })];
-		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "cursor", h.executor);
+		const engine = new TemplateInsertEngine(h.app, h.plugin, testFormatterRuntime(h.app, h.plugin), file, "template.md", "cursor", h.executor);
 		await engine.apply();
 		const content = h.contents.get(file.path) ?? "";
 		expect(save).toHaveBeenCalledOnce();
@@ -284,7 +285,7 @@ describe("Template write cursor snapshots", () => {
 			h.contents.set(target.path, content);
 			return content;
 		};
-		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "bottom", h.executor);
+		const engine = new TemplateInsertEngine(h.app, h.plugin, testFormatterRuntime(h.app, h.plugin), file, "template.md", "bottom", h.executor);
 		await engine.apply();
 		const content = h.contents.get(file.path) ?? "";
 		expect(content.endsWith("existing\n\nbeforeafter")).toBe(true);
@@ -300,7 +301,7 @@ describe("Template write cursor snapshots", () => {
 			h.contents.set(target.path, content);
 			return content;
 		};
-		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "bottom", h.executor);
+		const engine = new TemplateInsertEngine(h.app, h.plugin, testFormatterRuntime(h.app, h.plugin), file, "template.md", "bottom", h.executor);
 		await engine.apply();
 		expect(engine.getCursorPlacement()).toEqual({ content: "existing\n\ntext", offsets: ["existing\n\n".length] });
 	});
@@ -315,7 +316,7 @@ describe("Template write cursor snapshots", () => {
 			return content;
 		};
 		vi.mocked(templaterParseTemplate).mockImplementation(async (_app, content) => content.replace("<% result %>", "expanded"));
-		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "bottom", h.executor);
+		const engine = new TemplateInsertEngine(h.app, h.plugin, testFormatterRuntime(h.app, h.plugin), file, "template.md", "bottom", h.executor);
 		await engine.apply();
 		expect(engine.getCursorPlacement()).toEqual({ content: "existing\n\nexpandedafter", offsets: ["existing\n\nexpanded".length] });
 	});

@@ -15,7 +15,8 @@ import { findDateVariableFormat } from "./helpers/dateTokens";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
-import type QuickAdd from "../main";
+import type { FormatterPluginContext } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "./formatterRuntime";
 import type { IDateParser } from "../parsers/IDateParser";
 import type { InputPromptOptions } from "../types/inputPrompt";
 import { NLDParser } from "../parsers/NLDParser";
@@ -53,10 +54,15 @@ export class CompleteFormatter extends Formatter {
 	/** The run this formatter formats for; its `{{MACRO:}}`s and inline scripts run inside it. */
 	public choiceChain: ChoiceChain = [];
 
+	/**
+	 * `runtime` runs the `{{MACRO:}}`s, `{{TEMPLATE:}}`s and inline scripts in
+	 * the text. Without one, formatting text that holds any of them throws.
+	 */
 	constructor(
 		protected app: App,
-		private plugin: QuickAdd,
+		private plugin: FormatterPluginContext,
 		protected choiceExecutor?: IChoiceExecutor,
+		private readonly runtime?: FormatterExecutionRuntime,
 		dateParser?: IDateParser,
 	) {
 		super(app);
@@ -751,73 +757,56 @@ export class CompleteFormatter extends Formatter {
 		macroName: string,
 		context?: { label?: string },
 	): Promise<string> {
-		// Imported lazily: a static import would re-create the
-		// completeFormatter ⇄ engine circular dependency (#1249).
-		const { SingleMacroEngine } = await import(
-			"../engine/SingleMacroEngine"
-		);
-		const macroEngine = new SingleMacroEngine(
-			this.app,
-			this.plugin,
-			this.plugin.settings.choices,
-			//@ts-ignore
-			this.choiceExecutor,
-			this.variables,
-		);
-		const macroOutput =
-			(await macroEngine.runAndGetOutput(macroName, context, this.choiceChain)) ?? "";
-
-		// Copy variables from macro execution
-		macroEngine.getVariables().forEach((value, key) => {
+		const { output, variables } = await this.requireRuntime(`{{MACRO:${macroName}}}`).runMacro({
+			macroName,
+			label: context?.label,
+			choiceExecutor: this.requireChoiceExecutor(`{{MACRO:${macroName}}}`),
+			variables: this.variables,
+			choiceChain: this.choiceChain,
+		});
+		variables.forEach((value, key) => {
 			this.variables.set(key, value);
 		});
-
-		return macroOutput;
+		return output;
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
-		const { SingleTemplateEngine } = await import(
-			"../engine/SingleTemplateEngine"
-		);
 		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
-		const childInclusion = {
-			visited: this.templateInclusion.visited,
-			depth: this.templateInclusion.depth + 1,
-			includer: this,
-		};
-		const childEngine = new SingleTemplateEngine(
-			this.app,
-			this.plugin,
+		const { content, templatePropertyVars } = await this.requireRuntime(
+			`{{TEMPLATE:${templatePath}}}`,
+		).runTemplate({
 			templatePath,
-			this.choiceExecutor,
-			childInclusion,
-		);
-		// Propagate the target folder so {{FOLDER}} resolves inside included
-		// templates ({{TEMPLATE:...}}), which render via this child engine's own
-		// formatter.
-		childEngine.setTargetFolderPath(this.targetFolderPath);
-		childEngine.choiceChain = this.choiceChain;
-		if (this.preserveTemplateCursorMarkers && this.promptScope === "noteBody") {
-			childEngine.setPreserveCursorMarkers(true);
-		}
-		// An include spliced into a path is part of that path: keep the caller's
-		// scope so its prompts do not claim to be asking for note content.
-		if (this.promptScope !== "generic") {
-			childEngine.setPromptScope(this.promptScope);
-		}
-		// Propagate run context but give included templates distinct draft keys to avoid reusing parent answers.
-		if (this.promptRunContext) {
-			childEngine.setPromptRunContext({
+			choiceExecutor: this.choiceExecutor,
+			inclusion: {
+				visited: this.templateInclusion.visited,
+				depth: this.templateInclusion.depth + 1,
+				includer: this,
+			},
+			targetFolderPath: this.targetFolderPath,
+			choiceChain: this.choiceChain,
+			preserveCursorMarkers:
+				this.preserveTemplateCursorMarkers && this.promptScope === "noteBody",
+			// An include spliced into a path is part of that path: keep the caller's
+			// scope so its prompts do not claim to be asking for note content.
+			promptScope: this.promptScope !== "generic" ? this.promptScope : undefined,
+			// Included templates get their own draft keys, so they never reuse the parent's answers.
+			promptRunContext: this.promptRunContext && {
 				...this.promptRunContext,
 				draftScopeId: `${this.promptRunContext.draftScopeId ?? ""}#${templatePath}`,
-			});
-		}
-		const content = await childEngine.run();
-		this.mergeTemplatePropertyVars(
-			childEngine.getAndClearTemplatePropertyVars(),
-		);
+			},
+		});
+		this.mergeTemplatePropertyVars(templatePropertyVars);
 		return content;
+	}
+
+	private requireRuntime(token: string): FormatterExecutionRuntime {
+		if (!this.runtime) throw new Error(`QuickAdd cannot run ${token} here.`);
+		return this.runtime;
+	}
+
+	private requireChoiceExecutor(token: string): IChoiceExecutor {
+		if (!this.choiceExecutor) throw new Error(`QuickAdd cannot run ${token} outside a choice.`);
+		return this.choiceExecutor;
 	}
 
 	protected async getSelectedText(): Promise<string> {
@@ -847,22 +836,16 @@ export class CompleteFormatter extends Formatter {
 			let replacement = "";
 
 			if (code) {
-				// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
-				const { SingleInlineScriptEngine } = await import(
-					"../engine/SingleInlineScriptEngine"
-				);
-				const executor = new SingleInlineScriptEngine(
-					this.app,
-					this.plugin,
-					//@ts-ignore
-					this.choiceExecutor,
-					this.variables,
-					this.choiceChain,
-				);
-				const outVal: unknown = await executor.runAndGetOutput(code);
+				const token = "an inline script";
+				const { output: outVal, variables } = await this.requireRuntime(token).runInlineScript({
+					code,
+					choiceExecutor: this.requireChoiceExecutor(token),
+					variables: this.variables,
+					choiceChain: this.choiceChain,
+				});
 
-				for (const key in executor.params.variables) {
-					this.variables.set(key, executor.params.variables[key]);
+				for (const key in variables) {
+					this.variables.set(key, variables[key]);
 				}
 
 				if (typeof outVal === "string") {

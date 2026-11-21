@@ -1,5 +1,6 @@
 import { log } from "src/logger/logManager";
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
+import type { QuickAddSettings } from "../settings";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import { MacroChoice } from "src/types/choices/MacroChoice";
 import {
@@ -9,7 +10,7 @@ import {
 import { isUnreadableCommandList, rootMacrosOf } from "src/utils/macroUtils";
 import type { Migration, MigrationResult } from "./Migrations";
 
-type LegacySettings = QuickAdd["settings"] & { macros?: LegacyMacro[] };
+type LegacySettings = QuickAddSettings & { macros?: LegacyMacro[] };
 type LegacyMacro = {
 	id: string;
 	name: string;
@@ -21,7 +22,7 @@ type LegacyMacroChoice = IMacroChoice & { macroId?: string };
 const removeMacroIndirection: Migration = {
 	description:
 		"Remove macro indirection - embed macros directly in macro choices",
-	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
+	migrate: async (plugin: MigrationContext): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as LegacySettings;
 
 		// This migration MOVES legacy macros into the choice tree and then deletes

@@ -139,6 +139,7 @@ import { settingsStore } from "../settingsStore";
 import { getPromptModes } from "../template/fileExistsPolicy";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -216,6 +217,7 @@ const createEngine = () => {
 	const engine = new TemplateChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		createTemplateChoice(),
 		choiceExecutor,
 	);
@@ -617,6 +619,7 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			expect(templateInsertConstructorMock).toHaveBeenCalledWith(
 				app,
 				plugin,
+				expect.anything(),
 				existingFile,
 				engine.choice.templatePath,
 				position,
