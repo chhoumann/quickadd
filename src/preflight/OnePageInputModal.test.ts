@@ -912,6 +912,72 @@ describe("OnePageInputModal", () => {
 			expect(event.defaultPrevented).toBe(false);
 			expect(chips(modal)).toEqual([]);
 		});
+
+		it("drops unknown entries from array defaults when custom input is off", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["current"],
+				defaultValues: ["current", "retired"],
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+
+			expect(chips(modal)).toEqual(["current"]);
+			expect(modal.multiSelections.get(id)).toEqual(["current"]);
+		});
+
+		it("backtracks when a legacy joined default has an overlapping longer prefix", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["A, B, C", "A, B", "C, D"],
+				defaultValue: "A, B, C, D",
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+
+			expect(modal.multiSelections.get(id)).toEqual(["A, B", "C, D"]);
+		});
+
+		it("keeps comma-bearing options whole when an unknown segment is dropped with custom input off", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["A", "A, B", "C"],
+				defaultValue: "A, B, unknown",
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+
+			expect(modal.multiSelections.get(id)).toEqual(["A, B"]);
+		});
+
+		it("refreshes the open suggestion list when Backspace removes a chip", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["Alpha", "Beta", "Gamma"],
+			})], new Map());
+			modal.waitForClose.catch(() => {});
+			document.body.append(modal.containerEl);
+			try {
+				search(modal).focus();
+				const suggester = (modal as unknown as {
+					fieldControls: Map<FieldRequirement, { suggesters: Array<{ onInputChanged(): Promise<void> }> }>;
+				}).fieldControls.values().next().value!.suggesters[0];
+				await suggester.onInputChanged();
+				pick("Alpha");
+				await suggester.onInputChanged();
+				expect(Array.from(document.querySelectorAll(".suggestion-item"), (el) => el.textContent)).toEqual([
+					"Beta",
+					"Gamma",
+				]);
+
+				search(modal).dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", cancelable: true }));
+				await Promise.resolve();
+				await Promise.resolve();
+
+				expect(chips(modal)).toEqual([]);
+				expect(Array.from(document.querySelectorAll(".suggestion-item"), (el) => el.textContent)).toEqual([
+					"Alpha",
+					"Beta",
+					"Gamma",
+				]);
+			} finally {
+				modal.onClose();
+				modal.containerEl.remove();
+			}
+		});
 	});
 
 	describe("single-select suggester", () => {

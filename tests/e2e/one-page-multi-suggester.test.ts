@@ -154,6 +154,29 @@ describe("one-page multi-select suggester", () => {
 		expect(await submit<Record<string, unknown>>()).toEqual({ tags: "vip" });
 	});
 
+	it("refreshes the open list on Backspace and picks consecutive options on rapid Enter", async () => {
+		await openForm(`[{
+			id: "tags",
+			label: "Tags",
+			type: "suggester",
+			options: ["Alpha", "Beta", "Gamma"],
+			suggesterConfig: { multiSelect: true, returnArray: true },
+		}]`, "tags");
+		const { obsidian } = getContext();
+
+		await expect.poll(suggestions, POLL_OPTS).toEqual(["Alpha", "Beta", "Gamma"]);
+		await pressKey(obsidian, "Enter");
+		await pressKey(obsidian, "Enter");
+		await expect.poll(chips, POLL_OPTS).toEqual(["Alpha", "Beta"]);
+		await expect.poll(suggestions, POLL_OPTS).toEqual(["Gamma"]);
+
+		await pressKey(obsidian, "Backspace");
+		await expect.poll(chips, POLL_OPTS).toEqual(["Alpha"]);
+		await expect.poll(suggestions, POLL_OPTS).toEqual(["Beta", "Gamma"]);
+
+		expect(await submit<Record<string, unknown>>()).toEqual({ tags: ["Alpha"] });
+	});
+
 	it("keeps a comma-bearing {{VALUE|multi}} label whole in the one-page form", async () => {
 		const { obsidian, plugin, sandbox } = getContext();
 		const template = new TemplateChoice("Prioritized note");

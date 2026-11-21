@@ -11,6 +11,7 @@ vi.mock("src/logger/logManager", () => ({
 }));
 
 import { GenericTextSuggester } from "./genericTextSuggester";
+import { SuggesterInputSuggest } from "./SuggesterInputSuggest";
 import { TextInputSuggest } from "./suggest";
 
 // A suggester whose getSuggestions stays pending until the test resolves it, so
@@ -602,6 +603,32 @@ describe("TextInputSuggest Enter", () => {
 
 		await vi.waitFor(() => expect(input.value).toBe("beta"));
 		expect(input.getAttribute("aria-expanded")).toBe("false");
+		suggest.destroy();
+	});
+
+	it("picks the next available multi-select option on rapid double-Enter with an empty input", async () => {
+		const input = document.createElement("input");
+		document.body.appendChild(input);
+		const picked: string[] = [];
+		const options = ["Alpha", "Beta", "Gamma"].map((label, index) => ({
+			key: `opt:${index}`,
+			value: label,
+			label,
+		}));
+		const suggest = new SuggesterInputSuggest(createApp(), input, {
+			getOptions: () => options,
+			onSelect: (option) => picked.push(option.label),
+			multiSelect: true,
+			isSelected: (option) => picked.includes(option.label),
+		});
+		input.focus();
+		await suggest.onInputChanged();
+
+		const scope = (suggest as unknown as { scope: { trigger: (key: string) => unknown } }).scope;
+		expect(scope.trigger("Enter")).toBe(false);
+		expect(scope.trigger("Enter")).toBe(false);
+
+		await vi.waitFor(() => expect(picked).toEqual(["Alpha", "Beta"]));
 		suggest.destroy();
 	});
 });

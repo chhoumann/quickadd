@@ -138,10 +138,11 @@ export class SuggesterInputSuggest extends TextInputSuggest<SuggesterOption> {
 		this.config.onSelect(option);
 		this.inputEl.value = "";
 		if (this.config.getOptions().some((candidate) => !this.isSelected(candidate))) {
+			this.inputEl.focus();
 			dispatchCompletion(this.inputEl, true);
 		} else {
 			this.close();
+			this.inputEl.focus();
 		}
-		this.inputEl.focus();
 	}
 }

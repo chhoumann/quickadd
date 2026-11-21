@@ -512,6 +512,7 @@ export class OnePageFieldRenderer {
 			req.placeholder ?? (allowCustomInput ? "Search or type to add..." : "Search and select..."),
 		);
 
+		let suggester: SuggesterInputSuggest | undefined;
 		const sync = () => {
 			const values = selected.map((option) => option.value);
 			control.multiSelections = values;
@@ -529,11 +530,12 @@ export class OnePageFieldRenderer {
 					selected.splice(selected.indexOf(option), 1);
 					sync();
 					input.inputEl.focus();
+					suggester?.refresh();
 				});
 			}
 		};
 
-		control.suggesters.push(new SuggesterInputSuggest(this.app, input.inputEl, {
+		suggester = new SuggesterInputSuggest(this.app, input.inputEl, {
 			getOptions: () => options,
 			onSelect: (option) => {
 				add(option);
@@ -544,7 +546,8 @@ export class OnePageFieldRenderer {
 			allowCustomInput,
 			isSelected,
 			renderOption: req.renderOption,
-		}));
+		});
+		control.suggesters.push(suggester);
 
 		input.inputEl.addEventListener("keydown", (event) => {
 			if (event.isComposing) return;
@@ -552,6 +555,7 @@ export class OnePageFieldRenderer {
 				event.preventDefault();
 				selected.pop();
 				sync();
+				suggester?.refresh();
 			}
 		});
 
@@ -755,7 +759,7 @@ function resolveSeededMultiPicks(
 		for (const value of seed) {
 			const option = findOption(value);
 			if (option) picks.push(option);
-			else if (value.trim()) picks.push(customSuggesterOption(value.trim()));
+			else if (config.allowCustomInput && value.trim()) picks.push(customSuggesterOption(value.trim()));
 		}
 		return picks;
 	}
@@ -766,53 +770,104 @@ function resolveSeededMultiPicks(
 	if (whole) return [whole];
 
 	if (config.separator) {
-		const matched = matchJoinedOptions(trimmed, options, config);
+		const candidates = joinCandidates(options);
+		const matched = matchJoinedOptions(trimmed, candidates, config);
 		if (matched) return matched;
-		const delimiter = config.separator === ", " ? "," : config.separator;
-		const pieces = trimmed.split(delimiter).map((piece) => piece.trim()).filter(Boolean);
-		if (pieces.length > 1 && (pieces.every((piece) => findOption(piece)) || !config.allowCustomInput)) {
-			return pieces.flatMap((piece) => {
-				const match = findOption(piece);
-				return match ? [match] : [];
-			});
+		if (!config.allowCustomInput) {
+			return extractKnownJoinedOptions(trimmed, candidates, config);
 		}
 	}
 
 	return config.allowCustomInput ? [customSuggesterOption(trimmed)] : [];
 }
 
-function matchJoinedOptions(
-	text: string,
-	options: readonly SuggesterOption[],
-	config: { caseSensitive: boolean; separator: string },
-): SuggesterOption[] | null {
-	const candidates = options
+type JoinCandidate = { text: string; option: SuggesterOption };
+
+function joinCandidates(options: readonly SuggesterOption[]): JoinCandidate[] {
+	return options
 		.flatMap((option) =>
 			option.value === option.label
 				? [{ text: option.label, option }]
 				: [{ text: option.value, option }, { text: option.label, option }],
 		)
-		.filter(({ text: candidate }) => candidate.length > 0)
+		.filter(({ text }) => text.length > 0)
 		.sort((a, b) => b.text.length - a.text.length);
+}
 
-	const out: SuggesterOption[] = [];
-	let rest = text;
-	while (rest.length > 0) {
-		const match = candidates.find(({ text: candidate }) => {
-			if (rest.length === candidate.length) {
-				return labelsMatch(rest, candidate, config.caseSensitive);
-			}
-			if (rest.length < candidate.length + config.separator.length) return false;
-			return (
-				labelsMatch(rest.slice(0, candidate.length), candidate, config.caseSensitive) &&
-				rest.slice(candidate.length, candidate.length + config.separator.length) === config.separator
-			);
-		});
-		if (!match) return null;
-		out.push(match.option);
-		rest = rest.length === match.text.length
-			? ""
-			: rest.slice(match.text.length + config.separator.length).trimStart();
+function advancePastSeparator(text: string, end: number, separator: string): number {
+	if (end === text.length) return end;
+	if (separator === ", ") {
+		if (text[end] !== ",") return -1;
+		let next = end + 1;
+		while (next < text.length && /\s/.test(text[next])) next++;
+		return next;
 	}
-	return out.length > 0 ? out : null;
+	if (!text.startsWith(separator, end)) return -1;
+	let next = end + separator.length;
+	while (next < text.length && /\s/.test(text[next])) next++;
+	return next;
+}
+
+function skipUnmatchedSegment(text: string, pos: number, separator: string): number {
+	const delimiter = separator === ", " ? "," : separator;
+	const index = text.indexOf(delimiter, pos);
+	if (index < 0) return text.length;
+	let next = index + delimiter.length;
+	while (next < text.length && /\s/.test(text[next])) next++;
+	return next;
+}
+
+function matchJoinedOptions(
+	text: string,
+	candidates: readonly JoinCandidate[],
+	config: { caseSensitive: boolean; separator: string },
+): SuggesterOption[] | null {
+	const failed = new Set<number>();
+	const solve = (pos: number): SuggesterOption[] | null => {
+		if (pos === text.length) return [];
+		if (failed.has(pos)) return null;
+		for (const candidate of candidates) {
+			const end = pos + candidate.text.length;
+			if (end > text.length) continue;
+			if (!labelsMatch(text.slice(pos, end), candidate.text, config.caseSensitive)) continue;
+			const next = advancePastSeparator(text, end, config.separator);
+			if (next < 0) continue;
+			const tail = solve(next);
+			if (tail) return [candidate.option, ...tail];
+		}
+		failed.add(pos);
+		return null;
+	};
+	const matched = solve(0);
+	return matched && matched.length > 0 ? matched : null;
+}
+
+function extractKnownJoinedOptions(
+	text: string,
+	candidates: readonly JoinCandidate[],
+	config: { caseSensitive: boolean; separator: string },
+): SuggesterOption[] {
+	const memo = new Map<number, { score: number; picks: SuggesterOption[] }>();
+	const best = (pos: number): { score: number; picks: SuggesterOption[] } => {
+		if (pos === text.length) return { score: 0, picks: [] };
+		const cached = memo.get(pos);
+		if (cached) return cached;
+
+		let winner = best(skipUnmatchedSegment(text, pos, config.separator));
+		for (const candidate of candidates) {
+			const end = pos + candidate.text.length;
+			if (end > text.length) continue;
+			if (!labelsMatch(text.slice(pos, end), candidate.text, config.caseSensitive)) continue;
+			const next = advancePastSeparator(text, end, config.separator);
+			if (next < 0) continue;
+			const tail = best(next);
+			const score = candidate.text.length + tail.score;
+			if (score > winner.score) {
+				winner = { score, picks: [candidate.option, ...tail.picks] };
+			}
+		}
+		memo.set(pos, winner);
+		return winner;
+	};
+	return best(0).picks;
 }
