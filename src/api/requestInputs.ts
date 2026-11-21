@@ -6,6 +6,7 @@ import type { NumericInputConfig, SliderConfig } from "../utils/valueSyntax";
 import { formatISODate } from "../utils/dateParser";
 import { rethrowPromptError } from "./promptApi";
 import { abortIfHeadless } from "../interactive/routePrompt";
+import { type OnePageFormHeader, sanitizeOnePageFormHeader } from "../preflight/formHeader";
 
 function sanitizeNumericConfig(
 	value: NumericInputConfig | undefined,
@@ -63,7 +64,7 @@ function sanitizeSliderConfig(
 	return { min, max, step };
 }
 
-export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, inputs: Array<{
+export interface RequestInputSpec {
 	id: string;
 	label?: string;
 	type:
@@ -88,7 +89,16 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 		caseSensitive?: boolean;
 		multiSelect?: boolean;
 	};
-}>): Promise<Record<string, string>> {
+}
+
+export type RequestInputsOptions = OnePageFormHeader;
+
+export async function requestInputs(
+	app: App,
+	choiceExecutor: IChoiceExecutor,
+	inputs: RequestInputSpec[],
+	options?: RequestInputsOptions,
+): Promise<Record<string, string>> {
 	// If all inputs already have values, return them immediately
 	const existing: Record<string, string> = {};
 	const missing: FieldRequirement[] = [];
@@ -126,10 +136,11 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 
 	let collected: Record<string, string> = {};
 	if (missing.length > 0) {
+		const formHeader = sanitizeOnePageFormHeader(options);
 		abortIfHeadless(
 			choiceExecutor,
 			"an input form",
-			missing.map((input) => input.label).join(", "),
+			formHeader?.title ?? missing.map((input) => input.label).join(", "),
 			`Pass ${missing.map((input) => input.id).join(", ")} in vars, or re-run with the ui flag.`,
 		);
 		// Route the batch form to a remote interactive session (Raycast)
@@ -137,7 +148,7 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 		const provider = choiceExecutor?.promptProvider;
 		if (provider) {
 			try {
-				const providerAnswers = await provider.requestInputs(missing);
+				const providerAnswers = await provider.requestInputs(missing, formHeader);
 				collected = Object.fromEntries(
 					Object.entries(providerAnswers).map(([key, value]) => [
 						key,
@@ -152,6 +163,7 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 				app,
 				missing,
 				choiceExecutor.variables,
+				formHeader,
 			);
 			try {
 				collected = await modal.waitForClose;

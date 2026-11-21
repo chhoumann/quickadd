@@ -3,6 +3,7 @@
 import { confirmReply, describeValue } from "./promptProtocol";
 import { formatISODate } from "../utils/dateParser";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
+import type { OnePageFormHeader } from "../preflight/formHeader";
 import {
 	type FormField,
 	interactivePromptServer,
@@ -32,7 +33,10 @@ export interface PromptProvider {
 	 * Batch multi-field prompt (`quickAddApi.requestInputs`). Returns scalar fields
 	 * as strings and multi-select fields as string arrays.
 	 */
-	requestInputs(fields: FieldRequirement[]): Promise<Record<string, FormAnswer>>;
+	requestInputs(
+		fields: FieldRequirement[],
+		options?: OnePageFormHeader,
+	): Promise<Record<string, FormAnswer>>;
 	suggester(
 		displayItems:
 			| string[]
@@ -271,6 +275,7 @@ export class RemotePromptProvider implements PromptProvider {
 
 	async requestInputs(
 		fields: FieldRequirement[],
+		options?: OnePageFormHeader,
 	): Promise<Record<string, FormAnswer>> {
 		const formFields: FormField[] = fields.map((field) => ({
 			id: field.id,
@@ -295,6 +300,8 @@ export class RemotePromptProvider implements PromptProvider {
 
 		const answer = await this.server.emitPrompt(this.sessionId, {
 			type: "form",
+			...(options?.title ? { title: options.title } : {}),
+			...(options?.description ? { description: options.description } : {}),
 			fields: formFields,
 		});
 		if (!answer || typeof answer !== "object") return {};
