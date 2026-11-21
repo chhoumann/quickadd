@@ -230,8 +230,7 @@ export async function runOnePagePreflight(
 				app,
 				modalRequirements,
 				choiceExecutor.variables,
-				computePreview,
-				discoveryPlan?.config,
+				{ computePreview, discoveryForm: discoveryPlan?.config },
 			);
 			values = await modal.waitForClose;
 		}

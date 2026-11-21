@@ -29,9 +29,11 @@ vi.mock("./OnePageInputModal", () => ({
 			_app: unknown,
 			_requirements: unknown,
 			_variables: unknown,
-			preview: (values: Record<string, string>) => Promise<PreviewRow[]>,
+			options: {
+				computePreview: (values: Record<string, string>) => Promise<PreviewRow[]>;
+			},
 		) {
-			computePreview = preview;
+			computePreview = options.computePreview;
 		}
 		get waitForClose() {
 			return Promise.resolve({ title: "My Note" });
