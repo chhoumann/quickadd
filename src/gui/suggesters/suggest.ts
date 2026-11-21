@@ -587,6 +587,10 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		return this.currentQuery;
 	}
 
+	protected isPopupOpen(): boolean {
+		return this.isOpen;
+	}
+
 
 
 	// Abstract methods - now supports async

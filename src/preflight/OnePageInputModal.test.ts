@@ -8,6 +8,8 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
 import { TemplateChoice } from "src/types/choices/TemplateChoice";
 import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
+import type * as SuggesterModule from "src/gui/suggesters/SuggesterInputSuggest";
+import type { SuggesterInputSuggestConfig } from "src/gui/suggesters/SuggesterInputSuggest";
 
 const { attachImagePasteHandlerMock } = vi.hoisted(() => ({
 	attachImagePasteHandlerMock: vi.fn(() => ({
@@ -77,9 +79,10 @@ vi.mock("src/gui/promptPeek/stylePeekButton", () => ({
 
 const { noticeMessages } = vi.hoisted(() => ({ noticeMessages: [] as string[] }));
 
-vi.mock("obsidian", async () => {
+vi.mock("obsidian", async (importOriginal) => {
 	const { modalObsidianStub } = await import("../../tests/helpers/preflight/modal");
 	return {
+		...(await importOriginal<object>()),
 		...(await modalObsidianStub()),
 		Notice: class { constructor(message: string) { noticeMessages.push(message); } },
 	};
@@ -104,9 +107,27 @@ vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
 	},
 }));
 
-vi.mock("src/gui/suggesters/SuggesterInputSuggest", () => ({
-	SuggesterInputSuggest: class { close = vi.fn(); destroy = vi.fn(); },
+const { suggesterConfigs } = vi.hoisted(() => ({
+	suggesterConfigs: [] as SuggesterInputSuggestConfig[],
 }));
+
+vi.mock("src/gui/suggesters/SuggesterInputSuggest", async (importOriginal) => {
+	const actual = await importOriginal<typeof SuggesterModule>();
+	return {
+		...actual,
+		SuggesterInputSuggest: class extends actual.SuggesterInputSuggest {
+			constructor(app: App, input: HTMLInputElement, config: SuggesterInputSuggestConfig) {
+				super(app, input, config);
+				suggesterConfigs.push(config);
+			}
+		},
+	};
+});
+
+const suggestApp = {
+	dom: { appContainerEl: document.body },
+	keymap: { pushScope: () => {}, popScope: () => {} },
+} as unknown as App;
 
 vi.mock("src/gui/suggesters/FilePickerInputSuggest", () => ({
 	FilePickerInputSuggest: class {
@@ -151,6 +172,7 @@ describe("OnePageInputModal", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
 		filePickerSuggesters.length = 0;
+		suggesterConfigs.length = 0;
 		noticeMessages.length = 0;
 		noteSelections.length = 0;
 		noteSuggesterSetup.mockReset();
@@ -703,6 +725,275 @@ describe("OnePageInputModal", () => {
 		search.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
 
 		expect(modal.fileSelections.get(id)).toEqual([]);
+	});
+
+	describe("multi-select suggester", () => {
+		const id = "tags";
+		const tags = (extra: Partial<FieldRequirement> = {}): FieldRequirement => ({
+			id,
+			label: "Tags",
+			type: "suggester",
+			options: ["client", "A string, with stuff after a comma", "vip"],
+			...extra,
+			suggesterConfig: { multiSelect: true, ...extra.suggesterConfig },
+		});
+		const chips = (modal: OnePageInputModal) =>
+			Array.from(modal.contentEl.querySelectorAll(".qa-onepage-multi-suggester__chip-label"), (el) => el.textContent);
+		const search = (modal: OnePageInputModal) =>
+			modal.contentEl.querySelector<HTMLInputElement>(".qa-onepage-multi-suggester__input")!;
+		const pick = (label: string) => {
+			const config = suggesterConfigs[0];
+			const option = config.getOptions().find((candidate) => candidate.label === label);
+			if (!option) throw new Error(`no option ${label}`);
+			config.onSelect(option);
+		};
+		const type = (modal: OnePageInputModal, text: string, key?: string) => {
+			search(modal).value = text;
+			search(modal).dispatchEvent(new Event("input"));
+			if (key) search(modal).dispatchEvent(new KeyboardEvent("keydown", { key, cancelable: true }));
+		};
+
+		it("keeps comma-bearing picks whole, as chips in pick order", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			pick("vip");
+			pick("A string, with stuff after a comma");
+
+			expect(chips(modal)).toEqual(["vip", "A string, with stuff after a comma"]);
+			expect(search(modal).value).toBe("");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "vip, A string, with stuff after a comma" });
+			expect(modal.multiSelections.get(id)).toEqual(["vip", "A string, with stuff after a comma"]);
+		});
+
+		it("adds typed comma-bearing entries as single chips with Enter, before the list opens", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({ options: [] })], new Map());
+			type(modal, "Another, custom string", "Enter");
+			type(modal, "Another string", "Enter");
+
+			expect(chips(modal)).toEqual(["Another, custom string", "Another string"]);
+			expect(modal.multiSelections.get(id)).toEqual(["Another, custom string", "Another string"]);
+			expect(search(modal).value).toBe("");
+		});
+
+		it("leaves Enter to the open list", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			modal.waitForClose.catch(() => {});
+			document.body.append(modal.containerEl);
+			try {
+				search(modal).focus();
+				search(modal).value = "cl";
+				await (modal as unknown as {
+					fieldControls: Map<FieldRequirement, { suggesters: Array<{ onInputChanged(): Promise<void> }> }>;
+				}).fieldControls.values().next().value!.suggesters[0].onInputChanged();
+				const event = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+				search(modal).dispatchEvent(event);
+
+				expect(event.defaultPrevented).toBe(false);
+				expect(chips(modal)).toEqual([]);
+				expect(search(modal).value).toBe("cl");
+			} finally {
+				modal.onClose();
+				modal.containerEl.remove();
+			}
+		});
+
+		it("adds the text left in the search box on Submit", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			pick("client");
+			type(modal, "Draft, entry");
+			modalButton(modal).click();
+
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "client, Draft, entry" });
+			expect(modal.multiSelections.get(id)).toEqual(["client", "Draft, entry"]);
+		});
+
+		it("removes the last chip with Backspace and any chip with its button", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			pick("client");
+			pick("A string, with stuff after a comma");
+			pick("vip");
+
+			type(modal, "", "Backspace");
+			expect(chips(modal)).toEqual(["client", "A string, with stuff after a comma"]);
+
+			modal.contentEl.querySelector<HTMLButtonElement>('[aria-label="Remove client"]')?.click();
+			expect(chips(modal)).toEqual(["A string, with stuff after a comma"]);
+			expect(modal.multiSelections.get(id)).toEqual(["A string, with stuff after a comma"]);
+		});
+
+		it("picks the best match with Enter before the list opens", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			type(modal, "cli", "Enter");
+			expect(chips(modal)).toEqual(["client"]);
+		});
+
+		it("adds only options when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({ suggesterConfig: { allowCustomInput: false } })], new Map());
+			type(modal, "nope", "Enter");
+			expect(chips(modal)).toEqual([]);
+			expect(search(modal).value).toBe("nope");
+
+			type(modal, "VIP", "Enter");
+			expect(chips(modal)).toEqual(["vip"]);
+
+			type(modal, "stray");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "vip" });
+		});
+
+		it("shows display labels and keeps option values", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["hi", "lo"],
+				displayOptions: ["High, urgent", "Low"],
+				suggesterConfig: { separator: " | " },
+			})], new Map());
+			pick("Low");
+			pick("High, urgent");
+
+			expect(chips(modal)).toEqual(["Low", "High, urgent"]);
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "lo | hi" });
+			expect(modal.multiSelections.get(id)).toEqual(["lo", "hi"]);
+		});
+
+		it("starts with its default picks and focuses the search, not a chip's remove button", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				defaultValues: ["A string, with stuff after a comma", "Someone, new"],
+			})], new Map());
+			modal.waitForClose.catch(() => {});
+			document.body.append(modal.containerEl);
+			try {
+				expect(chips(modal)).toEqual(["A string, with stuff after a comma", "Someone, new"]);
+				modal.contentEl.querySelector<HTMLButtonElement>(".qa-onepage-multi-suggester__remove")?.focus();
+				modal.open();
+				expect(document.activeElement).toBe(search(modal));
+			} finally {
+				modal.onClose();
+				modal.containerEl.remove();
+			}
+		});
+
+		it.each([
+			{ name: "an option", defaultValue: "A string, with stuff after a comma", picks: ["A string, with stuff after a comma"] },
+			{ name: "options joined by the separator", defaultValue: "client, vip", picks: ["client", "vip"] },
+			{ name: "options joined by a bare comma", defaultValue: "client,vip", picks: ["client", "vip"] },
+			{ name: "comma-bearing options joined by the separator", defaultValue: "A string, with stuff after a comma, vip", picks: ["A string, with stuff after a comma", "vip"] },
+			{ name: "custom text with a comma", defaultValue: "Someone, new", picks: ["Someone, new"] },
+		])("starts with a string default naming $name", ({ defaultValue, picks }) => {
+			const modal = new OnePageInputModal(suggestApp, [tags({ defaultValue })], new Map());
+			expect(modal.multiSelections.get(id)).toEqual(picks);
+		});
+
+		it("does not split a string default into characters when separator is empty", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				defaultValue: "custom",
+				suggesterConfig: { separator: "" },
+			})], new Map());
+			expect(modal.multiSelections.get(id)).toEqual(["custom"]);
+		});
+
+		it("deduplicates custom chips according to caseSensitive", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			type(modal, "Hello, world", "Enter");
+			type(modal, "hello, world", "Enter");
+			expect(chips(modal)).toEqual(["Hello, world"]);
+
+			const sensitive = new OnePageInputModal(suggestApp, [tags({ suggesterConfig: { caseSensitive: true } })], new Map());
+			type(sensitive, "Hello, world", "Enter");
+			type(sensitive, "hello, world", "Enter");
+			expect(chips(sensitive)).toEqual(["Hello, world", "hello, world"]);
+		});
+
+		it("lets Mod+Enter pass through when the dropdown is closed", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			search(modal).value = "Draft, entry";
+			const event = new KeyboardEvent("keydown", { key: "Enter", metaKey: true, cancelable: true });
+			search(modal).dispatchEvent(event);
+			expect(event.defaultPrevented).toBe(false);
+			expect(chips(modal)).toEqual([]);
+		});
+	});
+
+	describe("single-select suggester", () => {
+		const id = "priority";
+		const priority = (extra: Partial<FieldRequirement> = {}): FieldRequirement => ({
+			id,
+			label: "Priority",
+			type: "suggester",
+			options: ["hi", "lo"],
+			displayOptions: ["High", "Low"],
+			...extra,
+		});
+		const input = (modal: OnePageInputModal) => modal.contentEl.querySelector<HTMLInputElement>("input")!;
+		const type = (modal: OnePageInputModal, text: string) => {
+			input(modal).value = text;
+			input(modal).dispatchEvent(new Event("input"));
+		};
+
+		it("stores a picked option's value", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority()], new Map());
+			const option = suggesterConfigs[0].getOptions()[1];
+			input(modal).value = option.label;
+			suggesterConfigs[0].onSelect(option);
+			input(modal).dispatchEvent(Object.assign(new Event("input"), { fromCompletion: true }));
+
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "lo" });
+		});
+
+		it("keeps typed text as typed where custom input is allowed", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority()], new Map());
+			type(modal, "High");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "High" });
+		});
+
+		it("shows a default option by its label", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({ defaultValue: "lo" })], new Map());
+			expect(input(modal).value).toBe("Low");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "lo" });
+		});
+
+		it("refuses Submit until the text names an option when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({ suggesterConfig: { allowCustomInput: false } })], new Map());
+			document.body.append(modal.containerEl);
+			try {
+				type(modal, "Urgent");
+				modalButton(modal).click();
+				expect(noticeMessages).toEqual(['QuickAdd: Choose an option for "Priority".']);
+				expect(document.activeElement).toBe(input(modal));
+
+				type(modal, "high");
+				modalButton(modal).click();
+				await expect(modal.waitForClose).resolves.toEqual({ [id]: "hi" });
+			} finally {
+				modal.containerEl.remove();
+			}
+		});
+
+		it("accepts a picked option whose stored value is empty when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({
+				options: ["", "hi"],
+				displayOptions: ["None", "High"],
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+			const none = suggesterConfigs[0].getOptions()[0];
+			input(modal).value = none.label;
+			suggesterConfigs[0].onSelect(none);
+			input(modal).dispatchEvent(Object.assign(new Event("input"), { fromCompletion: true }));
+
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
+		});
+
+		it("lets an optional field without custom input submit empty", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({ optional: true, suggesterConfig: { allowCustomInput: false } })], new Map());
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
+		});
 	});
 
 	it("returns a textarea field value verbatim, without doubling backslashes", async () => {

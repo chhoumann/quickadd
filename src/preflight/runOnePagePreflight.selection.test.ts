@@ -14,6 +14,10 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { parseFileToken } from "src/utils/fileSyntax";
 import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { getPreparedTemplateNoteSelection, withPreparedChoiceInputs } from "./preparedChoiceInputs";
+import { loadUserScript } from "src/utils/userScript";
+import { CommandType } from "src/types/macros/CommandType";
+import type IMacroChoice from "src/types/choices/IMacroChoice";
+import type { IUserScript } from "src/types/macros/IUserScript";
 
 const { modalOpenMock } = vi.hoisted(() => ({
 	modalOpenMock: vi.fn(),
@@ -21,13 +25,14 @@ const { modalOpenMock } = vi.hoisted(() => ({
 
 let modalResult: Record<string, string> = {};
 let modalFileSelections = new Map<string, string[]>();
+let modalMultiSelections = new Map<string, string[]>();
 let modalDiscoverySelections = new Map<string, TemplateNoteSelection>();
 
 vi.mock("./OnePageInputModal", () => ({
 	OnePageInputModal: class {
 		waitForClose = Promise.resolve(modalResult);
 		fileSelections = modalFileSelections;
-		multiSelections = new Map<string, string[]>();
+		multiSelections = modalMultiSelections;
 		discoverySelections = modalDiscoverySelections;
 		constructor(...args: unknown[]) {
 			modalOpenMock(...args);
@@ -106,6 +111,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 		modalOpenMock.mockClear();
 		modalResult = {};
 		modalFileSelections = new Map();
+		modalMultiSelections = new Map();
 	});
 
 	it("prefills {{VALUE}} from selection when enabled", async () => {
@@ -368,6 +374,91 @@ describe("runOnePagePreflight template extension handling", () => {
 			"@file:People/Doe, Jane.md",
 			"@file:People/Grace.md",
 		]);
+	});
+
+	describe("multi-select suggesters", () => {
+		const templateApp = (content: string) => {
+			const templateFile = new TFile();
+			templateFile.path = "Templates/Tags.md";
+			templateFile.name = "Tags.md";
+			templateFile.basename = "Tags";
+			templateFile.extension = "md";
+			return {
+				workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) },
+				vault: {
+					getAbstractFileByPath: vi.fn((path: string) => (path === templateFile.path ? templateFile : null)),
+					cachedRead: vi.fn(async () => content),
+				},
+			} as unknown as App;
+		};
+		const commaList = 'tags: {{VALUE:"A string, with stuff after a comma",other|text:"First, label",Other|multi|name:tags}}';
+
+		it("stores a {{VALUE|multi}} field's picked values from the form", async () => {
+			modalResult = { tags: "A string, with stuff after a comma, other" };
+			modalMultiSelections = new Map([["tags", ["A string, with stuff after a comma", "other"]]]);
+			const executor = createExecutor();
+
+			await runOnePagePreflight(
+				templateApp(commaList),
+				createPreflightPlugin(),
+				executor,
+				createTemplateChoice("Templates/Tags.md"),
+			);
+
+			expect(executor.variables.get("tags")).toEqual(["A string, with stuff after a comma", "other"]);
+		});
+
+		it("maps a remote client's array of comma-bearing labels back to values", async () => {
+			const executor = createExecutor();
+			(executor as IChoiceExecutor).promptProvider = {
+				requestInputs: vi.fn(async () => ({ tags: ["First, label", "other"] })),
+			} as unknown as IChoiceExecutor["promptProvider"];
+
+			await runOnePagePreflight(
+				templateApp(commaList),
+				createPreflightPlugin(),
+				executor,
+				createTemplateChoice("Templates/Tags.md"),
+			);
+
+			expect(executor.variables.get("tags")).toEqual(["A string, with stuff after a comma", "other"]);
+		});
+
+		it("stores a script's multi-select as its requestInputs call will return it", async () => {
+			const options = ["A string, with stuff after a comma", "Another"];
+			vi.mocked(loadUserScript).mockResolvedValue({
+				script: {
+					quickadd: {
+						inputs: [
+							{ id: "joined", type: "suggester", options, suggesterConfig: { multiSelect: true, separator: " | " } },
+							{ id: "list", type: "suggester", options, suggesterConfig: { multiSelect: true, returnArray: true } },
+						],
+					},
+				},
+				settings: undefined,
+			});
+			const picks = ["A string, with stuff after a comma", "Typed, custom"];
+			modalResult = { joined: picks.join(" | "), list: picks.join(", ") };
+			modalMultiSelections = new Map([["joined", picks], ["list", picks]]);
+			const macro: IMacroChoice = {
+				id: "macro",
+				name: "Macro",
+				type: "Macro",
+				command: false,
+				runOnStartup: false,
+				macro: {
+					id: "macro",
+					name: "Macro",
+					commands: [{ id: "script", name: "Script", type: CommandType.UserScript, path: "script.js", settings: {} } as IUserScript],
+				},
+			};
+			const executor = createExecutor();
+
+			await runOnePagePreflight(createApp(null), createPreflightPlugin(), executor, macro);
+
+			expect(executor.variables.get("joined")).toBe("A string, with stuff after a comma | Typed, custom");
+			expect(executor.variables.get("list")).toEqual(picks);
+		});
 	});
 
 	it("collects the default Template note selection inline without seeding public value", async () => {
