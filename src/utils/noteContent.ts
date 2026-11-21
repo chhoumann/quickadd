@@ -1,8 +1,10 @@
 import { MarkdownView, type App, type TFile } from "obsidian";
 import { waitFor } from "./waitFor";
+import { isMarkdownViewSaving } from "./obsidianInternals";
 import merge from "three-way-merge";
 import invariant from "./invariant";
 import { log } from "../logger/logManager";
+import { toLF } from "./toLF";
 
 /*
  * Reads and writes of a note's full text that stay coherent with an open editor.
@@ -113,8 +115,7 @@ async function saveView(view: MarkdownView): Promise<void> {
 	// save() returns at once while an earlier save is still writing; that save
 	// then re-saves the latest text. Wait for both before trusting the disk,
 	// and write nothing if they never finish, since they would overwrite it.
-	const saving = () => (view as unknown as { saving?: boolean }).saving === true;
-	for (let waited = 0; saving(); waited += 10) {
+	for (let waited = 0; isMarkdownViewSaving(view); waited += 10) {
 		if (waited >= SAVE_TIMEOUT_MS) throw new Error(`Obsidian is still saving '${view.file?.path}'. Try again once it has saved.`);
 		await waitFor(10);
 	}
@@ -130,8 +131,4 @@ export function minimalEdit(before: string, after: string): { from: number; to: 
 	while (suffix < max - prefix &&
 		before.charCodeAt(before.length - 1 - suffix) === after.charCodeAt(after.length - 1 - suffix)) suffix++;
 	return { from: prefix, to: before.length - suffix, text: after.slice(prefix, after.length - suffix) };
-}
-
-function toLF(text: string): string {
-	return text.includes("\r") ? text.replace(/\r\n?/g, "\n") : text;
 }

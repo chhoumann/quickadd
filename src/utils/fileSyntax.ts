@@ -1,14 +1,12 @@
 import { parseFrontMatterAliases, type CachedMetadata, type TFile } from "obsidian";
-import {
-	FieldSuggestionParser,
-	type FieldFilter,
-} from "./FieldSuggestionParser";
+import { parseFilterSegments, type FieldFilter } from "./FieldSuggestionParser";
 import {
 	extractBareFlagPart,
 	parsePipeKeyValue,
 	splitPipeParts,
 } from "./pipeSyntax";
 import type { MultiValueFormat } from "./multiValueFormat";
+import { normalizeVaultPathSeparators } from "./pathUtils";
 import type { WarnSink } from "./warnSink";
 
 // Namespaces FILE variable values in the variables map, separate from plain
@@ -79,11 +77,6 @@ function getFileTypeExtensions(
 	);
 }
 
-/** Strip leading/trailing slashes, matching FieldSuggestionFileFilter. */
-function normalizeFolder(path: string): string {
-	return path.replace(/^\/+|\/+$/g, "");
-}
-
 /**
  * Serialize a filter list into a delimiter-safe, order-insensitive token. A
  * filter value can itself contain a comma (Obsidian folder/tag/file names may,
@@ -109,18 +102,18 @@ function buildFileScopeSignature(
 	filter: FieldFilter,
 	extensions: ParsedFileToken["extensions"],
 ): string {
-	const parts = [`folder=${normalizeFolder(folderPath)}`];
+	const parts = [`folder=${normalizeVaultPathSeparators(folderPath)}`];
 	if (extensions)
 		parts.push(
 			`types=${extensions === "any" ? "any" : encodeSignatureList([...extensions])}`,
 		);
 	if (filter.folders?.length)
-		parts.push(`folders=${encodeSignatureList(filter.folders, normalizeFolder)}`);
+		parts.push(`folders=${encodeSignatureList(filter.folders, normalizeVaultPathSeparators)}`);
 	if (filter.tags?.length)
 		parts.push(`tags=${encodeSignatureList(filter.tags)}`);
 	if (filter.excludeFolders?.length)
 		parts.push(
-			`xfolder=${encodeSignatureList(filter.excludeFolders, normalizeFolder)}`,
+			`xfolder=${encodeSignatureList(filter.excludeFolders, normalizeVaultPathSeparators)}`,
 		);
 	if (filter.excludeTags?.length)
 		parts.push(`xtag=${encodeSignatureList(filter.excludeTags)}`);
@@ -172,7 +165,7 @@ function buildFileSignature(parsed: {
  * The first pipe-part is the (required) folder path. FILE-specific options are
  * peeled off here — the bare mode flags `name`/`link`/`path`, `optional`,
  * `custom`, and the key:value `label:` / `name:` / `type:` — then the remainder is handed
- * to {@link FieldSuggestionParser.parse} so the folder/tag/exclude-* filter
+ * to {@link parseFilterSegments} so the folder/tag/exclude-* filter
  * grammar can never diverge from {{FIELD}}. The folder (first segment) is the
  * picker SCOPE, so it is applied as `filter.folder` regardless of any `|folder:`.
  *
@@ -214,7 +207,7 @@ export function parseFileToken(
 	}
 
 	// Peel key:value options that are FILE-specific (label/name/type); everything
-	// else (tag/exclude-*) is parsed by FieldSuggestionParser below.
+	// else (tag/exclude-*) is parsed by parseFilterSegments below.
 	let label: string | undefined;
 	let aliasName: string | undefined;
 	const types: string[] = [];
@@ -229,11 +222,12 @@ export function parseFileToken(
 	}
 	const extensions = getFileTypeExtensions(types);
 
-	// Delegate filter parsing to the shared FIELD parser (it skips unknown keys
-	// like label/name and bare flags), then force the scope folder. The first
-	// segment is the folder, so any `|folder:` sub-option the parser picks up is
+	// Delegate filter parsing to the shared grammar (it skips this grammar's own
+	// keys like type and bare flags), then force the scope folder. The first
+	// segment is the folder, so any `|folder:` sub-option it picks up is
 	// intentionally discarded below (the positional folder always wins).
-	const fieldParsed = FieldSuggestionParser.parse(raw, {
+	const fieldParsed = parseFilterSegments(splitPipeParts(raw).slice(1), {
+		token: `{{FILE:${raw}}}`,
 		warn: options?.warn,
 	});
 	const multiSelect = bareMultiSelect || (fieldParsed.multiSelect ?? false);
@@ -315,12 +309,6 @@ export function decodeFileValue(stored: unknown): DecodedFileValue {
 	if (stored.startsWith(FILE_PICK_PREFIX))
 		return { kind: "file", path: stored.slice(FILE_PICK_PREFIX.length) };
 	return { kind: "raw", value: stored };
-}
-
-/** Basename of a vault path (drop folders + a trailing known extension). */
-export function fileBasenameFromPath(value: string): string {
-	const segment = value.split("/").pop() ?? value;
-	return segment.replace(/\.(md|canvas|base)$/i, "");
 }
 
 /** File name as Obsidian links it: notes drop `.md`, other files keep their extension. */

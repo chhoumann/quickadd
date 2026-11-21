@@ -170,4 +170,15 @@ describe("MacroChoiceEngine executeOpenFile path validation", () => {
 
 		expect(openFileMock).not.toHaveBeenCalled();
 	});
+
+	it("rejects a '..' segment that Windows collapses from trailing dots or spaces", async () => {
+		const file = makeFile(".. /secret.md");
+		const { engine } = createEngine(".. /secret.md", {
+			".. /secret.md": file,
+		});
+
+		await engine.run();
+
+		expect(openFileMock).not.toHaveBeenCalled();
+	});
 });

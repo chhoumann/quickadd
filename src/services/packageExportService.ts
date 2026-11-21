@@ -1,7 +1,7 @@
-import { packageSecretOptionNames } from "./packageAssets";
+import { isScannableTemplateAsset, packageSecretOptionNames } from "./packageAssets";
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
-import { confirmAction } from "../gui/confirmAction";
+import { MAX_TEMPLATE_INCLUSION_DEPTH } from "../constants";
 import { log } from "../logger/logManager";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
@@ -21,7 +21,6 @@ import {
 	collectFileDependencies,
 	collectScriptDependencies,
 } from "../utils/packageTraversal";
-import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import {
@@ -161,10 +160,8 @@ function collectAssetDescriptors(
 }
 
 // A template can itself say `{{TEMPLATE:other.md}}`, and that one can too. Walk
-// the bundled Markdown until nothing new turns up; the depth cap mirrors the
-// formatter's own inclusion limit so a self-including note cannot spin forever.
-const MAX_INCLUDE_ROUNDS = 10;
-
+// the bundled Markdown until nothing new turns up, as deep as the formatter
+// resolves includes.
 async function bundleTransitiveIncludes(
 	app: App,
 	assets: EncodedAssets,
@@ -172,8 +169,8 @@ async function bundleTransitiveIncludes(
 	const known = new Set(assets.encodedAssets.map((asset) => asset.originalPath));
 	for (const missing of assets.missingAssets) known.add(missing.path);
 
-	let frontier = assets.encodedAssets.filter(isIncludeScannable);
-	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
+	let frontier = assets.encodedAssets.filter((asset) => isScannableTemplateAsset(asset));
+	for (let round = 0; round < MAX_TEMPLATE_INCLUSION_DEPTH && frontier.length > 0; round++) {
 		const next: AssetDescriptor[] = [];
 		for (const asset of frontier) {
 			for (const path of collectTemplateIncludePaths(decodeFromBase64(asset.content))) {
@@ -186,18 +183,8 @@ async function bundleTransitiveIncludes(
 		const encoded = await encodeAssets(app, next);
 		assets.encodedAssets.push(...encoded.encodedAssets);
 		assets.missingAssets.push(...encoded.missingAssets);
-		frontier = encoded.encodedAssets.filter(isIncludeScannable);
+		frontier = encoded.encodedAssets.filter((asset) => isScannableTemplateAsset(asset));
 	}
-}
-
-// The formatter runs over whatever file a template path names (`.md`,
-// `.canvas` or `.base`), so includes inside any of them resolve at run time. A
-// script's body (even a `.md` note-script) never has its includes resolved.
-function isIncludeScannable(asset: QuickAddPackageAsset): boolean {
-	return (
-		(asset.kind === "template" || asset.kind === "capture-template") &&
-		hasTemplateExtension(asset.originalPath)
-	);
 }
 
 async function encodeAssets(
@@ -273,31 +260,19 @@ export interface WritePackageOptions {
 	 * Invoked when the target path already exists, so the caller can confirm the
 	 * overwrite before any data is replaced. Returning false aborts the write
 	 * (writePackageToVault throws so the caller can report a clean cancellation).
-	 * Defaults to a Yes/No prompt. Injectable for tests / non-interactive callers.
 	 */
-	confirmOverwrite?: (normalizedPath: string) => Promise<boolean>;
+	confirmOverwrite: (normalizedPath: string) => Promise<boolean>;
 }
 
 export interface WritePackageResult {
 	overwritten: boolean;
 }
 
-async function defaultConfirmOverwrite(
-	app: App,
-	normalizedPath: string,
-): Promise<boolean> {
-	return confirmAction(app, {
-		title: "Overwrite existing file?",
-		message: `A file already exists at '${normalizedPath}'. Saving the package will overwrite it.`,
-		action: "Overwrite",
-	});
-}
-
 export async function writePackageToVault(
 	app: App,
 	pkg: QuickAddPackage,
 	outputPath: string,
-	options: WritePackageOptions = {},
+	options: WritePackageOptions,
 ): Promise<WritePackageResult> {
 	const normalizedPath = normalizePath(outputPath.trim());
 	if (!normalizedPath) {
@@ -306,10 +281,7 @@ export async function writePackageToVault(
 
 	const overwriting = await app.vault.adapter.exists(normalizedPath);
 	if (overwriting) {
-		const confirm =
-			options.confirmOverwrite ??
-			((path: string) => defaultConfirmOverwrite(app, path));
-		const confirmed = await confirm(normalizedPath);
+		const confirmed = await options.confirmOverwrite(normalizedPath);
 		if (!confirmed) {
 			throw new Error(`Save cancelled: '${normalizedPath}' already exists.`);
 		}

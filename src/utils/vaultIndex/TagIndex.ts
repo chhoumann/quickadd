@@ -1,5 +1,6 @@
 import Fuse, { type FuseResult } from "fuse.js";
 import type { App, Plugin } from "obsidian";
+import { getMetadataCacheTags } from "../obsidianInternals";
 
 const FUSE_OPTIONS = {
 	threshold: 0.4,
@@ -60,9 +61,7 @@ export class TagIndex {
 	 * per-instance behavior without the per-instance listener).
 	 */
 	refresh(): void {
-		// @ts-expect-error - getTags is available but not in the type definitions
-		const tagObj = this.app.metadataCache.getTags() as Record<string, number>;
-		const tags = Object.keys(tagObj);
+		const tags = Object.keys(getMetadataCacheTags(this.app) ?? {});
 
 		// Sort: shorter tags first, then alphabetically (stable, query-independent).
 		this.sortedTags = tags.sort((a, b) => {

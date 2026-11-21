@@ -3,7 +3,6 @@ import {
 	buildFileDisplayLabels,
 	canonicalizeOnePageFileValue,
 	decodeFileValue,
-	fileBasenameFromPath,
 	FILE_CUSTOM_PREFIX,
 	FILE_PICK_PREFIX,
 	FILE_VARIABLE_PREFIX,
@@ -242,15 +241,6 @@ describe("canonicalizeOnePageFileValue", () => {
 
 	it("leaves empty (skip) untouched", () => {
 		expect(canonicalizeOnePageFileValue("", picks)).toBe("");
-	});
-});
-
-describe("fileBasenameFromPath", () => {
-	it("drops folders and a trailing markdown-family extension", () => {
-		expect(fileBasenameFromPath("People/Tom.md")).toBe("Tom");
-		expect(fileBasenameFromPath("a/b/My.Notes.md")).toBe("My.Notes");
-		expect(fileBasenameFromPath("Diagrams/x.canvas")).toBe("x");
-		expect(fileBasenameFromPath("Alice")).toBe("Alice");
 	});
 });
 

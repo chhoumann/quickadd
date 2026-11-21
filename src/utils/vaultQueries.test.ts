@@ -104,6 +104,20 @@ describe("getMarkdownFilesWithProperty", () => {
 		expect(paths).toEqual(["Sub/Draft F.md"]);
 	});
 
+	it("applies repeated |folder: filters carried only in `folders`", () => {
+		const multiFolderApp = makeApp([
+			{ path: "Work/a.md", basename: "a", frontmatter: { type: "draft" } },
+			{ path: "Home/b.md", basename: "b", frontmatter: { type: "draft" } },
+			{ path: "Other/c.md", basename: "c", frontmatter: { type: "draft" } },
+		]);
+		const paths = getMarkdownFilesWithProperty(multiFolderApp, "type", "draft", {
+			folders: ["Work", "Home"],
+		})
+			.map((f) => f.path)
+			.sort();
+		expect(paths).toEqual(["Home/b.md", "Work/a.md"]);
+	});
+
 	it("applies an exclude-folder pipe filter", () => {
 		const paths = getMarkdownFilesWithProperty(app, "type", "draft", {
 			excludeFolders: ["Sub"],

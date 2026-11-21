@@ -2,7 +2,7 @@ import { setIcon, type App, type SearchMatches } from "obsidian";
 import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
 import { dispatchCompletion, renderHighlightRanges } from "./utils";
-import { fileBasenameFromPath } from "../../utils/fileSyntax";
+import { basenameWithoutMdOrCanvas } from "../../utils/pathUtils";
 
 export interface FilePickerOption {
 	value: string;
@@ -89,7 +89,7 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			names = [
 				option.label,
 				option.path,
-				...(option.isCustom ? [] : [fileBasenameFromPath(option.path)]),
+				...(option.isCustom ? [] : [basenameWithoutMdOrCanvas(option.path)]),
 				...(option.aliases ?? []),
 			].map((name) => name.toLocaleLowerCase());
 			this.namesByOption.set(option, names);

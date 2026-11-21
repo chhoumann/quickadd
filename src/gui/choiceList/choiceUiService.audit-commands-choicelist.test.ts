@@ -1,40 +1,38 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Notice, type App } from "obsidian";
-import type IChoice from "../types/choices/IChoice";
-import type IMultiChoice from "../types/choices/IMultiChoice";
+import type IChoice from "../../types/choices/IChoice";
+import type IMultiChoice from "../../types/choices/IMultiChoice";
 
 // --- Hoisted mock state -----------------------------------------------------
-// Mirrors choiceService.test.ts: stub the GUI builders so importing the module
+// Mirrors choiceUiService.test.ts: stub the GUI builders so importing the module
 // does not pull in the full Obsidian/Svelte stack.
 
 const mocks = vi.hoisted(() => ({
 	yesNoPrompt: vi.fn(),
 }));
 
-vi.mock("../gui/ChoiceBuilder/templateChoiceBuilder", () => ({
+vi.mock("../ChoiceBuilder/templateChoiceBuilder", () => ({
 	TemplateChoiceBuilder: class {},
 }));
-vi.mock("../gui/ChoiceBuilder/captureChoiceBuilder", () => ({
+vi.mock("../ChoiceBuilder/captureChoiceBuilder", () => ({
 	CaptureChoiceBuilder: class {},
 }));
-vi.mock("../gui/MacroGUIs/MacroBuilder", () => ({ MacroBuilder: class {} }));
-vi.mock("../gui/MultiChoiceBuilder", () => ({
+vi.mock("../MacroGUIs/MacroBuilder", () => ({ MacroBuilder: class {} }));
+vi.mock("../MultiChoiceBuilder", () => ({
 	MultiChoiceBuilder: class {},
 }));
-vi.mock("../gui/confirmAction", () => ({
+vi.mock("../confirmAction", () => ({
 	confirmAction: (...args: unknown[]) => mocks.yesNoPrompt(...args),
 }));
-vi.mock("../settingsStore", () => ({
+vi.mock("../../settingsStore", () => ({
 	settingsStore: { getState: () => ({ choices: [] }) },
 }));
 
-const {
-	createChoice,
-	insertChoiceAfter,
-	moveChoiceToRoot,
-	deleteChoiceWithConfirmation,
-} = await import("./choiceService");
+const { createChoice, insertChoiceAfter, moveChoiceToRoot } = await import(
+	"../../services/choiceTree"
+);
+const { deleteChoiceWithConfirmation } = await import("./choiceUiService");
 
 const fakeApp = { name: "fake-app" } as unknown as App;
 
@@ -44,7 +42,7 @@ const makeMulti = (name: string, children: IChoice[] = []) => {
 	return m;
 };
 
-describe("choiceService audit (commands-choicelist)", () => {
+describe("choiceUiService audit (commands-choicelist)", () => {
 	beforeEach(() => {
 		mocks.yesNoPrompt.mockReset();
 		(Notice as unknown as { instances: unknown[] }).instances.length = 0;

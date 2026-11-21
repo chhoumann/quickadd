@@ -26,7 +26,7 @@ import {
 	setFolderChildrenById,
 	setMultiCollapsedById,
 	updateMultiById,
-} from "../services/choiceService";
+} from "../services/choiceTree";
 import {
 	isChoiceNested,
 	computeEligibleMultiTargets,
@@ -37,7 +37,6 @@ import {
 	isEmptyFolderChoice,
 } from "../gui/suggesters/choiceSuggester";
 import { emptyFolderNoticeText } from "./choiceNotices";
-import { getChoicesAsList as macroBuilderChoiceList } from "../gui/MacroGUIs/MacroBuilder";
 import {
 	commandListOf,
 	hasCommandList,
@@ -104,11 +103,11 @@ const sweeps: Sweep[] = [
 		(t) => flattenChoices(t).map((c) => resolveChoiceIcon(c)),
 	],
 
-	// --- choiceService: lookups
+	// --- choiceTree: lookups
 	["findChoiceById (hit)", (t) => findChoiceById(t, "child")],
 	["findChoiceById (miss)", (t) => findChoiceById(t, "nope")],
 
-	// --- choiceService: edits elsewhere in the tree
+	// --- choiceTree: edits elsewhere in the tree
 	["removeChoiceById (leaf)", (t) => removeChoiceById(t, "child").updated, true],
 	["removeChoiceById (malformed folder)", (t) => removeChoiceById(t, "broken-null").updated],
 	["insertChoiceAfter", (t) => insertChoiceAfter(t, "child", leaf("New", "new")), true],
@@ -144,9 +143,6 @@ const sweeps: Sweep[] = [
 		"emptyFolderNoticeText (every node)",
 		(t) => t.filter(isChoiceLike).map((c) => emptyFolderNoticeText(c)),
 	],
-
-	// --- macro builder
-	["getChoicesAsList", (t) => macroBuilderChoiceList(t)],
 
 	// --- macro command lists (#1593). Same argument as the folder walkers above,
 	// one type over: `macro.commands` is declared ICommand[] and read raw.

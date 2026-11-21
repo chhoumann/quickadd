@@ -11,8 +11,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TFile } from "obsidian";
 import { attachImagePasteHandler } from "./imagePasteHandler";
 
-vi.mock("obsidian", () => ({
+vi.mock("obsidian", async () => ({
 	Notice: vi.fn(),
+	normalizePath: (await import("../../tests/obsidian-stub")).normalizePath,
 }));
 
 vi.mock("../logger/logManager", () => ({

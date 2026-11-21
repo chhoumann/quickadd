@@ -2,6 +2,7 @@ export type * from "../types/packages/PackagePreview";
 export { flagDescription, flagLabel, flagSeverity } from "./packagePreviewFlags";
 import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
+	MAX_TEMPLATE_INCLUSION_DEPTH,
 } from "../constants";
 import { inlineScriptBodies } from "../utils/inlineScriptSpans";
 import type IChoice from "../types/choices/IChoice";
@@ -103,10 +104,6 @@ export function collectReferencedAssetPaths(pkg: QuickAddPackage): string[] {
 	return Array.from(collectPackageUsages(pkg, walkPackage(pkg).choiceWalks).keys());
 }
 
-// Matches the formatter's inclusion depth cap; bounds a crafted package whose
-// bundled notes include each other in a cycle.
-const MAX_INCLUDE_ROUNDS = 10;
-
 /**
  * The key a bundled asset is matched under: the path import will write it to,
  * whatever kind the package claims (kinds are untrusted). Import normalizes
@@ -169,7 +166,7 @@ function collectPackageUsages(
 	);
 	const scanned = new Set<string>();
 	let frontier = Array.from(usagesByPath.keys());
-	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
+	for (let round = 0; round < MAX_TEMPLATE_INCLUSION_DEPTH && frontier.length > 0; round++) {
 		const next: string[] = [];
 		for (const path of frontier) {
 			if (scanned.has(path)) continue;

@@ -69,7 +69,6 @@ vi.mock("./promptForTemplateNoteDiscovery", async () => {
 });
 
 vi.mock("../utils/templaterIntegration", () => ({
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: async (_app: App, content: string) => content,
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),

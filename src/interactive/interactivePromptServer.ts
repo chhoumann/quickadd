@@ -26,6 +26,7 @@ import {
 	UserCancelError,
 } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { nodeRequire } from "../utils/nodeRequire";
 
 // Minimal structural types for the slice of Node's `http` we use, declared
 // locally so this module never statically imports a Node builtin (keeps the
@@ -135,16 +136,6 @@ export function isLoopbackClient(headers: {
 	if (headers.origin || headers.referer) return false;
 	const hostname = (headers.host ?? "").split(":")[0];
 	return hostname === "127.0.0.1" || hostname === "localhost";
-}
-
-function nodeRequire<T>(mod: string): T | null {
-	try {
-		const req = (window as unknown as { require?: (m: string) => unknown })
-			.require;
-		return req ? (req(mod) as T) : null;
-	} catch {
-		return null;
-	}
 }
 
 function randomId(): string {

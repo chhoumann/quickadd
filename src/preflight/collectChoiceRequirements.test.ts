@@ -1446,18 +1446,14 @@ describe("collectChoiceRequirements - macro form roster", () => {
 
 	function pluginWithChoices(
 		choices: Record<string, IChoice> = {},
-	): { settings: Record<string, unknown>; getChoiceById: (id: string) => IChoice } {
+	): { settings: Record<string, unknown>; findChoiceById: (id: string) => IChoice | null } {
 		return {
 			settings: {
 				inputPrompt: "single-line",
 				globalVariables: {},
 				useSelectionAsCaptureValue: true,
 			},
-			getChoiceById: (id: string) => {
-				const found = choices[id];
-				if (!found) throw new Error(`Choice ${id} not found`);
-				return found;
-			},
+			findChoiceById: (id: string) => choices[id] ?? null,
 		};
 	}
 
@@ -2030,7 +2026,7 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		},
 	);
 
-	it("collects a Choice command Capture when getChoiceById resolves it", async () => {
+	it("collects a Choice command Capture when findChoiceById resolves it", async () => {
 		const capture = {
 			...createCaptureChoice("Projects"),
 			id: "cap-ref",

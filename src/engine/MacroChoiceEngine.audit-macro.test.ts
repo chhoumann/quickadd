@@ -117,6 +117,14 @@ function createEngine({
 	const plugin = {
 		getChoiceById,
 		getChoiceByName: vi.fn(),
+		// The real plugin's findChoiceById is getChoiceById without the throw.
+		findChoiceById: (id: string) => {
+			try {
+				return getChoiceById(id);
+			} catch {
+				return null;
+			}
+		},
 	} as unknown as any;
 
 	const macro: IMacro = {

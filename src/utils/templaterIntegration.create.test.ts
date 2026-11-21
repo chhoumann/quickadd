@@ -120,7 +120,7 @@ describe("createNoteAfterTemplaterTrigger", () => {
 
 	it("does not touch Templater when its new-file trigger is off", async () => {
 		const t = fakeTemplater(async () => {});
-		(t.app.plugins.plugins["templater-obsidian"] as { settings: object }).settings = { trigger_on_file_creation: false };
+		((t.app as any).plugins.plugins["templater-obsidian"] as { settings: object }).settings = { trigger_on_file_creation: false };
 		const original = t.Templater.on_file_creation;
 		const spy = vi.fn(t.create("a.md"));
 		await createNoteAfterTemplaterTrigger(t.app, "a.md", spy);

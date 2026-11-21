@@ -1,7 +1,7 @@
 import type ITemplateChoice from "./ITemplateChoice";
 import type { TemplateFolderConfig } from "./ITemplateChoice";
 import { Choice } from "./Choice";
-import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { FileOpeningSettings } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 import type { TemplateExistingNoteAction, TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
@@ -14,12 +14,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 	fileNameFormat: { enabled: boolean; format: string };
 	folder: TemplateFolderConfig;
 	openFile: boolean;
-	fileOpening: {
-		location: OpenLocation;
-		direction: "vertical" | "horizontal";
-		mode: FileViewMode2;
-		focus: boolean;
-	};
+	fileOpening: FileOpeningSettings;
 	templatePath: string;
 	fileExistsBehavior: TemplateFileExistsBehavior;
 

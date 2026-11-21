@@ -15,6 +15,7 @@ import { processNoteFrontMatter } from "./noteContent";
 import { appendLinkLineToNote } from "./fileLinks";
 import type { CapturePlacementResult } from "./capturePlacement";
 import type { EditorCursorPlacement, EditorTextMutationObserver } from "./editorCursorPlacement";
+import { toLF } from "./toLF";
 
 export function insertCaptureInEditor(
 	payload: CapturePlacementResult,
@@ -33,8 +34,8 @@ export function insertCaptureInBoundEditor(
 	action: string,
 ): EditorCursorPlacement | null {
 	if (payload.cursor.kind === "none") return null;
-	const content = payload.content.replace(/\r\n?/g, "\n");
-	const cursorOffset = payload.content.slice(0, payload.cursor.value).replace(/\r\n?/g, "\n").length;
+	const content = toLF(payload.content);
+	const cursorOffset = toLF(payload.content.slice(0, payload.cursor.value)).length;
 	const at = (pos: EditorPosition) => editor.posToOffset(pos);
 	const cursor = editor.getCursor();
 	let edits: { from: EditorPosition; to?: EditorPosition; text: string; cursor: number }[];
@@ -473,8 +474,8 @@ export function setMarkdownCursorsAtOffsets(
 		const content = editor.getValue();
 		let editorOffsets = offsets;
 		if (content !== expectedContent) {
-			if (content !== expectedContent.replace(/\r\n?/g, "\n")) return false;
-			editorOffsets = offsets.map(offset => expectedContent.slice(0, offset).replace(/\r\n?/g, "\n").length);
+			if (content !== toLF(expectedContent)) return false;
+			editorOffsets = offsets.map(offset => toLF(expectedContent.slice(0, offset)).length);
 		}
 
 		if (editorOffsets.length === 1) editor.setCursor(editor.offsetToPos(editorOffsets[0]));

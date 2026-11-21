@@ -14,11 +14,7 @@ import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
 import { getConditionSummary } from "../../utils/conditionalHelpers";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 import { BuilderPage, nameOrFallback } from "../ChoiceBuilder/builderPage";
-import {
-	childChoicesOf,
-	isChoiceLike,
-	rootChoicesOf,
-} from "../../utils/choiceUtils";
+import { flattenChoices } from "../../utils/choiceUtils";
 import {
 	isMacroObject,
 	macroCommandsValueOf,
@@ -51,26 +47,6 @@ import {
 	isDateOriginPreset,
 } from "../../types/dateOriginPresets";
 
-/** Exported for the malformed-tree sweep (src/utils/malformedChoices.entrypoints.test.ts). */
-export function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
-	const arr: IChoice[] = [];
-
-	const recursive = (choices: IChoice[]) => {
-		choices.forEach((choice) => {
-			if (!isChoiceLike(choice)) return;
-			if (choice.type === "Multi") {
-				recursive(childChoicesOf(choice));
-			} else {
-				arr.push(choice);
-			}
-		});
-	};
-
-	recursive(rootChoicesOf(nestedChoices));
-
-	return arr;
-}
-
 export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	public choice: IMacroChoice;
 	public macro: IMacro;
@@ -91,7 +67,10 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		this.choice = choice;
 		this.macro = choice.macro;
 		this.openedName = choice.name;
-		this.choices = getChoicesAsList(choices).filter((c) => c.id !== choice.id);
+		// Every runnable choice but this one; folders cannot be a macro step.
+		this.choices = flattenChoices(choices).filter(
+			(c) => c.type !== "Multi" && c.id !== choice.id,
+		);
 		this.plugin = plugin;
 		this.containerEl.addClass("macroBuilder");
 	}

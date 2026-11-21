@@ -1,6 +1,7 @@
 import { stripCursorMarkers } from "./capturePlacement";
 import type { EditorCursorPlacement } from "./editorCursorPlacement";
 import { getBodyStartOffset } from "./noteContentInsertion";
+import { toLF } from "./toLF";
 
 export function prepareTemplateContent(content: string): EditorCursorPlacement {
 	const bodyStart = getBodyStartOffset(content);
@@ -19,7 +20,7 @@ export function rebaseTemplateCursor(
 ): EditorCursorPlacement | null {
 	if (cursor.content === content) return cursor;
 	// Writes through an open editor save CRLF text with LF line endings.
-	if (cursor.content.includes("\r") && !content.includes("\r")) cursor = toLF(cursor);
+	if (cursor.content.includes("\r") && !content.includes("\r")) cursor = cursorToLF(cursor);
 	const beforeStart = getBodyStartOffset(cursor.content);
 	const afterStart = getBodyStartOffset(content);
 	if (cursor.offsets.some(offset => offset < beforeStart) ||
@@ -30,10 +31,9 @@ export function rebaseTemplateCursor(
 	};
 }
 
-function toLF(cursor: EditorCursorPlacement): EditorCursorPlacement {
-	const lf = (text: string) => text.replace(/\r\n?/g, "\n");
+function cursorToLF(cursor: EditorCursorPlacement): EditorCursorPlacement {
 	return {
-		content: lf(cursor.content),
-		offsets: cursor.offsets.map(offset => lf(cursor.content.slice(0, offset)).length),
+		content: toLF(cursor.content),
+		offsets: cursor.offsets.map(offset => toLF(cursor.content.slice(0, offset)).length),
 	};
 }

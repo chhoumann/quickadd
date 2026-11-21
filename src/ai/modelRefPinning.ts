@@ -4,13 +4,28 @@ import type { ICommand } from "src/types/macros/ICommand";
 import { walkAllCommandsInSettings } from "src/utils/choiceTraversal";
 import type { AIProvider, ModelRef } from "./Provider";
 
-type AICommandish = ICommand & {
+export type AICommandish = ICommand & {
 	model?: string;
 	modelRef?: ModelRef;
+	modelParameters?: Record<string, unknown>;
 };
 
-function isAICommand(command: ICommand): command is AICommandish {
+export function isAICommand(command: ICommand): command is AICommandish {
 	return command.type === CommandType.AIAssistant;
+}
+
+/**
+ * The pre-#1495 resolution rule, verbatim: the FIRST provider (in settings
+ * order) listing the model name. Takes the providers to search so migrations
+ * can run it on their drafts rather than the live store.
+ */
+export function firstMatchProvider(
+	providers: AIProvider[],
+	modelName: string,
+): AIProvider | undefined {
+	return providers.find((provider) =>
+		provider.models.some((model) => model.name === modelName),
+	);
 }
 
 /**
@@ -48,11 +63,7 @@ export function pinAiCommandModelRefs(
 		}
 		if (!command.model || command.model === "Ask me") return;
 
-		// The pre-#1495 rule, verbatim: FIRST provider (in settings order)
-		// listing the name.
-		const provider = providers.find((p) =>
-			p.models.some((m) => m.name === command.model),
-		);
+		const provider = firstMatchProvider(providers, command.model);
 		if (!provider?.id) return;
 
 		const ref: ModelRef = { providerId: provider.id, name: command.model };

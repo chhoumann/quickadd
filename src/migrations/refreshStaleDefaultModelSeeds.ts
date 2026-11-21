@@ -4,13 +4,12 @@ import {
 	type AIProvider,
 	type Model,
 } from "src/ai/Provider";
-import { CommandType } from "src/types/macros/CommandType";
-import type { ICommand } from "src/types/macros/ICommand";
 import { settingsStore } from "src/settingsStore";
 import { deepClone } from "src/utils/deepClone";
 import { log } from "src/logger/logManager";
 import type { Migration } from "./Migrations";
 import { walkAllCommandsInSettings } from "../utils/choiceTraversal";
+import { isAICommand } from "src/ai/modelRefPinning";
 
 /** Lowercased hostname of an endpoint, or "" when unparsable (scheme optional). */
 function endpointHost(endpoint: string): string {
@@ -45,9 +44,7 @@ function refreshProviderModels(
 	seedKey: keyof typeof CURRENT_MODEL_SEEDS,
 	namesInOtherProviders: Set<string>,
 ): void {
-	const retired = new Set(
-		seedKey === "anthropic" ? [] : RETIRED_SEED_MODELS[seedKey],
-	);
+	const retired = new Set(RETIRED_SEED_MODELS[seedKey]);
 	provider.models = provider.models.filter(
 		(model) => !retired.has(model.name),
 	);
@@ -82,15 +79,6 @@ const LEGACY_BAKED_PARAM_DEFAULTS: Record<string, number> = {
 	frequency_penalty: 0,
 	presence_penalty: 0,
 };
-
-type AICommandish = ICommand & {
-	model?: string;
-	modelParameters?: Record<string, unknown>;
-};
-
-function isAICommand(command: ICommand): command is AICommandish {
-	return command.type === CommandType.AIAssistant;
-}
 
 const refreshStaleDefaultModelSeeds: Migration = {
 	description:

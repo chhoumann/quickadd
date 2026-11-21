@@ -1,5 +1,4 @@
 import { FIELD_VAR_REGEX_WITH_FILTERS } from "../constants";
-import { FieldValueDeduplicator } from "./FieldValueDeduplicator";
 import type { FieldFilter } from "./FieldSuggestionParser";
 
 interface ProcessedValues {
@@ -27,10 +26,7 @@ export class FieldValueProcessor {
 			(value) => !this.isUnresolvedFieldToken(value),
 		);
 
-		const deduplicationResult = FieldValueDeduplicator.deduplicate(
-			values,
-			filters.caseSensitive,
-		);
+		const deduplicationResult = this.deduplicate(values, filters.caseSensitive);
 		values = deduplicationResult.values;
 
 		// Handle default values
@@ -42,6 +38,33 @@ export class FieldValueProcessor {
 			hasDefaultValue: hasDefault,
 			duplicatesRemoved: deduplicationResult.duplicatesRemoved,
 			totalProcessed
+		};
+	}
+
+	/**
+	 * Drops values that repeat an earlier one (under the case and diacritic fold
+	 * unless `caseSensitive`), keeping the first spelling, then sorts.
+	 */
+	static deduplicate(
+		values: string[],
+		caseSensitive = false,
+	): { values: string[]; duplicatesRemoved: number } {
+		const seen = new Map<string, string>();
+		for (const value of values) {
+			const key = caseSensitive ? value : this.normalizeForComparison(value);
+			if (!seen.has(key)) seen.set(key, value);
+		}
+
+		const deduplicated = Array.from(seen.values());
+		deduplicated.sort((a, b) =>
+			caseSensitive
+				? a.localeCompare(b)
+				: a.toLowerCase().localeCompare(b.toLowerCase()),
+		);
+
+		return {
+			values: deduplicated,
+			duplicatesRemoved: values.length - deduplicated.length,
 		};
 	}
 
@@ -141,9 +164,8 @@ export class FieldValueProcessor {
 	}
 
 	/**
-	 * Normalize a value for case-insensitive comparison, mirroring
-	 * FieldValueDeduplicator's fold (Unicode NFD + diacritic strip + lowercase)
-	 * so default-value matching is consistent with case-insensitive dedup.
+	 * The case-insensitive fold (Unicode NFD + diacritic strip + lowercase) that
+	 * deduplication, default matching and promotion all compare under.
 	 */
 	private static normalizeForComparison(value: string): string {
 		return value

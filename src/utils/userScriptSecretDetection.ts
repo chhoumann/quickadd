@@ -1,6 +1,5 @@
+import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
-
-const MARKDOWN_FILE_EXTENSION_REGEX = /\.md$/i;
 
 type UserScriptSecretOptionDetection = {
 	names: Set<string>;

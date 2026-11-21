@@ -15,6 +15,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
+import { isRecord } from "../utils/isRecord";
 
 export type ScriptParameters = {
 	app: App;
@@ -36,10 +37,6 @@ type ScriptContext = {
 
 type ScriptResult = { output: unknown };
 type UserScriptFunction = (params: ScriptParameters, settings: Record<string, unknown>) => unknown;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object";
-}
 
 function isUserScriptFunction(value: unknown): value is UserScriptFunction {
 	return typeof value === "function";

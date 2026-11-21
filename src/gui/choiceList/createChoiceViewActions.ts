@@ -1,17 +1,13 @@
 import { Notice, type App } from "obsidian";
 import { tick } from "svelte";
-import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
+import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type { ChoiceType } from "../../types/choices/choiceType";
 import {
-	type CommandRegistry,
-	configureChoice,
 	createChoice,
 	createToggleCommandChoice,
 	findChoiceById,
-	deleteChoiceWithConfirmation,
-	duplicateChoiceWithUserScriptSecretSanitization,
 	addChoiceToTree,
 	insertChoiceAfter,
 	moveChoice as moveChoiceService,
@@ -19,7 +15,12 @@ import {
 	removeChoiceById,
 	setFolderChildrenById,
 	setMultiCollapsedById,
-} from "../../services/choiceService";
+} from "../../services/choiceTree";
+import {
+	configureChoice,
+	deleteChoiceWithConfirmation,
+	duplicateChoiceWithUserScriptSecretSanitization,
+} from "./choiceUiService";
 import { log } from "../../logger/logManager";
 import { choiceNoun } from "../../utils/choiceNoun";
 import { reportingHandler } from "../../utils/errorUtils";
@@ -37,7 +38,7 @@ interface ChoiceViewContext {
 	plugin: ChoiceBuilderPlugin;
 	choices: IChoice[];
 	filterQuery: string;
-	commandRegistry: CommandRegistry;
+	commands: ChoiceCommandRegistrar;
 	saveChoices: (choices: Plain<IChoice[]>) => void;
 }
 
@@ -46,6 +47,13 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 	// Persist the current choices as a plain (non-proxy) snapshot.
 	function save() {
 		context.saveChoices(snapshot(context.choices));
+	}
+
+	// Non-recursive remove: the children stay, and adding the new choice
+	// re-registers its command-enabled descendants.
+	function replaceCommand(oldChoice: IChoice, newChoice: IChoice) {
+		context.commands.removeCommandForChoice(oldChoice);
+		context.commands.addCommandForChoice(newChoice);
 	}
 
 	async function addChoiceToList(
@@ -120,7 +128,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		// Use the resolved live `target`, not `choice`: with an active filter the
 		// passed `choice` can be a truncated clone (only matching children), which
 		// would otherwise leave hidden command-enabled descendants orphaned.
-		context.commandRegistry.disableCommand(target, { recursive: true });
+		context.commands.removeCommandForChoice(target, { recursive: true });
 		save();
 	}
 
@@ -150,7 +158,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		if (!current) return false;
 		const updatedChoice = threeWayMergeSettings<IChoice>(base, edited, snapshot(current));
 		context.saveChoices(snapshot(choices.map((choice) => updateChoiceHelper(choice, updatedChoice))));
-		context.commandRegistry.updateCommand(current, updatedChoice);
+		replaceCommand(current, updatedChoice);
 		return true;
 	}
 
@@ -167,7 +175,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		}
 		const updatedChoice = { ...live, name: newName };
 		context.choices = context.choices.map((entry) => updateChoiceHelper(entry, updatedChoice));
-		context.commandRegistry.updateCommand(live, updatedChoice);
+		replaceCommand(live, updatedChoice);
 		save();
 	}
 
@@ -176,9 +184,9 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 
 		context.choices = context.choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
 		if (updatedChoice.command) {
-			context.commandRegistry.enableCommand(updatedChoice);
+			context.commands.addCommandForChoice(updatedChoice);
 		} else {
-			context.commandRegistry.disableCommand(updatedChoice);
+			context.commands.removeCommandForChoice(updatedChoice);
 		}
 		save();
 	}
@@ -198,12 +206,12 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			];
 		// A duplicate carries command:true when its source did; register its command so
 		// the copy is immediately usable from the palette instead of only appearing
-		// command-enabled until the next plugin reload. enableCommand -> addCommandForChoice
+		// command-enabled until the next plugin reload. addCommandForChoice
 		// recurses into a folder's children, so registering once covers any command-enabled
 		// descendants too. Gate on the subtree actually containing a command so we never
 		// touch the registry for a command-less folder.
 		if (subtreeHasCommand(newChoice)) {
-			context.commandRegistry.enableCommand(newChoice);
+			context.commands.addCommandForChoice(newChoice);
 		}
 		save();
 		new Notice(`Duplicated "${sourceChoice.name}".`);

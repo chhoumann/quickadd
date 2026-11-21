@@ -306,9 +306,10 @@ export const CURRENT_MODEL_SEEDS: Record<
  * family). The refresh migration removes exactly these — nothing else — from
  * providers on the official endpoints.
  */
-export const RETIRED_SEED_MODELS: Record<"openai" | "google", string[]> = {
+export const RETIRED_SEED_MODELS: Record<keyof typeof CURRENT_MODEL_SEEDS, string[]> = {
 	openai: ["gpt-4-32k", "gpt-4-1106-preview"],
 	google: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b"],
+	anthropic: [],
 };
 
 /** Copy of a seed list so consumers can never mutate the shared catalog. */

@@ -71,7 +71,6 @@ vi.mock("../utils/fileOpening", () => ({
 vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
-	getTemplater: vi.fn(() => ({})),
 }));
 
 vi.mock("three-way-merge", () => ({

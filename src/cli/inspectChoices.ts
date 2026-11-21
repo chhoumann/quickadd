@@ -7,7 +7,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { getWritePosition } from "../engine/captureAction";
 import { deriveFolderMode } from "../utils/folderMode";
-import { childChoicesOf, isChoiceLike, rootChoicesOf } from "../utils/choiceUtils";
+import { flattenChoicesWithPath } from "../utils/choiceUtils";
 import { collectChoiceRequirements, getUnresolvedRequirements, listDeferredMacroSteps } from "../preflight/collectChoiceRequirements";
 import { analysePackagePreview, readQuickAddPackage } from "../services/packageImportService";
 import { decodeAssetPreview, type AssetPreviewContent, type PackagePreview } from "../services/packagePreview";
@@ -74,35 +74,24 @@ function describeWrites(choice: IChoice): CliChoiceSummary["writes"] {
 	return undefined;
 }
 
-async function flattenChoices(
+async function summarizeChoices(
 	plugin: ChoiceRuntimePlugin,
 	choices: IChoice[],
-	segments: string[] = [],
 ): Promise<CliChoiceSummary[]> {
-	const flattened: CliChoiceSummary[] = [];
-
-	for (const choice of rootChoicesOf(choices)) {
-		if (!isChoiceLike(choice)) continue;
-		const pathSegments = [...segments, choice.name];
-		const path = pathSegments.join(" / ");
-		const isMulti = choice.type === "Multi";
-		flattened.push({
+	const summaries: CliChoiceSummary[] = [];
+	for (const { choice, path } of flattenChoicesWithPath(choices)) {
+		summaries.push({
 			id: choice.id,
 			name: choice.name,
 			type: choice.type,
 			command: choice.command,
-			path,
-			runnable: !isMulti,
+			path: path.join(" / "),
+			runnable: choice.type !== "Multi",
 			currentNote: await describeCurrentNoteUse(plugin, choice),
 			writes: describeWrites(choice),
 		});
-
-		if (isMulti) {
-			flattened.push(...await flattenChoices(plugin, childChoicesOf(choice), pathSegments));
-		}
 	}
-
-	return flattened;
+	return summaries;
 }
 
 export async function listChoicesHandler(plugin: ChoiceRuntimePlugin, params: CliData) {
@@ -111,7 +100,7 @@ export async function listChoicesHandler(plugin: ChoiceRuntimePlugin, params: Cl
 	if (type && !SUPPORTED_LIST_TYPES.has(type)) {
 		return { ok: false, error: `Invalid type filter '${rawType}'.` };
 	}
-	const choices = (await flattenChoices(plugin, plugin.settings.choices)).filter((choice) =>
+	const choices = (await summarizeChoices(plugin, plugin.settings.choices)).filter((choice) =>
 		(!type || choice.type.toLowerCase() === type) &&
 		(!isTruthy(params.commands) || choice.command),
 	);

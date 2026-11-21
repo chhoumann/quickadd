@@ -88,7 +88,6 @@ vi.mock("../utils/fileLinks", () => ({
 }));
 
 vi.mock("../utils/templaterIntegration", () => ({
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 }));

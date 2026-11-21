@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { resolveObsidianPropertyType } from "./obsidianPropertyTypes";
+import { toLF } from "./toLF";
 
 const OPEN_TO_CLOSE: Record<string, string> = {
 	"[": "]",
@@ -74,7 +75,7 @@ function splitTopLevel(value: string, delimiter = ","): string[] {
 
 function normalizeNewlines(input: string): string {
 	if (input.includes("\n")) {
-		return input.replace(/\r?\n/g, "\n");
+		return toLF(input);
 	}
 
 	if (input.includes("\\n")) {

@@ -1,6 +1,6 @@
 import type { App, TFile } from "obsidian";
 import { settingsStore } from "../settingsStore";
-import { fileBasenameFromPath } from "./fileSyntax";
+import { basenameWithoutMdOrCanvas } from "./pathUtils";
 import { isPortablePathSegment } from "./pathValidation";
 import { escapesVaultBoundary } from "./vaultPathBoundary";
 
@@ -69,7 +69,7 @@ export function clipboardImageAttachmentFileName(
 ): string {
 	if (input.nameAfterNoteTitle) {
 		const stem = sanitizeClipboardImageStem(
-			fileBasenameFromPath(input.sourcePath),
+			basenameWithoutMdOrCanvas(input.sourcePath),
 		);
 		if (stem.length > 0 && isPortablePathSegment(stem)) {
 			return `${stem}.${input.extension}`;

@@ -17,23 +17,26 @@ import {
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
-import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { rewriteTemplateIncludes } from "../utils/templateIncludes";
-import { escapesVaultBoundary, isWritableAssetDestination } from "../utils/vaultPathBoundary";
+import {
+	assetDestinationProblem,
+	escapesVaultBoundary,
+	isWritableAssetDestination,
+} from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
-import { packageSecretOptionNames } from "./packageAssets";
+import { isScannableTemplateAsset, packageSecretOptionNames } from "./packageAssets";
 import {
 	applyAssetPathOverrides,
-	findChoiceInTree,
 	findMultiByPath,
-	insertIntoMulti,
 	insertUnderParent,
 	isDirectChildOf,
 	mergeFolderChildren,
 	remapChoiceTree,
 	removeChoiceFromTree,
 	replaceChoiceInTree,
+	upsertChildInMulti,
 } from "./packageChoiceImport";
+import { findChoiceById } from "./choiceTree";
 import type { PackagePreview } from "./packagePreview";
 import {
 	buildPackagePreview,
@@ -227,39 +230,24 @@ export async function analysePackagePreview(
  * ImportPackageModal). Defensive: imported packages are untrusted shared data.
  */
 export function validateAssetDestination(rawPath: string): string {
-	const rawDestination = rawPath ?? "";
-	const trimmedDestination = rawDestination.trim();
-	if (!trimmedDestination) {
+	const trimmedDestination = (rawPath ?? "").trim();
+	const problem = assetDestinationProblem(trimmedDestination);
+	if (problem === "empty") {
 		throw new Error("Package asset has an empty destination path.");
 	}
-
-	const slashNormalizedRawDestination = trimmedDestination.replace(/\\/g, "/");
-	if (
-		slashNormalizedRawDestination.startsWith("/") ||
-		/^[a-zA-Z]:/.test(slashNormalizedRawDestination)
-	) {
+	if (problem === "absolute") {
 		throw new Error(
-			`Refusing to import asset to an absolute path outside the vault: "${slashNormalizedRawDestination}".`,
+			`Refusing to import asset to an absolute path outside the vault: "${trimmedDestination.replace(/\\/g, "/")}".`,
 		);
 	}
 
 	const normalized = normalizePath(trimmedDestination);
-	if (!normalized || normalized.trim() === "") {
-		throw new Error("Package asset has an empty destination path.");
-	}
-
-	const segments = normalized.split("/").filter((segment) => segment.length > 0);
-	if (segments.some((segment) => segment === "..")) {
+	if (problem === "traversal") {
 		throw new Error(
 			`Refusing to import asset with a path-traversal segment ("..") in: "${normalized}".`,
 		);
 	}
-
-	// Reject hidden/config segments at every depth; "..%" remains a literal filename.
-	const configSegment = segments.find(
-		(segment) => segment.startsWith(".") && !segment.startsWith("..%"),
-	);
-	if (configSegment) {
+	if (problem === "config") {
 		throw new Error(
 			`Refusing to import asset into a config directory: "${normalized}".`,
 		);
@@ -457,7 +445,7 @@ export async function applyPackageImport(
 
 		if (choiceClone.type === "Multi") {
 			// A duplicated folder has a fresh id, so nothing in the vault matches.
-			const current = findChoiceInTree(updatedChoices, finalId);
+			const current = findChoiceById(updatedChoices, finalId);
 			mergeFolderChildren(
 				current?.type === "Multi" ? (current as IMultiChoice) : undefined,
 				choiceClone as IMultiChoice,
@@ -490,7 +478,7 @@ export async function applyPackageImport(
 				updatedChoices,
 				entry.pathHint.slice(0, -1),
 			);
-			if (parentByPath && insertIntoMulti(parentByPath, choiceClone)) {
+			if (parentByPath && upsertChildInMulti(parentByPath, choiceClone)) {
 				addedChoiceIds.push(finalId);
 				handledChoices.add(originalId);
 				continue;
@@ -615,11 +603,9 @@ function importedAssetContent(
 	pathOverrides: ReadonlyMap<string, string>,
 ): string {
 	const content = decodeFromBase64(asset.content);
-	const isTemplateKind =
-		asset.kind === "template" || asset.kind === "capture-template";
 	// Classified by the path written, so a spelling such as `Parent.md/`
 	// cannot hide the extension the formatter will see.
-	if (!isTemplateKind || !hasTemplateExtension(destinationPath)) {
+	if (!isScannableTemplateAsset(asset, destinationPath)) {
 		return content;
 	}
 	if (

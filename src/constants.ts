@@ -171,4 +171,11 @@ export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH = `${RESERVED_VARIABLE_PREFIX}
 export const QA_INTERNAL_DATE_ORIGIN = `${RESERVED_VARIABLE_PREFIX}dateOrigin`;
 
 // == MISC == //
+/**
+ * How deep `{{TEMPLATE:}}` includes nest. The formatter stops there, and the
+ * package walks over bundled notes stop at the same depth so a note that
+ * includes itself cannot spin them forever.
+ */
+export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
 export const WIKI_LINK_REGEX = /\[\[([^\]]*)\]\]/;
+export const ASK_ME_MODEL = "Ask me";

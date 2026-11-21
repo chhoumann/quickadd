@@ -1,6 +1,5 @@
 import { executeMacroAI, pickMacroModel } from "./macroAI";
 import { withDispatch, type ChoiceChain } from "./choiceChain";
-import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import { templaterRerunAfter, warnDeprecatedOnce } from "src/utils/templaterRerunDeprecation";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App, WorkspaceLeaf } from "obsidian";
@@ -33,6 +32,8 @@ import { CompleteFormatter } from "src/formatters/completeFormatter";
 import type { ResolvedModel } from "src/ai/aiHelpers";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { openFile } from "../utils/fileOpening";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import { executeObsidianCommand, getObsidianCommands } from "../utils/obsidianInternals";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -269,9 +270,9 @@ export class MacroChoiceEngine extends QuickAddEngine {
 				// back. `type` is all the old guards ever checked, so the casts are
 				// exactly as strict as what they replaced.
 				const role = command.type === CommandType.Choice || command.type === CommandType.NestedChoice
-					? classifyStep(command, (id) => resolveChoiceFromPlugin(this.plugin, id))
+					? classifyStep(command, (id) => this.plugin.findChoiceById(id))
 					: null;
-				const rerunAfter = templaterRerunAfter(this.previousStep, command, (id) => resolveChoiceFromPlugin(this.plugin, id));
+				const rerunAfter = templaterRerunAfter(this.previousStep, command, (id) => this.plugin.findChoiceById(id));
 				if (rerunAfter) {
 					warnDeprecatedOnce(
 						`templater-rerun:${this.choice.id}:${command.id}`,
@@ -390,8 +391,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 	}
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
-		// @ts-ignore
-		const registry = this.app.commands.commands;
+		const registry = getObsidianCommands(this.app);
 		// When the command registry is available, a missing id means the source
 		// plugin was disabled/uninstalled; executeCommandById would silently no-op,
 		// so surface a clear error instead of letting the macro look successful.
@@ -403,8 +403,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 		}
 
 		withDispatch({ chain: this.chain, currentNote: namedCurrentNote(this.choiceExecutor) }, () =>
-			// @ts-ignore
-			this.app.commands.executeCommandById(command.commandId),
+			executeObsidianCommand(this.app, command.commandId),
 		);
 	}
 
@@ -621,20 +620,10 @@ export class MacroChoiceEngine extends QuickAddEngine {
 			);
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
 
-			// Validate path segments to prevent traversal attacks. A substring check
-			// would wrongly reject legitimate filenames that merely contain ".." (e.g.
-			// 'log..2024.md') or "//"; only a literal '..' path segment or an empty
-			// segment (from '//') is an actual traversal/malformed path.
-			const segments = normalizedPath.split("/");
-			const hasTraversal = segments.some(
-				(segment, index) =>
-					segment === ".." ||
-					// An empty segment is a doubled slash; the leading slash of an
-					// absolute path is allowed (index 0), as is a single trailing slash.
-					(segment === "" && index !== 0 && index !== segments.length - 1)
-			);
-			if (hasTraversal) {
-				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
+			// Segment-based, so a name that merely contains ".." ('log..2024.md')
+			// still opens.
+			if (escapesVaultBoundary(normalizedPath)) {
+				log.logError(`OpenFile: '${normalizedPath}' points outside the vault`);
 				return;
 			}
 

@@ -1,15 +1,12 @@
 import type { App, SettingPage, SettingTab } from "obsidian";
 import { Notice } from "obsidian";
 import { log } from "../logger/logManager";
+import { getAppSetting } from "./obsidianInternals";
 
 /** Opens a plugin's settings tab. Returns false if the internal API is unavailable or throws. */
 export function tryOpenPluginSettings(app: App, pluginId: string): boolean {
 	try {
-		const setting = (
-			app as unknown as {
-				setting?: { open?: () => void; openTabById?: (id: string) => void };
-			}
-		).setting;
+		const setting = getAppSetting(app);
 
 		if (!setting?.open || !setting?.openTabById) {
 			// logMessage, not logError: GuiLogger turns every logError into a
@@ -42,16 +39,7 @@ export function tryOpenSettingsPage(
 	pagePath: string[],
 ): boolean {
 	try {
-		const setting = (
-			app as unknown as {
-				setting?: {
-					navigateToSearchResult?: (
-						target: { tab: SettingTab; pagePath: string[] },
-						match: null,
-					) => void;
-				};
-			}
-		).setting;
+		const setting = getAppSetting(app);
 		if (typeof setting?.navigateToSearchResult !== "function") {
 			log.logMessage("QuickAdd: Obsidian's settings page navigation is unavailable.");
 			return false;
@@ -64,15 +52,6 @@ export function tryOpenSettingsPage(
 	}
 }
 
-interface SettingPageNavigation {
-	openPage?: (page: SettingPage) => void;
-	updatePageTitle?: () => void;
-}
-
-function settingPageNavigation(app: App): SettingPageNavigation | undefined {
-	return (app as unknown as { setting?: SettingPageNavigation }).setting;
-}
-
 /**
  * Opens `page` over the settings page that is showing, with Obsidian's own
  * title bar and back navigation. Obsidian has no public API for this:
@@ -81,7 +60,7 @@ function settingPageNavigation(app: App): SettingPageNavigation | undefined {
  */
 export function openSettingPage(app: App, page: SettingPage): boolean {
 	try {
-		const setting = settingPageNavigation(app);
+		const setting = getAppSetting(app);
 		if (typeof setting?.openPage !== "function") {
 			log.logMessage("QuickAdd: Obsidian's settings page navigation is unavailable.");
 			return false;
@@ -102,7 +81,7 @@ export function openSettingPage(app: App, page: SettingPage): boolean {
 export function retitleSettingPage(app: App, page: SettingPage, title: string): void {
 	page.title = title;
 	page.titlebarEl.querySelector(".setting-page-title")?.setText(title);
-	settingPageNavigation(app)?.updatePageTitle?.();
+	getAppSetting(app)?.updatePageTitle?.();
 }
 
 /**

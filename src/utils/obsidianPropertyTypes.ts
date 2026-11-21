@@ -1,14 +1,11 @@
 import type { App } from "obsidian";
+import { getMetadataTypeManager } from "./obsidianInternals";
 
 type MetadataTypeInfo = {
 	expected?: { type?: string } | null;
 	inferred?: { type?: string } | null;
 };
 
-type MetadataTypeManager = {
-	getTypeInfo?: (key: string) => unknown;
-	getAllProperties?: () => unknown;
-};
 
 const SET_LIKE_PROPERTY_TYPES = new Set([
 	"aliases",
@@ -23,12 +20,7 @@ const SET_LIKE_RESERVED_KEYS = new Set([
 	"tags",
 ]);
 
-/**
- * Reads Obsidian's effective property type for a frontmatter key.
- *
- * Obsidian has exposed the manager both directly on App and through
- * metadataCache.app, so keep the compatibility lookup in one place.
- */
+/** Reads Obsidian's effective property type for a frontmatter key. */
 export function resolveObsidianPropertyType(
 	app: App | undefined,
 	propertyKey: string | undefined,
@@ -36,17 +28,7 @@ export function resolveObsidianPropertyType(
 ): string | null {
 	if (!app || !propertyKey) return null;
 
-	const appWithManager = app as unknown as {
-		metadataTypeManager?: MetadataTypeManager;
-		metadataCache?: {
-			app?: {
-				metadataTypeManager?: MetadataTypeManager;
-			};
-		};
-	};
-	const manager =
-		appWithManager.metadataTypeManager ??
-		appWithManager.metadataCache?.app?.metadataTypeManager;
+	const manager = getMetadataTypeManager(app);
 
 	if (!manager || typeof manager.getTypeInfo !== "function") {
 		return null;

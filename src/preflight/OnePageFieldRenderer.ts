@@ -8,7 +8,8 @@ import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import { formatDateAliasInline, getOrderedDateAliases } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
 import { normalizeNumericValue, normalizeSliderValue } from "src/utils/valueSyntax";
-import { decodeFileValue, fileBasenameFromPath } from "src/utils/fileSyntax";
+import { decodeFileValue } from "src/utils/fileSyntax";
+import { basenameWithoutMdOrCanvas } from "src/utils/pathUtils";
 import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import type { FieldRequirement } from "./RequirementCollector";
 import { mapMappedSuggesterValue, resolveDropdownInitialValue } from "./suggesterValueMapping";
@@ -442,7 +443,7 @@ export class OnePageFieldRenderer {
 	 */
 	private noteNameExists(within: "scope" | "vault", paths: string[]): (value: string) => boolean {
 		const notePaths = within === "vault" ? this.app.vault.getMarkdownFiles().map((file) => file.path) : paths;
-		const names = new Set(notePaths.map((path) => fileBasenameFromPath(path).toLowerCase()));
+		const names = new Set(notePaths.map((path) => basenameWithoutMdOrCanvas(path).toLowerCase()));
 		return (value) => {
 			let path: string;
 			try {

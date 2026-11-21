@@ -2,6 +2,8 @@ import { MarkdownView, normalizePath, type App, type EventRef, type TFile } from
 import { log } from "../logger/logManager";
 import { reportError } from "./errorUtils";
 import { waitFor } from "./waitFor";
+import { isRecord } from "./isRecord";
+import { executeObsidianCommand, getCommunityPlugin } from "./obsidianInternals";
 
 declare module "obsidian" {
 	interface Workspace {
@@ -150,14 +152,9 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 	}
 }
 
-export function getTemplater(app: App) {
-	return app.plugins.plugins["templater-obsidian"];
-}
-
 export function getTemplaterPlugin(app: App): TemplaterPluginLike | null {
-	const plugin = getTemplater(app);
-	if (!plugin) return null;
-	return plugin as unknown as TemplaterPluginLike;
+	const plugin = getCommunityPlugin(app, "templater-obsidian");
+	return isRecord(plugin) ? plugin : null;
 }
 
 export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
@@ -636,11 +633,8 @@ export async function jumpToNextTemplaterCursorIfPossible(
 	}
 
 	try {
-		const commandRan = !!(
-			app.commands as unknown as {
-				executeCommandById?: (commandId: string) => boolean;
-			}
-		).executeCommandById?.(
+		const commandRan = executeObsidianCommand(
+			app,
 			"templater-obsidian:jump-to-next-cursor-location",
 		);
 		if (!commandRan) return false;

@@ -70,15 +70,29 @@ export function escapesVaultBoundary(rawPath: string): boolean {
 	return isAbsoluteVaultPath(slashed) || hasTraversalSegment(slashed);
 }
 
+type AssetDestinationProblem = "empty" | "absolute" | "traversal" | "config";
+
 /**
- * Would import write an asset where it asks to? Mirrors the import service's
- * `validateAssetDestination` without throwing: in-vault, no traversal, and no
- * hidden/config segment (a lone "..%" name stays a literal filename, as there).
+ * Why import would refuse to write an asset where it asks to, or null when it
+ * may: the path must be non-blank, in-vault, free of traversal (including the
+ * Win32 trailing-dot/space collapse), and free of hidden/config segments (a
+ * lone "..%" name stays a literal filename). The import service's
+ * `validateAssetDestination` turns the answer into its error.
  */
-export function isWritableAssetDestination(rawPath: string): boolean {
+export function assetDestinationProblem(
+	rawPath: string,
+): AssetDestinationProblem | null {
 	const slashed = toSlashedPath(rawPath);
-	if (!slashed || escapesVaultBoundary(slashed)) return false;
-	return !slashed
+	if (!slashed) return "empty";
+	if (isAbsoluteVaultPath(slashed)) return "absolute";
+	if (hasTraversalSegment(slashed)) return "traversal";
+	const hasConfigSegment = slashed
 		.split("/")
 		.some((segment) => segment.startsWith(".") && !segment.startsWith("..%"));
+	return hasConfigSegment ? "config" : null;
+}
+
+/** Would import write an asset where it asks to? See {@link assetDestinationProblem}. */
+export function isWritableAssetDestination(rawPath: string): boolean {
+	return assetDestinationProblem(rawPath) === null;
 }

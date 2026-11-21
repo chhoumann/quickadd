@@ -8,10 +8,7 @@ import {
 	settingsTreeHasUnreadableData,
 	walkChoicesInSettings,
 } from "../utils/choiceTraversal";
-import {
-	coerceLegacyOpenFileInNewTab,
-	createFileOpeningFromLegacy,
-} from "./helpers/file-opening-legacy";
+import { fileOpeningFromLegacyFields } from "./helpers/file-opening-legacy";
 
 type LegacyFileOpeningChoice = (ITemplateChoice | ICaptureChoice) & {
 	openFileInNewTab?: unknown;
@@ -36,15 +33,10 @@ const migrateFileOpeningSettings: Migration = {
 			const templateOrCaptureChoice = choice as LegacyFileOpeningChoice;
 
 			// Only migrate if new fileOpening doesn't exist but legacy settings do
-			const legacyTabRaw = templateOrCaptureChoice.openFileInNewTab;
-			const legacyMode = templateOrCaptureChoice.openFileInMode;
-			const legacyTab = coerceLegacyOpenFileInNewTab(legacyTabRaw);
-
-			if (!templateOrCaptureChoice.fileOpening && legacyTab) {
-				templateOrCaptureChoice.fileOpening = createFileOpeningFromLegacy(
-					legacyTab,
-					legacyMode,
-				);
+			if (templateOrCaptureChoice.fileOpening) return;
+			const migrated = fileOpeningFromLegacyFields(templateOrCaptureChoice);
+			if (migrated) {
+				templateOrCaptureChoice.fileOpening = migrated;
 
 				migratedCount++;
 				log.logMessage(`Migrated file opening settings for choice: ${choice.name}`);

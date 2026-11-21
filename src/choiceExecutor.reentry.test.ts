@@ -48,6 +48,7 @@ const app = { workspace: { getActiveFile: () => null } } as never;
 const plugin = {
 	app,
 	settings: { get choices() { return choices; } },
+	findChoiceById: (id: string) => choices.find((c) => c.id === id) ?? null,
 	getChoiceById: (id: string) => {
 		const choice = choices.find((c) => c.id === id);
 		if (!choice) throw new Error(`Choice ${id} not found`);

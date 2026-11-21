@@ -1,4 +1,5 @@
-import { FieldSuggestionParser, type FieldFilter } from "./FieldSuggestionParser";
+import { parseFilterSegments, type FieldFilter } from "./FieldSuggestionParser";
+import { splitPipeParts } from "./pipeSyntax";
 
 /**
  * A parsed "Capture to" frontmatter-property target (issue #466). Mirrors the
@@ -13,7 +14,7 @@ import { FieldSuggestionParser, type FieldFilter } from "./FieldSuggestionParser
  * survives the engine's `formatFileName` pass, so the value may even carry format
  * tokens (`property:type={{VALUE}}`) that resolve before classification.
  *
- * `|` is RESERVED for the pipe-filter grammar (parsed by {@link FieldSuggestionParser},
+ * `|` is RESERVED for the pipe-filter grammar (parsed by {@link parseFilterSegments},
  * exactly as `{{FILE:}}` does), so a literal `|` cannot appear in a property value.
  */
 interface PropertyTarget {
@@ -48,14 +49,14 @@ export function parsePropertyTarget(raw: string): PropertyTarget | null {
 
 	const interior = trimmed.replace(PROPERTY_PREFIX, "");
 
-	// Reuse the shared FIELD pipe grammar: the parser splits on `|`, treats the
-	// first part as the "field name" (here our `field=value` core) and parses the
-	// rest as folder/tag/exclude-* filters — identical to {{FILE:}}/{{FIELD:}}.
-	// Only folder / tag / exclude-folder / exclude-tag / exclude-file are honored
-	// by the property query (see getMarkdownFilesWithProperty); other FIELD options
-	// the parser accepts (default:/inline:/case-sensitive:) are inert here — value
-	// matching is always case-insensitive by design.
-	const { fieldName: core, filters } = FieldSuggestionParser.parse(interior);
+	// The first pipe part is the `field=value` core; the rest are the shared
+	// folder/tag/exclude-* filters, identical to {{FILE:}}/{{FIELD:}}. Only
+	// folder / tag / exclude-folder / exclude-tag / exclude-file are honored by
+	// the property query (see getMarkdownFilesWithProperty); other FIELD options
+	// the grammar accepts (default:/inline:/case-sensitive:) are inert here —
+	// value matching is always case-insensitive by design.
+	const [core = "", ...segments] = splitPipeParts(interior).map((part) => part.trim());
+	const { filters } = parseFilterSegments(segments, { token: trimmed });
 
 	const eq = core.indexOf("=");
 	const field = (eq >= 0 ? core.slice(0, eq) : core).trim();

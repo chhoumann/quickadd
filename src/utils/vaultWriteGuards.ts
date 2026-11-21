@@ -16,6 +16,7 @@
  * `window.require` so the mobile bundle (no symlinks, no require) is never affected.
  */
 import { FileSystemAdapter, type App } from "obsidian";
+import { nodeRequire } from "./nodeRequire";
 
 export class VaultWriteEscapeError extends Error {
 	constructor(message: string) {
@@ -35,16 +36,6 @@ interface NodePath {
 	relative(from: string, to: string): string;
 	isAbsolute(p: string): boolean;
 	sep: string;
-}
-
-function nodeRequire<T>(mod: string): T | null {
-	try {
-		const req = (window as unknown as { require?: (m: string) => unknown })
-			.require;
-		return req ? (req(mod) as T) : null;
-	} catch {
-		return null;
-	}
 }
 
 export async function assertWriteStaysInVault(

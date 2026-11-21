@@ -90,7 +90,7 @@ async function migrate(plugin: MigrationContext): Promise<void> {
 		}
 	}
 
-	void plugin.saveSettings();
+	await plugin.saveSettings();
 }
 
 export default migrate;

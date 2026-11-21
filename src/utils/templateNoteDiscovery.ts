@@ -4,6 +4,7 @@ import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import { escapesVaultBoundary } from "src/utils/vaultPathBoundary";
 import { resolveTemplatePath } from "src/utils/templateFolderUtils";
+import { normalizeVaultPath } from "src/utils/pathUtils";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 
 const EXISTING_PREFIX = "@quickadd-existing-note:";
@@ -61,10 +62,6 @@ function decodeUnresolvedTitle(item: string): string {
 
 export function normalizedKey(value: string): string {
 	return value.trim().replace(/\.md$/i, "").toLowerCase();
-}
-
-function normalizeVaultPath(value: string): string {
-	return value.trim().replace(/^\/+/, "");
 }
 
 function isLiteralMarkdownPath(path: string): boolean {
@@ -129,9 +126,7 @@ function normalizeUnresolvedTarget(raw: string): string | null {
 }
 
 function collectUnresolvedTargets(app: App): string[] {
-	const unresolvedLinks =
-		(app.metadataCache as { unresolvedLinks?: Record<string, Record<string, number>> })
-			.unresolvedLinks ?? {};
+	const unresolvedLinks = app.metadataCache.unresolvedLinks ?? {};
 	const targets = new Map<string, string>();
 
 	for (const links of Object.values(unresolvedLinks)) {

@@ -1,6 +1,7 @@
 import { requestUrl } from "obsidian";
 import type { Model } from "./Provider";
 import { settingsStore } from "src/settingsStore";
+import { isObjectRecord } from "../utils/isRecord";
 
 export type ModelsDevModel = {
   id: string;
@@ -27,8 +28,6 @@ export type ModelsDevDirectory = Record<string, ModelsDevProvider>;
 let cachedDirectory: { data: ModelsDevDirectory; fetchedAt: number } | null = null;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
  * The providers in a models.dev response that have a `models` map, or null
@@ -37,9 +36,9 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
  * "models.dev does not list a provider" error instead of a TypeError).
  */
 function usableDirectory(value: unknown): ModelsDevDirectory | null {
-  if (!isPlainObject(value)) return null;
+  if (!isObjectRecord(value)) return null;
   const usable = Object.entries(value).filter(
-    ([, provider]) => isPlainObject(provider) && isPlainObject(provider.models),
+    ([, provider]) => isObjectRecord(provider) && isObjectRecord(provider.models),
   );
   return usable.length > 0
     ? (Object.fromEntries(usable) as ModelsDevDirectory)

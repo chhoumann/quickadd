@@ -4,18 +4,13 @@ import type { Migration, MigrationResult } from "./Migrations";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import {
-	coerceLegacyOpenFileInNewTab,
-	createFileOpeningFromLegacy,
-} from "./helpers/file-opening-legacy";
+import { fileOpeningFromLegacyFields } from "./helpers/file-opening-legacy";
 import {
 	settingsTreeHasUnreadableData,
 	walkChoicesInSettings,
 } from "../utils/choiceTraversal";
-import {
-	normalizeFileOpening,
-	type FileOpeningSettings,
-} from "../utils/fileOpeningDefaults";
+import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import type { FileOpeningSettings } from "../types/fileOpening";
 
 const backfillFileOpeningDefaults: Migration = {
 	description: "Backfill missing file opening defaults for older choices",
@@ -39,15 +34,6 @@ const backfillFileOpeningDefaults: Migration = {
 					templateOrCaptureChoice.fileOpening !== null
 					? (templateOrCaptureChoice.fileOpening as Partial<FileOpeningSettings>)
 					: undefined;
-			const legacyChoice = templateOrCaptureChoice as
-				| (ITemplateChoice | ICaptureChoice) & {
-						openFileInNewTab?: unknown;
-						openFileInMode?: unknown;
-				  };
-			const legacyTabRaw = legacyChoice.openFileInNewTab;
-			const legacyMode = legacyChoice.openFileInMode;
-			const legacyTab = coerceLegacyOpenFileInNewTab(legacyTabRaw);
-
 			const needsDefaults =
 				!fileOpening ||
 				fileOpening.location == null ||
@@ -57,14 +43,12 @@ const backfillFileOpeningDefaults: Migration = {
 
 			if (!needsDefaults) return;
 
-			if (!fileOpening && legacyTab) {
-				templateOrCaptureChoice.fileOpening = createFileOpeningFromLegacy(
-					legacyTab,
-					legacyMode,
-				);
-			} else {
-				templateOrCaptureChoice.fileOpening = normalizeFileOpening(fileOpening);
-			}
+			const fromLegacy = fileOpening
+				? null
+				: fileOpeningFromLegacyFields(
+						templateOrCaptureChoice as { openFileInNewTab?: unknown; openFileInMode?: unknown },
+					);
+			templateOrCaptureChoice.fileOpening = fromLegacy ?? normalizeFileOpening(fileOpening);
 			migratedCount++;
 		};
 

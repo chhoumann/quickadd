@@ -3,6 +3,7 @@ import {
 	describeUnknownFieldFilter,
 	FIELD_FILTER_KEYS,
 	FieldSuggestionParser,
+	parseFilterSegments,
 } from "./FieldSuggestionParser";
 import { suggestSimilarKeys } from "./suggestSimilarKeys";
 
@@ -105,10 +106,9 @@ describe("describeUnknownFieldFilter", () => {
 });
 
 describe("FieldSuggestionParser warns through the new message", () => {
-	function parse(input: string, warnUnknown = true) {
+	function parse(input: string) {
 		const warnings: string[] = [];
 		const result = FieldSuggestionParser.parse(input, {
-			warnUnknown,
 			warn: (message) => warnings.push(message),
 		});
 		return { result, warnings };
@@ -170,7 +170,12 @@ describe("FieldSuggestionParser warns through the new message", () => {
 	});
 
 	it("stays silent for the grammars that legitimately carry foreign keys", () => {
-		expect(parse("status|__capture_scope:x|label:y", false).warnings).toEqual([]);
+		const warnings: string[] = [];
+		parseFilterSegments(["type:pdf", "link", "label:y"], {
+			token: "{{FILE:People|type:pdf|link|label:y}}",
+			warn: (message) => warnings.push(message),
+		});
+		expect(warnings).toEqual([]);
 	});
 
 	it("still parses every recognised filter after the membership gate", () => {

@@ -78,7 +78,6 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 
 vi.mock("../utils/templaterIntegration", () => ({
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
-	getTemplater: vi.fn(() => ({})),
 	templaterParseTemplate: vi.fn(
 		async (_app: unknown, content: string) => content,
 	),

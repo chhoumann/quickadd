@@ -37,10 +37,9 @@ function walkChoice(
 	// descend nothing.
 	//
 	// Reported unreadable rather than descended, even though this walk could
-	// descend it. The narrower migrations cannot: `flattenChoices` and the
-	// increment / mutual-exclusion recursions step straight past it. Descending here would make the guard say "I saw everything"
-	// on behalf of traversals that did not, which is exactly the failure #1610 is
-	// about. Staying pending costs one launch: the user opens the settings tab, the
+	// descend it. Narrower traversals such as `flattenChoices` step straight past
+	// it. Descending here would make the guard say "I saw everything" on behalf
+	// of traversals that did not, which is exactly the failure #1610 is about. Staying pending costs one launch: the user opens the settings tab, the
 	// seam splices the entries into real choices, and the next launch is readable.
 	if (Array.isArray(choice)) {
 		visitors.onUnreadable?.();

@@ -2,6 +2,7 @@ import { TFile, type Plugin } from "obsidian";
 import type { ChoiceRuntimePlugin } from "../types/pluginContext";
 import { ChoiceExecutor } from "../choiceExecutor";
 import { QUICK_ADD_COMMAND_LABELS } from "../commandLabels";
+import { reloadCommunityPlugin } from "../utils/obsidianInternals";
 import { runTemplateFromFolder } from "../engine/runTemplateFromFolder";
 import { applyTemplateToNote } from "../engine/applyTemplateToActiveNote";
 import { createFormatterExecutionRuntime } from "../engine/formatterRuntime";
@@ -86,9 +87,7 @@ export function registerCoreCommands(
 				return plugin.settings.devMode;
 			}
 
-			const id: string = plugin.manifest.id;
-			const plugins = plugin.app.plugins;
-			void plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
+			void reloadCommunityPlugin(plugin.app, plugin.manifest.id);
 		},
 	});
 

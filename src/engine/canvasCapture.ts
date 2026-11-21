@@ -6,6 +6,7 @@ import {
 } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import type { CaptureAction } from "./captureAction";
+import { isTFileLike } from "../utils/isTFileLike";
 
 type CanvasDataNodeLike = {
 	id?: string;
@@ -162,10 +163,6 @@ function resolveCanvasNodeFilePath(
 	}
 
 	return null;
-}
-
-function isTFileLike(file: TAbstractFile | null): file is TFile {
-	return !!file && "path" in file && "extension" in file;
 }
 
 function getActiveCanvasView(app: CanvasAppLike): CanvasViewLike | null {

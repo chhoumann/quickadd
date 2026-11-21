@@ -1,13 +1,7 @@
-import type { FileViewMode2, OpenLocation } from "../types/fileOpening";
+import type { FileOpeningSettings } from "../types/fileOpening";
 
-export type FileOpeningSettings = {
-	location: OpenLocation;
-	direction: "vertical" | "horizontal";
-	mode: FileViewMode2;
-	focus: boolean;
-};
-
-const DEFAULT_FILE_OPENING: FileOpeningSettings = {
+/** How a file opens when nothing says otherwise. */
+export const DEFAULT_FILE_OPENING: Readonly<FileOpeningSettings> = {
 	location: "tab",
 	direction: "vertical",
 	mode: "default",

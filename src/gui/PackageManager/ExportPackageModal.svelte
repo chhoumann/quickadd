@@ -18,6 +18,7 @@
 	} from "../../services/packageExportService";
 	import type { QuickAddPackageAssetKind } from "../../types/packages/QuickAddPackage";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import { confirmAction } from "../confirmAction";
 
 	let {
 		app,
@@ -187,6 +188,14 @@
 				app,
 				buildResult.pkg,
 				trimmedPath,
+				{
+					confirmOverwrite: (path) =>
+						confirmAction(app, {
+							title: "Overwrite existing file?",
+							message: `A file already exists at '${path}'. Saving the package will overwrite it.`,
+							action: "Overwrite",
+						}),
+				},
 			);
 			const choiceCount = buildResult.pkg.choices.length;
 			const choiceLabel = `${choiceCount} choice${choiceCount === 1 ? "" : "s"}`;

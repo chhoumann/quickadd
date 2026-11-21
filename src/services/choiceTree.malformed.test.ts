@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import type IChoice from "src/types/choices/IChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
@@ -13,7 +12,7 @@ import {
 	removeChoiceById,
 	setFolderChildrenById,
 	setMultiCollapsedById,
-} from "./choiceService";
+} from "./choiceTree";
 import {
 	HEALTHY_IDS,
 	leaf,

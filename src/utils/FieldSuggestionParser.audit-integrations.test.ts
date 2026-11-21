@@ -12,7 +12,8 @@ vi.mock("../logger/logManager", () => ({
 	},
 }));
 
-import { FieldSuggestionParser } from "./FieldSuggestionParser";
+import { FieldSuggestionParser, parseFilterSegments } from "./FieldSuggestionParser";
+import { NOTICE_WARN } from "./warnSink";
 
 describe("FieldSuggestionParser - unknown filter feedback (integrations audit)", () => {
 	beforeEach(() => {
@@ -21,7 +22,7 @@ describe("FieldSuggestionParser - unknown filter feedback (integrations audit)",
 
 	it("warns when a pipe key is misspelled / unrecognized (FIELD grammar opts in)", () => {
 		const result = FieldSuggestionParser.parse("status|exclud-tag:draft", {
-			warnUnknown: true,
+			warn: NOTICE_WARN,
 		});
 
 		// The typo is still dropped (no filter applied)...
@@ -32,12 +33,18 @@ describe("FieldSuggestionParser - unknown filter feedback (integrations audit)",
 	});
 
 	it("stays SILENT for shared callers (FILE/property/capture) on unknown keys", () => {
-		// The parser is shared by the {{FILE:...|label:/name:}}, property:, and
-		// capture-scope grammars, which legitimately carry keys this parser does
-		// not recognize. Without warnUnknown it must not emit a false
-		// "Unknown FIELD filter" notice or leak internal sentinels.
-		FieldSuggestionParser.parse("People|link|label:Pick a person|name:reviewer");
-		FieldSuggestionParser.parse("__capture_scope|folder:Work|fodler:Other");
+		// The segment grammar is shared by the {{FILE:...|type:}}, property:, and
+		// capture-scope grammars, which legitimately carry keys FIELD does not
+		// recognize. They must not get a false "Unknown FIELD filter" notice,
+		// even while value mistakes still reach their sink.
+		parseFilterSegments(["link", "type:pdf", "label:Pick a person"], {
+			token: "{{FILE:People|link|type:pdf|label:Pick a person}}",
+			warn: NOTICE_WARN,
+		});
+		parseFilterSegments(["folder:Work", "fodler:Other"], {
+			token: "folder:Work|fodler:Other",
+			warn: NOTICE_WARN,
+		});
 
 		expect(logWarningMock).not.toHaveBeenCalled();
 	});

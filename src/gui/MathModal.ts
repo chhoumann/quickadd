@@ -98,7 +98,7 @@ export class MathModal extends Modal {
 	}
 
 	private cursorToGoTo() {
-		if (this.inputEl.value.contains(LATEX_CURSOR_MOVE_HERE)) {
+		if (this.inputEl.value.includes(LATEX_CURSOR_MOVE_HERE)) {
 			const cursorPos = this.inputEl.value.indexOf(
 				LATEX_CURSOR_MOVE_HERE
 			);

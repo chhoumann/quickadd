@@ -4,7 +4,7 @@ import type {
 	BlankLineAfterMatchMode,
 	SectionOrdering,
 } from "./ICaptureChoice";
-import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { FileOpeningSettings } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 
@@ -50,12 +50,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	task: boolean;
 	eachLine?: boolean;
 	openFile: boolean;
-	fileOpening: {
-		location: OpenLocation;
-		direction: "vertical" | "horizontal";
-		mode: FileViewMode2;
-		focus: boolean;
-	};
+	fileOpening: FileOpeningSettings;
 	templater?: {
 		afterCapture?: "none" | "wholeFile";
 	};

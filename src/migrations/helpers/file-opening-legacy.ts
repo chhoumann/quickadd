@@ -1,7 +1,5 @@
-import {
-	normalizeFileOpening,
-	type FileOpeningSettings,
-} from "../../utils/fileOpeningDefaults";
+import type { FileOpeningSettings } from "../../types/fileOpening";
+import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 
 type LegacyOpenFileInNewTab = {
 	enabled?: boolean;
@@ -9,7 +7,7 @@ type LegacyOpenFileInNewTab = {
 	focus?: boolean;
 };
 
-export function coerceLegacyOpenFileInNewTab(
+function coerceLegacyOpenFileInNewTab(
 	raw: unknown,
 ): LegacyOpenFileInNewTab | null {
 	if (raw === null || raw === undefined) return null;
@@ -29,7 +27,7 @@ export function coerceLegacyOpenFileInNewTab(
 	};
 }
 
-export function createFileOpeningFromLegacy(
+function createFileOpeningFromLegacy(
 	legacyTab: LegacyOpenFileInNewTab,
 	legacyMode: unknown,
 ): FileOpeningSettings {
@@ -46,4 +44,17 @@ export function createFileOpeningFromLegacy(
 		focus: legacyTab.focus ?? true,
 		mode,
 	});
+}
+
+/**
+ * The `fileOpening` a choice saved before that setting existed stands for, read
+ * from its legacy `openFileInNewTab`/`openFileInMode` fields, or null when it has
+ * no legacy setting. Shared by the data.json migrations and package import.
+ */
+export function fileOpeningFromLegacyFields(choice: {
+	openFileInNewTab?: unknown;
+	openFileInMode?: unknown;
+}): FileOpeningSettings | null {
+	const legacyTab = coerceLegacyOpenFileInNewTab(choice.openFileInNewTab);
+	return legacyTab ? createFileOpeningFromLegacy(legacyTab, choice.openFileInMode) : null;
 }

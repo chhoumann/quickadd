@@ -5,7 +5,6 @@
 	import { log } from "src/logger/logManager";
 	import { untrack } from "svelte";
 	import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "../../types/pluginContext";
-	import { CommandRegistry } from "../../services/choiceService";
 	import type IChoice from "../../types/choices/IChoice";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { DOCS_URLS } from "../../docs";
@@ -60,18 +59,18 @@
 		settingsStore.getState().disableOnlineFeatures,
 	);
 
-	// Command registry for managing Obsidian commands (plugin is constant for the
+	// Keeps the command palette in step with the list (plugin is constant for the
 	// component's life; untrack avoids a spurious state_referenced_locally warning).
-	const commandRegistry = new CommandRegistry(untrack(() => plugin));
+	const commands: ChoiceCommandRegistrar = untrack(() => plugin);
 
-	choices = seedChoices(choices, commandRegistry);
+	choices = seedChoices(choices, commands);
 
 	// Keep choices in sync with external store changes. The subscribe callback runs
 	// only on store changes (not during this effect's synchronous setup), so the
 	// effect registers no reactive deps and subscribes exactly once.
 	$effect(() => {
 		const unsubSettingsStore = settingsStore.subscribe((settings) => {
-			choices = seedChoices(settings.choices, commandRegistry);
+			choices = seedChoices(settings.choices, commands);
 			disableOnlineFeatures = settings.disableOnlineFeatures;
 		});
 		return () => unsubSettingsStore();
@@ -84,7 +83,7 @@
 		set choices(value) { choices = value; },
 		get filterQuery() { return filterQuery; },
 		set filterQuery(value) { filterQuery = value; },
-		commandRegistry,
+		commands,
 		saveChoices: (value) => saveChoices(value),
 	});
 

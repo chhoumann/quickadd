@@ -77,7 +77,6 @@ vi.mock("../formatters/completeFormatter", () => {
 });
 
 vi.mock("../utils/templaterIntegration", () => ({
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(async () => true),
 }));

@@ -4,7 +4,7 @@ export { findDateVariableFormat } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "../utils/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
-import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
+import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX, MAX_TEMPLATE_INCLUSION_DEPTH } from "../constants";
 import {
 	decodeFileValue,
 	fileLinkNameFromPath,
@@ -32,8 +32,6 @@ export interface TemplateInclusionState {
 	/** The formatter whose text this `{{TEMPLATE:}}` is spliced into. */
 	includer?: CompleteFormatter;
 }
-
-export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
 
 export abstract class Formatter extends ValueFormatter {
 	protected dateParser: IDateParser | undefined;
@@ -242,7 +240,6 @@ export abstract class Formatter extends ValueFormatter {
 
 			if (fullMatch) {
 				const parsed = FieldSuggestionParser.parse(fullMatch, {
-					warnUnknown: true,
 					warn: this.warnSink,
 				});
 				const fieldVariableKey = await this.resolveFieldVariable(fullMatch, parsed);

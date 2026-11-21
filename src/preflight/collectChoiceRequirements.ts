@@ -1,19 +1,18 @@
 import { captureCandidates, captureScopeFiles } from "src/engine/helpers/captureCandidates";
 import { getQuickAddScriptInputs, toFieldRequirement } from "./scriptInputRequirements";
-import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { currentSelection } from "src/utils/currentFile";
-import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
+	MAX_TEMPLATE_INCLUSION_DEPTH,
 	QA_INTERNAL_DATE_ORIGIN,
 	VALUE_SYNTAX,
 } from "src/constants";
 import type { ChoiceLookup, SettingsProvider } from "src/types/pluginContext";
 
 /** What collecting a choice's inputs reads from the plugin. */
-export type PreflightPlugin = SettingsProvider & Pick<ChoiceLookup, "getChoiceById">;
+export type PreflightPlugin = SettingsProvider & Pick<ChoiceLookup, "findChoiceById">;
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
 import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
@@ -459,7 +458,7 @@ async function collectForMacroChoice(
 	options?: CollectChoiceRequirementsOptions,
 ): Promise<FieldRequirement[]> {
 	const roster = buildFormRoster(
-		(id) => resolveChoiceFromPlugin(plugin, id), choice, choiceExecutor.variables.get("value"),
+		(id) => plugin.findChoiceById(id), choice, choiceExecutor.variables.get("value"),
 	);
 	const merged = new Map<string, FieldRequirement>();
 	const seedCaptureSelectionAsValue =
@@ -597,11 +596,11 @@ export async function collectChoiceRequirements(
 }
 
 export function listDeferredMacroSteps(
-	plugin: Pick<ChoiceLookup, "getChoiceById">,
+	plugin: Pick<ChoiceLookup, "findChoiceById">,
 	choice: IMacroChoice,
 	seededValue: unknown,
 ): DeferredStep[] {
-	return buildFormRoster((id) => resolveChoiceFromPlugin(plugin, id), choice, seededValue).deferred;
+	return buildFormRoster((id) => plugin.findChoiceById(id), choice, seededValue).deferred;
 }
 
 export function getUnresolvedRequirements(

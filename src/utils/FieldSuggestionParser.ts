@@ -1,4 +1,4 @@
-import { NOTICE_WARN, type WarnSink } from "./warnSink";
+import type { WarnSink } from "./warnSink";
 import {
 	parseBooleanFlag,
 	parsePipeKeyValue,
@@ -147,17 +147,200 @@ export interface FieldFilter {
 	excludeFiles?: string[];
 }
 
-function warnUnknownFilter(
-	filterKey: string,
-	input: string,
-	options: { warn?: WarnSink },
-): void {
-	(options.warn ?? NOTICE_WARN)(describeUnknownFieldFilter(filterKey, input));
+/** What the shared `|key:value` grammar reads out of a token's pipe segments. */
+export interface ParsedFilterSegments {
+	filters: FieldFilter;
+	multiSelect?: boolean;
+	multiFormat?: MultiValueFormat;
+	/** The prompt's own wording, shown instead of "Enter value for <field>". */
+	label?: string;
+	/** The run variable the answer is read from and written to, as `{{VALUE:<name>}}` does. */
+	name?: string;
+}
+
+/** A segment the shared grammar skipped because it can do nothing with it. */
+export type SkippedFilterSegment =
+	/** A key outside {@link FIELD_FILTER_KEYS}, or a bare word that is not `multi`. */
+	| { kind: "unknown"; key: string }
+	/** A recognised key written without its value, e.g. `|folder`. */
+	| { kind: "valueless"; key: string }
+	/** `|name:` naming a reserved run variable. */
+	| { kind: "reserved-name"; value: string };
+
+interface FilterSegmentOptions {
+	/** The token as written, for warning text, e.g. `{{FIELD:status|format:x}}`. */
+	token: string;
+	/** Hears mistakes in a value: an unsupported `|format:`, or `|format:` without `|multi`. */
+	warn?: WarnSink;
+	/**
+	 * Hears each segment the grammar skipped. Only the FIELD grammar listens: the
+	 * FILE, property: and capture grammars carry keys of their own and read those
+	 * elsewhere.
+	 */
+	onSkipped?: (segment: SkippedFilterSegment) => void;
+}
+
+/**
+ * Parses the `|key:value` segments the FIELD, FILE, property: and capture
+ * grammars share (everything after the token's first segment).
+ */
+export function parseFilterSegments(
+	segments: readonly string[],
+	options: FilterSegmentOptions,
+): ParsedFilterSegments {
+	const filters: FieldFilter = {};
+	let multiSelect = false;
+	let multiFormat: MultiValueFormat = "auto";
+	let multiFormatExplicit = false;
+	let label: string | undefined;
+	let name: string | undefined;
+
+	for (const rawSegment of segments) {
+		const filterPart = rawSegment.trim();
+		if (filterPart.toLowerCase() === "multi") {
+			multiSelect = true;
+			continue;
+		}
+
+		const parsed = parsePipeKeyValue(filterPart);
+		if (!parsed) {
+			// A pipe part with no colon. `multi` is the only legal bare flag and
+			// was consumed above, so anything left here does nothing at all and
+			// would otherwise vanish without a trace - `|mutli` quietly
+			// downgrades a multi-select prompt to a single-select one. A
+			// correctly spelled key is a different mistake (a missing value).
+			const bareKey = filterPart.toLowerCase();
+			if (bareKey) {
+				options.onSkipped?.({
+					kind: (FIELD_FILTER_KEYS as readonly string[]).includes(bareKey)
+						? "valueless"
+						: "unknown",
+					key: bareKey,
+				});
+			}
+			continue;
+		}
+
+		const filterType = parsed.key;
+		const filterValue = parsed.value;
+
+		// The key set - not the switch - decides what is recognised, so the
+		// warning, the typo suggester and the dispatch below can never disagree
+		// about the vocabulary.
+		if (!(FIELD_FILTER_KEYS as readonly string[]).includes(filterType)) {
+			options.onSkipped?.({ kind: "unknown", key: filterType });
+			continue;
+		}
+
+		switch (filterType) {
+			case "label":
+				label = filterValue || undefined;
+				break;
+			case "name":
+				if (!RESERVED_VALUE_NAMES.has(filterValue.toLowerCase())) {
+					name = filterValue || undefined;
+				} else {
+					options.onSkipped?.({ kind: "reserved-name", value: filterValue });
+				}
+				break;
+			case "multi":
+				multiSelect = parseBooleanFlag(filterValue);
+				break;
+			case "format":
+				multiFormatExplicit = true;
+				multiFormat =
+					parseMultiValueFormat(filterValue, options.token, options.warn) ?? "auto";
+				break;
+			case "folder":
+				filters.folders ??= [];
+				filters.folders.push(filterValue);
+				if (!filters.folder) {
+					filters.folder = filterValue;
+				}
+				break;
+			case "tag":
+				filters.tags ??= [];
+				filters.tags.push(filterValue.startsWith("#") ? filterValue.substring(1) : filterValue);
+				break;
+			case "inline":
+				filters.inline = filterValue.toLowerCase() === "true";
+				break;
+			case "inline-code-blocks":
+				filters.inlineCodeBlocks ??= [];
+				filters.inlineCodeBlocks.push(
+					...filterValue
+						.split(",")
+						.map((value) => value.trim().toLowerCase())
+						.filter((value) => value.length > 0),
+				);
+				break;
+			case "default":
+				filters.defaultValue = filterValue;
+				break;
+			case "default-from":
+				// e.g. |default-from:active — resolve the default from a context
+				// source (the active note's property) rather than a literal value.
+				// The resolution happens in the runtime/preflight FIELD paths; here
+				// we only record the requested source (lowercased).
+				filters.defaultFrom = filterValue.toLowerCase();
+				break;
+			case "default-empty":
+				filters.defaultEmpty = filterValue.toLowerCase() === "true";
+				break;
+			case "default-always":
+				filters.defaultAlways = filterValue.toLowerCase() === "true";
+				break;
+			case "case-sensitive":
+				filters.caseSensitive = filterValue.toLowerCase() === "true";
+				break;
+			case "exclude-folder":
+				filters.excludeFolders ??= [];
+				filters.excludeFolders.push(filterValue);
+				break;
+			case "exclude-tag":
+				filters.excludeTags ??= [];
+				filters.excludeTags.push(filterValue.startsWith("#") ? filterValue.substring(1) : filterValue);
+				break;
+			case "exclude-file":
+				filters.excludeFiles ??= [];
+				filters.excludeFiles.push(filterValue);
+				break;
+		}
+	}
+
+	// Warn on ANY explicit |format: without |multi - including |format:auto,
+	// which is a no-op the author probably didn't intend.
+	if (!multiSelect && multiFormatExplicit) {
+		options.warn?.(`QuickAdd: |format: needs |multi in "${options.token}"; ignoring.`);
+		multiFormat = "auto";
+	}
+
+	return {
+		filters,
+		...(multiSelect ? { multiSelect } : {}),
+		...(multiFormat !== "auto" ? { multiFormat } : {}),
+		...(label ? { label } : {}),
+		...(name ? { name } : {}),
+	};
+}
+
+function describeSkippedSegment(skipped: SkippedFilterSegment, input: string): string {
+	switch (skipped.kind) {
+		case "unknown":
+			return describeUnknownFieldFilter(skipped.key, input);
+		case "valueless":
+			return describeValuelessFieldFilter(skipped.key, input);
+		case "reserved-name":
+			return `QuickAdd: |name:${skipped.value} is reserved and was ignored in "{{FIELD:${input}}}". Choose a different name.`;
+	}
 }
 
 export class FieldSuggestionParser {
 	/**
-	 * Parses the field suggestion syntax to extract field name and filters
+	 * Parses the `{{FIELD:...}}` grammar: the field name, then the shared filter
+	 * segments. With `warn`, every mistake is reported there, including keys
+	 * this grammar does not know; without it, parsing is silent (the pre-passes
+	 * that re-parse a token the main pass already reported).
 	 * Examples:
 	 * - "fieldname" -> { fieldName: "fieldname", filters: {} }
 	 * - "fieldname|folder:daily" -> { fieldName: "fieldname", filters: { folder: "daily" } }
@@ -165,179 +348,17 @@ export class FieldSuggestionParser {
 	 */
 	static parse(
 		input: string,
-		options?: { warnUnknown?: boolean; warn?: WarnSink },
-	): {
-		fieldName: string;
-		filters: FieldFilter;
-		multiSelect?: boolean;
-		multiFormat?: MultiValueFormat;
-		/** The prompt's own wording, shown instead of "Enter value for <field>". */
-		label?: string;
-		/** The run variable the answer is read from and written to, as `{{VALUE:<name>}}` does. */
-		name?: string;
-	} {
-		const parts = splitPipeParts(input).map((p) => p.trim());
-		const fieldName = parts[0];
-		const filters: FieldFilter = {};
-		let multiSelect = false;
-		let multiFormat: MultiValueFormat = "auto";
-		let multiFormatExplicit = false;
-		let label: string | undefined;
-		let name: string | undefined;
-
-		for (let i = 1; i < parts.length; i++) {
-			const filterPart = parts[i];
-			if (filterPart.toLowerCase() === "multi") {
-				multiSelect = true;
-				continue;
-			}
-
-			const parsed = parsePipeKeyValue(filterPart);
-			if (!parsed) {
-				// A pipe part with no colon. `multi` is the only legal bare flag and
-				// was consumed above, so anything left here does nothing at all and
-				// would otherwise vanish without a trace - `|mutli` quietly
-				// downgrades a multi-select prompt to a single-select one. A
-				// correctly spelled key is a different mistake (a missing value) and
-				// gets a different sentence.
-				const bareKey = filterPart.toLowerCase();
-				if (options?.warnUnknown && bareKey) {
-					(options.warn ?? NOTICE_WARN)(
-						(FIELD_FILTER_KEYS as readonly string[]).includes(bareKey)
-							? describeValuelessFieldFilter(bareKey, input)
-							: describeUnknownFieldFilter(bareKey, input),
-					);
-				}
-				continue;
-			}
-
-			const filterType = parsed.key;
-			const filterValue = parsed.value;
-
-			// The key set - not the switch - decides what is recognised, so the
-			// warning, the typo suggester and the dispatch below can never disagree
-			// about the vocabulary.
-			if (!(FIELD_FILTER_KEYS as readonly string[]).includes(filterType)) {
-				// ONLY for the {{FIELD}} grammar (warnUnknown). This parser is also
-				// shared by the {{FILE:...|label:/name:}}, property:, and
-				// capture-scope grammars, which legitimately carry keys this switch
-				// does not know and peel off elsewhere; warning there would emit
-				// false "Unknown FIELD filter" notices and leak internal sentinels
-				// like __capture_scope.
-				if (options?.warnUnknown) {
-					warnUnknownFilter(filterType, input, options);
-				}
-				continue;
-			}
-
-			switch (filterType) {
-				case "label":
-					label = filterValue || undefined;
-					break;
-				case "name":
-					if (!RESERVED_VALUE_NAMES.has(filterValue.toLowerCase())) {
-						name = filterValue || undefined;
-					} else if (options?.warnUnknown) {
-						(options.warn ?? NOTICE_WARN)(
-							`QuickAdd: |name:${filterValue} is reserved and was ignored in "{{FIELD:${input}}}". Choose a different name.`,
-						);
-					}
-					break;
-				case "multi":
-					multiSelect = parseBooleanFlag(filterValue);
-					break;
-				case "format":
-					multiFormatExplicit = true;
-					multiFormat =
-						parseMultiValueFormat(
-							filterValue,
-							`{{FIELD:${input}}}`,
-							options?.warn,
-						) ?? "auto";
-					break;
-				case "folder":
-					filters.folders ??= [];
-					filters.folders.push(filterValue);
-					if (!filters.folder) {
-						filters.folder = filterValue;
-					}
-					break;
-				case "tag": {
-					filters.tags ??= [];
-					// Remove # prefix if present
-					const tagName = filterValue.startsWith("#")
-						? filterValue.substring(1)
-						: filterValue;
-					filters.tags.push(tagName);
-					break;
-				}
-				case "inline":
-					filters.inline = filterValue.toLowerCase() === "true";
-					break;
-				case "inline-code-blocks":
-					filters.inlineCodeBlocks ??= [];
-					filters.inlineCodeBlocks.push(
-						...filterValue
-							.split(",")
-							.map((value) => value.trim().toLowerCase())
-							.filter((value) => value.length > 0),
-					);
-					break;
-				case "default":
-					filters.defaultValue = filterValue;
-					break;
-				case "default-from":
-					// e.g. |default-from:active — resolve the default from a context
-					// source (the active note's property) rather than a literal value.
-					// The resolution happens in the runtime/preflight FIELD paths; here
-					// we only record the requested source (lowercased).
-					filters.defaultFrom = filterValue.toLowerCase();
-					break;
-				case "default-empty":
-					filters.defaultEmpty = filterValue.toLowerCase() === "true";
-					break;
-				case "default-always":
-					filters.defaultAlways = filterValue.toLowerCase() === "true";
-					break;
-				case "case-sensitive":
-					filters.caseSensitive = filterValue.toLowerCase() === "true";
-					break;
-				case "exclude-folder":
-					filters.excludeFolders ??= [];
-					filters.excludeFolders.push(filterValue);
-					break;
-				case "exclude-tag": {
-					filters.excludeTags ??= [];
-					// Remove # prefix if present
-					const excludeTagName = filterValue.startsWith("#")
-						? filterValue.substring(1)
-						: filterValue;
-					filters.excludeTags.push(excludeTagName);
-					break;
-				}
-				case "exclude-file":
-					filters.excludeFiles ??= [];
-					filters.excludeFiles.push(filterValue);
-					break;
-			}
-		}
-
-		// Warn on ANY explicit |format: without |multi - including |format:auto,
-		// which is a no-op the author probably didn't intend.
-		if (!multiSelect && multiFormatExplicit) {
-			options?.warn?.(
-				`QuickAdd: |format: needs |multi in "{{FIELD:${input}}}"; ignoring.`,
-			);
-			multiFormat = "auto";
-		}
-
+		options?: { warn?: WarnSink },
+	): ParsedFilterSegments & { fieldName: string } {
+		const [fieldName, ...segments] = splitPipeParts(input).map((p) => p.trim());
+		const warn = options?.warn;
 		return {
 			fieldName,
-			filters,
-			...(multiSelect ? { multiSelect } : {}),
-			...(multiFormat !== "auto" ? { multiFormat } : {}),
-			...(label ? { label } : {}),
-			...(name ? { name } : {}),
+			...parseFilterSegments(segments, {
+				token: `{{FIELD:${input}}}`,
+				warn,
+				onSkipped: warn && ((skipped) => warn(describeSkippedSegment(skipped, input))),
+			}),
 		};
 	}
 }

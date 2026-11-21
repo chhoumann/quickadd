@@ -2,11 +2,8 @@
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 import Toggle from "../../components/Toggle.svelte";
-import {
-	normalizeFileOpening,
-	type FileOpeningSettings,
-} from "../../../utils/fileOpeningDefaults";
-import type { FileViewMode2, OpenLocation } from "../../../types/fileOpening";
+import { normalizeFileOpening } from "../../../utils/fileOpeningDefaults";
+import type { FileOpeningSettings, FileViewMode2, OpenLocation } from "../../../types/fileOpening";
 
 /**
  * Replaces ChoiceBuilder.addFileOpeningSetting. Conditional rows (split

@@ -1,4 +1,4 @@
-import type { App, TAbstractFile } from "obsidian";
+import type { App } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import {
 	JAVASCRIPT_FILE_EXTENSION_REGEX,
@@ -7,6 +7,7 @@ import {
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 import { reportError } from "./errorUtils";
+import { isRecord } from "./isRecord";
 
 type GetUserScriptOptions = {
 	reportLoadErrors?: boolean;
@@ -134,10 +135,6 @@ function isMissingModuleError(error: unknown): boolean {
 	return message.includes("Cannot find module");
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object";
-}
-
 function hasRunnableObjectMember(value: Record<string, unknown>): boolean {
 	if (typeof value.entry === "function") return true;
 
@@ -244,8 +241,7 @@ export async function loadUserScript(
 	app: App,
 	options: GetUserScriptOptions = {},
 ): Promise<LoadedUserScript | undefined> {
-	// @ts-ignore
-	const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
+	const file = app.vault.getAbstractFileByPath(command.path);
 	if (!file) {
 		reportAndThrowUserScriptLoadError(missingScriptMessage(command.path), options);
 	}
@@ -330,7 +326,6 @@ export async function loadUserScript(
 			throw error;
 		}
 
-		// @ts-ignore
 		const userScript = exp["default"] || mod.exports;
 		if (!userScript) return;
 

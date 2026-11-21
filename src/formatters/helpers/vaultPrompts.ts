@@ -27,9 +27,9 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 	const provider = executor?.promptProvider;
 	try {
 		// Parse the field input to extract field name and filters. Do NOT warn
-		// on unknown keys here: the field replacer in formatter.ts already parses
-		// the same token with { warnUnknown: true } before calling this, so
-		// warning again would emit a duplicate notice per malformed FIELD token.
+		// here: the field replacer in formatter.ts already parses the same token
+		// with its warn sink before calling this, so warning again would emit a
+		// duplicate notice per malformed FIELD token.
 		const { fieldName, filters, multiSelect, label } =
 			FieldSuggestionParser.parse(fieldInput);
 

@@ -5,7 +5,7 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
-import { normalizeVaultPath } from "./pathUtils";
+import { isPathWithinFolder, normalizeVaultPath } from "./pathUtils";
 
 /**
  * Whether a path already carries a template extension the engine can read
@@ -83,7 +83,5 @@ export function isPathWithinTemplateFolders(
 	normalizedFolders: string[],
 ): boolean {
 	if (normalizedFolders.length === 0) return true;
-	return normalizedFolders.some(
-		(folder) => filePath === folder || filePath.startsWith(`${folder}/`),
-	);
+	return normalizedFolders.some((folder) => isPathWithinFolder(filePath, folder));
 }

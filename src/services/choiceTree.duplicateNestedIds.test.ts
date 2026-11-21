@@ -1,7 +1,6 @@
-// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
-import { duplicateChoice } from "./choiceService";
+import { duplicateChoice } from "./choiceTree";
 import type IChoice from "../types/choices/IChoice";
 import {
 	buildUserScriptSecretId,

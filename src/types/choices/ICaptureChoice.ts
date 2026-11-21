@@ -1,6 +1,6 @@
 import type IChoice from "./IChoice";
 import type { AppendLinkOptions } from "../linkPlacement";
-import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { FileOpeningSettings } from "../fileOpening";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 
@@ -102,12 +102,7 @@ export default interface ICaptureChoice extends IChoice {
 		direction: "above" | "below";
 	};
 	openFile: boolean;
-	fileOpening: {
-		location: OpenLocation;
-		direction: "vertical" | "horizontal";
-		mode: FileViewMode2;
-		focus: boolean;
-	};
+	fileOpening: FileOpeningSettings;
 	templater?: {
 		afterCapture?: "none" | "wholeFile";
 	};

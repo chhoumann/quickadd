@@ -129,7 +129,6 @@ vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
 	waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
-	getTemplater: vi.fn(() => ({})),
 }));
 vi.mock("../utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn().mockResolvedValue([]),

@@ -45,6 +45,7 @@ import type { IConditionalCommand } from "../../types/macros/Conditional/ICondit
 import { getUserScriptMemberAccess } from "../../utils/userScript";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
+import { getObsidianCommands } from "../../utils/obsidianInternals";
 import {
 	isUnreadableCommandList,
 	normalizeCommandList,
@@ -174,14 +175,9 @@ export class CommandSequenceEditor {
 	}
 
 	private loadObsidianCommands(): void {
-		// @ts-ignore
-		Object.keys(this.app.commands.commands).forEach((key) => {
-			// @ts-ignore
-			const command: { name: string; id: string } =
-				this.app.commands.commands[key];
-
+		for (const command of Object.values(getObsidianCommands(this.app) ?? {})) {
 			this.obsidianCommands.push(new ObsidianCommand(command.name, command.id));
-		});
+		}
 	}
 
 	private loadScriptCandidates(): void {

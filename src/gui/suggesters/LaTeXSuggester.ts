@@ -69,9 +69,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		if (match) {
 			this.lastInput = match[1];
 			suggestions = this.symbols.filter((val) =>
-				//@ts-ignore
-				 
-				val.toLowerCase().contains(this.lastInput)
+				val.toLowerCase().includes(this.lastInput)
 			);
 		}
 
@@ -112,7 +110,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		this.inputEl.trigger("input");
 		this.close();
 
-		if (item.contains(LATEX_CURSOR_MOVE_HERE)) {
+		if (item.includes(LATEX_CURSOR_MOVE_HERE)) {
 			const cursorPos = this.inputEl.value.indexOf(
 				LATEX_CURSOR_MOVE_HERE
 			);

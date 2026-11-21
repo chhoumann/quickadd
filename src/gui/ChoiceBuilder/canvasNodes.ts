@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../../constants";
+import { normalizeVaultPath } from "../../utils/pathUtils";
 
 /**
  * Pure (App-seam) canvas-target helpers extracted verbatim from
@@ -16,10 +17,6 @@ export interface CanvasNodeOption {
 	searchText: string;
 	capturable: boolean;
 	capturableReason: string;
-}
-
-export function normalizeVaultPath(path: string): string {
-	return path.trim().replace(/^\/+/, "");
 }
 
 export function isCanvasTargetPath(path: string): boolean {

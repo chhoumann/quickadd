@@ -124,7 +124,7 @@
         // DIFFERENT zone, yet svelte-dnd can still report it in THIS (source) list — so
         // committing this list verbatim would persist a copy in BOTH the source and the
         // target. Strip the dragged item here so it lives only where it was dropped.
-        // CO-DEPENDENT with setFolderChildrenById's by-id commit (choiceService) — the
+        // CO-DEPENDENT with setFolderChildrenById's by-id commit (choiceTree) — the
         // strip alone is insufficient at depth >= 2; both are load-bearing.
         if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) {
             next = next.filter((c) => c.id !== draggedId);

@@ -413,6 +413,16 @@ describe("collectChoiceClosure", () => {
 		expect(choiceIds).toEqual(["macro"]);
 		expect(missingChoiceIds).toEqual([]);
 	});
+
+	it("follows a Choice command in an array-valued macro (the array IS the command list, #1593)", () => {
+		const target = makeTemplate("Target", "t.md", "target");
+		const macro = makeMacro("M", [], "macro");
+		(macro as unknown as { macro: ICommand[] }).macro = [choiceCommand("target")];
+
+		const { choiceIds } = collectChoiceClosure([macro, target], ["macro"]);
+
+		expect(choiceIds).toEqual(["macro", "target"]);
+	});
 });
 
 // --- collectScriptDependencies ------------------------------------------
@@ -424,6 +434,16 @@ describe("collectScriptDependencies", () => {
 		const result = collectScriptDependencies(catalog, choiceIds);
 		expect(result.userScriptPaths.size).toBe(0);
 		expect(result.conditionalScriptPaths.size).toBe(0);
+	});
+
+	it("collects UserScript paths from an array-valued macro (#1593)", () => {
+		const macro = makeMacro("M", [], "macro");
+		(macro as unknown as { macro: ICommand[] }).macro = [userScriptCommand("scripts/foo.js")];
+		const { catalog, choiceIds } = collectChoiceClosure([macro], ["macro"]);
+
+		const result = collectScriptDependencies(catalog, choiceIds);
+
+		expect([...result.userScriptPaths]).toEqual(["scripts/foo.js"]);
 	});
 
 	it("collects UserScript paths from a macro", () => {

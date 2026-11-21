@@ -16,7 +16,8 @@ function fileLike(path: string, basename = path): TFile {
 function makeApp(over: Record<string, unknown> = {}): App {
 	return {
 		vault: {
-			adapter: {}, // not a FileSystemAdapter → symlink guard is a no-op in tests
+			// Not a FileSystemAdapter, so the symlink guard is a no-op in tests.
+			adapter: { exists: vi.fn(async () => true) },
 			getAbstractFileByPath: vi.fn(() => null),
 			getMarkdownFiles: vi.fn(() => []),
 			cachedRead: vi.fn(async () => ""),

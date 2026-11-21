@@ -66,7 +66,6 @@ vi.mock("../formatters/completeFormatter", () => {
 
 vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
 	...(await importOriginal<object>()),
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(
 			async (_app: unknown, content: string) => content,

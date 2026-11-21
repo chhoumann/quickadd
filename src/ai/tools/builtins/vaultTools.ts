@@ -10,6 +10,7 @@
  * high-risk trio run_choice/apply_template/set_frontmatter is deliberately NOT shipped.
  */
 import { type App, TFile } from "obsidian";
+import { ensureParentFolders } from "../../../utils/ensureParentFolders";
 import { getMarkdownFilesInFolder } from "../../../utils/vaultQueries";
 import { insertTextAfterPositionInBody } from "../../../utils/insertionPositioning";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
@@ -179,7 +180,7 @@ export function createVaultTools(
 			execute: async ({ path, content }) => {
 				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				await assertWriteStaysInVault(app, norm);
-				await ensureParentFolder(app, norm);
+				await ensureParentFolders(app, norm);
 				const file = await app.vault.create(norm, String(content ?? ""));
 				return { created: true, path: file.path };
 			},
@@ -294,17 +295,6 @@ function requireFile(app: App, normalizedPath: string): TFile {
 		throw new Error(`Note not found: ${normalizedPath}`);
 	}
 	return file;
-}
-async function ensureParentFolder(app: App, normalizedPath: string): Promise<void> {
-	const slash = normalizedPath.lastIndexOf("/");
-	if (slash <= 0) return;
-	const parent = normalizedPath.slice(0, slash);
-	if (app.vault.getAbstractFileByPath(parent)) return;
-	try {
-		await app.vault.createFolder(parent);
-	} catch {
-		/* already exists / race — ignore */
-	}
 }
 function snippetAround(text: string, idx: number): string {
 	const start = Math.max(0, idx - 40);
