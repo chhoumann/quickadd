@@ -45,6 +45,16 @@ export function defineTool(def: Omit<QATool, "__qaTool">): QATool {
 	return { ...def, __qaTool: true };
 }
 
+/** Longest note text a read tool hands the model, to bound cost and exfiltration. */
+const MAX_READ_CHARS = 16_000;
+
+/** Note text as a read tool returns it: cut at MAX_READ_CHARS with a marker. */
+export function truncateNoteText(content: string): string {
+	return content.length > MAX_READ_CHARS
+		? content.slice(0, MAX_READ_CHARS) + "\n…[truncated]"
+		: content;
+}
+
 /**
  * Warn when an only/exclude entry matches no tool in the group — a typo such as
  * only:['read_notes'] (correct: 'read_note') otherwise silently yields an empty (or

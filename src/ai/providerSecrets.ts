@@ -1,21 +1,13 @@
 import type { App } from "obsidian";
 import { log } from "src/logger/logManager";
-import type { AIProvider } from "./Provider";
+import { slugifyProviderId, type AIProvider } from "./Provider";
 import { readSecretStorageEntry } from "src/utils/secretStorage";
 
 const SECRET_PREFIX = "quickadd-ai";
 
-function toSecretId(value: string): string {
-	const normalized = value
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "");
-	return normalized || "provider";
-}
-
 function buildSecretBase(provider: AIProvider): string {
 	const name = provider.name?.trim() || "provider";
-	return `${SECRET_PREFIX}-${toSecretId(name)}`;
+	return `${SECRET_PREFIX}-${slugifyProviderId(name)}`;
 }
 
 export async function resolveProviderApiKey(

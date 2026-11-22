@@ -9,41 +9,52 @@ const noticeMsg = (task: string, message: string) => {
 	return `${headline}${message ? `\n\n${message}` : ""}`;
 };
 
-interface NoticeHandler {
-    setMessage: (status: string, msg: string) => void;
-    hide: () => void;
-    /**
-     * End the run on `error`: show it as the run's one failure notice, or close
-     * the notice if the user cancelled. The caller still re-throws the error.
-     */
-    fail: (error: unknown) => void;
+/** How long a finished or failed run's notice stays up. */
+const CLOSING_NOTICE_MS = 5000;
+
+export interface NoticeHandler {
+	setMessage: (status: string, msg: string) => void;
+	hide: () => void;
+	/** End the run on success: show `message` as finished, then close the notice. */
+	finish: (message: string) => void;
+	/**
+	 * End the run on `error`: show it as the run's one failure notice, or close
+	 * the notice if the user cancelled. The caller still re-throws the error.
+	 */
+	fail: (error: unknown) => void;
 }
+
 export function makeNoticeHandler(showMessages: boolean): NoticeHandler {
-    if (showMessages) {
-        const n = new Notice(noticeMsg("starting", ""), 1000000);
+	if (!showMessages) {
+		return {
+			setMessage: () => {},
+			hide: () => {},
+			finish: () => {},
+			fail: () => {},
+		};
+	}
 
-        return {
-            setMessage: (status: string, msg: string) => {
-                n.setMessage(noticeMsg(status, msg));
-            },
-            hide: () => n.hide(),
-            fail: (error: unknown) => {
-                if (isCancellationError(error)) {
-                    n.hide();
-                    return;
-                }
-                n.setMessage(noticeMsg("dead", (error as { message?: string })?.message ?? String(error)));
-                // The error is re-thrown; whatever reports it further up must not
-                // show it a second time.
-                markErrorReported(error);
-                window.setTimeout(() => n.hide(), 5000);
-            },
-        };
-    }
+	const n = new Notice(noticeMsg("starting", ""), 1000000);
+	const close = (status: string, msg: string) => {
+		n.setMessage(noticeMsg(status, msg));
+		window.setTimeout(() => n.hide(), CLOSING_NOTICE_MS);
+	};
 
-    return {
-        setMessage: () => { },
-        hide: () => { },
-        fail: () => { },
-    };
+	return {
+		setMessage: (status: string, msg: string) => {
+			n.setMessage(noticeMsg(status, msg));
+		},
+		hide: () => n.hide(),
+		finish: (message: string) => close("finished", message),
+		fail: (error: unknown) => {
+			if (isCancellationError(error)) {
+				n.hide();
+				return;
+			}
+			close("dead", (error as { message?: string })?.message ?? String(error));
+			// The error is re-thrown; whatever reports it further up must not
+			// show it a second time.
+			markErrorReported(error);
+		},
+	};
 }

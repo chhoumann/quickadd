@@ -135,6 +135,23 @@ describe("Agent.generate — structured output", () => {
 		expect(chatRequestMock).toHaveBeenCalledTimes(2);
 	});
 
+	// The repair is a best-effort second ask whose failure only leaves `object`
+	// undefined, so it must not pop a failure notice for a run that succeeded.
+	it("asks for the repair without reporting its failure", async () => {
+		chatRequestMock
+			.mockResolvedValueOnce(turnResponse({ content: "not json at all", normalizedStopReason: "stop" }))
+			.mockRejectedValueOnce(new Error("provider down"));
+		const agent = makeAgent();
+		const res = await agent.generate({
+			prompt: "extract",
+			schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+		});
+		expect(res.object).toBeUndefined();
+		const repairCall = chatRequestMock.mock.calls[1];
+		// chatRequest(apiKey, model, provider, request, afterRequest, reportFailure)
+		expect(repairCall[5]).toBe(false);
+	});
+
 	it("does not spend a repair request on a refusal", async () => {
 		chatRequestMock.mockResolvedValueOnce(
 			turnResponse({ content: "I can't help with that.", stopReason: "refusal", normalizedStopReason: "other" }),

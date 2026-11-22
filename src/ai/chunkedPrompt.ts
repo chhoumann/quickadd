@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import type { PromptParams } from "./AIAssistant";
-import { settingsStore } from "src/settingsStore";
+import { assertOnlineFeaturesEnabled } from "./onlineFeatures";
 import { OpenAIRequest } from "./OpenAIRequest";
 import { isLikelyContextLimitError } from "./providerErrors";
 import { makeNoticeHandler } from "./makeNoticeHandler";
@@ -400,11 +400,7 @@ export async function ChunkedPrompt(
 		variables: { [k: string]: unknown }
 	) => Promise<string>
 ) {
-	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
-		);
-	}
+	assertOnlineFeaturesEnabled();
 
 	const notice = makeNoticeHandler(settings.showAssistantMessages);
 
@@ -496,11 +492,11 @@ export async function ChunkedPrompt(
 			!settings.showAssistantMessages
 		);
 
-		const promptingMsg = [
+		const promptingMsg: [string, string] = [
 			"prompting",
 			`${chunkedText.length} prompts being sent.`,
 		];
-		notice.setMessage(promptingMsg[0], promptingMsg[1]);
+		notice.setMessage(...promptingMsg);
 
 		const rateLimiter = new RateLimiter(5, 1000 * 30); // 5 requests per half minute
 		let hasTerminalFailure = false;
@@ -599,8 +595,6 @@ export async function ChunkedPrompt(
 		const outputs = result.flat();
 
 		const output = outputs.join(settings.resultJoiner);
-
-		window.setTimeout(() => notice.hide(), 5000);
 
 		return outputVariables(outputVariable, output);
 	} catch (error) {

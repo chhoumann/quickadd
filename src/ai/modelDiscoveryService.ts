@@ -1,6 +1,6 @@
 import { requestUrl } from "obsidian";
 import type { AIProvider, Model, ModelDiscoveryMode } from "./Provider";
-import { CURRENT_MODEL_SEEDS, getProviderKind } from "./Provider";
+import { CURRENT_MODEL_SEEDS, getProviderKind, providerAuthHeaders, providerUrl } from "./Provider";
 import {
 	NON_CHAT_MODEL_ID_RE,
 	dropDatedSnapshots,
@@ -10,7 +10,7 @@ import {
 	mapModelsDevToQuickAdd,
 } from "./modelsDirectory";
 import { buildProviderError } from "./providerErrors";
-import { settingsStore } from "src/settingsStore";
+import { assertOnlineFeaturesEnabled } from "./onlineFeatures";
 
 const DEFAULT_MAX_TOKENS = 128_000;
 
@@ -91,10 +91,7 @@ async function fetchViaProviderApi(
 	provider: AIProvider,
 	apiKeyOverride?: string | null,
 ): Promise<Model[]> {
-	const { disableOnlineFeatures } = settingsStore.getState();
-	if (disableOnlineFeatures) {
-		throw new Error("Online features are disabled — enable them to browse provider models.");
-	}
+	assertOnlineFeaturesEnabled("Online features are disabled. Enable them to browse provider models.");
 	if (!provider.endpoint) {
 		throw new Error("Provider is missing an endpoint URL.");
 	}
@@ -182,15 +179,13 @@ async function fetchOpenAICompatibleModels(
 	provider: AIProvider,
 	apiKey: string,
 ): Promise<Model[]> {
-	const base = provider.endpoint.replace(/\/+$/, "");
+	const base = providerUrl(provider.endpoint, "");
 	const url = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
-
-	const headers: Record<string, string> = {};
-	if (apiKey) {
-		headers.Authorization = `Bearer ${apiKey}`;
-	}
-
-	const data = await requestProviderJson<ProviderApiResponse>(provider, url, headers);
+	const data = await requestProviderJson<ProviderApiResponse>(
+		provider,
+		url,
+		providerAuthHeaders("openai", apiKey),
+	);
 	const entries = extractModelsArray(data);
 	const models: Model[] = [];
 	for (const entry of entries) {
@@ -212,22 +207,18 @@ async function fetchAnthropicModels(
 	provider: AIProvider,
 	apiKey: string,
 ): Promise<Model[]> {
-	const base = provider.endpoint.replace(/\/+$/, "");
-	const headers: Record<string, string> = {
-		"anthropic-version": "2023-06-01",
-	};
-	if (apiKey) {
-		headers["x-api-key"] = apiKey;
-	}
+	const headers = providerAuthHeaders("anthropic", apiKey);
 
 	// Paginated; page size maxes out at 1000 which is far beyond the catalog,
 	// but follow `has_more` anyway so we never silently truncate.
 	const models: Model[] = [];
 	let afterId: string | null = null;
 	for (let page = 0; page < 10; page++) {
-		const url: string =
-			`${base}/v1/models?limit=1000` +
-			(afterId ? `&after_id=${encodeURIComponent(afterId)}` : "");
+		const url = providerUrl(
+			provider.endpoint,
+			"/v1/models?limit=1000" +
+				(afterId ? `&after_id=${encodeURIComponent(afterId)}` : ""),
+		);
 		const data: AnthropicModelsResponse =
 			await requestProviderJson<AnthropicModelsResponse>(
 				provider,
@@ -259,19 +250,17 @@ async function fetchGeminiModels(
 	provider: AIProvider,
 	apiKey: string,
 ): Promise<Model[]> {
-	const base = provider.endpoint.replace(/\/+$/, "");
-	// The key travels as a header (verified live) — a `?key=` query parameter
+	// The key travels as a header (verified live): a `?key=` query parameter
 	// would leak it into request logs and proxies.
-	const headers: Record<string, string> = {};
-	if (apiKey) {
-		headers["x-goog-api-key"] = apiKey;
-	}
+	const headers = providerAuthHeaders("gemini", apiKey);
 	const models: Model[] = [];
 	let pageToken: string | null = null;
 	for (let page = 0; page < 10; page++) {
-		const url: string =
-			`${base}/v1beta/models?pageSize=1000` +
-			(pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "");
+		const url = providerUrl(
+			provider.endpoint,
+			"/v1beta/models?pageSize=1000" +
+				(pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""),
+		);
 		const data: GeminiModelsResponse =
 			await requestProviderJson<GeminiModelsResponse>(provider, url, headers);
 		for (const entry of data.models ?? []) {

@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "../utils/InlineFieldParser";
+import { addPropertyValues } from "./propertyValues";
 
 export function createFieldSuggestionsApi(app: App) {
 	return {
@@ -40,24 +41,7 @@ export function createFieldSuggestionsApi(app: App) {
 			for (const file of files) {
 				const cache = app.metadataCache.getFileCache(file);
 
-				// Get values from YAML frontmatter
-				const value = cache?.frontmatter?.[fieldName];
-				if (value !== undefined && value !== null) {
-					if (Array.isArray(value)) {
-						// Skip null/undefined and nested objects before
-						// stringifying - String(null) is "null" and an
-						// object yields "[object Object]"; both are noise.
-						value.forEach((x) => {
-							if (x === undefined || x === null) return;
-							if (typeof x === "object") return;
-							const strValue = String(x).trim();
-							if (strValue) values.add(strValue);
-						});
-					} else if (typeof value !== "object") {
-						const strValue = String(value).trim();
-						if (strValue) values.add(strValue);
-					}
-				}
+				addPropertyValues(values, cache?.frontmatter?.[fieldName]);
 
 				// Get values from inline fields if requested
 				if (filters.inline) {

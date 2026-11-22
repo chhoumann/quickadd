@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isUnderAllowedRoot, isWithinAllowedRoots, normalizeRoot } from "./allowedRoots";
+import { isUnderAllowedRoot, isWithinAllowedRoots, normalizeAllowedRoots } from "./allowedRoots";
 
 // "Cafe" with an accented final e, in both Unicode normalization forms. Built from
 // an explicit decomposed source (e + combining acute) so the two are byte-distinct.
@@ -7,16 +7,15 @@ const CAFE_BASE = "Café";
 const CAFE_NFC = CAFE_BASE.normalize("NFC"); // composed   (Caf + U+00E9)
 const CAFE_NFD = CAFE_BASE.normalize("NFD"); // decomposed (Cafe + U+0301)
 
-describe("normalizeRoot", () => {
-	it("trims, unifies separators, strips slashes, and NFC-normalizes a config root", () => {
-		expect(normalizeRoot("  AI/  ")).toBe("AI");
-		expect(normalizeRoot("\\AI\\notes\\")).toBe("AI/notes");
-		expect(normalizeRoot("AI//notes")).toBe("AI/notes");
-		expect(normalizeRoot(CAFE_NFD)).toBe(CAFE_NFC);
+describe("normalizeAllowedRoots", () => {
+	it("trims, unifies separators, strips slashes, and NFC-normalizes config roots", () => {
+		expect(
+			normalizeAllowedRoots(["  AI/  ", "\\AI\\notes\\", "AI//notes", CAFE_NFD]),
+		).toEqual(["AI", "AI/notes", "AI/notes", CAFE_NFC]);
 	});
-	it("collapses an all-blank root to empty", () => {
-		expect(normalizeRoot("   ")).toBe("");
-		expect(normalizeRoot("")).toBe("");
+	it("drops all-blank roots, so none at all means vault-wide", () => {
+		expect(normalizeAllowedRoots(["   ", ""])).toEqual([]);
+		expect(normalizeAllowedRoots(undefined)).toEqual([]);
 	});
 });
 
@@ -47,7 +46,7 @@ describe("isWithinAllowedRoots", () => {
 	});
 
 	// Regression: the predicate must compare the app-owned path by IDENTITY. A prior
-	// version ran the path through normalizeRoot (which .trim()s), so a sibling folder
+	// version ran the path through the root normalizer (which .trim()s), so a sibling folder
 	// literally named " AI" trimmed to "AI/..." and slipped past the fence.
 	it("does NOT trim the path: a leading-space sibling folder stays out of scope", () => {
 		expect(isWithinAllowedRoots(" AI/secret.md", ["AI"])).toBe(false);

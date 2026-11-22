@@ -1,6 +1,6 @@
 import { requestUrl } from "obsidian";
-import type { Model } from "./Provider";
-import { settingsStore } from "src/settingsStore";
+import { endpointHost, hostMatches, type Model } from "./Provider";
+import { assertOnlineFeaturesEnabled } from "./onlineFeatures";
 import { isObjectRecord } from "../utils/isRecord";
 
 export type ModelsDevModel = {
@@ -16,14 +16,14 @@ export type ModelsDevModel = {
   release_date?: string;
 };
 
-export type ModelsDevProvider = {
+type ModelsDevProvider = {
   id: string;
   api?: string;
   name: string;
   models: Record<string, ModelsDevModel>;
 };
 
-export type ModelsDevDirectory = Record<string, ModelsDevProvider>;
+type ModelsDevDirectory = Record<string, ModelsDevProvider>;
 
 let cachedDirectory: { data: ModelsDevDirectory; fetchedAt: number } | null = null;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -53,11 +53,9 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
     return cachedDirectory.data;
   }
 
-  if (settingsStore.getState().disableOnlineFeatures) {
-    throw new Error(
-      "Fetching models directory is disabled: Online features are turned off."
-    );
-  }
+  assertOnlineFeaturesEnabled(
+    "Fetching models directory is disabled: Online features are turned off."
+  );
 
   const response = await requestUrl({
     url: "https://models.dev/api.json",
@@ -74,64 +72,43 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
   return data;
 }
 
-// Extract the lowercased hostname from an endpoint, tolerating a missing
-// scheme (e.g. "api.openai.com/v1"). Returns "" when it can't be parsed.
-function endpointHost(endpoint: string): string {
-  for (const candidate of [endpoint, `https://${endpoint}`]) {
-    try {
-      // A scheme-less "host:port/path" parses as an opaque scheme with an empty
-      // hostname; require a real hostname so such inputs fall through to the
-      // https://-prefixed candidate instead of resolving to "".
-      const host = new URL(candidate).hostname.toLowerCase();
-      if (host) return host;
-    } catch {
-      // try the next candidate
-    }
-  }
-  return "";
-}
-
 export function mapEndpointToModelsDevKey(endpoint: string): string | null {
   const url = endpoint.toLowerCase();
   const host = endpointHost(endpoint);
 
-  // Match a provider domain against the URL's hostname (or a subdomain of it)
-  // so it can't be spoofed by the domain appearing elsewhere in the URL — e.g.
-  // "https://evil.com/api.openai.com" or "https://openai.com.evil.com"
-  // (CodeQL js/incomplete-url-substring-sanitization). Bare-keyword checks
-  // below stay as loose substring matches on purpose (they identify providers
-  // reached via proxy/custom URLs).
-  const hostMatches = (domain: string): boolean =>
-    host === domain || host.endsWith(`.${domain}`);
+  // Provider domains match the parsed hostname (see hostMatches). Bare-keyword
+  // checks below stay as loose substring matches on purpose (they identify
+  // providers reached via proxy/custom URLs).
+  const isHost = (domain: string): boolean => hostMatches(host, domain);
 
-  if (hostMatches("openai.com")) return "openai";
-  if (hostMatches("openrouter.ai")) return "openrouter";
-  if (hostMatches("generativelanguage.googleapis.com")) return "google";
+  if (isHost("openai.com")) return "openai";
+  if (isHost("openrouter.ai")) return "openrouter";
+  if (isHost("generativelanguage.googleapis.com")) return "google";
   if (url.includes("anthropic")) return "anthropic";
-  if (hostMatches("groq.com")) return "groq";
-  if (hostMatches("together.ai") || hostMatches("together.xyz"))
+  if (isHost("groq.com")) return "groq";
+  if (isHost("together.ai") || isHost("together.xyz"))
     return "togetherai";
   if (url.includes("huggingface")) return "huggingface";
   if (url.includes("github") && url.includes("models")) return "github-models";
   if (url.includes("bedrock") || url.includes("aws")) return "amazon-bedrock";
   if (url.includes("modelscope")) return "modelscope";
   if (url.includes("dashscope")) return "alibaba";
-  if (hostMatches("fireworks.ai")) return "fireworks-ai";
+  if (isHost("fireworks.ai")) return "fireworks-ai";
   if (url.includes("vercel")) return "vercel";
-  if (hostMatches("inference.net")) return "inference";
-  if (hostMatches("z.ai") || url.includes("zhipu")) return "zhipuai";
-  if (hostMatches("deepseek.com")) return "deepseek";
-  if (hostMatches("mistral.ai")) return "mistral";
+  if (isHost("inference.net")) return "inference";
+  if (isHost("z.ai") || url.includes("zhipu")) return "zhipuai";
+  if (isHost("deepseek.com")) return "deepseek";
+  if (isHost("mistral.ai")) return "mistral";
   if (url.includes("cerebras")) return "cerebras";
-  if (hostMatches("venice.ai")) return "venice";
-  if (hostMatches("upstage.ai")) return "upstage";
-  if (hostMatches("llama.com")) return "llama";
+  if (isHost("venice.ai")) return "venice";
+  if (isHost("upstage.ai")) return "upstage";
+  if (isHost("llama.com")) return "llama";
   if (url.includes("morphllm")) return "morph";
-  if (hostMatches("inceptionlabs.ai")) return "inception";
+  if (isHost("inceptionlabs.ai")) return "inception";
   if (url.includes("deepinfra")) return "deepinfra";
-  if (hostMatches("opencode.ai")) return "opencode";
-  if (hostMatches("inference.wandb.ai")) return "wandb";
-  if (hostMatches("githubcopilot.com")) return "github-copilot";
+  if (isHost("opencode.ai")) return "opencode";
+  if (isHost("inference.wandb.ai")) return "wandb";
+  if (isHost("githubcopilot.com")) return "github-copilot";
   return null;
 }
 

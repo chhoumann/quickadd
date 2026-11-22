@@ -4,8 +4,8 @@ import type { FieldRequirement } from "../preflight/RequirementCollector";
 import { OnePageInputModal } from "../preflight/OnePageInputModal";
 import type { NumericInputConfig, SliderConfig } from "../utils/valueSyntaxTypes";
 import { formatISODate } from "../utils/dateParser";
-import { rethrowPromptError } from "./promptApi";
-import { abortIfHeadless } from "../interactive/routePrompt";
+import { decodeDateToken } from "../utils/dateTokenCodec";
+import { routePrompt, scriptPromptHeadless } from "../interactive/routePrompt";
 
 function sanitizeNumericConfig(
 	value: NumericInputConfig | undefined,
@@ -126,39 +126,23 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 
 	let collected: Record<string, string> = {};
 	if (missing.length > 0) {
-		abortIfHeadless(
-			choiceExecutor,
-			"an input form",
-			missing.map((input) => input.label).join(", "),
-			`Pass ${missing.map((input) => input.id).join(", ")} in vars, or re-run with the ui flag.`,
-		);
-		// Route the batch form to a remote interactive session (Raycast)
-		// when one is driving this run; otherwise open the Obsidian modal.
-		const provider = choiceExecutor?.promptProvider;
-		if (provider) {
-			try {
-				const providerAnswers = await provider.requestInputs(missing);
-				collected = Object.fromEntries(
-					Object.entries(providerAnswers).map(([key, value]) => [
+		collected = await routePrompt(choiceExecutor, {
+			// A remote interactive session (Raycast) answers the batch form.
+			remote: async (provider) =>
+				Object.fromEntries(
+					Object.entries(await provider.requestInputs(missing)).map(([key, value]) => [
 						key,
 						Array.isArray(value) ? value.join(", ") : value,
 					]),
-				);
-			} catch (error) {
-				rethrowPromptError(error);
-			}
-		} else {
-			const modal = new OnePageInputModal(
-				app,
-				missing,
-				choiceExecutor.variables,
-			);
-			try {
-				collected = await modal.waitForClose;
-			} catch (error) {
-				rethrowPromptError(error);
-			}
-		}
+				),
+			headless: scriptPromptHeadless(
+				"an input form",
+				missing.map((input) => input.label).join(", "),
+				`Pass ${missing.map((input) => input.id).join(", ")} in vars, or re-run with the ui flag.`,
+			),
+			app: () =>
+				new OnePageInputModal(app, missing, choiceExecutor.variables).waitForClose,
+		});
 	}
 
 	// A multi-select field leaves ", " after the last pick, ready for the next
@@ -190,13 +174,8 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 	for (const spec of inputs) {
 		const value = rawResult[spec.id];
 		let output = value;
-		if (
-			spec.type === "date" &&
-			spec.dateFormat &&
-			typeof value === "string" &&
-			value.startsWith("@date:")
-		) {
-			const iso = value.slice(6);
+		const iso = spec.type === "date" && spec.dateFormat ? decodeDateToken(value) : null;
+		if (iso !== null && spec.dateFormat) {
 			const formatted = formatISODate(iso, spec.dateFormat);
 			if (formatted) output = formatted;
 		}

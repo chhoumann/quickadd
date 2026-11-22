@@ -52,14 +52,10 @@ export function getProviderKind(provider: {
 	if (provider.kind) return provider.kind;
 	const name = (provider.name ?? "").toLowerCase();
 	const host = endpointHost(provider.endpoint);
-	// Match the parsed HOSTNAME precisely (exact or a real subdomain), not a raw
-	// substring of the whole URL — so e.g. `https://evil.com/?api.anthropic.com`
-	// can't be mistaken for Anthropic.
-	const isHost = (h: string) => host === h || host.endsWith(`.${h}`);
-	if (name === "anthropic" || isHost("api.anthropic.com")) {
+	if (name === "anthropic" || hostMatches(host, "api.anthropic.com")) {
 		return "anthropic";
 	}
-	if (name === "gemini" || isHost("generativelanguage.googleapis.com")) {
+	if (name === "gemini" || hostMatches(host, "generativelanguage.googleapis.com")) {
 		return "gemini";
 	}
 	return "openai";
@@ -87,17 +83,75 @@ export function getChatWire(provider: {
 }
 
 /** Lowercased hostname of an endpoint, or "" if it can't be parsed (scheme optional). */
-function endpointHost(endpoint?: string): string {
+export function endpointHost(endpoint?: string): string {
 	const raw = (endpoint ?? "").trim();
 	if (!raw) return "";
 	for (const candidate of [raw, `https://${raw}`]) {
 		try {
-			return new URL(candidate).hostname.toLowerCase();
+			// A scheme-less "host:port/path" parses as an opaque scheme with an empty
+			// hostname; require a real hostname so such inputs fall through to the
+			// https://-prefixed candidate instead of resolving to "".
+			const host = new URL(candidate).hostname.toLowerCase();
+			if (host) return host;
 		} catch {
 			/* try next form */
 		}
 	}
 	return "";
+}
+
+/**
+ * Whether `host` is `domain` or a real subdomain of it. Matching the parsed
+ * hostname, not a substring of the whole URL, means e.g.
+ * `https://evil.com/?api.anthropic.com` or `https://openai.com.evil.com` can't
+ * pass for the provider (CodeQL js/incomplete-url-substring-sanitization).
+ */
+export function hostMatches(host: string, domain: string): boolean {
+	return host === domain || host.endsWith(`.${domain}`);
+}
+
+/** `endpoint` joined with `path` (which starts with "/"), never doubling the slash. */
+export function providerUrl(endpoint: string, path: string): string {
+	return endpoint.replace(/\/+$/, "") + path;
+}
+
+/**
+ * Auth headers for a provider's wire protocol. Each protocol has its own scheme:
+ * a Bearer header on Anthropic or Gemini is a guaranteed 401 (verified live).
+ * Without a key only Anthropic's version header is sent, so keyless local
+ * OpenAI-compatible servers never see an empty `Bearer `.
+ */
+export function providerAuthHeaders(
+	kind: ProviderKind,
+	apiKey: string,
+): Record<string, string> {
+	switch (kind) {
+		case "anthropic":
+			return {
+				"anthropic-version": "2023-06-01",
+				...(apiKey ? { "x-api-key": apiKey } : {}),
+			};
+		case "gemini":
+			return apiKey ? { "x-goog-api-key": apiKey } : {};
+		default:
+			return apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+	}
+}
+
+/**
+ * The provider a user-typed key names: its stable id, else its display name,
+ * both case-insensitively. Used wherever a person or script addresses a
+ * provider (`provider/model` strings, `{ provider }` objects, CLI flags).
+ */
+export function findProviderByKey(
+	providers: AIProvider[],
+	key: string,
+): AIProvider | undefined {
+	const wanted = key.trim().toLowerCase();
+	return (
+		providers.find((p) => p.id?.toLowerCase() === wanted) ??
+		providers.find((p) => p.name.trim().toLowerCase() === wanted)
+	);
 }
 
 /**
@@ -338,7 +392,10 @@ const GeminiProvider: AIProvider = {
 	apiKey: "",
 	models: cloneModelSeeds("google"),
 	autoSyncModels: true,
-	modelSource: "modelsDev",
+	// Matches the Gemini preset: only OpenAI uses the curated directory (its
+	// native list mixes in non-chat models); Gemini's own list is filtered by
+	// generation method and falls back to models.dev.
+	modelSource: "auto",
 };
 
 export const DefaultProviders: AIProvider[] = [

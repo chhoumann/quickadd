@@ -9,6 +9,8 @@ import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
+import { QA_INTERNAL_DATE_ORIGIN } from "../constants";
+import moment from "moment";
 
 const {
 	ChoiceExecutorMock,
@@ -16,7 +18,9 @@ const {
 	getUnresolvedRequirementsMock,
 	listDeferredMacroStepsMock,
 	interactiveServerMock,
+	saveClipboardImageToVaultMock,
 } = vi.hoisted(() => ({
+	saveClipboardImageToVaultMock: vi.fn(),
 	ChoiceExecutorMock: vi.fn(),
 	collectChoiceRequirementsMock: vi.fn(),
 	getUnresolvedRequirementsMock: vi.fn(),
@@ -32,6 +36,10 @@ const {
 
 vi.mock("../interactive/interactivePromptServer", () => ({
 	interactivePromptServer: interactiveServerMock,
+}));
+
+vi.mock("../utils/clipboardImageAttachments", () => ({
+	saveClipboardImageToVault: saveClipboardImageToVaultMock,
 }));
 
 vi.mock("../choiceExecutor", () => ({
@@ -979,6 +987,76 @@ describe("registerQuickAddCliHandlers", () => {
 		);
 		expect(withoutFields.missing[0].options).toBeUndefined();
 		expect(withoutFields.missing[0].optionCount).toBe(3);
+	});
+
+	const dateOriginRequirement = {
+		id: QA_INTERNAL_DATE_ORIGIN,
+		label: "Date for Template Choice",
+		type: "date",
+		dateFormat: "YYYY-MM-DD",
+		source: "collected",
+	};
+
+	async function runCli(command: string, params: CliData) {
+		const { plugin, handlers } = createPlugin([templateChoice]);
+		registerQuickAddCliHandlers(plugin);
+		const handler = handlers.find((entry) => entry.command === command)!.handler;
+		return JSON.parse(String(await handler(params)));
+	}
+
+	// The internal date-origin input is answered by date=, the flag quickadd:run
+	// already names for it; value-__qa.dateOrigin=<value> is not a flag anyone
+	// should pass.
+	it("names date= for a missing Which day input in quickadd:check", async () => {
+		collectChoiceRequirementsMock.mockResolvedValue([dateOriginRequirement]);
+		getUnresolvedRequirementsMock.mockReturnValue([dateOriginRequirement]);
+
+		const payload = await runCli("quickadd:check", { choice: templateChoice.name });
+
+		expect(payload.missingFlags).toEqual(["date=<when>"]);
+	});
+
+	it("reads date= in quickadd:check as the run's day, not a variable", async () => {
+		await runCli("quickadd:check", { choice: templateChoice.name, date: "ask" });
+
+		expect(executors[0].callerDay).toBe("pick");
+		expect(executors[0].variables.has("date")).toBe(false);
+
+		vi.stubGlobal("moment", moment);
+		expect(
+			await runCli("quickadd:check", { choice: templateChoice.name, date: "@date:not-a-day" }),
+		).toMatchObject({ ok: false, error: "Could not parse date origin '@date:not-a-day'." });
+	});
+
+	it("reads date= in quickadd:interactive and refuses a bad one before opening a session", async () => {
+		await runCli("quickadd:interactive", { choice: templateChoice.name, date: "ask" });
+		expect(executors[0].callerDay).toBe("pick");
+		expect(executors[0].variables.has("date")).toBe(false);
+
+		interactiveServerMock.createSession.mockClear();
+		vi.stubGlobal("moment", moment);
+		expect(
+			await runCli("quickadd:interactive", { choice: templateChoice.name, date: "@date:not-a-day" }),
+		).toMatchObject({ ok: false, error: "Could not parse date origin '@date:not-a-day'." });
+		expect(interactiveServerMock.createSession).not.toHaveBeenCalled();
+	});
+
+	it("wraps quickadd:save-clipboard-image in the standard envelope", async () => {
+		saveClipboardImageToVaultMock.mockResolvedValue({ path: "Pasted.png", name: "Pasted.png" });
+
+		expect(await runCli("quickadd:save-clipboard-image", { nameAfterNoteTitle: "false" })).toEqual({
+			command: "quickadd:save-clipboard-image",
+			ok: true,
+			path: "Pasted.png",
+			name: "Pasted.png",
+			sourcePath: "",
+			nameAfterNoteTitle: false,
+		});
+		expect(await runCli("quickadd:save-clipboard-image", { nameAfterNoteTitle: "maybe" })).toEqual({
+			ok: false,
+			command: "quickadd:save-clipboard-image",
+			error: "Invalid nameAfterNoteTitle: maybe. Use true or false.",
+		});
 	});
 });
 

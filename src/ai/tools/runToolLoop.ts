@@ -29,7 +29,7 @@ export interface ToolEntry {
 	readOnly?: boolean;
 }
 
-export type LoopFinishReason =
+type LoopFinishReason =
 	| "stop"
 	| "length"
 	| "max-steps"

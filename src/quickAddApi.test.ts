@@ -86,7 +86,11 @@ vi.mock("./preflight/OnePageInputModal", () => ({
 
 vi.mock("./ai/AIAssistant", () => ({
 	Prompt: mocks.prompt,
+}));
+vi.mock("./ai/chunkedPrompt", () => ({
 	ChunkedPrompt: mocks.chunkedPrompt,
+}));
+vi.mock("./ai/requestLog", () => ({
 	getAIRequestLogEntries: mocks.getAIRequestLogEntries,
 	getAIRequestLogEntryById: mocks.getAIRequestLogEntryById,
 	getLastAIRequestLogEntry: mocks.getLastAIRequestLogEntry,

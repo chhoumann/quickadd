@@ -95,7 +95,7 @@ export type NormalizedToolChoice =
 	| { name: string };
 
 /** A JSON-schema-constrained output request (structured output). */
-export interface NormalizedResponseFormat {
+interface NormalizedResponseFormat {
 	schema?: JSONSchema;
 	name?: string;
 	strict?: boolean;

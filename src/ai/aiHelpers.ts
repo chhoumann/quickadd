@@ -1,6 +1,6 @@
 import { log } from "src/logger/logManager";
 import { settingsStore } from "src/settingsStore";
-import type { AIProvider, Model, ModelRef } from "./Provider";
+import { findProviderByKey, type AIProvider, type Model, type ModelRef } from "./Provider";
 
 /** A model together with the provider that will serve it. */
 export interface ResolvedModel {
@@ -163,12 +163,7 @@ export function resolveModelScoped(
 	providerKey: string,
 	modelName: string,
 ): ResolvedModel | undefined {
-	const all = providers();
-	const key = providerKey.trim().toLowerCase();
-
-	const provider =
-		all.find((p) => p.id?.toLowerCase() === key) ??
-		all.find((p) => p.name.trim().toLowerCase() === key);
+	const provider = findProviderByKey(providers(), providerKey);
 	const model = provider?.models.find((m) => m.name === modelName);
 	if (provider && model) return { provider, model };
 

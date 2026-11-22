@@ -1,4 +1,5 @@
 import type { CliData, CliFlags } from "obsidian";
+import { findProviderByKey } from "../ai/Provider";
 import { testProviderConnection } from "../ai/providerConnection";
 import type { AppProvider } from "../types/pluginContext";
 import { settingsStore } from "../settingsStore";
@@ -27,10 +28,7 @@ export async function aiTestConnectionHandler(
 			providers: providers.map((p) => p.id ?? p.name),
 		};
 	}
-	const lowered = selector.toLowerCase();
-	const provider =
-		providers.find((p) => p.id === selector) ??
-		providers.find((p) => p.name.trim().toLowerCase() === lowered);
+	const provider = findProviderByKey(providers, selector);
 	if (!provider) {
 		return {
 			ok: false,

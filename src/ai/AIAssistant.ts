@@ -1,11 +1,10 @@
-import { outputVariables, trackPrompt } from "./promptProgress";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
-import { UserCancelError } from "src/errors/UserCancelError";
+import { promptCancelled, UserCancelError } from "src/errors/UserCancelError";
 import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import type { PromptProvider } from "src/interactive/promptProvider";
-import { settingsStore } from "src/settingsStore";
+import { routePrompt } from "src/interactive/routePrompt";
 import { getMarkdownFilesInFolder } from "src/utils/vaultQueries";
 import invariant from "src/utils/invariant";
 import { isCancellationError } from "src/utils/errorUtils";
@@ -13,62 +12,8 @@ import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { OpenAIRequest } from "./OpenAIRequest";
 import type { AIProvider, Model } from "./Provider";
 import { makeNoticeHandler } from "./makeNoticeHandler";
-
-export * from "./requestLog";
-export { ChunkedPrompt, RateLimiter } from "./chunkedPrompt";
-
-async function getTargetPromptTemplate(
-	app: App,
-	userDefinedPromptTemplate: Params["promptTemplate"],
-	promptTemplates: TFile[],
-	interactive = true,
-	promptProvider?: PromptProvider
-): Promise<[string, string]> {
-	let targetFile;
-
-	if (userDefinedPromptTemplate.enable) {
-		targetFile = promptTemplates.find((item) =>
-			item.path.endsWith(userDefinedPromptTemplate.name)
-		);
-	} else {
-		const basenames = promptTemplates.map((f) => f.basename);
-
-		if (promptProvider) {
-			// Route the picker to a remote interactive session (Raycast). The
-			// suggester returns the selected actualItems entry (the TFile).
-			targetFile = (await promptProvider.suggester(
-				basenames,
-				promptTemplates as unknown as string[],
-				"Select a prompt template"
-			)) as TFile | undefined;
-		} else if (!interactive) {
-			// Non-interactive run (CLI without `ui`): the prompt-template picker has
-			// no one to answer it, so opening it would hang. Abort with an actionable
-			// error.
-			throw new ChoiceAbortError(
-				"This AI command asks which prompt template to use, but this run is non-interactive. " +
-					"Enable a specific prompt template in the command, or re-run with the ui flag."
-			);
-		} else {
-			targetFile = await GenericSuggester.Suggest(
-				app,
-				basenames,
-				promptTemplates,
-				"Select a prompt template"
-			);
-		}
-	}
-
-	invariant(targetFile, "Prompt template does not exist");
-
-	const targetTemplatePath = targetFile.path;
-
-	const file = app.vault.getAbstractFileByPath(targetTemplatePath);
-	invariant(file instanceof TFile, `${targetTemplatePath} is not a file`);
-	const targetTemplateContent = await app.vault.cachedRead(file);
-
-	return [targetFile.basename, targetTemplateContent];
-}
+import { assertOnlineFeaturesEnabled } from "./onlineFeatures";
+import { outputVariables, trackPrompt } from "./promptProgress";
 
 interface Params {
 	apiKey: string;
@@ -98,108 +43,51 @@ interface Params {
 	promptProvider?: PromptProvider;
 }
 
-export async function runAIAssistant(
-	app: App,
-	settings: Params,
-	formatter: (input: string) => Promise<string>
-) {
-	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
-		);
-	}
-
-	const notice = makeNoticeHandler(settings.showAssistantMessages);
-
-	try {
-		const {
-			apiKey,
-			model,
-			provider,
-			outputVariableName: outputVariable,
-			promptTemplate,
-			systemPrompt,
-			promptTemplateFolder,
-		} = settings;
-
-		const promptTemplates = getMarkdownFilesInFolder(app, promptTemplateFolder);
-
-		const [targetKey, targetPrompt] = await getTargetPromptTemplate(
-			app,
-			promptTemplate,
-			promptTemplates,
-			settings.interactive ?? true,
-			settings.promptProvider
-		);
-
-		notice.setMessage(
-			"waiting",
-			"QuickAdd is formatting the prompt template."
-		);
-		const formattedPrompt = await formatter(targetPrompt);
-
-		const promptingMsg = [
-			"prompting",
-			`Using prompt template "${targetKey}".`,
-		];
-		notice.setMessage(promptingMsg[0], promptingMsg[1]);
-
-		const makeRequest = OpenAIRequest(
-			app,
-			apiKey,
-			model,
-			provider,
-			systemPrompt,
-			settings.modelOptions,
-			!settings.showAssistantMessages
-		);
-		const res = makeRequest(formattedPrompt);
-
-		const result = await trackPrompt(res, notice, promptingMsg);
-
-		const output = result.content;
-
-		window.setTimeout(() => notice.hide(), 5000);
-
-		return outputVariables(outputVariable, output);
-	} catch (error) {
-		notice.fail(error);
-		// Always abort on cancelled input
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
-}
-
 export type PromptParams = Omit<
 	Params & { prompt: string },
 	"promptTemplate" | "promptTemplateFolder"
 >;
 
+/** Run an AI Assistant macro command: its prompt comes from a template note. */
+export async function runAIAssistant(
+	app: App,
+	settings: Params,
+	formatter: (input: string) => Promise<string>
+) {
+	return sendPrompt(app, settings, formatter, async () => {
+		const [name, prompt] = await getTargetPromptTemplate(app, settings);
+		return { prompt, label: `Using prompt template "${name}".` };
+	});
+}
+
+/** Run a script's `ai.prompt`: its prompt is the text the script passed. */
 export async function Prompt(
 	app: App,
 	settings: PromptParams,
 	formatter: (input: string) => Promise<string>
 ) {
-	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
-		);
-	}
+	return sendPrompt(app, settings, formatter, async () => ({
+		prompt: settings.prompt,
+		label: "Using custom prompt.",
+	}));
+}
+
+/**
+ * Format the prompt, send it, and return its output variables, narrating each
+ * stage in the assistant notice when "Show assistant messages" is on.
+ */
+async function sendPrompt(
+	app: App,
+	settings: Omit<Params, "promptTemplate" | "promptTemplateFolder">,
+	formatter: (input: string) => Promise<string>,
+	resolvePrompt: () => Promise<{ prompt: string; label: string }>,
+) {
+	assertOnlineFeaturesEnabled();
 
 	const notice = makeNoticeHandler(settings.showAssistantMessages);
 
 	try {
-		const {
-			apiKey,
-			model,
-			provider,
-			outputVariableName: outputVariable,
-			systemPrompt,
-			prompt,
-			modelOptions,
-		} = settings;
+		const { prompt, label } = await resolvePrompt();
 
 		notice.setMessage(
 			"waiting",
@@ -207,30 +95,75 @@ export async function Prompt(
 		);
 		const formattedPrompt = await formatter(prompt);
 
-		const promptingMsg = ["prompting", `Using custom prompt.`];
-		notice.setMessage(promptingMsg[0], promptingMsg[1]);
-
 		const makeRequest = OpenAIRequest(
 			app,
-			apiKey,
-			model,
-			provider,
-			systemPrompt,
-			modelOptions,
+			settings.apiKey,
+			settings.model,
+			settings.provider,
+			settings.systemPrompt,
+			settings.modelOptions,
 			!settings.showAssistantMessages
 		);
-		const res = makeRequest(formattedPrompt);
+		const result = await trackPrompt(
+			makeRequest(formattedPrompt),
+			notice,
+			["prompting", label],
+		);
 
-		const result = await trackPrompt(res, notice, promptingMsg);
-
-		const output = result.content;
-
-		window.setTimeout(() => notice.hide(), 5000);
-
-		return outputVariables(outputVariable, output);
+		return outputVariables(settings.outputVariableName, result.content);
 	} catch (error) {
 		notice.fail(error);
-		// No user input in this function - re-throw original error
+		// A cancelled prompt in the formatter aborts the run like any other.
+		if (isCancellationError(error) && !(error instanceof UserCancelError)) {
+			throw promptCancelled();
+		}
 		throw error;
 	}
+}
+
+async function getTargetPromptTemplate(
+	app: App,
+	settings: Params,
+): Promise<[string, string]> {
+	const { promptTemplate } = settings;
+	const promptTemplates = getMarkdownFilesInFolder(app, settings.promptTemplateFolder);
+	const targetFile = promptTemplate.enable
+		? promptTemplates.find((item) => item.path.endsWith(promptTemplate.name))
+		: await pickPromptTemplate(app, promptTemplates, settings);
+
+	invariant(targetFile, "Prompt template does not exist");
+
+	const targetTemplatePath = targetFile.path;
+
+	const file = app.vault.getAbstractFileByPath(targetTemplatePath);
+	invariant(file instanceof TFile, `${targetTemplatePath} is not a file`);
+	const targetTemplateContent = await app.vault.cachedRead(file);
+
+	return [targetFile.basename, targetTemplateContent];
+}
+
+function pickPromptTemplate(
+	app: App,
+	promptTemplates: TFile[],
+	settings: Pick<Params, "interactive" | "promptProvider">,
+): Promise<TFile | undefined> {
+	const basenames = promptTemplates.map((f) => f.basename);
+	const placeholder = "Select a prompt template";
+	return routePrompt(settings, {
+		// A remote interactive session (Raycast) answers with the selected
+		// template, or with typed text that names none.
+		remote: async (provider) => {
+			const picked = await provider.suggester(basenames, promptTemplates, placeholder);
+			return typeof picked === "string" ? undefined : picked;
+		},
+		// Non-interactive run (CLI without `ui`): the picker has no one to answer
+		// it, so opening it would hang.
+		headless: () => {
+			throw new ChoiceAbortError(
+				"This AI command asks which prompt template to use, but this run is non-interactive. " +
+					"Enable a specific prompt template in the command, or re-run with the ui flag."
+			);
+		},
+		app: () => GenericSuggester.Suggest(app, basenames, promptTemplates, placeholder),
+	});
 }

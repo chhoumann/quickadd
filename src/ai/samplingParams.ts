@@ -14,7 +14,7 @@ import type { OpenAIModelParameters } from "./OpenAIModelParameters";
  * provider rejects them anyway — telling the user what happened.
  */
 
-export const SAMPLING_PARAM_KEYS = [
+const SAMPLING_PARAM_KEYS = [
 	"temperature",
 	"top_p",
 	"frequency_penalty",

@@ -399,20 +399,6 @@ class InteractivePromptServer {
 	}
 
 	/**
-	 * Reject anything that doesn't look like our own loopback client: a browser
-	 * (sends Origin/Referer) or a Host header that isn't 127.0.0.1/localhost
-	 * (DNS-rebinding). The server is bound to loopback, but these headers are the
-	 * cheap defence against a drive-by page probing the port.
-	 */
-	private originAllowed(req: HttpIncomingMessage): boolean {
-		return isLoopbackClient({
-			origin: req.headers.origin,
-			referer: req.headers.referer,
-			host: req.headers.host,
-		});
-	}
-
-	/**
 	 * Deliver an answer (or a cancel) to the prompt a session is blocked on.
 	 * Public so the HTTP layer and tests share one path. Returns true if a
 	 * matching pending prompt was found.
@@ -443,14 +429,6 @@ class InteractivePromptServer {
 			else pending.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
 		} else pending.resolve(value);
 		return true;
-	}
-
-	/** The pending prompt's type, or undefined if nothing is waiting on that id. */
-	private pendingPromptType(
-		session: Session,
-		requestId: string,
-	): PromptSpec["type"] | undefined {
-		return session.pending.get(requestId)?.promptType;
 	}
 
 	private send(res: HttpServerResponse, status: number, body: unknown): void {
@@ -486,7 +464,11 @@ class InteractivePromptServer {
 
 	private async handle(req: HttpIncomingMessage, res: HttpServerResponse): Promise<void> {
 		try {
-			if (!this.originAllowed(req)) {
+			// Reject anything that doesn't look like our own loopback client: a browser
+			// (sends Origin/Referer) or a Host header that isn't 127.0.0.1/localhost
+			// (DNS-rebinding). The server is bound to loopback, but these headers are
+			// the cheap defence against a drive-by page probing the port.
+			if (!isLoopbackClient(req.headers)) {
 				this.send(res, 403, { ok: false, error: "Forbidden" });
 				return;
 			}
@@ -631,7 +613,7 @@ class InteractivePromptServer {
 		if (!body.requestId) {
 			return { ok: false, status: 409, error: NO_PENDING_PROMPT };
 		}
-		const promptType = this.pendingPromptType(session, body.requestId);
+		const promptType = session.pending.get(body.requestId)?.promptType;
 		if (!promptType) {
 			return { ok: false, status: 409, error: NO_PENDING_PROMPT };
 		}

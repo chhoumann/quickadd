@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AIProvider } from "./Provider";
+import { PROVIDER_PRESETS } from "./providerPresets";
 import {
 	CURRENT_MODEL_SEEDS,
 	DefaultProviders,
@@ -44,6 +45,9 @@ describe("getProviderKind", () => {
 		expect(getProviderKind({ name: "Claude Proxy", endpoint: "https://api.anthropic.com/v1/messages" })).toBe("anthropic");
 		// scheme-less endpoints still parse
 		expect(getProviderKind({ name: "X", endpoint: "api.anthropic.com" })).toBe("anthropic");
+		// "host:port" without a scheme parses as an opaque `host:` scheme with no
+		// hostname; it must still be read as the host, or this routes as OpenAI.
+		expect(getProviderKind({ name: "X", endpoint: "api.anthropic.com:443/v1" })).toBe("anthropic");
 	});
 
 	it("infers gemini from name or endpoint", () => {
@@ -211,5 +215,17 @@ describe("sortModelsForDisplay", () => {
 		]);
 		// Display order only: the stored list is untouched.
 		expect(models[0].name).toBe("hand-added");
+	});
+});
+
+describe("DefaultProviders", () => {
+	// A fresh install's built-in providers and the same providers added from the
+	// picker must discover models the same way.
+	it("discover models like the matching preset", () => {
+		for (const provider of DefaultProviders) {
+			const preset = PROVIDER_PRESETS.find((p) => p.id === provider.id);
+			expect(preset, provider.name).toBeDefined();
+			expect(provider.modelSource, provider.name).toBe(preset?.modelSource);
+		}
 	});
 });

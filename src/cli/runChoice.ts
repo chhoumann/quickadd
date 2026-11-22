@@ -1,6 +1,5 @@
 import type { CliData } from "obsidian";
 import { ChoiceExecutor } from "../choiceExecutor";
-import { QA_INTERNAL_DATE_ORIGIN } from "../constants";
 import { createFolderTemplateChoice } from "../engine/runTemplateFromFolder";
 import { interactivePromptServer } from "../interactive/interactivePromptServer";
 import { RemotePromptProvider } from "../interactive/promptProvider";
@@ -11,7 +10,7 @@ import { getTemplateFile } from "../utils/templateFolderUtils";
 import { applyInvocationDate } from "../utils/resolveDateOrigin";
 import { executeChoice } from "./executeChoice";
 import {
-	describeChoice, extractVariables, isTruthy, resolveChoiceFromParams, resolveCurrentNote,
+	describeChoice, extractVariables, isTruthy, missingFlagFor, resolveChoiceFromParams, resolveCurrentNote,
 	RESERVED_INTERACTIVE_PARAMS, RESERVED_RUN_PARAMS, RESERVED_RUN_TEMPLATE_PARAMS,
 	setExecutorVariables, toMissingFieldSummary,
 } from "./params";
@@ -49,8 +48,7 @@ async function runResolvedChoice(
 				error: "Missing required inputs for non-interactive CLI run.",
 				choice: summary,
 				missing: unresolved.map(toMissingFieldSummary),
-				missingFlags: unresolved.map(({ id }) => id === QA_INTERNAL_DATE_ORIGIN
-					? "date=<when>" : `value-${id}=<value>`),
+				missingFlags: unresolved.map(missingFlagFor),
 			};
 		}
 	}
@@ -77,7 +75,7 @@ export async function runTemplate(plugin: ChoiceRuntimePlugin, params: CliData) 
 				error: "Missing required inputs for non-interactive CLI run.",
 				choice: await describeChoice(plugin, choice),
 				missing: [{ id: "value", label: "New note name", type: "text", source: "collected", optionCount: 0 }],
-				missingFlags: ["value-value=<value>"],
+				missingFlags: [missingFlagFor({ id: "value" })],
 			};
 		}
 	}
@@ -91,11 +89,15 @@ export async function runInteractive(plugin: ChoiceRuntimePlugin, params: CliDat
 		return { ok: false, error: "Multi choices cannot be run interactively via CLI.", choice: summary };
 	}
 	const current = resolveCurrentNote(plugin.app, params);
-	const port = await interactivePromptServer.ensureStarted();
-	const { id: sessionId, token } = interactivePromptServer.createSession();
 	const executor = new ChoiceExecutor(plugin.app, plugin);
 	if (current !== undefined) executor.setCurrentFile(current);
 	setExecutorVariables(executor, extractVariables(params, RESERVED_INTERACTIVE_PARAMS));
+	// Before the session opens, so a bad date leaves no session behind.
+	if (!applyInvocationDate(executor, params.date)) {
+		return { ok: false, error: `Could not parse date origin '${params.date}'.`, choice: summary };
+	}
+	const port = await interactivePromptServer.ensureStarted();
+	const { id: sessionId, token } = interactivePromptServer.createSession();
 	executor.interactive = true;
 	executor.promptProvider = new RemotePromptProvider(sessionId);
 
