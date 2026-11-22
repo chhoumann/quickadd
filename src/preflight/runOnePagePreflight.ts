@@ -195,8 +195,18 @@ export async function runOnePagePreflight(
 							likelyTargetFolderPath(tmpl.folder) ?? "Folder/Name",
 						);
 						// Seed variables map-like into formatter
+						const linklistKeys = new Set(
+							modalRequirements
+								.filter((req) => req.multiEmit === "linklist")
+								.map((req) => req.id),
+						);
 						for (const [k, v] of Object.entries(values)) {
-							formatter["variables"].set(k, v);
+							formatter["variables"].set(
+								k,
+								linklistKeys.has(k) && Array.isArray(v)
+									? v.map((item) => toWikiLink(String(item)))
+									: v,
+							);
 						}
 						out.push({
 							label: "File name",
@@ -287,7 +297,7 @@ export async function runOnePagePreflight(
 				});
 				multiInfoByKey.set(req.id, {
 					emit: req.multiEmit ?? "text",
-					allowCustom: req.suggesterConfig.allowCustomInput ?? true,
+					allowCustom: req.suggesterConfig.allowCustomInput ?? (req.source === "script"),
 					values: new Set(options),
 					displayToValue,
 					joinWith: req.source === "script" && !shouldReturnArray({

@@ -348,7 +348,7 @@ export default async function entry({ quickAddApi }) {
 }
 ```
 
-The variable holds the same array, so a later `topics: {{VALUE:topics}}` in a template's frontmatter writes a YAML list. To join the picks with other text, set `separator`, for example `separator: "; "`.
+The variable holds the same array, so a later `topics: {{VALUE:topics}}` in a template's frontmatter writes a YAML list. To get one joined string with other text between picks instead of an array, remove `returnArray` (or set `returnArray: false`) and set `separator`, for example `separator: "; "`.
 
 Behavior:
 

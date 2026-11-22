@@ -82,7 +82,8 @@ export class OnePageFieldRenderer {
 			this.host.publish(control);
 			this.host.updatePreview();
 		};
-		const starting = this.host.initialValue(req.id) ?? req.defaultValue ?? "";
+		const providedStarting = this.host.initialValue(req.id) ?? req.defaultValue;
+		const starting = providedStarting ?? "";
 		control.value = starting;
 
 		switch (req.type) {
@@ -366,7 +367,7 @@ export class OnePageFieldRenderer {
 			}
 			case "suggester": {
 				if (req.suggesterConfig?.multiSelect) this.renderMultiSuggesterField(req, control, setValue);
-				else this.renderSuggesterField(req, starting, control, setValue);
+				else this.renderSuggesterField(req, providedStarting, control, setValue);
 				break;
 			}
 			case "file-picker": {
@@ -413,7 +414,7 @@ export class OnePageFieldRenderer {
 
 	private renderSuggesterField(
 		req: FieldRequirement,
-		starting: string,
+		starting: string | undefined,
 		control: FieldControl,
 		setValue: (id: string, value: string) => void,
 	): void {
@@ -424,11 +425,12 @@ export class OnePageFieldRenderer {
 		const input = new TextComponent(setting.controlEl);
 		input.setPlaceholder(req.placeholder ?? "Type to search...");
 
-		const startingOption = options.find((option) => option.value === starting);
-		input.setValue(startingOption?.label ?? starting);
+		const startingOption = starting !== undefined ? options.find((option) => option.value === starting) : undefined;
+		const initialText = starting ?? "";
+		input.setValue(startingOption?.label ?? initialText);
 
 		if (allowCustomInput) {
-			setValue(req.id, startingOption?.value ?? starting);
+			setValue(req.id, startingOption?.value ?? initialText);
 			input.inputEl.addEventListener("input", (event) => {
 				if ((event as CompletionInputEvent).fromCompletion) return;
 				setValue(req.id, input.inputEl.value);
@@ -451,17 +453,17 @@ export class OnePageFieldRenderer {
 			setValue(req.id, pickedOption?.value ?? "");
 		};
 		if (startingOption) setValue(req.id, startingOption.value);
-		else matchTypedOption(starting);
+		else matchTypedOption(initialText);
 
 		input.inputEl.addEventListener("input", (event) => {
 			if ((event as CompletionInputEvent).fromCompletion) return;
 			matchTypedOption(input.inputEl.value);
 		});
-		if (options.length === 0) return;
 		control.validate = () =>
 			unmatched || (!req.optional && !pickedOption)
 				? `QuickAdd: Choose an option for "${req.label}".`
 				: null;
+		if (options.length === 0) return;
 		control.suggesters.push(new SuggesterInputSuggest(this.app, input.inputEl, {
 			getOptions: () => options,
 			onSelect: (option) => {
@@ -494,7 +496,7 @@ export class OnePageFieldRenderer {
 			if (!isSelected(option)) selected.push(option);
 		};
 
-		const seed = this.host.initialValue(req.id) ?? req.defaultValues ?? req.defaultValue ?? "";
+		const seed = this.host.initialValue(req.id) ?? req.defaultValues ?? req.defaultValue;
 		for (const initialPick of resolveSeededMultiPicks(seed, options, {
 			allowCustomInput,
 			caseSensitive,
@@ -746,10 +748,11 @@ function suggesterOptions(req: FieldRequirement): SuggesterOption[] {
 }
 
 function resolveSeededMultiPicks(
-	seed: string | readonly string[],
+	seed: string | readonly string[] | undefined,
 	options: readonly SuggesterOption[],
 	config: { allowCustomInput: boolean; caseSensitive: boolean; separator: string },
 ): SuggesterOption[] {
+	if (seed === undefined) return [];
 	const findOption = (text: string) =>
 		options.find((option) => option.value === text) ??
 		options.find((option) => labelsMatch(option.label, text, config.caseSensitive));
@@ -763,6 +766,9 @@ function resolveSeededMultiPicks(
 		}
 		return picks;
 	}
+
+	const rawExact = options.find((option) => option.value === seed);
+	if (rawExact) return [rawExact];
 
 	const trimmed = seed.trim();
 	if (!trimmed) return [];

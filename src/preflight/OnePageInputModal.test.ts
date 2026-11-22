@@ -944,6 +944,18 @@ describe("OnePageInputModal", () => {
 			expect(modal.multiSelections.get(id)).toEqual(["A, B"]);
 		});
 
+		it("matches a scalar default against raw option values before trimming", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: [" A "],
+				displayOptions: ["Alpha"],
+				defaultValue: " A ",
+				suggesterConfig: { caseSensitive: true, allowCustomInput: false },
+			})], new Map());
+
+			expect(chips(modal)).toEqual(["Alpha"]);
+			expect(modal.multiSelections.get(id)).toEqual([" A "]);
+		});
+
 		it("refreshes the open suggestion list when Backspace removes a chip", async () => {
 			const modal = new OnePageInputModal(suggestApp, [tags({
 				options: ["Alpha", "Beta", "Gamma"],
@@ -1044,6 +1056,10 @@ describe("OnePageInputModal", () => {
 				displayOptions: ["None", "High"],
 				suggesterConfig: { allowCustomInput: false },
 			})], new Map());
+			modalButton(modal).click();
+			expect(noticeMessages).toEqual(['QuickAdd: Choose an option for "Priority".']);
+			noticeMessages.length = 0;
+
 			const none = suggesterConfigs[0].getOptions()[0];
 			input(modal).value = none.label;
 			suggesterConfigs[0].onSelect(none);
@@ -1052,6 +1068,32 @@ describe("OnePageInputModal", () => {
 			modalButton(modal).click();
 			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
 			expect(noticeMessages).toEqual([]);
+		});
+
+		it("accepts an explicitly seeded empty-string option when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({
+				options: ["", "hi"],
+				displayOptions: ["None", "High"],
+				defaultValue: "",
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+			expect(input(modal).value).toBe("None");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
+		});
+
+		it("refuses Submit when custom input is off and options is empty", () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({
+				options: [],
+				displayOptions: [],
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+			modal.waitForClose.catch(() => {});
+			type(modal, "Anything");
+			modalButton(modal).click();
+			expect(noticeMessages).toEqual(['QuickAdd: Choose an option for "Priority".']);
+			modal.onClose();
 		});
 
 		it("lets an optional field without custom input submit empty", async () => {

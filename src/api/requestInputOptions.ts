@@ -75,7 +75,7 @@ function optionLabel<T>(
 }
 
 export function encodeRequestInputOptions<T>(spec: RequestInputSpec<T>): EncodedRequestInputOptions {
-	const raw = spec.options ?? [];
+	const raw = spec.options ? [...spec.options] : [];
 	const display = spec.displayOptions;
 	const labels = raw.map((option, index) => optionLabel(display, option, index, raw));
 	const tokens = needsTokens(raw, labels);

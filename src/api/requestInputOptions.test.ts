@@ -61,6 +61,23 @@ describe("encodeRequestInputOptions", () => {
 		expect(codec.decode("Somebody else")).toBe("Somebody else");
 	});
 
+	it("keeps token mapping stable if the caller mutates options after encoding", () => {
+		const ada = { name: "Ada" };
+		const grace = { name: "Grace" };
+		const options = [ada, grace];
+		const codec = encodeRequestInputOptions({
+			id: "person",
+			type: "suggester",
+			options,
+			displayOptions: (person) => person.name,
+		});
+
+		options.reverse();
+
+		expect(codec.decode(codec.options![0])).toBe(ada);
+		expect(codec.decode(codec.options![1])).toBe(grace);
+	});
+
 	it("gives each index its own token when one value has two labels", () => {
 		const codec = encodeRequestInputOptions({
 			id: "x",

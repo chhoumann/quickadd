@@ -411,7 +411,7 @@ describe("runOnePagePreflight template extension handling", () => {
 		it("maps a remote client's array of comma-bearing labels back to values", async () => {
 			const executor = createExecutor();
 			(executor as IChoiceExecutor).promptProvider = {
-				requestInputs: vi.fn(async () => ({ tags: ["First, label", "other"] })),
+				requestInputs: vi.fn(async () => ({ tags: ["First, label", "other", "unlisted"] })),
 			} as unknown as IChoiceExecutor["promptProvider"];
 
 			await runOnePagePreflight(
