@@ -12,14 +12,9 @@ import {
 } from "./multiValueFormat";
 
 /**
- * Every filter key the `{{FIELD:...}}` grammar recognises, in the order the
- * fallback warning lists them.
- *
- * Authoritative, not descriptive: {@link FieldSuggestionParser.parse} tests
- * membership here BEFORE dispatching, so a `case` added to the switch without an
- * entry here stops working rather than silently drifting away from what the
- * warning advertises and what the typo suggester matches against. (`multi` is
- * both a bare flag and a `multi:true` key, and is spelled once for both.)
+ * Every filter key the `{{FIELD:...}}` grammar recognises, in warning order.
+ * Authoritative: parse() checks membership before dispatching, so a switch case
+ * without an entry here stops working rather than drifting from the warning.
  */
 export const FIELD_FILTER_KEYS = [
 	"folder",
@@ -67,12 +62,8 @@ function quoteList(values: string[]): string {
 }
 
 /**
- * Names the mistake instead of reciting the vocabulary (issue #1564).
- *
- * The actionable clause comes BEFORE the echoed token so the three-line clamp on
- * the inline preview diagnostic (styles.css `.qa-preview-issue`) can never cut
- * the fix off. The full list survives only where it is genuinely the most useful
- * thing left to say: when nothing is close enough to name.
+ * Names the mistake instead of reciting the vocabulary. The fix comes before
+ * the echoed token so the preview's three-line clamp never cuts it off.
  */
 export function describeUnknownFieldFilter(
 	filterKey: string,
@@ -101,14 +92,9 @@ export function describeUnknownFieldFilter(
 }
 
 /**
- * A RECOGNISED filter written without its value, e.g. `{{FIELD:status|folder}}`.
- *
- * It is not an unknown key and must not be described as one: calling `folder`
- * unknown and then listing `folder` among the supported filters is a
- * self-contradiction, and running it through the typo suggester - which excludes
- * the exact match from its own pool - answers a correctly spelled key with one of
- * its siblings. This is also what a live preview sees for the one keystroke
- * between `|folder` and `|folder:`, so it has to read as "not finished yet".
+ * A recognised filter written without its value, e.g. `|folder`, which a live
+ * preview sees for one keystroke. Not an unknown key, and not something the
+ * typo suggester should answer.
  */
 function describeValuelessFieldFilter(
 	filterKey: string,
@@ -133,12 +119,9 @@ export interface FieldFilter {
 	defaultEmpty?: boolean;
 	defaultAlways?: boolean;
 	/**
-	 * Source for a context-derived default (issue #1429). The only value v1
-	 * understands is `"active"`: resolve the default from the active note's
-	 * current frontmatter property at QuickAdd trigger time. Stored lowercased;
-	 * an unrecognized source is ignored (the FIELD prompt behaves as if no
-	 * `default-from` were present). Intentionally distinct from the literal
-	 * `default:` option and from `default:current` (see the issue's rationale).
+	 * Source for a context-derived default. Only `"active"` is understood: the
+	 * active note's property at trigger time. Stored lowercased; any other value
+	 * is ignored.
 	 */
 	defaultFrom?: string;
 	caseSensitive?: boolean;
@@ -278,10 +261,8 @@ export function parseFilterSegments(
 				filters.defaultValue = filterValue;
 				break;
 			case "default-from":
-				// e.g. |default-from:active — resolve the default from a context
-				// source (the active note's property) rather than a literal value.
-				// The resolution happens in the runtime/preflight FIELD paths; here
-				// we only record the requested source (lowercased).
+				// Only the requested source is recorded; the runtime and preflight
+				// FIELD paths resolve it.
 				filters.defaultFrom = filterValue.toLowerCase();
 				break;
 			case "default-empty":
@@ -338,13 +319,8 @@ function describeSkippedSegment(skipped: SkippedFilterSegment, input: string): s
 export class FieldSuggestionParser {
 	/**
 	 * Parses the `{{FIELD:...}}` grammar: the field name, then the shared filter
-	 * segments. With `warn`, every mistake is reported there, including keys
-	 * this grammar does not know; without it, parsing is silent (the pre-passes
-	 * that re-parse a token the main pass already reported).
-	 * Examples:
-	 * - "fieldname" -> { fieldName: "fieldname", filters: {} }
-	 * - "fieldname|folder:daily" -> { fieldName: "fieldname", filters: { folder: "daily" } }
-	 * - "fieldname|folder:daily|tag:work|tag:project" -> { fieldName: "fieldname", filters: { folder: "daily", tags: ["work", "project"] } }
+	 * segments. With `warn`, every mistake is reported there; without it, parsing
+	 * is silent for pre-passes that re-parse an already-reported token.
 	 */
 	static parse(
 		input: string,

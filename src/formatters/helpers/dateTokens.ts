@@ -128,10 +128,9 @@ export function renderStoredDateVariable(
 		if (dateParser && window.moment) {
 			const moment = window.moment(isoString);
 			if (moment?.isValid()) {
-				// Snap is per-occurrence (issue #511): the stored @date:ISO stays
-				// raw, so {{VDATE:d,F1|startof:week}} and {{VDATE:d,F2}} share one
-				// picked date but only one snaps. A fresh moment per call prevents
-				// leaks.
+				// Snap is per occurrence: the stored @date:ISO stays raw, so
+				// {{VDATE:d,F1|startof:week}} and {{VDATE:d,F2}} share one picked date
+				// but only one snaps. A fresh moment per call prevents leaks.
 				return { text: applyDateSnap(moment, snap).format(dateFormat), ...(normalized !== undefined ? { normalized } : {}) };
 			}
 		}
@@ -200,13 +199,9 @@ function invalidDateToken(kind: string, input: string, pattern: RegExp): Error {
 }
 
 export async function replaceDateVariableInString(input: string, context: DateVariableContext): Promise<string> {
-	// Scan with a GLOBAL regex + accumulator (mirrors replaceFieldVarInString)
-	// so a malformed/empty-name {{VDATE:}} token is skipped (left literal) and
-	// every LATER valid {{VDATE}} is still prompted. The previous in-place
-	// while-loop `break`ed the entire scan on the first empty-name match, which
-	// silently dropped all subsequent date prompts. The accumulator also never
-	// re-scans a replacement, so a stored value re-containing the token can't
-	// loop.
+	// A global regex with an accumulator, so a malformed or empty-name {{VDATE:}}
+	// is left literal while later tokens still prompt, and a replacement is never
+	// re-scanned.
 	const regex = new RegExp(DATE_VARIABLE_REGEX.source, "gi");
 	let output = "";
 	let lastIndex = 0;
@@ -233,12 +228,9 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 
 		const existingValue = context.variables.get(variableName);
 
-		// Check if we already have this date variable stored.
-		// Only `undefined` counts as unset — null and "" are intentional
-		// values (same contract as VALUE variables, see #872), so a
-		// script-set "" renders empty instead of re-prompting.
+		// Only `undefined` counts as unset; null and "" are intentional values,
+		// as for VALUE, so a script-set "" renders empty instead of re-prompting.
 		if (existingValue === undefined) {
-			// Prompt for date input with VDATE context
 			const dateInput = await context.prompt(
 				variableName,
 				{ type: "VDATE", dateFormat, defaultValue, optional, withTime, label }
@@ -260,7 +252,6 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 				const parseAttempt = context.dateParser.parseDate(normalizedInput);
 
 				if (parseAttempt) {
-					// Store the ISO string with a special prefix
 					context.variables.set(
 						variableName,
 						encodeDateToken(parseAttempt.moment.toISOString()),
@@ -277,10 +268,8 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 			}
 		}
 
-		// Format the date based on what's stored. Shared with both preview
-		// formatters, which resolve an ANSWERED {{VDATE:}} through the same
-		// helper so the one-page form's preview shows the date the user just
-		// picked rather than today's (#1589).
+		// Shared with both preview formatters, so the one-page form's preview shows
+		// the date the user just picked rather than today.
 		const rendered = renderStoredDateVariable(
 			context.variables.get(variableName),
 			dateFormat,

@@ -10,21 +10,10 @@
 </script>
 
 <!--
-  Shown when a value in data.json could not be READ - not when something threw.
-  The distinction is the whole point of this card existing next to MountFailed:
-  nothing is broken in QuickAdd, so "include the message below if you report
-  this" would send the user to file a bug about their own file, and there is no
-  error message to give them anyway.
-
-  What they need instead is the three things below: that we could not read it,
-  that we have not touched it and will not, and where it lives. Same promise the
-  choice list makes for an unreadable folder (ChoicesUnavailable.svelte) - kept
-  as a separate component rather than a shared one because that card's copy is
-  specifically about the choice tree, and a card that says the wrong noun is
-  worse than one more small component.
-
-  Deliberately offers no button. Anything that could rewrite data.json would
-  destroy the very value the user needs in order to recover.
+  Shown when a value in data.json could not be read, not when something threw,
+  so it asks for no bug report. It says that the value could not be read, that
+  QuickAdd has not touched it, and where it lives. No button: anything that could
+  rewrite data.json would destroy the value the user needs to recover.
 -->
 <div class="qaDataUnreadable">
 	<div class="qaDataUnreadableHead">

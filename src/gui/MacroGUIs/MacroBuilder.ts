@@ -110,19 +110,10 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	}
 
 	/**
-	 * The value to show as this macro's command list.
-	 *
-	 * `choice.macro` is untrusted too, and a Macro choice whose `macro` key is
-	 * missing entirely used to make "Configure" do nothing at all: the builder
-	 * threw while it rendered.
-	 *
-	 * Three cases, and `macro` being an ARRAY is the one worth naming: `[]` and
-	 * `[{...}]` are both objects, but writing `macro.commands` onto an Array sets
-	 * a non-index property that `JSON.stringify` drops, so the user's edits would
-	 * vanish on every save while the editor happily showed them. Handing the array
-	 * itself over as the command list instead means its entries render as the
-	 * commands they probably are, and `setMacroCommands` materializes a real macro
-	 * object around them on the first edit - nothing lost either way.
+	 * The value to show as this macro's command list. An array-valued `macro` is
+	 * handed over as the list itself: writing `.commands` onto an Array would be
+	 * dropped by JSON.stringify, and setMacroCommands materializes a real macro
+	 * object around the entries on the first edit.
 	 */
 	private macroCommandsValue(): unknown {
 		return macroCommandsValueOf(this.macro);

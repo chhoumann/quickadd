@@ -3,7 +3,7 @@ import { extractHeadingsFromLines, nonHeadingBlockLines } from "./sectionLink";
 import type { SectionOrdering } from "../types/choices/ICaptureChoice";
 
 /**
- * Pure placement logic for the "ordered" create-if-not-found location (issue #481).
+ * Pure placement logic for the "ordered" create-if-not-found location.
  *
  * Given a note's body lines and a new section heading that is known to be ABSENT,
  * compute WHERE the new heading should be created so that same-level sibling
@@ -114,7 +114,7 @@ function compareValues(a: ParsedKey, b: ParsedKey): number {
  * `bodyStartLine` is the index of the first line AFTER any YAML frontmatter (0
  * when there is none). Headings before it are excluded so a `#`-prefixed YAML
  * line (e.g. a comment) is never treated as a sibling/ancestor and the new
- * section can never be spliced into the frontmatter block (issue #481).
+ * section can never be spliced into the frontmatter block.
  */
 export function computeOrderedSectionInsertIndex(
 	lines: string[],
@@ -135,7 +135,7 @@ export function computeOrderedSectionInsertIndex(
 		moment,
 	);
 
-	// R1 (preamble pinned): with zero same-level siblings, nest the new section
+	// Preamble pinned: with zero same-level siblings, nest the new section
 	// after the nearest higher-level ancestor's WHOLE section (so an H1 title and
 	// its blurb stay above), else at the body start.
 	if (siblings.length === 0) {

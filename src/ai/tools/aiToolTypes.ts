@@ -1,5 +1,5 @@
 /**
- * Public, AI-SDK-shaped types for the QuickAdd Agent surface (#714).
+ * Public, AI-SDK-shaped types for the QuickAdd Agent surface.
  *
  * Pure (no Obsidian). These are what user scripts touch: `ai.tool(def)` builds a
  * QATool, agents take a `ToolSet` (object map keyed by tool name), and

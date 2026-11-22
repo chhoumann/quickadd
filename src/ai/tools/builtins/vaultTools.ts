@@ -1,13 +1,10 @@
 /**
- * Built-in `vault` tools for the AI Agent (#714).
- *
- * Read tools (read_note/list_notes/search_notes/get_property_values) are readOnly
- * and auto-run (capped to bound cost/exfiltration). Write tools (create_note/
- * append_to_note/insert_under_heading) ship needsApproval:true, run every model-
- * chosen path through sanitizeVaultPath (every-segment dot floor, etc.) + the
- * runtime symlink/realpath guard, are existence-aware (create fails on exist; append/
- * insert require the file), and are frontmatter-aware (insertAtNoteBodyStart). The
- * high-risk trio run_choice/apply_template/set_frontmatter is deliberately NOT shipped.
+ * Built-in `vault` tools for the AI Agent. Read tools are readOnly and
+ * auto-run, capped to bound cost and exfiltration. Write tools need approval,
+ * run every model-chosen path through sanitizeVaultPath and the realpath guard,
+ * check existence (create fails on an existing file; append/insert require
+ * one), and respect frontmatter. run_choice/apply_template/set_frontmatter are
+ * deliberately not shipped.
  */
 import { type App, TFile } from "obsidian";
 import { ensureParentFolders } from "../../../utils/ensureParentFolders";
@@ -33,13 +30,10 @@ export function createVaultTools(
 	options: BuiltinGroupOptions = {},
 ): ToolSetMap {
 	const roots = options.allowedRoots;
-	// The read tools below confine results to the allowedRoots fence by filtering each
-	// app-owned TFile.path through isWithinAllowedRoots — the SAME identity-preserving
-	// predicate the workspace group uses (#1432). A TFile.path is an identity, so it is
-	// compared NFC-only and never trimmed/re-spelled; that is what stops a sibling folder
-	// named " AI" from masquerading as the allowed root "AI". sanitizeVaultPath is kept
-	// only for MODEL-CHOSEN inputs (read_note's path and the folder args), where trimming
-	// and structural validation are correct. Absent/all-blank roots ⇒ vault-wide.
+	// Read tools confine results to allowedRoots by filtering each app-owned
+	// TFile.path through isWithinAllowedRoots, the identity-preserving predicate
+	// the workspace group uses (NFC only, never trimmed, so " AI" cannot pass as
+	// "AI"). sanitizeVaultPath is only for model-chosen inputs.
 
 	const tools: ToolSetMap = {
 		read_note: defineTool({
@@ -212,8 +206,8 @@ export function createVaultTools(
 				const file = requireFile(app, norm);
 				await assertWriteStaysInVault(app, norm);
 				// Section positions come from Obsidian's heading parse, which only
-				// exists for the saved text, so this stays a disk write: Obsidian merges
-				// it into an open editor with unsaved typing (#1872).
+				// exists for the saved text, so this stays a disk write; Obsidian
+				// merges it into an open editor with unsaved typing.
 				const headings = app.metadataCache.getFileCache(file)?.headings ?? [];
 				const target = headings.find((h) => h.heading === String(heading));
 				if (!target) throw new Error(`Heading "${heading}" not found in ${norm}`);

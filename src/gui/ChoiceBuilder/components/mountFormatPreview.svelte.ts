@@ -4,34 +4,16 @@ import { mountComponent, type MountHandle } from "../../svelte/mountComponent";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 
 /**
- * Hosts the Svelte `FormatPreviewField` in a modal that builds its DOM
- * imperatively.
- *
- * QuickAdd had one format-preview affordance and two implementations. The Svelte
- * one is the correct one: labelled, below the field it previews (#1543), a fresh
- * formatter per pass, a monotonic token so a slow pass cannot overwrite a newer
- * one's result, and the parse warnings collected inline instead of fired as an
- * Obsidian Notice per keystroke (#1558/#1560). The imperative copy had none of
- * that, and a second imperative fix would have left the same drift in place - so
- * the copy is deleted and the component is mounted instead (#1565).
- *
- * Lives in a `.svelte.ts` module so `$state` is available: mutating a
- * `$state`-backed props object is the documented way to feed reactive props to
- * an imperatively mounted Svelte 5 component (see `createCommandListProps`, the
- * same pattern for `CommandList`).
+ * Hosts the Svelte FormatPreviewField in a modal that builds its DOM
+ * imperatively. A `.svelte.ts` module so `$state` can feed reactive props to the
+ * imperatively mounted component.
  */
 export interface FormatPreviewHandle {
 	/** Push the field's current value; call from the input's `onChange`. */
 	setValue(value: string): void;
 	/**
-	 * Unmount the component and remove the host.
-	 *
-	 * The `destroyed` guard is not only about a double `destroy()` (mountComponent
-	 * already guards that): it also makes `setValue` a no-op afterwards. A
-	 * destroyed preview's textarea can still be alive and holding an `onChange`
-	 * closure over this handle - `display()` tears the previews down and only then
-	 * empties `contentEl` - and pushing into an unmounted component's `$state` is
-	 * a write nothing will ever read.
+	 * Unmounts and removes the host. Also makes `setValue` a no-op, since a
+	 * torn-down preview's textarea can still fire `onChange`.
 	 */
 	destroy(): void;
 }
@@ -55,11 +37,8 @@ export function mountFormatPreview(
 		value: options.value,
 		app: options.app,
 		plugin: options.plugin,
-		// Explicitly "no folder", not "folder unknown". The builders' "Folder/Name"
-		// placeholder stands in for a choice's configured target folder; a modal
-		// field that never creates a note has none, and inventing one would preview
-		// `Folder/Name/2026-07-27` for a format the runtime resolves to
-		// `/2026-07-27`.
+		// Explicitly no folder: a modal field never creates a note, and the
+		// "Folder/Name" placeholder would invent one.
 		targetFolderPath: null,
 	});
 

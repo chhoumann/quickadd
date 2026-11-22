@@ -18,14 +18,8 @@ type Release = {
 };
 
 /**
- * Fetches the releases for a repository on GitHub and returns every stable release
- * whose version is newer than the given one, newest first.
- *
- * @param repoOwner The owner of the repository.
- * @param repoName The name of the repository.
- * @param releaseTagName The version the user is upgrading from.
- * @returns An array of Release objects, each containing the tag name and release notes for a single release.
- * @throws An error if the releases could not be fetched or the given version is not valid semver.
+ * Fetches every stable GitHub release newer than `releaseTagName`, newest
+ * first. Throws if the fetch fails or the version is not valid semver.
  */
 export async function getReleaseNotesAfter(
 	repoOwner: string,
@@ -41,14 +35,9 @@ export async function getReleaseNotesAfter(
 
 	const body: unknown = response.json;
 
-	// Treat any error status OR a non-array body as a failure. GitHub returns the
-	// release list (a JSON array) only on success and a `{ message }` object on
-	// error, but with `throw: false` an error status still reaches here - and an
-	// intermediary can return an error status alongside a stale array or a literal
-	// `null`/primitive. Read `.message` only when it's actually a string, so a
-	// null/primitive body degrades to "Unknown error" instead of throwing a
-	// TypeError (`null.message` / `"message" in null`) that would mask the real
-	// failure.
+	// Any error status or non-array body is a failure: an intermediary can return
+	// an error alongside a stale array or `null`. `.message` is read only when it
+	// is a string, so an odd body cannot mask the real failure with a TypeError.
 	if (response.status >= 400 || !Array.isArray(body)) {
 		const message =
 			typeof body === "object" &&
@@ -208,12 +197,10 @@ export class UpdateModal extends Modal {
 	}
 
 	/**
-	 * A self-owned dismiss control. On phones the system close (X) sits in the top
-	 * safe-area zone (status bar / Dynamic Island) where it can be untappable, and
-	 * this modal has no other exit (no Esc key, no backdrop to tap) — so it must
-	 * always offer a reachable Close. The footer follows the (internally scrollable)
-	 * release notes in normal flow so it stays visible, and clears the bottom
-	 * home-indicator inset on mobile (#635).
+	 * A self-owned dismiss control. On phones the system close sits in the top
+	 * safe area, where it can be untappable, and this modal has no other exit.
+	 * The footer follows the scrollable notes so it stays visible, and clears the
+	 * bottom home-indicator inset.
 	 */
 	private addCloseFooter(): void {
 		const footer = this.contentEl.createDiv("quickadd-update-modal-footer");

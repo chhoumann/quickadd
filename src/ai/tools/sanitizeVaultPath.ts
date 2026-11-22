@@ -1,23 +1,10 @@
 /**
- * Path sanitization for AI-built-in vault writers (#714).
- *
- * The model chooses the path a built-in write tool targets, so this is a security
- * boundary. Modeled on `validateAssetDestination` (packageImportService.ts) but
- * HARDENED per the v5 review:
- *
- *  - Normalization is done HERE (deterministic, no dependency on Obsidian's
- *    `normalizePath`, whose test stub is incomplete) and in a fixed order:
- *    trim → backslash→'/' → NFC → reject absolute → collapse '//' + strip slashes.
- *  - The leading-dot config-dir floor is checked on EVERY segment at ANY depth
- *    (the precedent checked only segments[0], so `Projects/.git/hooks/x` and
- *    `notes/.obsidian/plugins/x` slipped through — an RCE-on-next-commit /
- *    plugin-drop vector). It is a STRUCTURAL rule (segment starts with '.'), which
- *    is inherently immune to the `.Obsidian`/`.OBSIDIAN` casing bypass — do not
- *    replace it with a case-sensitive name denylist.
- *
- * This module is PURE (no Obsidian import) so it is fully unit-testable. The
- * symlink / realpath-containment check that writers MUST also perform needs the
- * FileSystemAdapter and lives in the shared util (see utils/vaultWriteGuards.ts).
+ * Validates model-chosen vault paths for the AI built-in writers, a security
+ * boundary. Normalizes here, in a fixed order, rather than through Obsidian's
+ * `normalizePath`. The dot-segment floor is structural and checked at every
+ * depth, so `.git`, `.obsidian` and casing variants are caught anywhere; do not
+ * replace it with a name denylist. Writers must also run the realpath
+ * containment check in utils/vaultWriteGuards.ts.
  */
 import {
 	INVALID_FOLDER_CHARS_REGEX,
@@ -69,7 +56,6 @@ export function sanitizeVaultPath(
 		);
 	}
 
-	// 3. Collapse repeated slashes and strip leading/trailing slashes.
 	const normalized = slashed.replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
 	const segments = normalized.split("/").filter((s) => s.length > 0);
 	if (segments.length === 0) {
@@ -77,20 +63,18 @@ export function sanitizeVaultPath(
 	}
 
 	for (const segment of segments) {
-		// Traversal.
 		if (segment === "." || segment === "..") {
 			throw new UnsafeVaultPathError(
 				`Refusing path with a traversal segment ("${segment}"): "${normalized}".`,
 			);
 		}
-		// Config-dir / dotfile FLOOR — every segment, any depth, structural (not a
-		// name denylist), so .obsidian/.git/.trash and casing variants are all caught.
+		// Structural, not a name denylist, so .obsidian/.git/.trash and casing
+		// variants are all caught.
 		if (segment.startsWith(".")) {
 			throw new UnsafeVaultPathError(
 				`Refusing to write into a dot/config path segment ("${segment}"): "${normalized}".`,
 			);
 		}
-		// Per-segment character / device-name validation (incl. the basename).
 		validateSegment(segment, normalized);
 	}
 
@@ -104,9 +88,6 @@ export function sanitizeVaultPath(
 
 	return normalized;
 }
-
-// Root-confinement helpers (normalizeAllowedRoots / isUnderAllowedRoot) live in
-// ./allowedRoots so the workspace tools and this sanitizer share ONE policy.
 
 function validateSegment(segment: string, fullPath: string): void {
 	if (INVALID_FOLDER_CONTROL_CHARS_REGEX.test(segment)) {
@@ -125,11 +106,8 @@ function validateSegment(segment: string, fullPath: string): void {
 			`Path segment "${segment}" cannot end with a space or a period: "${fullPath}".`,
 		);
 	}
-	// No trailing-dot/space trim is needed here: the guard above already threw
-	// for any segment ending in '.' or ' ', so the historical
-	// `.replace(/[. ]+$/u, "")` was a guaranteed no-op - while still costing
-	// quadratic backtracking on a long interior dot/space run reachable from
-	// the auto-run (no-approval) read tools.
+	// The guard above already rejects a trailing '.' or ' ', so no trim is needed
+	// (one would backtrack quadratically on long dot/space runs).
 	const base = segment.split(".")[0] ?? "";
 	if (base && isReservedWindowsDeviceName(base)) {
 		throw new UnsafeVaultPathError(

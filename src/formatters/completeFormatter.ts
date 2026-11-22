@@ -40,10 +40,9 @@ import { promptOrCancel } from "./helpers/promptOrCancel";
 
 export class CompleteFormatter extends Formatter {
 	/**
-	 * True only while formatFileContent's format() pass runs. Value prompts
-	 * opened during that window accept clipboard-image paste; prompts opened
-	 * from path passes (file name, folder, template path, location targets)
-	 * never do — an embed link in a path would corrupt it (issue #1484).
+	 * True only while formatFileContent's format() pass runs. Value prompts opened
+	 * then accept clipboard-image paste; path passes never do, since an embed link
+	 * would corrupt a path.
 	 */
 	private contentValuePromptsAcceptImagePaste = false;
 	private preserveTemplateCursorMarkers = false;
@@ -130,7 +129,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
 		// PROPERTY last so seeded property text is never re-scanned as format
-		// tokens (#1748). Scripts/macros/globals above can still inject the token.
+		// tokens. Scripts, macros and globals above can still inject the token.
 		if (!this.defersPropertyExpansion()) {
 			output = this.replacePropertyInString(output);
 		}
@@ -141,15 +140,14 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	/**
-	 * Formats a file path. `scope` says WHAT the path is, so a `{{VALUE}}` inside
-	 * it can name itself at prompt time (issue #1546): the same entry point
-	 * produces Template note titles, Capture targets and a macro's file-to-open.
+	 * Formats a file path. `scope` says what the path is, so a `{{VALUE}}` inside
+	 * it can name itself at prompt time.
 	 */
 	async formatFileName(
 		input: string,
 		scope: PromptScopeKind = "generic",
 	): Promise<string> {
-		// Check for {{title}} usage in filename which would cause infinite recursion
+		// {{title}} in a file name would recurse.
 		if (TITLE_REGEX.test(input)) {
 			throw new Error(
 				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
@@ -235,9 +233,8 @@ export class CompleteFormatter extends Formatter {
 	async formatPropertyValue(input: string, options: { listItems?: boolean } = {}): Promise<unknown> {
 		const value = await this.preserveSingleTokenValue(input, () =>
 			this.withPromptScope("propertyValue", input, async () => {
-				// Author tokens (VALUE/DATE/…) and current-file tokens run first.
-				// PROPERTY expands last so the seeded snapshot is inserted as
-				// literal text and cannot be re-scanned (#1748 CodeRabbit).
+				// Author and current-file tokens run first; PROPERTY expands last
+				// so the seeded snapshot is literal text that is never re-scanned.
 				this.skipPropertyExpansion = true;
 				this.listPicksAsLines = options.listItems ?? false;
 				let output: string;
@@ -296,7 +293,6 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
-		// Check for {{title}} usage in folder path which would cause issues
 		if (TITLE_REGEX.test(folderName)) {
 			throw new Error(
 				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
@@ -322,8 +318,10 @@ export class CompleteFormatter extends Formatter {
 		return restoreUserText(resolved).replace(/^\/+/, "");
 	}
 
-	/** Resolve source paths once, without executable tokens or inclusions.
- * The resolved path must supply both the source content and the target extension. */
+	/**
+	 * Resolves a template source path once, without executable tokens or
+	 * includes. The resolved path supplies both the content and the extension.
+	 */
 	async formatTemplateFilePath(input: string): Promise<string> {
 		if (TITLE_REGEX.test(input)) {
 			throw new Error(
@@ -342,7 +340,6 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
-		// Use the shared scalar pass with the original input declaring the source-path prompt scope.
 		output = await this.withPromptScope("templatePath", input, () =>
 			this.formatScalarTokens(output),
 		);
@@ -462,10 +459,9 @@ export class CompleteFormatter extends Formatter {
 			cache && cached.every((c) => parsedByLine.get(c.line) === key(c));
 		if (!fresh) return buildSectionSubpath(parsed, cursor.line);
 
-		// A heading added just before the save isn't cached yet (#2030), so add
-		// the parsed headings the cache lacks, except those inside a block
-		// Obsidian doesn't read headings from (an HTML block the parser can't
-		// detect).
+		// A heading added just before the save is not cached yet, so add the parsed
+		// headings the cache lacks, except inside blocks Obsidian reads no headings
+		// from.
 		const cachedLines = new Set(cached.map((c) => c.line));
 		const opaque = (cache.sections ?? []).filter(
 			(section) => section.type === "html" || section.type === "comment" || section.type === "math",
@@ -552,8 +548,7 @@ export class CompleteFormatter extends Formatter {
 			// Anonymous {{VALUE|type:checkbox}} gets the same forced true/false
 			// picker as the named form (resolved before the InputPrompt factory).
 			if (this.valuePromptContext?.inputTypeOverride === "checkbox") {
-				// Route to a remote interactive session (Raycast) when one is driving,
-				// mirroring promptForVariable's named {{VALUE:x|type:checkbox}} path.
+				// Route to a remote interactive session when one is driving.
 				const checkboxProvider = this.choiceExecutor?.promptProvider;
 				if (checkboxProvider) {
 					this.value = String(
@@ -692,9 +687,6 @@ export class CompleteFormatter extends Formatter {
 		if (provider) {
 			return await provider.inputPrompt("Enter a math expression");
 		}
-		// The token is {{MVALUE}} (MATH_VALUE_REGEX). "a {{MATH}} expression"
-		// named a token QuickAdd has never had, in the one message whose whole
-		// job is to tell a non-interactive caller which flag to pass (#1587).
 		this.assertInteractivePrompt("a {{MVALUE}} math expression");
 		return await promptOrCancel(() => MathModal.Prompt());
 	}

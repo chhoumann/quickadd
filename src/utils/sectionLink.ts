@@ -1,11 +1,6 @@
 /**
- * Pure helpers for the {{linksection}} format token (issue #387): given the
- * file's headings and the cursor line, build the `#Heading` subpath that makes a
- * link to the current file scroll to the section the cursor is in.
- *
- * Kept App-free and side-effect-free so the heading parsing / selection /
- * disambiguation / sanitization logic is unit-testable without an Obsidian mock.
- * CompleteFormatter feeds it the active editor buffer + cursor line.
+ * Pure helpers for the {{linksection}} token: build the `#Heading` subpath that
+ * makes a link to the current file scroll to the cursor's section.
  */
 
 export interface SimpleHeading {
@@ -15,16 +10,11 @@ export interface SimpleHeading {
 	line: number;
 }
 
-// Mirrors Obsidian's internal heading-anchor normalizer (it replaces this
-// punctuation class with spaces). Obsidian resolves a `#subpath` by comparing the
-// normalized subpath against the normalized heading text, so to produce a link
-// that lands on the right heading we must normalize the heading text the SAME
-// way Obsidian does — replacing this whole punctuation class with spaces. This
-// also neutralizes everything that would otherwise break the generated wikilink
-// or be re-resolved by a later format pass: `[[ ]]` terminators, `|` aliases,
-// `#`/`^` subpath markers, and `{` `}` (so a heading literally containing a
-// QuickAdd token like `{{TITLE}}` can't have that token rewritten inside the
-// generated link). CR/LF are included for CRLF buffers.
+// Mirrors Obsidian's heading-anchor normalizer, which replaces this punctuation
+// class with spaces before comparing a subpath with heading text. It also
+// neutralizes wikilink terminators, `|`, `#`/`^`, and `{` `}` so a heading that
+// contains a QuickAdd token is not re-resolved inside the link. CR/LF cover CRLF
+// buffers.
 const OBSIDIAN_ANCHOR_STRIP = /[!"#$%&()*+,.:;<=>?@^`{|}~/[\]\\\r\n]/g;
 
 /**
@@ -232,18 +222,10 @@ function ancestorChain(headings: SimpleHeading[], index: number): string[] {
 }
 
 /**
- * Builds the subpath (`#Heading`, or the disambiguated `#Parent#…#Heading`) for
- * the nearest heading at or above `cursorLine`, or null when none applies (no
- * headings, the cursor is above the first heading, the heading normalizes empty,
- * or the link would still be ambiguous) — in which case the caller falls back to
- * a plain whole-file link rather than a link that resolves to the wrong place.
- *
- * Obsidian resolves a bare `#Heading` to the FIRST heading with that normalized
- * text, so when the chosen heading's text is not unique we emit the ancestor
- * chain. A duplicate that cannot grow at least one real ancestor segment (e.g. a
- * level-1 duplicate, or one whose only ancestor normalizes away), or whose full
- * chain still collides with another heading's chain, is genuinely unresolvable
- * by subpath, so we return null instead of a wrong-heading link.
+ * The subpath for the nearest heading at or above `cursorLine`, or null so the
+ * caller falls back to a whole-file link. Obsidian resolves a bare `#Heading` to
+ * the first match, so a duplicated text gets its ancestor chain, and a chain that
+ * still collides is unresolvable.
  */
 export function buildSectionSubpath(
 	headings: SimpleHeading[],
@@ -288,12 +270,8 @@ export function buildSectionSubpath(
 }
 
 /**
- * Every heading's ancestor-chain key (lowercased), computed in one forward
- * pass with the standard outline parent stack - each heading's chain is its
- * stack-parent's chain plus itself, matching ancestorChain()'s backward walk.
- * Replaces calling the O(index) ancestorChain inside a .some() over all
- * headings, which was O(H^2) on a note flooded with duplicate headings
- * (chains are at most 6 deep - heading levels - so this is linear).
+ * Every heading's lowercased ancestor-chain key, in one forward pass with an
+ * outline parent stack. Linear, since chains are at most 6 deep.
  */
 function buildAllChainKeysLower(headings: SimpleHeading[]): string[] {
 	const chains: string[][] = new Array(headings.length);

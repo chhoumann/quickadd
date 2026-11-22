@@ -22,7 +22,7 @@ export interface PromptRuntime {
 
 export async function promptForVariable(runtime: PromptRuntime, header?: string,
 	context?: PromptContext): Promise<string> {
-	// Route to a remote interactive session (Raycast) when one is driving.
+	// Route to a remote interactive session when one is driving.
 	const provider = runtime.executor?.promptProvider;
 	if (provider) {
 		if (context?.type === "VDATE") {
@@ -59,7 +59,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 	return await promptOrCancel(async () => {
 		// A |label: names the prompt; otherwise the variable name does. The name
 		// stays the variable's key either way. The context line adds which choice
-		// is asking and where the answer lands (issue #1546).
+		// is asking and where the answer lands.
 		const variableTitle = context?.label ?? header ?? "Enter value";
 		const showDestination = scopeShowsDestination(runtime.scope);
 		const namedContextLine = buildPromptContextLine(
@@ -73,7 +73,6 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 			{ elide: false, showDestination },
 		);
 
-		// Use VDateInputPrompt for VDATE variables
 		if (context?.type === "VDATE") {
 			return await VDateInputPrompt.Prompt(
 				runtime.app,
@@ -96,7 +95,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 		// {{VALUE:x|type:checkbox}} renders a forced true/false picker (no
 		// free text) so the written `x: true` round-trips as a Checkbox. The
 		// |label becomes the picker's title so the user knows which property
-		// they are setting (#202).
+		// they are setting.
 		if (context?.inputTypeOverride === "checkbox") {
 			return await GenericSuggester.Suggest(
 				runtime.app,
@@ -108,7 +107,6 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 			);
 		}
 
-		// Use default prompt for other variables
 		return await new InputPrompt().factory(context?.inputTypeOverride).Prompt(
 			runtime.app,
 			variableTitle,
@@ -133,9 +131,8 @@ export async function suggestForValue(runtime: PromptRuntime, suggestedValues: s
 		displayValues?: string[];
 		optional?: boolean;
 	}): Promise<string> {
-	// Route to a remote interactive session (Raycast) when one is driving this
-	// run - covers `{{VALUE:a,b,c}}` option lists in a template/capture format
-	// (e.g. a rating field) that the requirement collector didn't pre-satisfy.
+	// Route to a remote interactive session when one is driving this run, for
+	// `{{VALUE:a,b,c}}` option lists the requirement collector did not pre-satisfy.
 	const provider = runtime.executor?.promptProvider;
 	if (provider) {
 		// Formatter tokens resolve to strings; the provider hands back the
@@ -187,7 +184,7 @@ export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValu
 		optional?: boolean;
 	}): Promise<string[]> {
 	const displayValues = context?.displayValues ?? suggestedValues;
-	// Route to a remote interactive session (Raycast) when one is driving.
+	// Route to a remote interactive session when one is driving.
 	const provider = runtime.executor?.promptProvider;
 	if (provider) {
 		return await provider.suggesterMulti(displayValues, suggestedValues, {

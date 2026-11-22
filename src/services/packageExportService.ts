@@ -246,8 +246,7 @@ function pruneChoiceTree(
 	}
 
 	multi.choices = multi.choices
-		// Same hole as the import side: a `null` in the folder's list is not a
-		// choice and must not be dereferenced (#1566).
+		// A `null` in the folder's list is not a choice and must not be dereferenced.
 		.filter((child) => isChoiceLike(child) && includedIds.has(child.id))
 		.map((child) => {
 			pruneChoiceTree(child, includedIds);

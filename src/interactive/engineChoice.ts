@@ -1,25 +1,9 @@
 /**
- * The strict reply contract for a prompt an ENGINE opens over the interactive bridge.
- *
- * `RemotePromptProvider.suggester` is tuned for the callers it was written for — scripts
- * and the formatter — and is lenient in two ways that are correct there and wrong here:
- *
- * 1. A missing/`null` value becomes `""` (promptProvider.ts). For a script's optional
- *    suggester that is a real answer ("skipped"). For an engine picker it is not an
- *    answer at all, and `""` is actively dangerous: it reaches
- *    `getFileExistsMode("")`, which throws the internal `Unknown file exists mode: `,
- *    and it makes the folder chooser resolve to the empty path — creating the note in
- *    the VAULT ROOT, where dismissing the same modal in Obsidian would have cancelled
- *    the run.
- * 2. Any non-token string comes back verbatim, whether or not the site allows custom
- *    input. In Obsidian that cannot happen: `GenericSuggester` can only ever resolve an
- *    element of its list. Routing the prompt must not quietly widen a closed list into
- *    free text just because the answer now arrives over HTTP.
- *
- * So engine prompts validate what comes back against the list they offered. A reply that
- * the in-app modal could not have produced ends the run with a message naming the fix,
- * instead of being acted on. The lenient path is left exactly as it is for the script and
- * formatter callers that depend on it.
+ * Strict reply contract for a prompt an engine opens over the interactive
+ * bridge. The script-facing suggester turns a missing value into `""` and passes
+ * any string through. For an engine picker `""` is not an answer (the folder
+ * chooser would write to the vault root), and a closed list must not widen into
+ * free text, so a reply the in-app modal could not have produced ends the run.
  */
 
 import { UserCancelError } from "../errors/UserCancelError";
@@ -56,14 +40,9 @@ export async function promptEngineChoice<T>(
 		what: string;
 	},
 ): Promise<T | string> {
-	// Hand the provider OUR OWN opaque handles rather than the real values, so a
-	// picked row is distinguishable from a typed one no matter what the row's value
-	// is. This matters for exactly one case, and it is a real one: a folder list can
-	// contain "" (a `{{VALUE:sub}}` entry that resolved to nothing is the vault root).
-	// The provider's own index token is decoded back to the raw value before this
-	// function sees it, so without a handle of our own, PICKING the root row and
-	// sending NO ANSWER AT ALL arrive here as the same empty string — and those two
-	// have to mean opposite things.
+	// Our own handles, not the real values: a folder list can contain "" (the
+	// vault root), and the provider decodes its index token to the raw value, so
+	// picking that row and answering nothing would both arrive as "".
 	const handles = spec.items.map((_, index) => `${HANDLE_PREFIX}${index}`);
 	const answer = await provider.suggester(
 		spec.items.map((item) => item.title),

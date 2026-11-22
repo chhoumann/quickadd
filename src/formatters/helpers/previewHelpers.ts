@@ -1,9 +1,5 @@
-/**
- * Shared utilities for generating realistic preview examples in display formatters
- */
 import { findIllegalFilePathChars } from "../../utils/generatedFilePath";
 
-/** Common variable examples for consistent previews across formatters */
 const VARIABLE_EXAMPLES: Record<string, string> = {
 	"title": "My Document Title",
 	"name": "Document Name", 
@@ -17,7 +13,6 @@ const VARIABLE_EXAMPLES: Record<string, string> = {
 	"client": "Acme Corp"
 };
 
-/** Macro descriptions for better preview understanding */
 const MACRO_DESCRIPTIONS: Record<string, string> = {
 	"clipboard": "clipboard_content",
 	"date": "formatted_date",
@@ -26,7 +21,6 @@ const MACRO_DESCRIPTIONS: Record<string, string> = {
 	"uuid": "unique_id"
 };
 
-/** Variable name patterns with their example values */
 const VARIABLE_PATTERNS: Array<{pattern: RegExp, example: string}> = [
 	{pattern: /date|time/i, example: "2024-01-15"},
 	{pattern: /title|name/i, example: "Example Title"},
@@ -39,9 +33,6 @@ const VARIABLE_PATTERNS: Array<{pattern: RegExp, example: string}> = [
 	{pattern: /number|count|id/i, example: "001"}
 ];
 
-/**
- * Gets an example value for a variable name based on common patterns
- */
 export function getVariableExample(variableName: string): string {
 	const lowerName = variableName.toLowerCase();
 	const predefinedExample = VARIABLE_EXAMPLES[lowerName];
@@ -53,17 +44,11 @@ export function getVariableExample(variableName: string): string {
 	return `${variableName}_example`;
 }
 
-/**
- * Gets a descriptive macro preview
- */
 export function getMacroPreview(macroName: string): string {
 	const description = MACRO_DESCRIPTIONS[macroName.toLowerCase()] || `${macroName}_output`;
 	return description;
 }
 
-/**
- * Gets a realistic variable prompt example based on variable name patterns
- */
 export function getVariablePromptExample(variableName: string): string {
 	for (const {pattern, example} of VARIABLE_PATTERNS) {
 		if (pattern.test(variableName)) {
@@ -74,9 +59,6 @@ export function getVariablePromptExample(variableName: string): string {
 	return `${variableName}_value`;
 }
 
-/**
- * Gets a formatted suggestion preview
- */
 export function getSuggestionPreview(suggestedValues: string[]): string {
 	if (suggestedValues.length > 0) {
 		return `${suggestedValues[0]} (${suggestedValues.length} options)`;
@@ -85,73 +67,40 @@ export function getSuggestionPreview(suggestedValues: string[]): string {
 }
 
 /**
- * A file-name preview stand-in, or a neutral one when it could not be a name.
- *
- * Most stand-ins echo the token's own argument - `{{VALUE:Cost: USD}}` previews
- * `Cost: USD_value`, `{{MACRO:a:b}}` previews `a:b_output` - and at run time
- * that argument is a PROMPT HEADER or a macro name, not part of the file name.
- * So the echoed colon is the preview's own invention, and the illegal-character
- * diagnostic that reads the finished preview would blame the author for a
- * character the run never produces. A stand-in is fiction either way; fiction
- * that could not be a real file name is worse fiction (#1578).
+ * A file-name stand-in, or `neutral` when it could not be a name. Stand-ins echo
+ * a prompt header or macro name, which never becomes part of the name at run
+ * time, so their illegal characters would be the preview's own invention.
  */
 export function fileNameSafeStandIn(standIn: string, neutral: string): string {
 	return findIllegalFilePathChars(standIn).length > 0 ? neutral : standIn;
 }
 
 /**
- * The stand-in a preview shows for a `{{FIELD:...}}` token.
- *
- * Named after the FIELD, not the whole specifier: the token's inner text is the
- * field name plus any filters, and building the placeholder out of all of it
- * meant the more precisely you filtered, the less the preview looked like a
- * value - `{{FIELD:status|folder:Work}}` previewed
- * `status|folder:Work_field_value` (#1579). The field is `status`; at run time
- * the token resolves to one of that property's values.
- *
- * Deliberately still a placeholder rather than a real value from the vault, the
- * way `{{FILE:}}` previews a real file: FIELD PROMPTS at run time, so any
- * concrete value would assert a pick the user has not made, and would change
- * from keystroke to keystroke as the filter narrowed the candidate set.
- *
- * `fieldName` is empty for a specifier that starts with a pipe
- * (`{{FIELD:|folder:x}}`, and every prefix of it while that is being typed).
- * Falling back to the raw specifier there would print the filters again, which
- * is the bug; a neutral noun is what is left to say.
+ * Stand-in for `{{FIELD:...}}`, named after the field rather than the whole
+ * specifier with its filters. A placeholder rather than a vault value, since
+ * FIELD prompts at run time. Neutral when the specifier starts with a pipe.
  */
 export function fieldValuePreview(parsed: { fieldName: string }): string {
 	const fieldName = parsed.fieldName.trim();
 	return fieldName ? `${fieldName}_field_value` : "field_value";
 }
 
-/**
- * Gets a current file link preview
- */
 export function getCurrentFileLinkPreview(activeFile?: {basename: string, path: string} | null): string {
 	return activeFile?.path ? activeFile.basename : "current_file";
 }
 
-/**
- * Gets a current file section-link preview ({{linksection}}). Mirrors
- * getCurrentFileLinkPreview's simplified style (no [[ ]]); the real expansion is
- * a link to the heading the cursor is under.
- */
+/** {{linksection}} preview; the real expansion links to the heading under the cursor. */
 export function getCurrentFileLinkToSectionPreview(activeFile?: {basename: string, path: string} | null): string {
 	return `${activeFile?.path ? activeFile.basename : "current_file"}#Section`;
 }
 
-/**
- * Gets a current filename preview
- */
 export function getCurrentFileNamePreview(activeFile?: {basename: string} | null): string {
 	return activeFile?.basename || "current_filename";
 }
 
 /**
- * Gets a {{foldercurrent}} preview: the active file's folder path. Obsidian's
- * root TFolder has path "/", which the runtime resolver collapses to "" - the
- * preview shows the same truthful empty string. Never null, so the preview
- * pass can never hit the runtime's missing-active-file throw.
+ * Obsidian's root folder has path "/", which the runtime resolver collapses to
+ * "". Never null, so the preview cannot hit the missing-active-file throw.
  */
 export function getCurrentFolderPathPreview(
 	activeFile?: { parent?: { path: string } | null } | null,
@@ -161,9 +110,6 @@ export function getCurrentFolderPathPreview(
 	return parentPath === "/" ? "" : parentPath;
 }
 
-/**
- * Enhanced date format preview generator with comprehensive pattern support
- */
 export class DateFormatPreviewGenerator {
 	private static readonly MONTH_NAMES = [
 		'January', 'February', 'March', 'April', 'May', 'June', 
@@ -183,22 +129,14 @@ export class DateFormatPreviewGenerator {
 		'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
 	];
 
-	/**
-	 * Generates a preview of how the date format will look
-	 */
 	static generate(format: string, date: Date = new Date()): string {
 		const year = date.getFullYear();
 		const week = this.getWeekNumber(date);
 		const dayOfMonth = date.getDate();
 
-		// Token -> replacement value, ordered longest-first WITHIN each leading
-		// character so a single left-to-right scan always consumes the longest
-		// matching token at each position. The previous implementation chained
-		// `.replace()` calls, which re-scanned already-substituted text: a later
-		// single-letter token (M, m, s, D, ...) would clobber letters inside a
-		// spelled-out month/day name (e.g. "March" -> "3arch", "September" ->
-		// "Septe<min>ber", "Thursday" -> "Thur<sec>day"). Appending matched values
-		// to a separate buffer means substituted names are never re-scanned.
+		// Longest-first within each leading character, scanned once into a separate
+		// buffer, so a substituted name like "March" is never re-scanned by a later
+		// single-letter token.
 		const tokens: Array<[string, string]> = [
 			['YYYY', year.toString()],
 			['YY', year.toString().slice(-2)],

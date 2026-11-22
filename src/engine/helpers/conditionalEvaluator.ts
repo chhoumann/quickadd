@@ -41,7 +41,7 @@ function evaluateVariableCondition(
 	}
 
 	// A variable nothing has set yet is empty: only "is falsy" holds for it, and
-	// every other operator takes the Else branch, as it always has.
+	// every other operator takes the Else branch.
 	if (!(variableName in variables)) {
 		return condition.operator === "isFalsy";
 	}

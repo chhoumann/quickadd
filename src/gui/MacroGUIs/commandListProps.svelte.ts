@@ -9,9 +9,8 @@ import type { Plain } from "../svelte/persist.svelte";
  *
  * `commands` is the host->child channel: the host (CommandSequenceEditor) owns a
  * $state-backed instance of this object (see createCommandListProps) and mutates
- * `commands` to push add/delete/configure results into the mounted component —
- * replacing the old exported `updateCommandList()` bridge. The child reports its
- * own edits (reorder, per-command update) back up via the `saveCommands` callback.
+ * `commands` to push add/delete/configure results into the mounted component.
+ * The child reports its own edits back up via the `saveCommands` callback.
  */
 export interface CommandListProps {
 	commands: ICommand[];

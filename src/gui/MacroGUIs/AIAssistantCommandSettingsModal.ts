@@ -23,7 +23,7 @@ export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssi
 	private promptTemplateSuggester: GenericTextSuggester | null = null;
 
 	private get systemPromptTokenLength(): number {
-		// The estimate is provider-agnostic, so it no longer depends on the model.
+		// The estimate is provider-agnostic.
 		return estimateTokenCount(this.settings.systemPrompt);
 	}
 
@@ -65,7 +65,7 @@ export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssi
 		header.addClass("qa-clickable-modal-title");
 
 		// Rename affordance is a real <button> (keyboard operable: Enter/Space) inside
-		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
+		// the heading, so the <h2> keeps its heading role for screen readers.
 		const renameButton = header.createEl("button", {
 			cls: "qa-rename-title-button",
 			text: `${this.settings.name} settings`,

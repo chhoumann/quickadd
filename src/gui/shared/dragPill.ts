@@ -1,12 +1,8 @@
 // Turns svelte-dnd-action's full-row drag clone (#dnd-action-dragged-el) into a
-// compact pill that sits under the cursor — passed as a dndzone's
-// `transformDraggedElement`. Pairs with the #dnd-action-dragged-el / .qa-drag-pill
-// rules in styles.css (the clone is created by the library, so it can't be styled
-// from a Svelte-scoped <style>), and REQUIRES morphDisabled:true on the zone — else
-// the library re-inflates the clone to full-row width every consider tick (lib
-// index.js ~2094) and fights the pill. centreDraggedOnCursor MUST be off too: the
-// pill is the only visible thing, so there is no full-row ghost to "yank" onto the
-// cursor (the feedback that the grab "puts the cursor in the middle").
+// compact pill under the cursor, as a dndzone's `transformDraggedElement`. The
+// library creates the clone, so it is styled from styles.css, not a scoped
+// <style>. Requires morphDisabled:true (else the library re-inflates the clone to
+// full-row width every consider tick) and centreDraggedOnCursor off.
 
 // 6-dot vertical grip glyph: two columns (x=9, x=15) × three rows (y=5, 12, 19).
 const GRIP_DOTS: ReadonlyArray<readonly [number, number]> = [

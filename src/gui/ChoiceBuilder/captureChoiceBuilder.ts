@@ -21,10 +21,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder<ICaptureChoice> {
 	}
 
 	/**
-	 * Apply the defaults the imperative builder set lazily inside render branches —
-	 * once, before mount. addWritePositionSetting ran insertBefore/activeFileWritePosition
-	 * defaults unconditionally on open, so they are hoisted; fileOpening is normalized
-	 * only when openFile (parity with the gated addFileOpeningSetting).
+	 * Fills in missing fields once, before mount: insertBefore and
+	 * activeFileWritePosition always, fileOpening only when openFile is on.
 	 */
 	private normalizeChoice() {
 		if (!this.choice.insertBefore) {

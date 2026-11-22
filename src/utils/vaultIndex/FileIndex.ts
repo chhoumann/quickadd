@@ -23,10 +23,8 @@ class LRUCache<T> {
 	}
 
 	/**
-	 * Reads a value without affecting recency ordering. This is the ONLY read
-	 * accessor: recency must be promoted exclusively by real file-open events via
-	 * set(), never by index reads. A mutating get() was deliberately removed - it
-	 * reordered the LRU to vault-iteration order during reindex (see git history).
+	 * Reads without affecting recency: only real file-open events promote an
+	 * entry via set(), never index reads.
 	 */
 	peek(key: string): T | undefined {
 		return this.cache.get(key);
@@ -36,7 +34,6 @@ class LRUCache<T> {
 		if (this.cache.has(key)) {
 			this.cache.delete(key);
 		} else if (this.cache.size >= this.maxSize) {
-			// Remove least recently used (first item)
 			const firstKey = this.cache.keys().next().value;
 			this.cache.delete(firstKey);
 		}
@@ -48,11 +45,9 @@ class LRUCache<T> {
 	}
 }
 
-// Constants for optimization thresholds
 const MAX_INCREMENTAL_UPDATES = 20;
 const FUSE_UPDATE_DEBOUNCE_MS = 100;
 
-// Regex to test if a character is alphanumeric (used for word boundary detection)
 const ALPHANUMERIC_REGEX = /\w/;
 
 
@@ -72,11 +67,8 @@ export class FileIndex {
 	private reindexTimeout: number | null = null;
 	private fuseUpdateTimeout: number | null = null;
 	private pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'> = new Map();
-	// Vault mutations (create/rename/delete/metadata-change) captured while a full
-	// reindex is building the replacement map. Non-null ONLY during
-	// performReindex(): the mutation handlers record into it (in addition to their
-	// normal work) so performReindex() can replay them onto the new map before
-	// rebuilding Fuse. See performReindex() for the full rationale.
+	// Mutations captured during performReindex() so they can be replayed onto the
+	// replacement map; null otherwise.
 	private reindexBuffer: Map<string, { op: 'upsert' | 'remove'; file?: TFile }> | null = null;
 	private effectiveWeights: SearchWeightsConfig = SearchWeights;
 
@@ -86,13 +78,13 @@ export class FileIndex {
 		
 		const fuseConfig = {
 			keys: [
-				{ name: 'basenameNormalized', weight: 0.8 }, // Prioritize basename matches
-				{ name: 'aliasesNormalized', weight: 0.6 },  // Reduced from 1.0
+				{ name: 'basenameNormalized', weight: 0.8 },
+				{ name: 'aliasesNormalized', weight: 0.6 },
 				{ name: 'pathNormalized', weight: 0.2 }
 			],
 			ignoreLocation: true,
 			findAllMatches: true,
-			shouldSort: false, // We'll handle sorting ourselves
+			shouldSort: false,
 			includeScore: true,
 			includeMatches: true // Include match information to detect alias hits
 		};
@@ -108,7 +100,6 @@ export class FileIndex {
 		});
 
 		this.setupEventListeners();
-		// Just use the default weights - they're already optimal
 		this.effectiveWeights = SearchWeights;
 	}
 
@@ -159,12 +150,10 @@ export class FileIndex {
 
 
 	private setupEventListeners(): void {
-		// Track recently opened files
 		this.plugin.registerEvent(
 			this.app.workspace.on('file-open', (file) => {
 				if (file) {
 					this.recentFiles.set(file.path, Date.now());
-					// Update openedAt in our index
 					const indexedFile = this.fileMap.get(file.path);
 					if (indexedFile) {
 						indexedFile.openedAt = Date.now();
@@ -173,7 +162,6 @@ export class FileIndex {
 			})
 		);
 
-		// Incremental metadata updates for better performance
 		this.plugin.registerEvent(
 			this.app.metadataCache.on('changed', (file) => {
 				if (file instanceof TFile && file.extension === 'md') {
@@ -182,18 +170,15 @@ export class FileIndex {
 			})
 		);
 
-		// Fallback for resolved event (less frequent, full reindex only if needed)
 		this.plugin.registerEvent(
 			this.app.metadataCache.on('resolved', () => {
 				this.unresolvedLinksDirty = true;
-				// Only schedule reindex if we don't have any files indexed yet
 				if (this.fileMap.size === 0) {
 					this.scheduleReindex();
 				}
 			})
 		);
 
-		// Handle file system changes
 		this.plugin.registerEvent(
 			this.app.vault.on('create', (file) => {
 				if (file instanceof TFile && file.extension === 'md') {
@@ -231,7 +216,6 @@ export class FileIndex {
 	}
 
 	private scheduleReindex(): void {
-		// Debounce reindexing
 		if (this.reindexTimeout !== null) {
 			window.clearTimeout(this.reindexTimeout);
 		}
@@ -255,21 +239,15 @@ export class FileIndex {
 	}
 
 	private async performReindex(): Promise<void> {
-		// Record vault mutations (create/rename/delete/metadata-change) that fire
-		// while we yield to the event loop below, so we can replay them onto the
-		// replacement map after the swap. The handlers keep mutating the live
-		// (old) map too: on success the old map is discarded and only the replay
-		// matters, but if the build throws before the swap the old map - still
-		// live - already holds them, so nothing is lost on the error path either.
-		// Without this, a file created/deleted mid-build vanished at the swap
-		// (scheduleFuseUpdate also suppresses incremental updates while indexing).
+		// Record mutations that fire while the build yields, to replay onto the
+		// replacement map. Handlers keep mutating the live map too, so a build that
+		// throws before the swap loses nothing.
 		const buffer = new Map<string, { op: 'upsert' | 'remove'; file?: TFile }>();
 		this.reindexBuffer = buffer;
 		try {
 			const files = this.app.vault.getMarkdownFiles();
 			const newFileMap = new Map<string, IndexedFile>();
 
-			// Use requestIdleCallback for better performance if available
 			const processInBatches = async (items: TFile[], batchSize = 50) => {
 				for (let i = 0; i < items.length; i += batchSize) {
 					const batch = items.slice(i, i + batchSize);
@@ -279,7 +257,6 @@ export class FileIndex {
 						newFileMap.set(file.path, indexedFile);
 					}
 
-					// Yield control back to the event loop
 					await new Promise(resolve => window.setTimeout(resolve, 0));
 				}
 			};
@@ -301,12 +278,9 @@ export class FileIndex {
 			this.updateFuseIndex();
 			this.updateUnresolvedLinks();
 		} catch (error) {
-			// The build threw before the Fuse rebuild above. The mutation handlers
-			// applied their changes to the still-live fileMap, but their incremental
-			// Fuse updates were suppressed while indexing - so reconcile Fuse with
-			// fileMap now. Otherwise fuzzy search (which queries Fuse) would diverge
-			// from the exact/prefix tiers (which scan fileMap) until the next
-			// reindex. Best-effort: never let this mask the original failure.
+			// The build threw before the Fuse rebuild, and incremental Fuse updates
+			// were suppressed while indexing, so reconcile Fuse with fileMap.
+			// Best-effort; never mask the original failure.
 			try {
 				this.updateFuseIndex();
 			} catch {
@@ -354,7 +328,6 @@ export class FileIndex {
 	}
 
 	private scheduleFuseUpdate(path: string, operation: 'add' | 'update' | 'remove'): void {
-		// If we're doing a full reindex, don't bother with incremental updates
 		if (this.isIndexing) return;
 
 		const existingOp = this.pendingFuseUpdates.get(path);
@@ -365,7 +338,6 @@ export class FileIndex {
 		this.pendingFuseUpdates.set(path,
 			existingOp === 'remove' && operation === 'add' ? 'update' : operation);
 
-		// Clear existing timeout
 		if (this.fuseUpdateTimeout !== null) {
 			window.clearTimeout(this.fuseUpdateTimeout);
 		}
@@ -379,14 +351,11 @@ export class FileIndex {
 	private processPendingFuseUpdates(): void {
 		if (this.pendingFuseUpdates.size === 0) return;
 		
-		// Guard against concurrent full reindex
 		if (this.isIndexing) {
 			this.pendingFuseUpdates.clear();
 			return;
 		}
 
-		// If we have too many pending updates, just do a full rebuild
-		// This threshold prevents performance degradation with many individual updates
 		if (this.pendingFuseUpdates.size > MAX_INCREMENTAL_UPDATES) {
 			this.updateFuseIndex();
 			this.pendingFuseUpdates.clear();
@@ -467,7 +436,6 @@ export class FileIndex {
 			}
 		}
 
-		// Sort by score and limit results
 		return results
 			.sort((a, b) => a.score - b.score)
 			.slice(0, limit);
@@ -485,7 +453,6 @@ export class FileIndex {
 
 		// Prevent infinite recursion by doing a simple search if no file part
 		if (filePart === '') {
-			// Global heading search - search all files with performance limit
 			let resultCount = 0;
 			const maxResults = 200; // Performance guard for large vaults
 			const allFiles = Array.from(this.fileMap.values());
@@ -589,7 +556,6 @@ export class FileIndex {
 		// 3. Fuzzy search with adaptive threshold - Tier 3 and below
 		let fuseResults = this.fuseStrict.search(queryNormalized, { limit: limit * 2 });
 
-		// Relax threshold if we have too few results
 		if (fuseResults.length < this.effectiveWeights.thresholds.fuzzyRelaxCount) {
 			fuseResults = this.fuseRelaxed.search(queryNormalized, { limit: limit * 2 });
 		}
@@ -600,12 +566,10 @@ export class FileIndex {
 				continue;
 			}
 
-			// Skip if already added
 			if (addedPaths.has(result.item.path)) {
 				continue;
 			}
 
-			// Detect if this Fuse result came from an alias match
 			const aliasMatch = (result.matches ?? []).find(m => m.key === 'aliasesNormalized');
 			const fromAlias = Boolean(aliasMatch);
 			const matchType = fromAlias ? 'alias' : 'fuzzy';
@@ -638,9 +602,6 @@ export class FileIndex {
 		return file.blockIds;
 	}
 
-	/**
-	 * Get the count of indexed files (for testing)
-	 */
 	getIndexedFileCount(): number {
 		return this.fileMap.size;
 	}

@@ -121,9 +121,8 @@ function didTemplaterHandleCursor(
 }
 
 /**
- * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
- * This removes the need for an arbitrary debounce (e.g., 75 ms) and is resilient across
- * local SSDs, network shares, and different OSes.
+ * Waits until the filesystem reports a stable mtime for the file or the timeout
+ * elapses, rather than an arbitrary debounce.
  */
 export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
 	try {
@@ -143,7 +142,6 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 			if (!current) return; // stat failed; abort waiting.
 			if (current.mtime === previousMtime) return;
 			previousMtime = current.mtime;
-			// Double the interval if mtime keeps changing (exponential backoff)
 			pollIntervalMs = Math.min(pollIntervalMs * 2, 200);
 		}
 	} catch (err) {
@@ -587,10 +585,8 @@ export async function templaterParseTemplate(
 	if (!plugin || !templater || typeof parseTemplate !== "function")
 		return templateContent;
 
-	// Use Templater's create_running_config if available for forward compatibility.
-	// This ensures we get a properly initialized config object with all required fields,
-	// even if Templater adds new required fields in future versions.
-	// Fallback to manual config for older Templater versions.
+	// Prefer Templater's create_running_config, which fills any fields newer
+	// versions require; fall back to a manual config for older versions.
 	const createConfig = templater.create_running_config;
 	const config =
 		typeof createConfig === "function"

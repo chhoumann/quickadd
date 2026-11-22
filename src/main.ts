@@ -41,7 +41,7 @@ import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
-	/** Work started before unload can finish after it, and must not touch commands or settings then (#2210). */
+	/** Work started before unload can finish after it, and must not touch commands or settings then. */
 	private unloaded = false;
 	private readonly settingsPersistence = new SettingsPersistence({
 		// Arrows, not bound methods: a test can replace loadData/saveData on the instance.
@@ -83,7 +83,6 @@ export default class QuickAdd extends Plugin {
 		registerCoreCommands(this);
 		registerSaveOnExit(this, () => this.flushPendingSave());
 
-		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
 		cache.startAutomaticCleanup((intervalId) =>
 			this.registerInterval(intervalId),
@@ -108,10 +107,8 @@ export default class QuickAdd extends Plugin {
 
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger());
 
-		// Must come after the loggers: a QuickAdd promise that rejects with nobody
-		// awaiting it (a settings click handler, a floated call) used to leave the user
-		// with nothing but a console line. Now it reports through the same channel as
-		// every other failure (#1576).
+		// After the loggers: an unawaited QuickAdd rejection reports through the
+		// same channel as every other failure.
 		registerUnhandledRejectionReporter(this);
 		keepFocusedFieldInView(this);
 
@@ -131,11 +128,8 @@ export default class QuickAdd extends Plugin {
 
 		// Everything from here on reads the choice tree, i.e. untrusted data.json.
 		// Each step is isolated so a defect in that data costs one capability
-		// instead of the whole plugin: onload throwing leaves Obsidian reporting
-		// only "Plugin failure: quickadd", with no commands, no migrations, no CLI
-		// and no startup macros, and no way for the user to tell why (#1566).
-		// The accessors below handle the corrupt shapes we know about; this is the
-		// blast radius bound for the ones nobody has thought of yet.
+		// instead of the whole plugin: a throwing onload leaves only "Plugin
+		// failure: quickadd", with no commands, migrations, CLI or startup macros.
 		this.choiceCommands.addCommandsForChoices(this.settings.choices);
 
 		try {
@@ -197,7 +191,6 @@ export default class QuickAdd extends Plugin {
 		void this.flushPendingSave();
 		this.unsubscribeSettingsStore?.call(this);
 
-		// Clean up field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
 		cache.destroy();
 		FileIndex.destroyInstance();
@@ -275,13 +268,8 @@ export default class QuickAdd extends Plugin {
 	}
 
 	private announceUpdate() {
-		// `isFeatureUpdate`: the "major" announce tier promises "new features, breaking
-		// changes". QuickAdd ships features as semantic-release feat: commits, which become
-		// MINOR bumps (e.g. 2.13.x -> 2.14.0), never MAJOR — so gating purely on the major
-		// digit (isMajorUpdate) would suppress the modal for every feature release. Treat a
-		// major OR minor increase as a feature update so feature releases are announced as
-		// documented, while patch-only bumps stay quiet. Unparseable versions fall back to
-		// showing the update (mirrors isMajorUpdate's err-on-the-side-of-showing default).
+		// Features ship as minor bumps, so a major or minor increase is announced;
+		// patch-only bumps stay quiet. Unparseable versions show the update.
 		const isFeatureUpdate = (
 			currentVersion: string,
 			previousVersion: string,

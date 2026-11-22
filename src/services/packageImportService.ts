@@ -90,11 +90,9 @@ export interface ApplyImportOptions {
 	choiceDecisions: ChoiceImportDecision[];
 	assetDecisions: AssetImportDecision[];
 	/**
-	 * The vault's configured AI providers. When given, imported AI commands
-	 * carrying only a bare model name are pinned to the provider that name
-	 * first-match resolves to at import time (#1495) — the one-time migration
-	 * has already run by then and would never see them. Optional so callers
-	 * without provider context (tests) import unchanged.
+	 * When given, imported AI commands with only a bare model name are pinned to
+	 * the provider that name first-match resolves to now; the one-time migration
+	 * has already run and would never see them.
 	 */
 	aiProviders?: AIProvider[];
 }
@@ -194,8 +192,7 @@ export async function analysePackagePreview(
 		...collectReferencedAssetPaths(pkg),
 	]);
 
-	// Probe paths concurrently: latency is one disk round-trip, not N. Set.add
-	// from parallel microtasks is safe on JS's single thread.
+	// Probe paths concurrently: latency is one disk round-trip, not N.
 	const existsByPath = new Set<string>();
 	await Promise.all(
 		Array.from(candidatePaths, async (path) => {
@@ -333,7 +330,6 @@ export async function applyPackageImport(
 	const overwrittenChoiceIds: string[] = [];
 	const skippedChoiceIds: string[] = [];
 
-	// Prepare cloned choices with remapped IDs
 	const preparedChoices = new Map<string, IChoice>();
 	for (const entry of pkg.choices) {
 		if (!importableChoiceIds.has(entry.choice.id)) {
@@ -488,7 +484,6 @@ export async function applyPackageImport(
 			);
 		}
 
-		// Default: append to root
 		const existingIndex = updatedChoices.findIndex(
 			(c) => isChoiceLike(c) && c.id === finalId,
 		);

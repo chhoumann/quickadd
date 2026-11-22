@@ -64,8 +64,8 @@ export function insertOrderedCapture({ capture, targetString, fileContent, inser
 	const firstLine = targetString.split(/\r?\n/, 1)[0];
 	const level = extractHeadingsFromLines([firstLine])[0]?.level ?? 0;
 
-	// Reused verbatim so the created block is byte-identical to next-run's search
-	// target (the #742 round-trip invariant that keeps creation idempotent).
+	// Reused verbatim so the created block is byte-identical to the next run's
+	// search target, which keeps creation idempotent.
 	const payload = surroundCapture(capture, `${targetString}\n`);
 	const atBodyStart = () => placeAtNoteBodyStart(payload, fileContent, true);
 

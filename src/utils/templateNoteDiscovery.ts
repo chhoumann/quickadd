@@ -22,11 +22,9 @@ export type DiscoveryCandidate = {
 	item: string;
 	exactKeys: string[];
 	/**
-	 * The fuzzy-SEARCH text, not a label: basename + path + aliases, joined. The
-	 * in-app picker feeds this to the matcher and draws the visible row from
-	 * `renderItem` instead. A remote client has no `renderItem`, so it gets
-	 * {@link DiscoveryCandidate.title} - sending `display` there would have shown
-	 * rows reading "Tom Areas/Work/Tom.md Thomas" (#1614).
+	 * The fuzzy-search text, not a label: basename + path + aliases, joined. The
+	 * in-app picker draws the visible row from `renderItem`; a remote client has
+	 * none, so it gets {@link DiscoveryCandidate.title} instead.
 	 */
 	display: string;
 	/** The human label: the note's basename, or the unresolved link's target. */

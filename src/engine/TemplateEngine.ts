@@ -222,14 +222,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			);
 		}
 		const assembledPath = `${actualFolderPath}${formattedFileName}${extension}`;
-		// Contain the assembled target at this shared chokepoint. The file NAME is run
-		// through normalizeGeneratedFilePath above, but the FOLDER portion is only
-		// stripLeadingSlash'd — so a folder like "../../../evil" (from an untrusted,
-		// synced Template choice resolved via formatFolderPath) would assemble an
-		// out-of-vault path. Both callers act on it without a sink guard: the relocation
-		// flow (computeChoiceTargetPath -> createFolder + fileManager.renameFile) would
-		// otherwise move the active note OUTSIDE the vault. Reject any escape here so
-		// every caller of this assembler is contained.
+		// Contain the assembled path here: the folder portion (possibly from an
+		// untrusted synced choice) is not normalized like the name, and the
+		// relocation flow would otherwise move the note outside the vault.
 		if (escapesVaultBoundary(assembledPath)) {
 			throw new Error(
 				`Refusing to build a file path outside the vault: "${assembledPath}".`,
@@ -239,16 +234,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Why the last template write failed.
-	 *
-	 * Each of the write helpers below reports the real cause ("Template file not found at
-	 * path …") and then returns null, so its caller only knew THAT the write failed, not
-	 * why - and the caller is what records the run's outcome. A remote client was told
-	 * "Choice execution failed; no file was created." while the actionable sentence went
-	 * to a desktop notice nobody was watching (#1603).
-	 *
-	 * Every helper that reports-and-returns-null sets this, so a new one that forgets is
-	 * the only way back to a vague outcome.
+	 * Why the last template write failed. The write helpers report the cause and
+	 * return null, so callers that record the run's outcome read it here. Every
+	 * report-and-return-null helper must set it.
 	 */
 	protected lastTemplateFileFailure: string | null = null;
 
@@ -292,21 +280,14 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		filePath: string,
 		resolvedTemplatePath: string
 	) {
-		// Clear the previous run's swallowed cause FIRST, so the reset is
-		// unconditional even when the guard below aborts (#1617).
+		// Clear the previous run's swallowed cause first, so the reset happens even
+		// when the guard below aborts.
 		this.lastTemplateFileFailure = null;
 
-		// Then, before the template is read and long before its body is formatted
-		// (#1591). Both production callers - TemplateChoiceEngine's `else` branch of
-		// `vault.adapter.exists`, and its freshly incremented collision name - are
-		// paths where nothing is at `filePath` yet, so a name Obsidian refuses can
-		// only end in a failed `vault.create`. Letting it get that far means the
-		// user answers the whole prompt chain and their inline scripts run first,
-		// and createFileWithInput leaves the target folder behind.
-		//
-		// It THROWS rather than recording into lastTemplateFileFailure: that field
-		// is for helpers that report-and-return-null, while this aborts the choice
-		// with a typed ChoiceAbortError carrying its own actionable message (#1606).
+		// Refuse a name Obsidian rejects before the template is read, so the user is
+		// not asked every prompt and inline scripts do not run for a doomed create.
+		// Throws its own ChoiceAbortError rather than recording into
+		// lastTemplateFileFailure.
 		assertCreatableFilePath(filePath);
 
 		try {
@@ -358,10 +339,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Propagates "which choice is asking, and where its output lands" into this
-	 * engine's own formatter, so prompts raised from a nested template
-	 * ({{TEMPLATE:...}} inclusion, or a capture creating its target file from a
-	 * template) still carry the run context (issue #1546).
+	 * Propagates the run context into this engine's own formatter, so prompts
+	 * raised from a nested template still say which choice is asking and where
+	 * its output lands.
 	 */
 	public setPromptRunContext(context: PromptRunContext) {
 		this.formatter.setPromptRunContext(context);
@@ -377,12 +357,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Resolves QuickAdd format tokens in a template *source* path (issue #620)
-	 * via this engine's formatter, e.g. "Templates/{{value:type}} Template.md".
-	 * Call once at run() entry and reuse the result for BOTH target-path
-	 * construction (extension/name) and content reading, so the file that is
-	 * read and the file that is created can never disagree. Resolving more than
-	 * once would re-evaluate {{date}}/{{random}} to a different value.
+	 * Resolves format tokens in a template source path via this engine's
+	 * formatter. Call once at run() entry and reuse the result for both the
+	 * target path and the content read, so they never disagree; resolving again
+	 * would re-evaluate {{date}}/{{random}}.
 	 */
 	protected async resolveTemplateSourcePath(rawPath: string): Promise<string> {
 		return this.formatter.formatTemplateFilePath(rawPath);

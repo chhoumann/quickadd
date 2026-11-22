@@ -8,7 +8,6 @@ const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
 };
 
-// Gap between the input and the list.
 const LIST_GAP_PX = 4;
 // The narrowest the list gets beside a narrow input, such as the Macro builder's
 // script field on a phone, so a name wraps between words, not between letters.
@@ -100,13 +99,9 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 }
 
 /**
- * Let a path in a plain row wrap after its slashes rather than mid-name. `/` is
- * not a line-break opportunity, so without this a long path either runs past
- * the list's edge or (with `overflow-wrap: anywhere`) breaks at whatever letter
- * reaches it. `<wbr>` leaves the row's text unchanged. Only text directly in
- * the row or its highlight marks is touched: structured rows (a name and a
- * path in their own spans) keep their own wrapping, such as an ellipsized
- * path, which Chromium would let `<wbr>` break.
+ * Lets a path in a plain row wrap after its slashes, since `/` is not a line
+ * break opportunity. `<wbr>` leaves the text unchanged. Structured rows keep
+ * their own wrapping.
  */
 function allowBreaksAfterSlashes(row: HTMLElement): void {
 	const texts = Array.from(row.childNodes)
@@ -246,7 +241,6 @@ class Suggest<T> {
 		const prevSelectedSuggestion = this.suggestions[this.selectedItem];
 		const selectedSuggestion = this.suggestions[normalizedIndex];
 
-		// Update visual selection
 		prevSelectedSuggestion?.classList.remove("is-selected");
 		selectedSuggestion?.classList.add("is-selected");
 
@@ -271,7 +265,6 @@ class Suggest<T> {
 	}
 }
 
-// Extend App interface to avoid any casts
 declare module "obsidian" {
 	interface App {
 		dom: {
@@ -306,7 +299,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	// The input text the shown list was built for.
 	private listQuery: string | null = null;
 
-	// Global listeners for close-on-anything-else
 	private globalClickListener: (event: MouseEvent) => void;
 	private globalWheelListener: (event: WheelEvent) => void;
 	private globalScrollListener: (event: Event) => void;
@@ -315,17 +307,14 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private globalBlurListener: () => void;
 	private inputBlurListener: () => void;
 
-	// Debounced input handler and bound event listeners
 	private debouncedOnInputChanged: Debouncer<[event?: Event], Promise<void>>;
 	private inputEventListener: (event: Event) => void;
 	private focusEventListener: () => void;
 
-	// Highlighting function - can be overridden
 	protected renderMatch: (el: HTMLElement, text: string, query: string) => void =
 		renderExactHighlight;
 
 	constructor(app: App, inputEl: HTMLInputElement | HTMLTextAreaElement, parentScope?: Scope) {
-		// Manage per-input map of suggesters keyed by their class name
 		const classKey = this.constructor.name;
 		let byClass = instanceMap.get(inputEl);
 		if (!byClass) {
@@ -338,12 +327,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			existingOfSameClass.destroy();
 		}
 
-		// destroy() above removes the replaced instance from instanceMap, and if it
-		// was this input's last entry it deletes the whole per-input map - detaching
-		// our local `byClass`. Re-attach before registering ourselves so this
-		// instance stays discoverable for the next same-class dedup; otherwise a
-		// later suggester misses it and never tears it down, leaking its input
-		// listeners and spawning duplicate popups.
+		// destroy() above may delete this input's per-input map, detaching
+		// `byClass`. Re-attach so this instance stays discoverable for dedup.
 		instanceMap.set(inputEl, byClass);
 		byClass.set(classKey, this);
 
@@ -375,10 +360,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			return false;
 		});
 
-		// Shorter debounce for snappier UX
 		this.debouncedOnInputChanged = debounce(this.onInputChanged.bind(this), 50);
 		
-		// Store bound event listeners for proper cleanup
 		this.inputEventListener = (event: Event) => this.debouncedOnInputChanged(event);
 		this.focusEventListener = () => this.debouncedOnInputChanged();
 		this.inputBlurListener = this.close.bind(this);
@@ -397,7 +380,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			event.preventDefault();
 		});
 
-		// Setup global listeners
 		this.globalClickListener = this.onGlobalClick.bind(this);
 		this.globalWheelListener = this.onGlobalWheel.bind(this);
 		// Keep the list on its input when a scroll moves the input (a scrolled
@@ -534,7 +516,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		this.suggestEl.remove();
 
-		// Remove global listeners
 		const activeDocument = getOwnerDocument(this.inputEl);
 		const activeWindow = getOwnerWindow(this.inputEl);
 		activeDocument.removeEventListener("pointerdown", this.globalClickListener, true);
@@ -544,13 +525,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		activeWindow.removeEventListener("keyboardDidShow", this.globalKeyboardListener);
 		activeWindow.removeEventListener("blur", this.globalBlurListener);
 
-		// Intentionally keep this instance registered in instanceMap. close()
-		// only hides the dropdown; the input/focus/blur listeners stay attached
-		// so typing can re-open it. Unregistering here (while leaving those
-		// listeners live) would orphan the instance: a later same-class suggester
-		// on this input would miss the dedup in the constructor and never
-		// destroy() us, leaking our input listeners and spawning duplicate
-		// popups. Deregistration belongs to destroy().
+		// Stays registered in instanceMap: close() only hides the list, and the
+		// input listeners can still re-open it. Deregistration belongs to destroy().
 	}
 
 	destroy(): void {
@@ -558,12 +534,10 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// debounced onInputChanged() that resolves after this point can't re-open.
 		this.destroyed = true;
 		this.close();
-		// Remove input listeners
 		this.inputEl.removeEventListener("input", this.inputEventListener);
 		this.inputEl.removeEventListener("focus", this.focusEventListener);
 		this.inputEl.removeEventListener("blur", this.inputBlurListener);
 
-		// Remove from instance map
 		const classKey = this.constructor.name;
 		const byClass = instanceMap.get(this.inputEl);
 		if (byClass) {
@@ -582,14 +556,12 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl.removeAttribute("aria-activedescendant");
 	}
 
-	// Helper method to get current query for highlighting
 	protected getCurrentQuery(): string {
 		return this.currentQuery;
 	}
 
 
 
-	// Abstract methods - now supports async
 	abstract getSuggestions(inputStr: string): T[] | Promise<T[]>;
 	abstract renderSuggestion(item: T, el: HTMLElement): void;
 	abstract selectSuggestion(item: T, event: MouseEvent | KeyboardEvent): void;

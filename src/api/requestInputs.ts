@@ -127,7 +127,7 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 	let collected: Record<string, string> = {};
 	if (missing.length > 0) {
 		collected = await routePrompt(choiceExecutor, {
-			// A remote interactive session (Raycast) answers the batch form.
+			// A remote interactive session answers the batch form.
 			remote: async (provider) =>
 				Object.fromEntries(
 					Object.entries(await provider.requestInputs(missing)).map(([key, value]) => [

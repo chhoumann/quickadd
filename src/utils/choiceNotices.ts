@@ -16,9 +16,8 @@ export const NO_CHOICES_NOTICE =
  * same thing.
  */
 export function emptyFolderNoticeText(folder: IChoice): string {
-	// A folder whose `choices` value could still be HOLDING choices is not empty,
-	// it is unreadable, and saying "empty" here would contradict what the settings
-	// list says about the same folder. Same predicate on both surfaces (#1566).
+	// A folder whose `choices` value could still be holding choices is not empty
+	// but unreadable; saying "empty" would contradict the settings list.
 	if (hasUnreadableChildren(folder)) {
 		return `QuickAdd couldn't read the contents of "${folder.name}". They're still in data.json.`;
 	}

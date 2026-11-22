@@ -1,22 +1,10 @@
 /**
- * Single-source heading sanitizer. Removes image embeds, wikilinks, markdown
- * formatting, and ATX heading markers from heading text for display/search.
- *
- * Implemented as linear single-pass scanners instead of the historical chained
- * regexes. Three of those regexes backtracked quadratically on adversarial
- * headings (a markdown heading is any single `#`-prefixed line, of unbounded
- * length, and FileIndex runs this over every heading of every note):
- *
- *   - /\[\[([^\]|]*?)(\|([^\]]*?))?\]\]/g  on "[".repeat(n)        (wikilinks)
- *   - /!\[\[[^\]]*\]\]/g                   on "![[".repeat(n)      (images)
- *   - /^#+\s*|\s*#+$/g                     on interior "#"/space runs (hashes)
- *
- * Each scanner below is byte-for-byte equivalent to the regex pass it replaced
- * (differentially fuzzed against the old pipeline); the pass ORDER is part of
- * the contract: images → wikilinks → md chars → hashes → stray brackets → trim.
- *
- * This module is dependency-free on purpose so it can be exercised standalone
- * (fuzz harnesses, node scripts) without pulling in Obsidian imports.
+ * Single-source heading sanitizer for display and search: image embeds,
+ * wikilinks, markdown characters and ATX markers. Linear single-pass scanners,
+ * because the equivalent regexes backtracked quadratically and headings are
+ * unbounded note content indexed for every note. Each scanner matches the regex
+ * it documents, and the pass order is part of the contract: images, wikilinks,
+ * md chars, hashes, stray brackets, trim. Dependency-free so it runs standalone.
  */
 
 const BANG = 0x21; /* ! */
@@ -129,7 +117,7 @@ function resolveWikiLinks(text: string): string {
  * `replace(/^#+\s*|\s*#+$/g, "")`: a leading `#` run plus following whitespace,
  * and (independently, on what remains) a trailing `#` run plus the whitespace
  * run directly before it - the trailing alternative only fires when the string
- * actually ENDS with `#`. The old regex backtracked quadratically on interior
+ * actually ends with `#`. A regex backtracks quadratically on interior
  * `#`/whitespace runs ("x" + "#".repeat(n) + "y").
  */
 function trimAtxHashMarkers(text: string): string {

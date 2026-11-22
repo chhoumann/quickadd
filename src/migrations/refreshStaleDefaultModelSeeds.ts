@@ -53,9 +53,8 @@ function refreshProviderModels(
 	for (const seed of CURRENT_MODEL_SEEDS[seedKey]) {
 		const existing = byName.get(seed.name);
 		if (existing) {
-			// Refresh metadata in place: the seed values were verified against the
-			// live provider/model directory at ship time and supersede whatever an
-			// older release (or a manual add of the same id) recorded.
+			// Refresh metadata in place: the seed values supersede whatever an older
+			// release (or a manual add of the same id) recorded.
 			existing.maxTokens = seed.maxTokens;
 			existing.maxOutputTokens = seed.maxOutputTokens;
 			existing.supportsTemperature = seed.supportsTemperature;
@@ -71,8 +70,8 @@ function refreshProviderModels(
 
 // The pre-2026 AIAssistantCommand constructor baked these values into every
 // command; they were never a user's choice. Sending an explicit default is
-// wire-equivalent to omitting the parameter (verified live), so deleting them
-// changes nothing today while sparing future models a pointless rejection.
+// wire-equivalent to omitting the parameter, so deleting them changes nothing
+// today while sparing future models a pointless rejection.
 const LEGACY_BAKED_PARAM_DEFAULTS: Record<string, number> = {
 	temperature: 1,
 	top_p: 1,

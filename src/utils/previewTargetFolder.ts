@@ -2,35 +2,11 @@ import { findInlineScriptSpans } from "./inlineScriptSpans";
 import type { TemplateFolderConfig } from "../types/choices/ITemplateChoice";
 
 /**
- * The folder a PREVIEW should resolve `{{FOLDER}}` against, or `undefined` when
- * it cannot honestly name one.
- *
- * `{{FOLDER}}` is substituted verbatim from `Formatter.targetFolderPath`, so
- * whatever is passed here lands in the previewed name unchanged. Two things
- * therefore have to be true before a configured folder can be used:
- *
- * 1. **The run must have already decided it.** `TemplateChoiceEngine` opens a
- *    folder suggester whenever more than one destination is in play - several
- *    configured folders, "ask each time", subfolders, or "same folder as the
- *    current file". Only a single plain folder is knowable up front.
- * 2. **It must be a literal.** The run formats the configured folder first
- *    (`getFolderPath` -> `CompleteFormatter.formatFolderPath`), while
- *    `setTargetFolderPath` only trims slashes - so handing over a raw
- *    `Journal/{{DATE:YYYY-MM}}` would splice the literal token into the name
- *    AND, because every argument-bearing token carries a colon in its own
- *    syntax, raise the illegal-character error (#1578) against a choice that
- *    works. The same goes for an inline `js quickadd` fence, which
- *    `formatFolderPath` really does EXECUTE (it is `format()`'s first pass) and
- *    which the folder validator permits, because backticks are not among the
- *    characters it rejects - and which the preview must never run (#1558).
- *    Resolving the folder through a second nested formatter pass is not worth
- *    that: `undefined` falls back to the caller's neutral placeholder, which is
- *    what the builder has always shown here.
- *
- * A single configured folder does not open the run-time chooser, including when
- * the active file lives in a descendant (`<current folder>` is only a shortcut
- * on a chooser that was already going to open). The previewed folder is the
- * folder the run will use.
+ * The folder a preview resolves `{{FOLDER}}` against, or `undefined` when it
+ * cannot honestly name one. Only a single, literal configured folder qualifies:
+ * several destinations open a chooser at run time, and a tokenized folder or
+ * inline script would be spliced raw into the preview (or executed). `undefined`
+ * falls back to the caller's neutral placeholder.
  */
 export function likelyTargetFolderPath(
 	folder: TemplateFolderConfig | undefined,

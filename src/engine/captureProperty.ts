@@ -54,7 +54,7 @@ export function restorePropertyCaptureSeeds(
 
 /**
  * Seeds format/script variables with a frozen snapshot of the destination
- * property before `formatPropertyValue` runs (#1748 Slice 1).
+ * property before `formatPropertyValue` runs.
  *
  * Throws when a seed key already holds a concrete value (for example from
  * `{{VALUE:list}}`), so the snapshot cannot silently replace a user answer.

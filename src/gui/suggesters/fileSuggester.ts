@@ -57,7 +57,6 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		this.sourcePathOverride = options?.sourcePath;
 		this.fileIndex = FileIndex.getInstance(app, getQuickAddInstance());
 
-		// Initialize index in background
 		void this.fileIndex.ensureIndexed();
 	}
 
@@ -74,7 +73,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const sourcePath = this.getSourcePath();
 		if (!sourcePath) return "";
 
-		// Use Obsidian's API to get the parent folder, works for both existing and non-existing paths
+		// Works for both existing and not-yet-created paths.
 		const parent = this.app.fileManager.getNewFileParent(sourcePath);
 		return this.normalizeFolderPath(parent?.path);
 	}
@@ -83,12 +82,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		let folder = this.normalizeFolderPath(baseFolder);
 		let query = input;
 
-		// Handle ./ prefix
 		if (query.startsWith("./")) {
 			query = query.slice(2);
 		}
 
-		// Handle multiple ../ prefixes
 		while (query.startsWith("../")) {
 			const parts = folder.split("/");
 			// If we're at root (empty folder), we can't go up - stop processing
@@ -130,19 +127,17 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			return this.getHeadingSuggestions(fileNameInput);
 		}
 
-		// Handle relative path shortcuts
 		if (fileNameInput.startsWith('./') || fileNameInput.startsWith('../')) {
 			return this.getRelativePathSuggestions(fileNameInput);
 		}
 
-		// Handle embeds/attachments - check if input starts with !
 		const isEmbed = inputBeforeCursor.includes('![[');
 		if (isEmbed) {
 			return this.getAttachmentSuggestions(fileNameInput);
 		}
 
-		// Build search context - use source folder even if file doesn't exist yet
-		// Clear currentFile bias when using override to avoid heading/block bias from unrelated active file
+		// Clear the currentFile bias when using an override, so an unrelated active
+		// file does not bias headings or blocks.
 		const sourceFolder = this.getSourceFolder();
 		const activeFile = this.app.workspace.getActiveFile();
 		const context: SearchContext = {
@@ -158,7 +153,6 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const noFileSpecified = fileName.trim() === '';
 		const headingQueryNormalized = normalizeForSearch(headingQuery ?? "");
 
-		// Determine candidate files based on whether file part was specified
 		let candidateFiles: IndexedFile[] = [];
 
 		if (noFileSpecified) {
@@ -225,25 +219,21 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const baseFolder = this.getSourceFolder();
 		const { folder, query } = this.resolveRelative(baseFolder, input);
 
-		// If there's a query after the relative path, search with it
 		if (query) {
 			return this.fileIndex.search(query, {
 				currentFolder: folder
 			}, 20);
 		}
 
-		// Otherwise show all files in the target folder
 		const allResults = this.fileIndex.search('', {
 			currentFolder: folder
 		}, 50);
 
-		// Filter to ensure exact folder match using normalized paths
 		const normalize = (p?: string) => this.normalizeFolderPath(p || "");
 		return allResults.filter(r => normalize(r.file.folder) === normalize(folder));
 	}
 
 	private getAttachmentSuggestions(query: string): SearchResult[] {
-		// Get all files, not just markdown
 		const allFiles = this.app.vault.getFiles();
 		const attachmentExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf', 'mp4', 'webm', 'mov', 'canvas'];
 		const queryLower = normalizeForSearch(query);
@@ -278,7 +268,6 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	renderSuggestion(item: SearchResult, el: HTMLElement): void {
 		const { file, matchType, displayText } = item;
 
-		// Add CSS classes for theming
 		el.classList.add("qaFileSuggestionItem");
 		el.classList.add(`qa-suggest-${matchType}`);
 
@@ -299,7 +288,6 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				break;
 			case 'heading': {
 				const [fileName, heading] = displayText.split('#');
-				// Highlight the query in the heading text if possible
 				const headingQuery = this.lastInput.includes('#')
 					? this.lastInput.split('#')[1]
 					: '';
@@ -348,7 +336,6 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 		el.replaceChildren(content, subTextEl);
 
-		// Add hover tooltip for content preview
 		this.addHoverTooltip(el, file);
 	}
 
@@ -399,7 +386,6 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const tooltip = createOwnedElement(owner, 'div');
 		tooltip.className = 'qa-file-tooltip';
 
-		// For now, just show basic info - content preview can be added later
 		const header = createOwnedElement(owner, "div");
 		header.className = "qa-tooltip-header";
 		header.textContent = obsidianFile.basename;

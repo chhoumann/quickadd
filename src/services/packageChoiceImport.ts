@@ -54,8 +54,8 @@ export function normalizeImportedChoice(choice: IChoice): void {
 		const fromLegacy = legacy.fileOpening ? null : fileOpeningFromLegacyFields(legacy);
 		if (fromLegacy) legacy.fileOpening = fromLegacy;
 	}
-	// New Captures start with these on (#2007), but a package that leaves them
-	// out has always run with them off.
+	// New Captures start with these on, but a package that leaves them out has
+	// always run with them off.
 	const insertAfter = (choice as IChoice & { insertAfter?: unknown }).insertAfter;
 	if (choice.type === "Capture" && isObjectRecord(insertAfter)) {
 		insertAfter.insertAtEnd ??= false;
@@ -214,8 +214,8 @@ export function isDirectChildOf(
  * package go last. Nested folders merge the same way, including one the reader
  * had dragged out of this folder: the stray-copy pass detaches it before
  * placement, and `detached` hands what it held back to its incoming copy.
- * Entries that are not choices are carried over untouched, never repaired
- * (#1566), and a folder whose children cannot be read at all is left to the
+ * Entries that are not choices are carried over untouched, never repaired,
+ * and a folder whose children cannot be read at all is left to the
  * wholesale replace. `existing` is undefined when the folder is new to the
  * vault; only detached folders are folded in then.
  */
@@ -313,9 +313,9 @@ export function insertUnderParent(
 /**
  * Puts `child` in `parent` in place, replacing a child with the same id where it
  * sits or appending it. Returns false when the parent's existing children could
- * not be read: importing INTO such a folder would replace whatever data.json still holds under it with
- * a one-element array. Callers fall back to a root append, so the imported
- * choice still lands somewhere rather than costing the user that value (#1566).
+ * not be read: importing into such a folder would replace whatever data.json
+ * still holds under it. Callers fall back to a root append, so the imported
+ * choice still lands somewhere.
  */
 export function upsertChildInMulti(parent: IMultiChoice, child: IChoice): boolean {
 	if (!Array.isArray(parent.choices)) {

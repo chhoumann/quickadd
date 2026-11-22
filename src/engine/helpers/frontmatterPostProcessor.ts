@@ -4,46 +4,19 @@ import { log } from "../../logger/logManager";
 import { coerceYamlValue } from "../../utils/yamlValues";
 import { TemplatePropertyCollector } from "../../utils/TemplatePropertyCollector";
 
-/**
- * Post-processing of newly written front matter for QuickAdd's template
- * property types feature.
- *
- * A small collaborator rather than engine methods, so only the engines that
- * write structured YAML use it and the validation logic is unit-testable
- * without an engine.
- */
-
-/** Configuration for structured variable validation */
 const VALIDATION_LIMITS = {
-	/** Maximum nesting depth for objects and arrays to prevent stack overflow */
 	MAX_NESTING_DEPTH: 10,
 } as const;
 
-/**
- * File extensions that support YAML front matter post-processing.
- * Currently only Markdown files are supported (Canvas files use JSON, not YAML).
- */
+/** Canvas files are JSON, so only Markdown gets YAML front matter. */
 const YAML_FRONTMATTER_EXTENSIONS = ["md"];
 
-/**
- * Result of validating a structured variable
- */
 interface ValidationResult {
 	isValid: boolean;
 	warnings: string[];
 	errors: string[];
 }
 
-/**
- * Validates structured variables to ensure they can be safely processed.
- * Checks for:
- * - Circular references
- * - Maximum nesting depth
- * - Invalid types (functions, symbols, etc.)
- *
- * @param templatePropertyVars - Map of variables to validate
- * @returns ValidationResult with any warnings or errors found
- */
 export function validateStructuredVariables(
 	templatePropertyVars: Map<string, unknown>,
 ): ValidationResult {
@@ -63,15 +36,6 @@ export function validateStructuredVariables(
 	};
 }
 
-/**
- * Recursively validates a value for circular references, depth limits, and invalid types.
- *
- * @param key - The key/path being validated (for error messages)
- * @param value - The value to validate
- * @param seen - Set of objects already seen (for circular reference detection)
- * @param depth - Current nesting depth
- * @returns Object containing arrays of warnings and errors
- */
 function validateValue(
 	key: string,
 	value: unknown,
@@ -81,7 +45,6 @@ function validateValue(
 	const warnings: string[] = [];
 	const errors: string[] = [];
 
-	// Check for invalid types
 	if (typeof value === "function") {
 		errors.push(`Variable "${key}" contains a function, which cannot be serialized to YAML`);
 		return { warnings, errors };
@@ -97,7 +60,6 @@ function validateValue(
 		return { warnings, errors };
 	}
 
-	// Handle null, undefined, primitives
 	if (value === null || value === undefined) {
 		return { warnings, errors };
 	}
@@ -106,13 +68,11 @@ function validateValue(
 		return { warnings, errors };
 	}
 
-	// Check for circular references
 	if (seen.has(value)) {
 		errors.push(`Variable "${key}" contains a circular reference`);
 		return { warnings, errors };
 	}
 
-	// Check nesting depth
 	if (depth >= VALIDATION_LIMITS.MAX_NESTING_DEPTH) {
 		errors.push(
 			`Variable "${key}" exceeds maximum nesting depth of ${VALIDATION_LIMITS.MAX_NESTING_DEPTH}`,
@@ -120,11 +80,9 @@ function validateValue(
 		return { warnings, errors };
 	}
 
-	// Add to seen set for circular reference detection
 	seen.add(value);
 
 	try {
-		// Recursively validate arrays
 		if (Array.isArray(value)) {
 			for (let i = 0; i < value.length; i++) {
 				const childResult = validateValue(
@@ -137,7 +95,6 @@ function validateValue(
 				errors.push(...childResult.errors);
 			}
 		}
-		// Recursively validate objects
 		else {
 			for (const [childKey, childValue] of Object.entries(value)) {
 				const childResult = validateValue(
@@ -151,21 +108,12 @@ function validateValue(
 			}
 		}
 	} finally {
-		// Remove from seen set after processing
 		seen.delete(value);
 	}
 
 	return { warnings, errors };
 }
 
-/**
- * Determines if a file's front matter should be post-processed for template property types.
- * Only processes files with supported extensions (Markdown) when template variables are present.
- *
- * @param file - The file to check
- * @param templateVars - The map of template variables to be processed
- * @returns true if the file should be post-processed, false otherwise
- */
 export function shouldPostProcessFrontMatter(
 	file: TFile,
 	templateVars: Map<string, unknown>,
@@ -177,29 +125,22 @@ export function shouldPostProcessFrontMatter(
 }
 
 /**
- * Post-processes the front matter of a newly created file to properly format
- * template property variables (arrays, objects, etc.) using Obsidian's YAML processor.
- *
- * This method handles special internal conventions:
- * - @date:ISO strings are automatically converted to Date objects for proper YAML formatting
- *   (see coerceYamlValue in utils/yamlValues.ts for implementation details)
+ * Rewrites template property variables through Obsidian's YAML processor.
+ * `@date:ISO` strings become Dates (see coerceYamlValue).
  */
 export async function postProcessFrontMatter(
 	app: App,
 	file: TFile,
 	templatePropertyVars: Map<string, unknown>,
 ): Promise<void> {
-	// Validate structured variables before processing
 	const validation = validateStructuredVariables(templatePropertyVars);
 
-	// Log any validation warnings
 	if (validation.warnings.length > 0) {
 		for (const warning of validation.warnings) {
 			log.logWarning(`Structured variable validation warning: ${warning}`);
 		}
 	}
 
-	// If validation found errors, log them and skip post-processing
 	if (!validation.isValid) {
 		const errorSummary = validation.errors.join("; ");
 		log.logError(
@@ -228,40 +169,26 @@ export async function postProcessFrontMatter(
 
 		log.logMessage(`Successfully post-processed front matter for ${file.path}`);
 	} catch (err) {
-		// Improved error message with actionable information
 		log.logError(
 			`Failed to post-process front matter for file ${file.path}: ${err}. ` +
 			`The file was created successfully, but structured variables may not be properly formatted. ` +
 			`This usually happens when variable values contain unexpected types or when Obsidian's YAML processor encounters an issue. ` +
 			`Check the console for more details about which variables caused the problem.`
 		);
-		// Don't throw - the file was still created successfully
 	}
 }
 
 /**
- * Key segments that become a prototype-pollution gadget only when a value is
- * assigned by DESCENDING THROUGH them (i.e. they appear as a non-terminal path
- * segment). As a terminal/leaf key they are harmless own-property writes and are
- * also legitimate user metadata names, so they are permitted in that position.
+ * These only pollute a prototype when descended through. As leaf keys they are
+ * plain own-property writes and legitimate metadata names.
  */
 const UNSAFE_DESCENT_SEGMENTS = new Set(["prototype", "constructor"]);
 
 /**
- * True when assigning a value along this front-matter key path would corrupt JS
- * prototype state instead of writing the file's own front matter.
- *
- * `__proto__` is rejected at every position: descending through it reaches
- * `Object.prototype` and pollutes it globally for the whole renderer, and
- * assigning to it as a leaf invokes the prototype setter (reparenting the
- * object). `constructor`/`prototype` are rejected only as a non-terminal segment
- * - the classic `constructor.prototype` descent gadget; as a terminal key they
- * are plain, legitimate front-matter properties and must not be dropped.
- *
- * Exact-string match is intentional: every collected segment is trimmed upstream
- * (see {@link import("../../utils/TemplatePropertyCollector")}) and only the
- * exact string `__proto__` trips the JS prototype setter, so whitespace-padded
- * or differently-cased variants are inert and must not be rejected.
+ * True when writing along this key path would corrupt JS prototype state.
+ * `__proto__` is unsafe anywhere (descent pollutes Object.prototype, a leaf
+ * write reparents the object); `constructor`/`prototype` only as non-terminal
+ * segments. Segments are trimmed upstream, so exact matching is sufficient.
  */
 export function hasUnsafeFrontmatterKey(path: string[]): boolean {
 	return path.some((segment, index) => {
@@ -277,11 +204,7 @@ export function assignFrontmatterValue(
 	value: unknown,
 ): void {
 	if (path.length === 0) return;
-	// Refuse to write through prototype-pollution vectors. The path can originate
-	// from template/note content authored elsewhere (synced/shared data.json,
-	// imported packages); following a `__proto__`/`constructor`/`prototype`
-	// segment would corrupt global JS prototype state for the whole renderer
-	// rather than the file's own front matter, so we drop the assignment.
+	// Key paths can come from synced or imported content.
 	if (hasUnsafeFrontmatterKey(path)) {
 		log.logWarning(
 			`Skipping front matter assignment for unsafe key path "${path.join(".")}" to avoid prototype pollution.`,

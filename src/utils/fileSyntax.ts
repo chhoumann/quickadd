@@ -13,13 +13,10 @@ import type { WarnSink } from "./warnSink";
 // VALUE/FIELD variables (parallel to FIELD_VARIABLE_PREFIX in constants.ts).
 export const FILE_VARIABLE_PREFIX = "FILE:";
 
-// Internal encoding for a resolved FILE variable value. A value chosen from the
-// folder list is stored as `@file:<vaultPath>`; a value typed via |custom is
-// stored as `@filecustom:<text>` so rendering NEVER resolves a typed string back
-// to a real file (which would let |custom bypass exclude-folder etc.). Mirrors
-// VDATE's `@date:` sentinel. An empty string means "answered, intentionally empty"
-// (optional skip). A value with neither prefix is treated as a raw path/name
-// (script-seeded or one-page legacy) and resolved best-effort.
+// A pick is stored as `@file:<vaultPath>`, |custom text as `@filecustom:<text>`,
+// so a typed string never resolves to a real file (which would bypass
+// exclude-folder). Empty means intentionally skipped; a value with neither
+// prefix is resolved best-effort as a raw path.
 export const FILE_PICK_PREFIX = "@file:";
 export const FILE_CUSTOM_PREFIX = "@filecustom:";
 
@@ -160,16 +157,10 @@ function buildFileSignature(parsed: {
 }
 
 /**
- * Parse the interior of a `{{FILE:<folder>|...}}` token.
- *
- * The first pipe-part is the (required) folder path. FILE-specific options are
- * peeled off here — the bare mode flags `name`/`link`/`path`, `optional`,
- * `custom`, and the key:value `label:` / `name:` / `type:` — then the remainder is handed
- * to {@link parseFilterSegments} so the folder/tag/exclude-* filter
- * grammar can never diverge from {{FIELD}}. The folder (first segment) is the
- * picker SCOPE, so it is applied as `filter.folder` regardless of any `|folder:`.
- *
- * Returns `null` for an empty folder (the token is left literal by the caller).
+ * Parses the interior of `{{FILE:<folder>|...}}`. FILE-specific options are
+ * peeled off and the rest goes to {@link parseFilterSegments}, so the filter
+ * grammar matches FIELD's. The positional folder is the picker scope. Null for an
+ * empty folder.
  */
 export function parseFileToken(
 	raw: string,
@@ -181,7 +172,6 @@ export function parseFileToken(
 	const folderPath = (allParts.shift() ?? "").trim();
 	if (!folderPath) return null;
 
-	// Peel bare flags first.
 	let remaining = allParts;
 	const optionalResult = extractBareFlagPart(remaining, "optional");
 	remaining = optionalResult.remaining;
@@ -222,10 +212,8 @@ export function parseFileToken(
 	}
 	const extensions = getFileTypeExtensions(types);
 
-	// Delegate filter parsing to the shared grammar (it skips this grammar's own
-	// keys like type and bare flags), then force the scope folder. The first
-	// segment is the folder, so any `|folder:` sub-option it picks up is
-	// intentionally discarded below (the positional folder always wins).
+	// The shared grammar skips this grammar's own keys; the positional folder
+	// always wins over a `|folder:` sub-option.
 	const fieldParsed = parseFilterSegments(splitPipeParts(raw).slice(1), {
 		token: `{{FILE:${raw}}}`,
 		warn: options?.warn,

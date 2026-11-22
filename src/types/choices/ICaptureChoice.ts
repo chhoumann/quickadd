@@ -13,7 +13,7 @@ export interface PropertyCapture {
 	sort: PropertyListSort;
 }
 
-/** How to derive a sort key from a section heading's text (issue #481). */
+/** How to derive a sort key from a section heading's text. */
 export type SectionOrderBy =
 	| "insertion"
 	| "lexical"
@@ -79,7 +79,7 @@ export default interface ICaptureChoice extends IChoice {
 		/**
 			* Sort descriptor for the "ordered" create-if-not-found location. Read ONLY
 			* when `createIfNotFoundLocation === "ordered"`. Absent for every other
-			* location, so existing choices round-trip byte-identically (issue #481).
+			* location, so existing choices round-trip byte-identically.
 			*/
 		orderBy?: SectionOrdering;
 		/**

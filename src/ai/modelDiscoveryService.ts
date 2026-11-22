@@ -97,9 +97,9 @@ async function fetchViaProviderApi(
 	}
 	const apiKey = apiKeyOverride ?? provider.apiKey ?? "";
 
-	// Each wire protocol has its own models endpoint AND its own auth scheme.
-	// A Bearer header on Anthropic or Gemini is a guaranteed 401 (verified live),
-	// so route by provider kind — exactly like the chat request layer does.
+	// Each wire protocol has its own models endpoint and auth scheme; a Bearer
+	// header on Anthropic or Gemini is a guaranteed 401. Route by provider kind,
+	// as the chat request layer does.
 	const kind = getProviderKind(provider);
 	const models =
 		kind === "anthropic"
@@ -250,7 +250,7 @@ async function fetchGeminiModels(
 	provider: AIProvider,
 	apiKey: string,
 ): Promise<Model[]> {
-	// The key travels as a header (verified live): a `?key=` query parameter
+	// The key travels as a header: a `?key=` query parameter
 	// would leak it into request logs and proxies.
 	const headers = providerAuthHeaders("gemini", apiKey);
 	const models: Model[] = [];

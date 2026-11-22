@@ -15,20 +15,10 @@ import { DATE_VARIABLE_REGEX, RANDOM_REGEX } from "../constants";
 import { describePreviewFailure } from "./previewDiagnostics";
 
 /**
- * "Today", snapped the way `|startof:`/`|endof:` will snap it at run time - for
- * the EXAMPLE a `{{VDATE:}}` preview shows when the user has not answered yet.
- *
- * #1595 deliberately left snap out of the file-name preview, on the grounds
- * that snapping only that row would split it from the body row. Both rows use
- * this now, so that reason is gone - and the alternative was worse: the
- * ANSWERED branch beside it snaps (it runs the run's own renderer), and
- * `{{DATE:...|startof:month}}` in the same pass has always snapped, so one row
- * gave two answers depending on which token you used.
- *
- * Without a snap it returns a plain `new Date()` and never touches moment. That
- * matters: `window.moment` is Obsidian's, and routing every dateless preview
- * through it would make the common case depend on a global the callers'
- * `catch` would otherwise turn into a `[YYYY-MM-DD]` placeholder.
+ * Today, snapped as `|startof:`/`|endof:` will snap it at run time, for the
+ * example an unanswered `{{VDATE:}}` preview shows. Both preview rows use it, so
+ * the example agrees with the answered branch and with `{{DATE:...|startof:}}`.
+ * Without a snap it never touches Obsidian's `window.moment`.
  */
 function snappedExampleDate(snap: DateSnap | undefined): Date {
 	const now = new Date();
@@ -50,7 +40,7 @@ export abstract class PreviewFormatter extends Formatter {
 	/**
 	 * Whether a token's preview may carry hints about its prompt, such as
 	 * " (default: X)". A file name may not: the run splices in the value and
-	 * nothing else, so a hint there asserts a name no file can have (#1563/#1578).
+	 * nothing else.
 	 */
 	protected abstract readonly showsTokenHints: boolean;
 
@@ -116,13 +106,9 @@ export abstract class PreviewFormatter extends Formatter {
 		}
 
 		this.templateIncludeBudget--;
-		// The depth counter is preview-LOCAL on purpose. At run time
-		// `CompleteFormatter.getTemplateContent` hands the child engine a COPY of
-		// the state with depth + 1, while `visited` is shared by reference - so
-		// incrementing depth inside the shared `replaceTemplateInString` would
-		// advance the runtime by two per level and halve its inclusion limit. The
-		// preview has no child formatter to carry it, so it counts here. Preview
-		// and runtime both still cap at MAX_TEMPLATE_INCLUSION_DEPTH levels.
+		// Depth is counted here, preview-local: at run time the child engine gets a
+		// copy with depth + 1 while `visited` is shared, so counting in the shared
+		// replaceTemplateInString would halve the runtime limit.
 		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
 		this.templateInclusion.depth++;
 		try {
@@ -255,12 +241,10 @@ export abstract class PreviewFormatter extends Formatter {
 	}
 
 	/**
-	 * A named {{VDATE}} as the run renders it. A token that names no format gets
-	 * the run's default (#1589). An answered date wins, through the run's own
-	 * renderer, so a seeded @date:ISO shows the date the user picked (#1590).
-	 * Otherwise the example is today, snapped and cased the way the run does it.
-	 * `text` is undefined when the example cannot be rendered (the snap needs
-	 * moment, and a throw would redden the row on every keystroke).
+	 * A named {{VDATE}} as the run renders it, with the run's default format when
+	 * none is named. An answered date wins, through the run's own renderer;
+	 * otherwise the example is today, snapped and cased like the run. `text` is
+	 * undefined when the example cannot be rendered (the snap needs moment).
 	 */
 	protected previewDateVariable(
 		token: string,
@@ -323,6 +307,6 @@ export abstract class PreviewFormatter extends Formatter {
 	}
 
 	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false; // Preview formatter doesn't need structured YAML variable handling
+		return false;
 	}
 }

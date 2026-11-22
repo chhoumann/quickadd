@@ -43,7 +43,7 @@ export function confirmAction(
 
 /**
  * Keep a press on a dialog button from reaching the editor under the dialog,
- * which moved the caret on mobile (#443). The click still fires.
+ * which moved the caret on mobile. The click still fires.
  */
 export function suppressPointerPress(button: HTMLButtonElement): void {
 	const suppress = (event: MouseEvent | PointerEvent) => {

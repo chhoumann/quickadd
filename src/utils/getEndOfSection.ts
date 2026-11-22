@@ -2,13 +2,7 @@ import { extractHeadingsFromLines, headingEndLine, type SimpleHeading } from "./
 
 type Heading = SimpleHeading;
 
-/**
- *
- * @param lines Lines in body to find end of section
- * @param targetLine Target line to find end of section
- * @param shouldConsiderSubsections Whether to consider subsections as part of the section
- * @returns index of end of section
- */
+/** Index of the last line of the section that starts at `targetLine`. */
 export default function getEndOfSection(
 	lines: string[],
 	targetLine: number,

@@ -21,8 +21,8 @@ interface VaultPromptContext {
 
 export async function suggestForField({ app, executor, getSourcePath }: VaultPromptContext, fieldInput: string): Promise<string | string[]> {
 
-	// Route the final picker to a remote interactive session (Raycast) when one
-	// is driving; the vault-side value collection below still runs unchanged.
+	// Route the final picker to a remote interactive session when one is
+	// driving; the vault-side value collection below still runs unchanged.
 	const provider = executor?.promptProvider;
 	return await promptOrCancel(async () => {
 		// Parse the field input to extract field name and filters. Do NOT warn
@@ -32,11 +32,9 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		const { fieldName, filters, multiSelect, label } =
 			FieldSuggestionParser.parse(fieldInput);
 
-		// Resolve the active-note default (issue #1429) BEFORE collection but apply
-		// it AFTER, so the resolved value never enters the collection cache key
-		// (which is keyed partly on filters.defaultValue). Gate strictly on
-		// "active"; an unknown source is ignored. `null` => no usable active value
-		// (no/non-Markdown active file, or a missing/empty/object property).
+		// Resolve the active-note default before collection but apply it after, so
+		// it never enters the collection cache key. `null` means no usable active
+		// value (no Markdown active file, or a missing, empty or object property).
 		const activeDefault =
 			filters.defaultFrom === "active"
 				? resolveActiveNoteFieldDefault(
@@ -46,7 +44,6 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 					)
 				: null;
 
-		// Collect and process via shared collector (filters unmutated).
 		const { values: collectedValues, hasDefaultValue: literalHasDefault } =
 			await collectFieldValuesProcessedDetailed(app, fieldName, filters);
 
@@ -118,7 +115,7 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 								filters.caseSensitive,
 							),
 						);
-			// Route to a remote interactive session (Raycast) when one is driving.
+			// Route to a remote interactive session when one is driving.
 			if (provider) {
 				return await provider.suggesterMulti(multiValues, multiValues, {
 					placeholder,
@@ -137,10 +134,8 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		}
 
 		if (values.length === 0) {
-			// No values found even after processing defaults
 			let fallbackPrompt = `No existing values were found in your vault.`;
 
-			// Suggest smart defaults if no custom default was provided
 			if (!filters.defaultValue) {
 				const smartDefaults = FieldValueProcessor.getSmartDefaults(
 					fieldName,
@@ -177,8 +172,8 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 
 export async function suggestForFile({ app, executor, getSourcePath }: VaultPromptContext, parsed: ParsedFileToken): Promise<string | string[]> {
 
-	// Route the final picker to a remote interactive session (Raycast) when one
-	// is driving; the vault-side file filtering below still runs unchanged.
+	// Route the final picker to a remote interactive session when one is
+	// driving; the vault-side file filtering below still runs unchanged.
 	const provider = executor?.promptProvider;
 	return await promptOrCancel(async () => {
 		const files = getFileTokenFiles(app, parsed);

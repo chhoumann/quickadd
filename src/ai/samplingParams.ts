@@ -4,8 +4,8 @@ import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 /**
  * Sampling parameters and automatic recovery when a model rejects them.
  *
- * Current frontier models reject sampling parameters outright with a 400
- * (verified live 2026-07-07): OpenAI reasoning models answer
+ * Current frontier models reject sampling parameters outright with a 400:
+ * OpenAI reasoning models answer
  * `unsupported_parameter` / "Unsupported value: 'temperature'", and Anthropic's
  * current generation answers "`temperature` is deprecated for this model."
  * A settings slider must never turn into an opaque hard failure, so the

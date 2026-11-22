@@ -4,15 +4,9 @@ import { isCancellationError } from "../utils/errorUtils";
 type PreviewDiagnosticSeverity = "warning" | "error";
 
 /**
- * `"path"` marks a problem with the resulting PATH rather than with resolving
- * the format: the name came out fine, the vault will just not accept it (a "."
- * or ".." segment, #1563; a character Obsidian refuses, #1578).
- *
- * The distinction exists because a host can know the field is not a path at all
- * - the capture target may hold picker syntax like `property:type=draft`, which
- * the run parses before ever treating it as a file - and must then be able to
- * discard exactly these while keeping every other diagnostic. See #1594 for the
- * "Unresolved:" label, which wants the same split.
+ * `"path"` marks a resulting path the vault will not accept, rather than a
+ * failure to resolve the format. A host that knows the field is not a path
+ * (capture-target picker syntax) can drop exactly these.
  */
 type PreviewDiagnosticKind = "path";
 
@@ -23,14 +17,9 @@ export type PreviewDiagnostic = {
 };
 
 /**
- * The problems one preview pass ran into, for passive display beside the
- * preview instead of a Notice per keystroke (issue #1558).
- *
- * Ordered and deduplicated: a format string can mention the same malformed
- * token twice, and the parsers themselves re-walk a token in more than one pass,
- * so the same sentence would otherwise appear two or three times under one
- * field. Distinct problems all survive - the key is the whole message, and every
- * message interpolates the token it is about.
+ * Problems from one preview pass, shown beside the preview instead of a Notice
+ * per keystroke. Deduplicated by message, since the parsers re-walk a token in
+ * more than one pass.
  */
 export class PreviewDiagnostics {
 	private readonly entries: PreviewDiagnostic[] = [];
@@ -59,41 +48,21 @@ export class PreviewDiagnostics {
 }
 
 /**
- * Turns a thrown formatting failure into an inline diagnostic, or `null` when it
- * should not be shown.
- *
- * The display formatters wrap the whole pipeline in `catch { return input; }`,
- * so a token that THROWS (`{{VALUE:a,b|text:x}}`, a half-typed `{{VALUE:}}`)
- * silently echoes the raw text back — the exact state a confused author is
- * already in. These are the most useful diagnostics the preview can produce, so
- * they go in the same channel as the warnings.
- *
- * The catch is untyped and catches everything, so a non-Error throw degrades to
- * a generic line. An `Error` message IS shown verbatim: there is deliberately no
- * brand allowlist, because most of the reachable throws are QuickAdd-authored but
- * unbranded, and on the rare occasion a genuine plugin bug surfaces here, its
- * message is what makes the bug report actionable.
+ * Turns a thrown formatting failure into an inline diagnostic, or `null`. The
+ * display formatters catch everything and echo their input, so this is where a
+ * throw becomes visible. Error messages are shown verbatim so a genuine bug's
+ * message stays actionable.
  */
 export function describePreviewFailure(error: unknown): string | null {
-	// A cancelled prompt is a user action, not an authoring mistake. The preview
-	// formatters never prompt, but a nested resolver still can. Check the RAW
-	// value first, before the `instanceof Error` gate below: a dismissal is a
-	// typed UserCancelError (#1577), and letting it reach that gate would report
-	// every cancellation as "Preview unavailable".
+	// Check the raw value before the `instanceof Error` gate, or every
+	// cancellation would read "Preview unavailable".
 	if (isCancellationError(error)) return null;
 	if (!(error instanceof Error)) return PREVIEW_FAILED_MESSAGE;
 	const message = error.message ?? "";
-	// Covers a USER SCRIPT that throws an Error whose message is one of the legacy
-	// sentinels (see `isCancellationError`) - the shape a script written against the
-	// pre-#1577 strings still uses. It deliberately does NOT cover
-	// `toError(err, context)`, which prefixes the context and so matches no sentinel;
-	// adding the canonical message to that set would not fix it either, and nothing
-	// wraps on the way into this function.
+	// A user script that throws one of the legacy cancellation sentinel messages.
 	if (isCancellationError(message)) return null;
-	// By far the most frequent throw: the token autocomplete inserts `{{VALUE:}}`
-	// with the caret between the colon and the braces, and VARIABLE_REGEX matches
-	// the empty name. The raw message quotes a slice of the surrounding text and
-	// says nothing useful, so this one gets real copy.
+	// The autocomplete inserts `{{VALUE:}}` with the caret inside, so this is the
+	// most frequent throw, and its raw message is unhelpful.
 	if (message.startsWith("Unable to parse variable")) {
 		return "This token is incomplete. {{VALUE:}} needs a name, for example {{VALUE:title}}.";
 	}

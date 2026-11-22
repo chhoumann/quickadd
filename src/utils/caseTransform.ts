@@ -28,8 +28,10 @@ function normalizeStyle(style?: string): CaseStyle | null {
 	}
 }
 
-/** The case styles {@link transformCase} understands, in the order shown to the
- *  user when an unrecognized |case: style is rejected. */
+/**
+ * The case styles {@link transformCase} understands, in the order shown to the
+ * user when an unrecognized |case: style is rejected.
+ */
 export const SUPPORTED_CASE_STYLES: readonly CaseStyle[] = [
 	"kebab",
 	"snake",
@@ -41,8 +43,10 @@ export const SUPPORTED_CASE_STYLES: readonly CaseStyle[] = [
 	"slug",
 ];
 
-/** Returns true when `style` resolves to a known case style; false (with a
- *  non-empty input) means the author typo'd it and it will be ignored. */
+/**
+ * True when `style` resolves to a known case style; false (with a non-empty
+ * input) means the author typo'd it and it will be ignored.
+ */
 export function isSupportedCaseStyle(style?: string): boolean {
 	return normalizeStyle(style) !== null;
 }
@@ -90,12 +94,9 @@ function tokenizeSegment(segment: string): string[] {
 	let s = segment;
 
 	// Split typical acronym+word boundaries (XMLHttp -> XML Http).
-	// Match a SINGLE uppercase before an Upper+lower pair rather than a `+` run:
-	// the unbounded `[\p{Lu}]+` is quadratic on a long all-caps segment (each /g
-	// start position re-consumes the whole run then backtracks char-by-char looking
-	// for the never-present trailing lowercase), freezing the main thread on a
-	// crafted `{{VALUE|case:...}}` value. The single-char form is byte-identical
-	// (only the last uppercase of an acronym run ever leads the split) but linear.
+	// A single uppercase before an Upper+lower pair, not a `+` run: the run is
+	// quadratic on a long all-caps segment from a crafted value. Same output,
+	// linear time.
 	s = s.replace(/([\p{Lu}])([\p{Lu}][\p{Ll}])/gu, "$1 $2");
 	// Split lower/digit -> upper boundaries (myNew -> my New).
 	s = s.replace(/([\p{Ll}\p{N}])([\p{Lu}])/gu, "$1 $2");

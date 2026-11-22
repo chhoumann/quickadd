@@ -75,7 +75,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		this.choiceExecutor = choiceExecutor;
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.choice = choice;
-		// Every prompt this run opens can say which choice is asking (issue #1546).
 		this.formatter.setPromptRunContext({
 			draftScopeId: choice.id,
 			choiceName: choice.name,
@@ -160,13 +159,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			let createdNew = false;
-			// What this run did to its target note (#1615). Derived from the file-exists
-			// resolution the engine actually performed rather than from a byte compare,
-			// which is exact for the two answers an automation acts on: "createNew"
-			// always writes a new note, and "reuseExisting" — the Keep existing file
-			// modes — writes nothing at all. Only "modifyExisting" (append/overwrite) is
-			// inferred: it always writes, so `changed` can in principle over-report a
-			// write whose bytes happened to match, which is the harmless direction.
+			// What this run did to its target note, from the file-exists resolution
+			// actually performed. Only "modifyExisting" is inferred: it always writes,
+			// so `changed` can over-report identical bytes, the harmless direction.
 			let effect: ChoiceEffect = "created";
 			if (selectedUpdate) {
 				if (!isMarkdownTemplatePath(templatePath)) {
@@ -233,9 +228,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					templatePath,
 				);
 				if (!createdFile) {
-					// No second log line: createFileWithTemplate already reported the real
-					// cause. Record that same cause as the outcome, so a caller who cannot
-					// see notices is told what the notice said (#1603).
+					// No second log line: createFileWithTemplate already reported the
+					// cause. Record it as the outcome for callers who cannot see notices.
 					this.outcome.fail(
 						this.lastTemplateFileFailure ??
 							`Could not create file '${targetFilePath}'.`,
@@ -323,9 +317,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return;
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-			// Record BEFORE reporting: the notice is for whoever is at the desktop, the
-			// reason is for whoever is not (a CLI or interactive-bridge caller), and both
-			// must say the same thing (#1603).
+			// Record before reporting so the notice and the caller's reason agree.
 			this.outcome.failure(failureReason(err));
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		} finally {
@@ -420,9 +412,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const placeholder = "If the target file already exists";
 
 		return (await routePrompt(this.choiceExecutor, {
-			// An interactive run drives this from the client, like every other prompt
-			// the run opens. Before, it opened on the desktop while the client's /poll
-			// returned nothing, and the run waited for someone to walk past (#1614).
 			remote: (provider) =>
 				promptEngineChoice(provider, {
 					items: promptModes.map((mode) => ({
@@ -432,10 +421,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					placeholder,
 					what: 'the "file already exists" chooser',
 				}),
-			// Non-interactive run (CLI without `ui`): there is no one to answer, so
-			// opening it would hang forever. Abort with an actionable error instead.
-			// This is the default behaviour for new Template choices, so it is the most
-			// common non-interactive hang.
+			// Non-interactive run: nobody can answer. This is the default for new
+			// Template choices, so it is the most common non-interactive hang.
 			headless: () => {
 				throw new ChoiceAbortError(
 					`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
@@ -537,14 +524,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			existingFile.extension === "canvas" ||
 			existingFile.extension === "base"
 		) {
-			// Appending raw template text to a canvas/base file would splice it
-			// into the file's structured JSON content and corrupt it. Only the
-			// "Overwrite" file-exists option is safe for these formats.
-			//
-			// Recorded, not just logged: this is one of the report-and-return-null exits
-			// whose caller owns the run's outcome, and it carries the most actionable
-			// sentence of any of them (it names the fix). A CLI or interactive caller
-			// would otherwise be told "Could not resolve file exists behavior" (#1603).
+			// Appending raw text to canvas/base JSON would corrupt it; only Overwrite
+			// is safe. Recorded so a caller who cannot see notices gets this
+			// actionable sentence.
 			this.lastTemplateFileFailure = `Cannot append to '${existingFile.path}': appending a template to a ${existingFile.extension} file would corrupt it. Use the "Overwrite" file-exists option instead.`;
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			log.logError(this.lastTemplateFileFailure);
@@ -561,9 +543,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			this.choiceExecutor,
 			resolvedTemplatePath,
 		);
-		// This engine owns its own formatter, so the run context has to be handed
-		// over or every prompt raised while appending loses the choice name, the
-		// destination and its draft scope (issue #1546).
+		// This engine owns its own formatter, so hand over the run context or every
+		// prompt raised while appending loses the choice name, destination and
+		// draft scope.
 		insertEngine.setPromptRunContext({
 			draftScopeId: this.choice.id,
 			choiceName: this.choice.name,
@@ -617,8 +599,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		if (direct instanceof TFile) return direct;
 		if (direct) return null;
 
-		// On case-insensitive filesystems, adapter.exists can return true even when
-		// Obsidian's case-sensitive path index can't resolve the file.
 		const lowerPath = filePath.toLowerCase();
 		const matches = this.app.vault
 			.getFiles()

@@ -3,22 +3,11 @@ import type { PromptSpec, ReplyBody, ReplyOutcome } from "./promptProtocol";
 export type { FormField, PromptSpec, ReplyBody } from "./promptProtocol";
 
 /**
- * Localhost HTTP bridge that lets an external front end (Raycast, scripts) drive
- * QuickAdd's *interactive* prompts — the ones a script raises at runtime and the
- * requirement collector therefore cannot pre-satisfy (e.g. a Readwise importer's
- * `quickAddApi.suggester(...)`).
- *
- * Transport: HTTP long-poll on 127.0.0.1 with an ephemeral random port. Chosen
- * over a WebSocket so it needs no dependency (Node's built-in `http`, required
- * lazily via `window.require` so the mobile bundle is untouched — desktop only).
- *
- * Concurrency: every run gets its own `sessionId` + per-session `token`; the
- * server multiplexes any number of concurrent sessions and correlates each
- * prompt to its answer by `requestId`. A caller can only ever see its own
- * session (unknown/mismatched token → 401/404).
- *
- * Lifecycle: the server starts on the first session and stops once the last
- * session is cleaned up, so nothing listens when no interactive run is active.
+ * Localhost HTTP bridge that lets an external front end drive the prompts a
+ * script raises at run time, which the requirement collector cannot pre-satisfy.
+ * Long-polls on 127.0.0.1 with an ephemeral port; `http` is required lazily on
+ * desktop so the mobile bundle stays clean. Each run gets its own session id and
+ * token, and the server stops once the last session is cleaned up.
  */
 
 import {
@@ -326,8 +315,6 @@ class InteractivePromptServer {
 
 	/** Stop the server and drop all sessions (plugin unload). */
 	stop(): void {
-		// Invalidate any in-flight ensureStarted() so its listen() callback
-		// discards the server instead of installing it after unload.
 		this.generation++;
 		for (const session of this.sessions.values()) {
 			this.clearSessionTimers(session);
@@ -399,9 +386,8 @@ class InteractivePromptServer {
 	}
 
 	/**
-	 * Deliver an answer (or a cancel) to the prompt a session is blocked on.
-	 * Public so the HTTP layer and tests share one path. Returns true if a
-	 * matching pending prompt was found.
+	 * Delivers an answer (or a cancel) to the prompt a session is blocked on.
+	 * Returns true if a matching pending prompt was found.
 	 */
 	submitReply(
 		sessionId: string,
@@ -414,14 +400,9 @@ class InteractivePromptServer {
 		const pending = session.pending.get(requestId);
 		if (!pending) return false;
 		session.pending.delete(requestId);
-		// A remote cancel must abort the run exactly like dismissing the Obsidian
-		// modal: reject with UserCancelError so downstream abort handling classifies
-		// it as a user cancellation (x-cancel, suppressed notice) rather than an error.
-		//
-		// Strict `=== true`. A malformed flag must never reach here as a plain answer -
-		// `describeReplyProblem` turns it into a 400 at the wire, leaving the prompt
-		// pending - because resolving it would hand the run an empty answer the user
-		// never gave, which is worse than the spurious abort a loose truthy check caused.
+		// A remote cancel aborts like dismissing the Obsidian modal. Strict
+		// `=== true`: describeReplyProblem rejects a malformed flag with a 400 at
+		// the wire, since resolving it would hand the run an answer never given.
 		if (cancelled === true) {
 			// Info dialogs resolve on dismissal in-app. Decide here so the provider
 			// never has to swallow cancellation errors from a session-level abort.
@@ -464,10 +445,8 @@ class InteractivePromptServer {
 
 	private async handle(req: HttpIncomingMessage, res: HttpServerResponse): Promise<void> {
 		try {
-			// Reject anything that doesn't look like our own loopback client: a browser
-			// (sends Origin/Referer) or a Host header that isn't 127.0.0.1/localhost
-			// (DNS-rebinding). The server is bound to loopback, but these headers are
-			// the cheap defence against a drive-by page probing the port.
+			// Bound to loopback already; these headers are the cheap defence against
+			// a drive-by page or DNS rebinding probing the port.
 			if (!isLoopbackClient(req.headers)) {
 				this.send(res, 403, { ok: false, error: "Forbidden" });
 				return;
@@ -489,11 +468,8 @@ class InteractivePromptServer {
 				return;
 			}
 			if (req.method === "POST" && url.pathname === "/abort") {
-				// Consume the request before answering, like /reply does. /abort takes no
-				// body, but a client may still send one, and unread bytes left on a
-				// keep-alive socket are the next request's problem. Node drains an
-				// unconsumed request itself when the response finishes; doing it here
-				// makes the route independent of that internal.
+				// Consume any body before answering, so unread bytes are never left on
+				// a keep-alive socket.
 				await this.drainBody(req);
 				const interrupted = this.abortSession(session.id);
 				if (interrupted === null) {
@@ -601,9 +577,8 @@ class InteractivePromptServer {
 	}
 
 	/**
-	 * Validate and deliver a reply that arrived over the wire. Public so the HTTP layer
-	 * and tests share ONE path - the validation is the interesting part, and a test that
-	 * bypassed it would be testing a shape production never sees.
+	 * Validates and delivers a reply that arrived over the wire. Public so the
+	 * HTTP layer and tests share the validation path.
 	 */
 	submitWireReply(sessionId: string, body: ReplyBody): ReplyOutcome {
 		const session = this.sessions.get(sessionId);

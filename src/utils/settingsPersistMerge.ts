@@ -181,8 +181,7 @@ function threeWayMergeKeyedArray(
  *   must not use model-name identity.
  * - Other irreducible array/leaf conflicts prefer local.
  *
- * This is the data-integrity seam for #1749: a background model-sync write must
- * not clobber newer on-disk fields it never touched.
+ * A background write must not clobber newer on-disk fields it never touched.
  */
 export function threeWayMergeSettings<T>(
 	base: T,
@@ -254,7 +253,7 @@ export function diskSettingsDivergedFromBase(
  * `base` is the last snapshot QuickAdd successfully loaded or wrote. When the
  * on-disk file still matches that snapshot, the in-memory `local` value is
  * written as-is. When disk has moved on (sync / external edit), local changes
- * are three-way-merged onto disk so untouched fields are not clobbered (#1749).
+ * are three-way-merged onto disk so untouched fields are not clobbered.
  */
 export function resolveSettingsToPersist<T>(
 	base: T | null | undefined,
@@ -279,8 +278,8 @@ export function resolveSettingsToPersist<T>(
  * `local` is the in-memory snapshot the disk-aware merge used. If `currentStore`
  * has moved on since that snapshot (another edit while `loadData()` was in
  * flight), fold those edits onto `toWrite` with a three-way merge that treats
- * `local` as the base — so disk-only fields in `toWrite` survive while newer
- * store fields win (Codex P1 / CodeRabbit on #1750).
+ * `local` as the base, so disk-only fields in `toWrite` survive while newer
+ * store fields win.
  *
  * `shouldReplaceStore` is true only when publishing `toWrite` back into the
  * store would not clobber a concurrent update still equal to `local`.

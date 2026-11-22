@@ -32,8 +32,7 @@ export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 		this.outputVariableName = "output";
 		this.promptTemplate = { enable: false, name: "" };
 		// Empty on purpose: only sampling parameters the user explicitly sets are
-		// ever sent. Baking in "defaults" (temperature 1 etc.) made every new
-		// command carry params that current frontier models reject with a 400.
+		// sent, since current frontier models reject some defaults with a 400.
 		this.modelParameters = {};
 	}
 }

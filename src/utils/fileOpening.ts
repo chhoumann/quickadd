@@ -134,30 +134,7 @@ function resolveLeafForOpenFileLocation(
 	}
 }
 
-/**
- * Open a file (by TFile or vault path) with precise control over location and mode.
- *
- * @example
- * // Open in a new tab
- * await openFile(app, "daily/2024-01-01.md", { location: "tab" });
- *
- * @example
- * // Split vertically in source mode
- * await openFile(app, file, {
- *   location: "split",
- *   direction: "vertical",
- *   mode: "source"
- * });
- *
- * @example
- * // Open in sidebar without focus
- * await openFile(app, file, {
- *   location: "right-sidebar",
- *   focus: false
- * });
- *
- * @returns The leaf it opened into.
- */
+/** Opens a file (by TFile or vault path) at a location and mode, and returns the leaf it opened into. */
 export async function openFile(
 	app: App,
 	fileOrPath: TFile | string,
@@ -196,14 +173,12 @@ export async function openFile(
 		app.workspace.setActiveLeaf(activeLeaf, { focus: false });
 	}
 
-	// Open the file
 	if (focus) {
 		await leaf.openFile(file);
 	} else {
 		await leaf.openFile(file, { active: false });
 	}
 
-	// Optionally adjust view mode (Reading / Live Preview / Source)
 	if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
 		const vs = leaf.getViewState();
 		const next: Record<string, unknown> = { ...(vs.state ?? {}) };
@@ -218,12 +193,11 @@ export async function openFile(
 			next.mode = "source";
 			next.source = false; // Live Preview = source:false
 		} else if (typeof mode === "object" && mode.mode === "source") {
-			// advanced override
 			next.mode = "source";
 			next.source = mode.source;
 		}
 
-		// Fix eState usage - merge into state rather than passing as second param
+		// eState is merged into the view state.
 		await leaf.setViewState({
 			...vs,
 			...(!focus && { active: false }),

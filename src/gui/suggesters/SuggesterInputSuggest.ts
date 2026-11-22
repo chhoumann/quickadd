@@ -35,7 +35,6 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 		this.multiSelect = multiSelect;
 		this.onSelect = onSelect;
 
-		// Add accessibility attribute for multi-select mode
 		if (this.multiSelect) {
 			this.inputEl.setAttribute("aria-multiselectable", "true");
 		}
@@ -102,12 +101,10 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 
 		const hasMoreItems = this.getRemainingOptions(alreadySelected).length > 0;
 
-		// Set value with trailing comma and space only if more items available
 		this.inputEl.value = hasMoreItems
 			? alreadySelected.join(", ") + ", "
 			: alreadySelected.join(", ");
 
-		// Move cursor to end
 		this.inputEl.setSelectionRange(
 			this.inputEl.value.length,
 			this.inputEl.value.length,

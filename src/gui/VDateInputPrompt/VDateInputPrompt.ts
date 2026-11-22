@@ -70,7 +70,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		options?: InputPromptOptions,
 		withTime?: boolean
 	) {
-		// Pass the defaultValue to the parent so the input box is pre-filled
 		super(app, header, placeholder, defaultValue ?? "", undefined, options);
 
 		this.containerEl.addClass("qaDatePrompt");
@@ -101,11 +100,10 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			positionInputPromptCursor(this.inputComponent.inputEl, options);
 		}
 
-		// Create debounced preview update function (250ms delay, reset on each call)
 		this.updatePreviewDebounced = debounce(
 			this.updatePreview.bind(this),
 			250,
-			true // Reset timer on each call (standard debounce behavior)
+			true
 		);
 
 		this.updatePreview();
@@ -134,7 +132,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			})
 			.inputEl.addEventListener("keydown", this.submitEnterCallback);
 		
-		// Initialize currentInput with the initial value (which should be defaultValue)
 		this.currentInput = value ?? "";
 
 		// Only reserve the host element here (runs during super(), before
@@ -144,7 +141,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			cls: "qa-date-picker-container",
 		});
 
-		// Create preview element
 		this.createPreviewElement(container);
 
 		return textComponent;
@@ -202,7 +198,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	private updatePreview() {
-		// Don't update if modal is closed
 		if (!this.isOpen) return;
 
 		const input = this.currentInput.trim();
@@ -249,7 +244,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			return;
 		}
 
-		// If input matches default value or regular input, render the preview
 		this.renderPreviewFromInput(input);
 	}
 
@@ -359,10 +353,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	onClose() {
-		// Prevent any pending debounced updates
 		this.isOpen = false;
 
-		// Cancel any pending debounced calls
 		this.updatePreviewDebounced.cancel();
 		this.unsubscribeCalendarToggle?.();
 

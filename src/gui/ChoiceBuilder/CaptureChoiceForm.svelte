@@ -22,10 +22,9 @@ import WritePositionSetting from "./components/WritePositionSetting.svelte";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 
 /**
- * Reactive replacement for CaptureChoiceBuilder.display(). Every conditional row
- * (capture target, create-if-missing, write position + insert-after/before fields,
- * append link, file opening) is an {#if} over the $state choice proxy, so toggling
- * a control updates in place — no contentEl.empty()/display() teardown (#1130).
+ * Every conditional row (capture target, create-if-missing, write position and
+ * insert-after/before fields, append link, file opening) is an {#if} over the
+ * $state choice proxy, so toggling a control updates in place.
  */
 let {
 	choice = $bindable(),
@@ -203,8 +202,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		{/snippet}
 	</SettingItem>
 
-	<!-- Deprecated (#2014): shown only to choices that already have it on, so they
-	     can turn it off. -->
+	<!-- Deprecated: shown only to choices that already have it on, so they can
+	     turn it off. -->
 	{#if !choice.propertyCapture && choice.templater?.afterCapture === "wholeFile"}
 	<SettingItem
 		name="Run Templater on entire destination file after capture (deprecated)"

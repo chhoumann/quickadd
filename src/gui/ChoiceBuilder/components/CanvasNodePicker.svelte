@@ -10,9 +10,8 @@ import {
 } from "../canvasNodes";
 
 /**
- * Reactive port of captureChoiceBuilder.renderCanvasNodePicker. The imperative
- * renderList() rebuild is now a reactive {#each}; selecting a node mutates
- * `nodeId` and the list re-derives automatically.
+ * Picks a Canvas card for the capture target. Selecting a node mutates `nodeId`
+ * and the reactive list re-derives.
  */
 let {
 	nodeId = $bindable(),

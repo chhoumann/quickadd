@@ -4,15 +4,10 @@ import { maskFencedHeadings, type OrderedSlot } from "./orderedSectionPlacement"
 import { getBodyStartOffset } from "./noteContentInsertion";
 
 /**
- * Pure document-positioning algorithms for the capture insert-after / insert-before
- * flows. Given a note's lines (or raw content) and a resolved target, these compute
- * WHERE captured content should land — the line range a target occupies, the line
- * after which to splice, and the resulting spliced string. They never touch the
- * Obsidian app, the formatter's prompt state, or any instance: every input arrives
- * as a parameter and the result is returned, which keeps the gnarly edge-case logic
- * (CRLF, frontmatter, fenced code, blank-line spacing, EOF newlines, #312 task
- * spacing, #742 multi-line anchors) independently unit-testable and out of the
- * CaptureChoiceFormatter token-substitution path.
+ * Pure positioning for capture insert-after/insert-before: the line range a
+ * target occupies, where to splice, and the spliced string. Every input is a
+ * parameter, so CRLF, frontmatter, fences, blank-line spacing and multi-line
+ * anchors stay unit-testable.
  */
 
 /** Inclusive line range a target occupies; `{ -1, -1 }` means "not found". */
@@ -59,12 +54,9 @@ export function isBlankTarget(targetLines: string[]): boolean {
 }
 
 /**
- * Locates the insert target in the file. Returns the inclusive line range
- * `{ start, end }` the target occupies, or `{ start: -1, end: -1 }` when not
- * found. For a single-line target `start === end`, preserving historical
- * single-line behavior exactly. Callers pick which boundary to anchor on:
- * insert-after-immediate uses `end`, insert-before uses `start`,
- * insert-after-at-end derives the section end from `start` (issue #742).
+ * The inclusive line range the target occupies, or `{ -1, -1 }`. Insert-after
+ * immediate anchors on `end`, insert-before on `start`, and insert-after-at-end
+ * derives the section end from `start`.
  */
 export function findInsertAfterRange(
 	lines: string[],
@@ -78,27 +70,21 @@ export function findInsertAfterRange(
 }
 
 export function findSingleLineIndex(lines: string[], rawTarget: string): number {
-	// `\n` escapes are already expanded upstream, so no escape stripping
-	// happens here — stripping would desync search from the create path,
-	// which writes the unstripped string (issue #742).
+	// `\n` escapes are expanded upstream; stripping here would desync the search
+	// from the create path, which writes the unstripped string.
 	const target = rawTarget.trimEnd();
 	let partialIndex = -1;
 
 	for (let i = 0; i < lines.length; i++) {
-		// Trim only left whitespace to preserve indentation alignment
 		const line = lines[i].trimStart();
 
-		// 1. Exact match wins immediately
 		if (line === target) return i;
 
-		// 2. Check for prefix match (target + only whitespace suffix)
-		// This matches old regex behavior for lines starting with the target
+		// A prefix match counts outright when only whitespace follows it.
 		if (line.startsWith(target)) {
 			const suffix = line.slice(target.length);
-			// If suffix is only whitespace, this matches old regex behavior exactly
 			if (/^\s*$/.test(suffix)) return i;
 
-			// Remember first broader prefix match as fallback
 			if (partialIndex === -1) {
 				partialIndex = i;
 			}
@@ -106,23 +92,20 @@ export function findSingleLineIndex(lines: string[], rawTarget: string): number 
 			continue;
 		}
 
-		// 3. Check for substring match (target appears anywhere in line with only whitespace after)
-		// This restores legacy behavior where selectors like "| ----- |" can match
-		// table separator rows where the target appears at the end
+		// Also match a substring with only whitespace after it, so selectors like
+		// "| ----- |" match table separator rows.
 		const targetIndex = line.indexOf(target);
 		if (targetIndex !== -1) {
 			const suffix = line.slice(targetIndex + target.length);
-			// If suffix is only whitespace, match this line
 			if (/^\s*$/.test(suffix)) return i;
 
-			// Remember first broader substring match as fallback
 			if (partialIndex === -1) {
 				partialIndex = i;
 			}
 		}
 	}
 
-	return partialIndex; // -1 if no match at all
+	return partialIndex;
 }
 
 /**
@@ -158,22 +141,15 @@ export function findMultiLineRange(
 }
 
 function stripTrailingWhitespace(line: string): string {
-	// trimEnd() strips exactly the same character set as the historical
-	// /\s+$/ replace (ECMAScript WhiteSpace + LineTerminator) but in linear
-	// time. The unanchored regex backtracked quadratically on a note line
-	// holding a long interior whitespace run (" ".repeat(n) + "x"), freezing
-	// the UI during a multi-line insert-after/-before capture search.
+	// trimEnd strips the same characters as /\s+$/ in linear time; that regex
+	// backtracked quadratically on long interior whitespace runs.
 	return line.trimEnd();
 }
 
 /**
- * `considerSubsections` only has meaning for a heading anchor — a non-heading
- * line has no section whose subsections could be included, and
- * getEndOfSection() throws if asked to consider subsections of a non-heading
- * line. Multi-line anchors made non-heading start lines newly matchable
- * (issue #742), so degrade to false when the anchor is not a heading
- * (using getEndOfSection's own heading definition, in context: a `#` line
- * inside a code fence is not a heading) instead of throwing.
+ * Only a heading anchor has subsections, and getEndOfSection throws for a
+ * non-heading line, so degrade to false. A `#` line inside a code fence is not
+ * a heading.
  */
 export function anchorAllowsSubsections(
 	considerSubsections: boolean,
@@ -209,8 +185,8 @@ export function findInsertAfterPositionWithBlankLines(
 	const shouldSkip = shouldSkipBlankLinesAfterMatch(mode, matchLine);
 	if (!shouldSkip) return matchIndex;
 
-	// Ignore the trailing empty line that results from split("\n") when the
-	// file ends with a newline. This preserves existing EOF behavior.
+	// Ignore the trailing empty line that split("\n") leaves when the file ends
+	// with a newline.
 	const scanLimit = body.endsWith("\n")
 		? Math.max(lines.length - 1, 0)
 		: lines.length;
@@ -243,7 +219,7 @@ export function findInsertAfterPositionAtSectionEnd(
 		i++;
 	}
 
-	// Preserve current behavior when there are no trailing blank lines or when
+	// Insert at the section end when there are no trailing blank lines or the
 	// blanks are followed by content (e.g. before a new heading).
 	if (position === sectionEndIndex || i !== lines.length) {
 		return sectionEndIndex;
@@ -315,12 +291,9 @@ export function maskNonBodyHeadingsForSearch(
 	lines: string[],
 	fileContent: string,
 ): string[] {
-	// Blank the frontmatter lines BEFORE fence masking, not after: maskFencedHeadings
-	// scans every line it is given, so an unclosed ```/~~~ marker inside the YAML
-	// frontmatter (e.g. a block scalar holding a code-fence example) would otherwise
-	// leave the scanner "in a fence" at the body boundary and neutralize a real body
-	// heading. Scoping the masking to the body avoids that leak. For frontmatter
-	// without fence markers this is identical to masking first then blanking.
+	// Blank the frontmatter before fence masking: an unclosed fence marker in the
+	// YAML would otherwise leave the scanner "in a fence" and neutralize a real
+	// body heading.
 	const bodyStartLine = getBodyStartLine(fileContent);
 	const bodyScopedLines = lines.map((line, index) =>
 		index < bodyStartLine ? "" : line,
@@ -337,29 +310,17 @@ export function insertTextAfterPositionInBody(
 	isTask: boolean,
 	cursorOffsetInText = rawText.length,
 ): SpliceResult {
-	// Line-matched insertAfter callers always pass a real line index (>= 0); the
-	// frontmatter-aware "top" insertion lives in insertAtNoteBodyStart instead.
-	// Shared by every "after" path: the line-matched handler, insert-at-end-of-
-	// section, and the create-if-not-found cursor paths.
+	// Line-matched callers always pass a real index (>= 0); frontmatter-aware
+	// "top" insertion lives in insertAtNoteBodyStart.
 	const splitContent = body.split("\n");
 	const pre = splitContent.slice(0, pos + 1).join("\n");
 	const post = splitContent.slice(pos + 1).join("\n");
 
-	// "Format as task" injects a trailing newline onto the capture content
-	// (getCaptureContent in CaptureChoiceEngine) so a bare task is always a
-	// complete line. #312 asked for no blank line after a task captured above a
-	// blank line, so that injected newline is dropped there and the task takes
-	// the blank line's place. This is the one case where an insert removes a
-	// blank line. A user-typed trailing newline in the format string is
-	// intentional content and is left untouched (gated on choice.task, this
-	// only collapses QuickAdd's own injected task newline).
-	//
-	// Detect the blank line via the split index, not `post.startsWith("\n")`, so
-	// whitespace-only and CRLF blanks (where the line is "\r" or "   ", not "")
-	// are recognised too. When `body` ends in a newline, split() appends a
-	// trailing empty slot that is the EOF artifact, not a real blank line, so it
-	// must not trigger the drop; a body WITHOUT a trailing newline has no such
-	// artifact, so its final slot is a genuine (possibly blank) last line.
+	// "Format as task" appends a newline so a bare task is a complete line. Above
+	// a blank line that newline is dropped so the task takes the blank line's
+	// place; a user-typed trailing newline is left alone. The blank line is found
+	// by split index so whitespace-only and CRLF blanks count, while the EOF slot
+	// of a body ending in a newline does not.
 	const lineBelow = splitContent[pos + 1];
 	const lineBelowTrimmed = (lineBelow ?? "").trim();
 	const isTrailingNewlineArtifact =
@@ -373,12 +334,9 @@ export function insertTextAfterPositionInBody(
 			? rawText.slice(0, -1)
 			: rawText;
 
-	// `post` starts with the following line (join adds no leading "\n"), so a
-	// `text` without a trailing newline would take that line's place: glued onto
-	// content ("## Log\n- existing" + "new" became "## Log\nnew- existing"), or
-	// replacing a blank line. End the entry's line whenever any line follows.
-	// `post` is empty only at the end of the note (including the EOF artifact
-	// slot). Judged on `rawText`, so the #312 drop above stays a drop.
+	// `post` starts with the following line, so a `text` without a trailing
+	// newline would merge into it or replace a blank line. Judged on `rawText`,
+	// so the task drop above stays a drop.
 	const separator = !rawText.endsWith("\n") && post.length > 0 ? "\n" : "";
 
 	return {
@@ -414,19 +372,10 @@ export function insertTextBeforePositionInBody(
 }
 
 /**
- * Splice a created section at the resolved slot, padding it with a single blank
- * line above the heading (when the preceding line is non-blank) and below the
- * block (when the following line is non-blank) so the heading is never glued to
- * neighbouring content (the helpers QuickAdd ships do not pad headings —
- * verified — so this is the dedicated separation path for ordered creation).
- *
- * Byte-preserving: the original `fileContent` is sliced at the insertion offset
- * and the existing text on both sides is kept VERBATIM (so a mixed-EOL note is
- * never wholesale-normalized — an ordered capture produces a minimal diff). Only
- * the inserted block and its two seams use the file's dominant EOL. The offset
- * is derived from `rawLines` (which `getLinesInString` produced by splitting on
- * "\n", so each prior line consumed its own length + 1 for the "\n"). `\r` is
- * stripped only for the blank-line trim checks.
+ * Splices a created section at the resolved slot, padding a blank line above
+ * the heading and below the block when the neighbours are non-blank.
+ * Byte-preserving: the text on both sides is kept verbatim, so a mixed-EOL note
+ * is never normalized; only the inserted block and its seams use the dominant EOL.
  */
 export function spliceOrderedSection(
 	rawLines: string[],

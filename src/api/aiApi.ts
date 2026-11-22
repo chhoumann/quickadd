@@ -118,7 +118,7 @@ export function createAiApi(app: App, choiceExecutor: IChoiceExecutor, format: F
 			clearAIRequestLogEntries();
 		},
 		/**
-		 * Create a tool-calling Agent (#714). Construct once with model/system/
+		 * Create a tool-calling Agent. Construct once with model/system/
 		 * tools/budget, then run `agent.generate({ prompt })` (text + tools) or
 		 * `agent.generate({ prompt, schema })` (structured output).
 		 */
@@ -138,7 +138,7 @@ export function createAiApi(app: App, choiceExecutor: IChoiceExecutor, format: F
 				({ toolCallNames }) =>
 					toolCallNames.includes(name),
 		/**
-		 * Standard built-in tools (#714), opt-in. Spread a group into an Agent's
+		 * Standard built-in tools, opt-in. Spread a group into an Agent's
 		 * `tools` map, e.g. `tools: { ...quickAddApi.ai.tools.vault() }`. Each group
 		 * factory accepts { only, exclude, prefix, allowedRoots }. Read tools auto-run;
 		 * write tools require confirmation and are path-sanitized + symlink-guarded.

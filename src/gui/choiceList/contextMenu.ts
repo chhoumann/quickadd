@@ -75,10 +75,8 @@ export function computeEligibleMultiTargets(
 function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
   if (target.type !== "Multi") return true;
   if (moving.id === target.id) return true;
-  // A folder whose existing children could not be read refuses writes (see
-  // choiceTree.insertIntoMulti), so offering it here would be a menu item
-  // that silently does nothing. Same predicate as the folder's hint, its drop
-  // zone and its delete warning (#1566).
+  // A folder whose children could not be read refuses writes, so offering it
+  // would be a menu item that silently does nothing.
   if (hasUnreadableChildren(target)) return true;
   if (moving.type === "Multi") {
     const ids = new Set<string>();

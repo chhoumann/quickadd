@@ -104,11 +104,8 @@ export abstract class Formatter extends ValueFormatter {
 		if (!SELECTED_REGEX.test(input)) return input;
 
 		const selectedText = await this.getSelectedText();
-		// Single global function-replacer pass (mirrors replaceClipboardInString):
-		// the inserted selection is arbitrary user text and may itself contain the
-		// literal "{{SELECTED}}" token, so a re-scanning while-loop would re-match
-		// it every iteration and grow without bound, hanging Obsidian (#1358-class).
-		// A function replacer inserts it literally and is never re-scanned.
+		// One function-replacer pass: the selection is user text that may contain
+		// "{{SELECTED}}", which a re-scanning loop would re-match forever.
 		const regex = new RegExp(SELECTED_REGEX.source, "gi");
 		const replacement = this.userText(selectedText);
 		return input.replace(regex, () => replacement);
@@ -183,8 +180,6 @@ export abstract class Formatter extends ValueFormatter {
 		while ((match = regex.exec(input)) !== null) {
 			output += input.slice(lastIndex, match.index);
 
-			// match[1] contains the field name (and potentially the old filter syntax if no pipe is used)
-			// match[2] contains the filter part starting with |, if present
 			const fullMatch = match[1] + (match[2] || "");
 
 			if (fullMatch) {
@@ -193,13 +188,9 @@ export abstract class Formatter extends ValueFormatter {
 				});
 				const fieldVariableKey = await this.resolveFieldVariable(fullMatch, parsed);
 
-				// The FIELD key, not the bare specifier. `getVariableValue` is only
-				// reached when the suggester resolved `undefined` (a remote prompt
-				// provider can), and looking up `status|folder:Work` there both
-				// misses the value that WAS stored and cross-reads the {{VALUE}}
-				// namespace, so a `{{VALUE:status}}` answer could be served to a
-				// `{{FIELD:status}}` token - the separation FIELD_VARIABLE_PREFIX
-				// exists for. A FIELD shares its answer only by its own `|name:`.
+				// The FIELD key, not the bare specifier: the specifier would cross-read
+				// the {{VALUE}} namespace. A FIELD shares its answer only through its
+				// own `|name:`.
 				const rawValue = this.hasConcreteVariable(fieldVariableKey)
 					? this.variables.get(fieldVariableKey)
 					: this.getVariableValue(fieldVariableKey);
@@ -365,22 +356,12 @@ export abstract class Formatter extends ValueFormatter {
 	protected abstract promptForMathValue(): Promise<string>;
 
 	protected async replaceMathValueInString(input: string) {
-		// Build the output by scanning the current input once.
-		// This avoids infinite replacement loops when the provided math input contains {{MVALUE}}.
+		// One scan of the input, so math input that contains {{MVALUE}} cannot loop.
 		const regex = new RegExp(MATH_VALUE_REGEX.source, "gi");
 
-		// An already-collected answer wins, the way {{VALUE}} reads
-		// `this.variables` before prompting. `RequirementCollector` registers a
-		// requirement keyed "mvalue" for this token, so the one-page input form
-		// asks for a "Math expression" and the CLI advertises
-		// `value-mvalue=<value>` - and, without this, both answers were dropped:
-		// the form asked, then the run opened the math modal on top of it, and
-		// the CLI flag it had just recommended made no difference (#1607).
-		//
-		// READ, never write: leaving `promptForMathValue`'s answer unstored keeps
-		// the per-occurrence prompt that `{{MVALUE}} {{MVALUE}}` has always had.
-		// A single collected answer legitimately fills every occurrence, because
-		// the collector registers exactly one requirement for the token.
+		// An already-collected answer (one-page form, `value-mvalue=`) wins. Read,
+		// never write, so `{{MVALUE}} {{MVALUE}}` still prompts per occurrence when
+		// nothing was collected.
 		const collected = this.variables.get("mvalue");
 		const collectedValue =
 			typeof collected === "string" && collected.trim() ? collected : null;
@@ -429,11 +410,9 @@ export abstract class Formatter extends ValueFormatter {
 	}
 
 	/**
-	 * @param variableName the WHOLE `{{FIELD:...}}` specifier, filters included.
-	 *   It is what the runtime suggesters parse and what the variable is keyed on.
-	 * @param parsed the same specifier already parsed by the caller. The preview
-	 *   formatters need only `fieldName` from it, and passing it in is what keeps
-	 *   their placeholder from reading `status|folder:Work_field_value` (#1579).
+	 * `variableName` is the whole `{{FIELD:...}}` specifier, filters included, as
+	 * the runtime suggesters parse it. `parsed` is the same specifier parsed, so
+	 * previews can use just `fieldName`.
 	 */
 	protected abstract suggestForField(
 		variableName: string,
@@ -623,8 +602,8 @@ export abstract class Formatter extends ValueFormatter {
 
 	/**
 	 * Expands `{{PROPERTY}}` to the seeded `propertyValue` snapshot (property
-	 * Captures only). Outside that scope the token is a hard error so it cannot
-	 * leak as literal text into a note body (#1748).
+	 * Captures only). Elsewhere the token is a hard error so it cannot leak as
+	 * literal text into a note body.
 	 */
 	protected replacePropertyInString(input: string): string {
 		if (!PROPERTY_REGEX.test(input)) return input;

@@ -2,11 +2,7 @@ import { type Component, mount, unmount } from "svelte";
 import { reportError, toError } from "../../utils/errorUtils";
 import MountFailed from "./MountFailed.svelte";
 
-/**
- * A handle to a Svelte 5 component mounted imperatively into an Obsidian host
- * (Modal contentEl, settings tab element, ...). Replaces the Svelte 4 class
- * instance that hosts used to keep around (and call `.$destroy()` on).
- */
+/** A handle to a Svelte 5 component mounted imperatively into an Obsidian host. */
 export interface MountHandle {
 	/** Unmount the component. Idempotent — safe to call from both onClose() and reload(). */
 	destroy(): void;
@@ -41,30 +37,17 @@ interface MountOptions {
 const DEFAULT_WHAT = "this part of QuickAdd";
 
 /**
- * Mount a Svelte 5 component into `target` and return an idempotent handle.
+ * Mounts a Svelte 5 component into `target` and returns an idempotent handle;
+ * `destroy()` tolerates a Modal's onClose() after reload() already tore it down.
  *
- * Single seam replacing `new Component({ target, props })` + `.$destroy()` across
- * ChoiceBuilder, CommandSequenceEditor, the PackageManager modals and the settings
- * tab. The idempotent `destroy()` guards the double-teardown that arises when a
- * Modal's `onClose()` runs after a `reload()` already tore the component down.
+ * Never throws: a throw would stop a Modal from opening or abandon every
+ * remaining group in the declarative settings tab. The error is reported once
+ * and a fallback card takes the component's place. A throw from an `$effect` is
+ * not covered (Svelte flushes effects on a later tick); that belongs to
+ * `<svelte:boundary>`.
  *
- * **This function never throws.** A throw during mount used to escape into the host,
- * where it costs far more than the component: a Modal that mounts from `onOpen()` or
- * its constructor never opens at all, and the declarative settings tab — which builds
- * every group by calling `render` closures in turn — abandons every remaining QuickAdd
- * setting (#1451, #1507, #1566). Instead the error is reported once (one Notice, via
- * `reportError`) and a card takes the component's place, so the failure is partial and
- * visible rather than total and silent (#1584).
- *
- * What this does NOT cover: a throw from an `$effect`. Svelte flushes effects on a
- * later tick, so it never reaches this try/catch — it surfaces as an uncaught error
- * and the component renders anyway (verified against svelte 5 in a scratch probe).
- * That case belongs to `<svelte:boundary>`, which ChoiceView already has. This seam
- * owns the synchronous setup the boundary itself sits inside.
- *
- * To feed reactive updates after mount, pass a `$state`-backed props object and
- * mutate its properties (see createCommandListProps) — the documented Svelte 5
- * way to update an imperatively-mounted component.
+ * For reactive updates after mount, pass a `$state`-backed props object and
+ * mutate it (see createCommandListProps).
  */
 export function mountComponent<Props extends object, Exports extends object>(
 	target: HTMLElement,

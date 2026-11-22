@@ -49,10 +49,9 @@ function reportAndThrowUserScriptLoadError(
 ): never {
 	const error = new UserScriptLoadError(message);
 	if (options.reportLoadErrors !== false) {
-		// reportError, not log.logError: this error is thrown straight past
-		// MacroChoiceEngine's own reporting catch and lands in the command-palette
-		// handler, which reported it a second time - two stacked 15-second notices with
-		// the same 300-character message for one typo'd require (#1601).
+		// reportError, not log.logError: this error is thrown past
+		// MacroChoiceEngine's reporting catch to the command handler, and
+		// report-once keeps it to one notice.
 		reportError(error);
 	}
 
@@ -218,7 +217,7 @@ export function selectUserScriptMember(
 	let script = moduleExports;
 	let settings = getOwnSettingsDefinition(script);
 	for (const member of memberAccess) {
-		// Untyped CommonJS exports: a missing intermediate member throws, as before.
+		// Untyped CommonJS exports: a missing intermediate member throws.
 		script = (script as Record<string, unknown>)[member];
 		settings = getOwnSettingsDefinition(script) ?? settings;
 	}
@@ -263,9 +262,9 @@ export async function loadUserScript(
 
 		const fileContent = await app.vault.read(file);
 
-		// A user script can live in a `.js` file OR inside a ```js fenced code block
-		// in a note (#1065) — the latter is editable on mobile. For a note we run the
-		// first js fence and ignore surrounding prose; the .js path is byte-identical.
+		// A user script can live in a `.js` file or inside a ```js fence in a note,
+		// which is editable on mobile. For a note the first js fence runs and the
+		// surrounding prose is ignored.
 		let scriptSource = fileContent;
 		if (isNote) {
 			const { code, error } = extractScriptFromMarkdown(fileContent);
@@ -281,10 +280,8 @@ export async function loadUserScript(
 			scriptSource = code;
 		}
 
-		// User scripts are CommonJS modules. Wrap the file body in a Function whose
-		// parameters are the module globals, instead of `eval`-ing a wrapper string.
-		// This executes the (trusted, user-authored) script identically to the
-		// previous `(function(require, module, exports){ ... })` eval form.
+		// User scripts are CommonJS modules: the body runs in a Function whose
+		// parameters are the module globals, not an eval'd wrapper string.
 		if (looksLikeHtmlPayload(scriptSource)) {
 			reportAndThrowUserScriptLoadError(
 				savedWebpageMessage(command.path),

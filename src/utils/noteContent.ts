@@ -13,7 +13,7 @@ import { toLF } from "./toLF";
  * notes over its 64K-character content cache are re-read from disk after
  * `vault.modify` resolves, and unsaved typing is 3-way merged behind a
  * "modified externally" notice. Anything that then reads the editor, or
- * places a cursor by offset, sees other text than QuickAdd wrote (#1798).
+ * places a cursor by offset, sees other text than QuickAdd wrote.
  * When the note is open in a source or live-preview editor, these helpers
  * write through that editor instead, as Obsidian's plugin guidelines
  * recommend, so it holds the result as soon as they resolve.

@@ -56,7 +56,7 @@ export abstract class BuilderPage<T> extends SettingPage {
 
 	hide(): void {
 		// Unmount first: a form commits what is still pending as it unmounts,
-		// such as a folder typed without Add (#1993).
+		// such as a folder typed without Add.
 		this.destroy();
 		super.hide();
 		this.onSave(this.result());

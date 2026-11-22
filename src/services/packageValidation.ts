@@ -36,11 +36,8 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 		);
 	}
 
-	// Reject duplicate destinations: preview reads the first asset, while import writes the last.
-	// last-write-wins per destination while the review pane resolves the FIRST
-	// match (decodeAssetPreview), so two assets at one path could show benign bytes
-	// in review while malicious bytes land on disk — a silent review-gate desync.
-	// Failing closed here keeps reviewed bytes identical to written bytes.
+	// Preview shows the first asset at a path while import writes the last, so
+	// duplicates would let reviewed bytes differ from written bytes.
 	const duplicateAssetPath = findDuplicateAssetPath(parsed.assets);
 	if (duplicateAssetPath !== null) {
 		throw new Error(
@@ -48,22 +45,9 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 		);
 	}
 
-	// All copies of a choice must match: preview reads flat entries while import installs inline children.
-	// same choice id can appear in MORE than one place in a package: as a flat
-	// `pkg.choices` entry AND inline inside a Multi's `choices` array (or as a
-	// NestedChoice/Conditional-branch embedded choice). The preview and the writer
-	// each pick ONE of those copies and assume the others are identical:
-	// buildPackagePreview's walk SKIPS an inline Multi child whose id is also an
-	// entry (trusting the entry's walk to cover it), while applyPackageImport's
-	// remapChoiceTree INSTALLS the inline copy and drops the standalone entry. A
-	// crafted package can make those copies DIVERGE — a benign top-level entry that
-	// the preview discloses, paired with a malicious inline child (e.g.
-	// runOnStartup:true) that actually installs — suppressing the capability
-	// disclosure and acknowledgement gate entirely. The structural validator
-	// (isQuickAddPackage) never checks this. A legitimately-exported package always
-	// clones every appearance of an id from one source choice, so all appearances
-	// are identical; divergence implies tampering. Fail closed so the copy the user
-	// reviews is provably the copy that installs.
+	// Preview walks flat entries while import installs inline Multi children, so
+	// divergent copies of one choice id would let a benign copy be reviewed while a
+	// different one installs. Exported packages clone every copy from one source.
 	const divergentChoiceId = findDivergentChoiceId(parsed.choices);
 	if (divergentChoiceId !== null) {
 		throw new Error(
@@ -71,16 +55,8 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 		);
 	}
 
-	// Import installs parented entries through their parent. Reject children missing from that parent.
-	// inline. applyPackageImport installs a child SOLELY through its parent Multi's
-	// inline `choices` (remapChoiceTree keeps only the children listed there) and,
-	// in the insertion loop, SKIPS the child's own flat entry assuming the parent
-	// will carry it. So a hand-edited/cross-version package where entry X names
-	// parentChoiceId=M (M an importable entry) while M does not list X inline would
-	// import X nowhere — silently dropped while the preview still listed X and the
-	// import reports success. A legitimately exported package always inlines a
-	// parented child as a direct member of its parent Multi, so failing closed here
-	// keeps the previewed set of choices identical to the installed set.
+	// Import installs a parented child only through its parent's inline `choices`,
+	// so a child its parent does not carry would vanish while the preview lists it.
 	const uncarriedChildId = findUncarriedChildChoiceId(parsed.choices);
 	if (uncarriedChildId !== null) {
 		throw new Error(

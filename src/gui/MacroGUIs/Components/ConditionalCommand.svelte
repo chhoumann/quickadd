@@ -28,10 +28,8 @@
 	} = $props();
 
 	const summary = $derived(getConditionSummary(command.condition));
-	// `?.length ?? 0` reads a LENGTH off whatever is there: a branch saved as
-	// "not a list" rendered "Then: 10" (its character count) and an
-	// array-turned-object rendered "Then: 0" as if the branch were empty. Count
-	// only what is actually a list of commands (#1593).
+	// Count only an actual list of commands: `?.length` would read a string
+	// branch's character count, or 0 for an array-turned-object.
 	const thenCount = $derived(commandListOf(command.thenCommands).length);
 	const elseCount = $derived(commandListOf(command.elseCommands).length);
 </script>

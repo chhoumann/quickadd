@@ -47,9 +47,8 @@ import { usesDefaultTemplateTitlePrompt } from "../../utils/templateNoteDiscover
 import { likelyTargetFolderPath } from "../../utils/previewTargetFolder";
 
 /**
- * Reactive replacement for TemplateChoiceBuilder.display(). Conditional rows are
- * {#if} blocks over the $state-backed choice proxy, so toggling a control updates
- * in place — no contentEl.empty()/display() teardown, no lost scroll/caret (#1130).
+ * Conditional rows are {#if} blocks over the $state-backed choice proxy, so
+ * toggling a control updates in place without losing scroll or caret.
  */
 let {
 	choice = $bindable(),
@@ -64,9 +63,7 @@ let {
 	commitPending?: () => void;
 } = $props();
 
-// Computed once from the stable app/plugin props ($derived satisfies the
-// reactive-reference rule; the vault snapshot matches the imperative builder,
-// which also read these once per render).
+// Computed once from the stable app/plugin props.
 const templatePaths = $derived(plugin.getTemplateFiles().map((f) => f.path));
 const allFolders = $derived(sortFolderPathsByTree(getAllFolderPathsInVault(app)));
 
@@ -121,10 +118,9 @@ function attachFolderSuggester(el: HTMLInputElement | HTMLTextAreaElement) {
 	return folderSuggester;
 }
 
-// Keep the exclusion set in sync with the current folder list (replaces the
-// imperative updateCurrentItems() calls). Tolerates a destroyed suggester after
-// the input unmounts on a mode switch — updateCurrentItems is field-only and the
-// input is recreated (with a fresh suggester) when "specified" mode returns.
+// Keep the exclusion set in sync with the current folder list. Tolerates a
+// destroyed suggester after the input unmounts on a mode switch; the input is
+// recreated with a fresh suggester when "specified" mode returns.
 $effect(() => {
 	folderSuggester?.updateCurrentItems(choice.folder.folders);
 });
@@ -147,9 +143,9 @@ function onFolderInputKeypress(event: KeyboardEvent) {
 	if (event.key === "Enter") addFolder();
 }
 
-// A folder typed but never added is kept instead of dropped (#1993): when the
-// builder saves in place (the app going to the background), and when the page
-// is left, which destroys this form before the builder reads the choice.
+// A folder typed but never added is kept instead of dropped: when the builder
+// saves in place (the app going to the background), and when the page is left,
+// which destroys this form before the builder reads the choice.
 function addPendingFolder() {
 	if (folderMode === "specified") addFolder();
 }

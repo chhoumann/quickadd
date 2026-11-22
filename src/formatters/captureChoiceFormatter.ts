@@ -37,11 +37,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private clipboardAttachmentLink: string | null | undefined;
 	private createdClipboardAttachmentPaths: string[] = [];
 	/**
-		* Tracks whether the current formatter instance has already run Templater on the
-		* capture payload.  This prevents the same content from being parsed twice in
-		* multi-stage formatting flows (see issue #533 – double execution when using
-		* tp.system.prompt).
-		*/
+	 * Whether Templater already ran on this payload, so multi-stage formatting
+	 * never parses it twice (a tp.system.prompt would ask again).
+	 */
 	private templaterProcessed = false;
 	/** A picked heading is a verbatim file line: skip token and escape expansion when matching it. */
 	private insertAfterTargetOverride: string | null = null;
@@ -56,9 +54,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.clipboardAttachmentLink = undefined;
 		// {{FOLDER}} in a capture body resolves to the destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
-		// Both destination setters run on EVERY write path (existing file, created
-		// file, canvas card) immediately before the content pass, so hooking them
-		// is what lets a capture's body prompt name its target note (issue #1546).
+		// Both destination setters run on every write path right before the
+		// content pass, so the body prompt can name its target note.
 		this.setPromptRunContext({
 			destination: file.path,
 			destinationKind: "file",
@@ -242,7 +239,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
 		let formatted = format ? await this.formatCaptureText(input, !!this.choice?.eachLine) : input;
 
-		// Run templater only once per capture payload to prevent #533 double execution
+		// Templater runs once per capture payload.
 		if (runTemplater && this.file && !this.templaterProcessed) {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
@@ -485,8 +482,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const fileContentLines: string[] = this.fileContent.split("\n");
-		// Insert-before anchors on the block's FIRST line so the capture lands
-		// before the whole multi-line anchor (never inside it — issue #742).
+		// Insert-before anchors on the block's first line, so the capture lands
+		// before the whole multi-line anchor, never inside it.
 		const { start } = positioning.findInsertAfterRange(fileContentLines, targetLines);
 		const targetNotFound = start === -1;
 		if (targetNotFound) {

@@ -7,8 +7,7 @@ import { openLocationOptions, splitDirectionOptions } from "../fileOpeningOption
 import type { FileOpeningSettings, FileViewMode2, OpenLocation } from "../../../types/fileOpening";
 
 /**
- * Replaces ChoiceBuilder.addFileOpeningSetting. Conditional rows (split
- * direction, focus toggle) are reactive `{#if}` blocks instead of `reload()`.
+ * Conditional rows (split direction, focus toggle) are reactive `{#if}` blocks.
  */
 let {
 	fileOpening = $bindable(),
@@ -18,10 +17,9 @@ let {
 	contextLabel: string;
 } = $props();
 
-// This section only mounts when Open is enabled. An imported/legacy choice can
-// reach here with a missing/partial fileOpening (toggling Open true after mount),
-// so normalize at init — before the template dereferences .location/.mode — the
-// same point the imperative addFileOpeningSetting normalized. (#1130 review)
+// This section only mounts when Open is enabled. An imported or legacy choice
+// can reach here with a missing or partial fileOpening, so normalize at init,
+// before the template dereferences .location/.mode.
 fileOpening = normalizeFileOpening(fileOpening);
 
 const modeOptions = [

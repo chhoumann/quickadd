@@ -5,7 +5,7 @@ import { addArrowKeyNavigation } from "./confirmAction";
 type ToolConfirmOutcome = "allow" | "allow-all" | "deny" | "abort";
 
 /**
- * Confirmation modal for an AI-requested tool call (#714). The model chose the tool
+ * Confirmation modal for an AI-requested tool call. The model chose the tool
  * and its arguments, so this is the human-in-the-loop checkpoint. Outcomes:
  *  - allow      run this one call
  *  - allow-all  run this and every later call this run (no more prompts)
@@ -96,7 +96,6 @@ export default class AIToolConfirmModal extends Modal {
 			.setButtonText("Approve")
 			.onClick(() => this.submit("allow"));
 
-		// Focus the safe option.
 		denyBtn.buttonEl.focus();
 		addArrowKeyNavigation([
 			abortBtn.buttonEl,

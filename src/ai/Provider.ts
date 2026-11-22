@@ -1,21 +1,17 @@
 export type ModelDiscoveryMode = "modelsDev" | "providerApi" | "auto";
 
 /**
- * Which wire protocol a provider speaks. Used to select the request/response
- * adapter for tool calling + structured output (#714) instead of matching the
- * provider's display NAME — a custom Anthropic-compatible provider named anything
- * other than "Anthropic" must still get the Anthropic wire shape.
+ * Wire protocol, used to pick the request/response adapter instead of matching
+ * the display name, so a custom Anthropic-compatible provider still gets the
+ * Anthropic shape.
  */
 export type ProviderKind = "openai" | "anthropic" | "gemini";
 
 export interface AIProvider {
 	/**
-	 * Stable identity used by persisted model references and the script API's
-	 * qualified `providerId/model` form. A lowercase slug, unique across the
-	 * configured providers, never containing "/" (the qualified-form delimiter).
-	 * Immutable once assigned — `name` is the editable display label.
-	 * Optional only because pre-2.19 data.json files lack it; every creation
-	 * path and the pinAiModelRefs migration assign one.
+	 * Stable identity for persisted model refs and the `providerId/model` form: a
+	 * unique lowercase slug, never containing "/". Immutable; `name` is the
+	 * editable label. Optional because data.json from before 2.19 lacks it.
 	 */
 	id?: string;
 	name: string;
@@ -39,10 +35,8 @@ export interface AIProvider {
 }
 
 /**
- * Resolve a provider's wire kind. Prefers the explicit `kind` field; otherwise
- * infers from the (legacy) name/endpoint so providers saved before the field
- * existed still route correctly. Unknown → "openai" (the OpenAI-compatible default,
- * matching today's fallback branch).
+ * Prefers the explicit `kind`, else infers it from the legacy name/endpoint.
+ * Unknown means "openai".
  */
 export function getProviderKind(provider: {
 	kind?: ProviderKind;
@@ -62,11 +56,9 @@ export function getProviderKind(provider: {
 }
 
 /**
- * The request format a tool/agent turn is sent in. OpenAI's own API gets the
- * Responses API: its newest models (gpt-6-*, gpt-5.6-*) reason by default and
- * reject function tools on Chat Completions (verified live 2026-09-26: "use
- * /v1/responses or set reasoning_effort to 'none'"). OpenAI-compatible
- * third-party endpoints keep Chat Completions, the format they all implement.
+ * OpenAI's own API gets the Responses API: its newest models reason by default
+ * and reject function tools on Chat Completions. OpenAI-compatible endpoints keep
+ * Chat Completions.
  */
 export type ChatWire = ProviderKind | "openai-responses";
 
@@ -101,10 +93,8 @@ export function endpointHost(endpoint?: string): string {
 }
 
 /**
- * Whether `host` is `domain` or a real subdomain of it. Matching the parsed
- * hostname, not a substring of the whole URL, means e.g.
- * `https://evil.com/?api.anthropic.com` or `https://openai.com.evil.com` can't
- * pass for the provider (CodeQL js/incomplete-url-substring-sanitization).
+ * Matches the parsed hostname, not a URL substring, so
+ * `https://evil.com/?api.anthropic.com` or `openai.com.evil.com` cannot pass.
  */
 export function hostMatches(host: string, domain: string): boolean {
 	return host === domain || host.endsWith(`.${domain}`);
@@ -116,10 +106,9 @@ export function providerUrl(endpoint: string, path: string): string {
 }
 
 /**
- * Auth headers for a provider's wire protocol. Each protocol has its own scheme:
- * a Bearer header on Anthropic or Gemini is a guaranteed 401 (verified live).
- * Without a key only Anthropic's version header is sent, so keyless local
- * OpenAI-compatible servers never see an empty `Bearer `.
+ * A Bearer header on Anthropic or Gemini is a guaranteed 401. Without a key only
+ * Anthropic's version header is sent, so keyless local servers never see an
+ * empty `Bearer `.
  */
 export function providerAuthHeaders(
 	kind: ProviderKind,
@@ -155,11 +144,9 @@ export function findProviderByKey(
 }
 
 /**
- * Provider-scoped model reference. The persisted identity of a pinned model:
- * a bare name string cannot express WHICH provider serves it once two
- * providers list the same id (#1495). Persisted alongside the legacy bare-name
- * string, which writers keep in sync (`model === modelRef.name`) so downgrades
- * and cross-vault imports degrade to today's first-match behavior.
+ * A bare model name cannot say which provider serves it once two list the same
+ * id. Written alongside the legacy `model` string and kept in sync
+ * (`model === modelRef.name`), so a downgrade falls back to first-match.
  */
 export interface ModelRef {
 	providerId: string;
@@ -181,10 +168,8 @@ export function slugifyProviderId(name: string): string {
 }
 
 /**
- * A provider id equal to the slug of `base`, or `-2`, `-3`, … suffixed when
- * other providers already claim it. Every creation path goes through here so
- * two providers can never share an id and no id can ever contain "/" —
- * enforced HERE rather than by caller discipline.
+ * A provider id equal to the slug of `base`, suffixed `-2`, `-3`, … when taken.
+ * Every creation path goes through here, so ids stay unique and never contain "/".
  */
 export function uniqueProviderId(
 	base: string,
@@ -204,12 +189,9 @@ export function uniqueProviderId(
 }
 
 /**
- * Give every provider a unique stable id. Providers without one (pre-2.19
- * data, hand-edited data.json) get a fresh slug; when two providers CLAIM the
- * same id (only possible via hand-editing), the first keeps it — so refs
- * pointing at the duplicated id keep resolving to the provider they resolve
- * to today — and later claimants are reassigned. Returns true when anything
- * changed, so callers know the settings need persisting.
+ * Gives every provider a unique stable id. On a duplicated id (only possible by
+ * hand-editing) the first claimant keeps it, so existing refs resolve as before.
+ * Returns true when anything changed.
  */
 export function ensureProviderIds(providers: AIProvider[]): boolean {
 	let changed = false;
@@ -232,11 +214,9 @@ export function ensureProviderIds(providers: AIProvider[]): boolean {
 }
 
 /**
- * The ref, but only while it still matches the legacy string field. The two
- * can drift apart when an older QuickAdd (which writes only `model`) edited a
- * command after an upgrade pinned it — a stale ref must never override what
- * the user visibly selected. Drift makes the ref inert; re-selecting the
- * model in the dropdown re-pins it.
+ * The ref, only while it matches the legacy string field. An older QuickAdd
+ * writes only `model`, so a drifted ref is inert and never overrides what the
+ * user visibly selected.
  */
 export function activeModelRef(
 	model: string | undefined,
@@ -292,17 +272,9 @@ export function sortModelsForDisplay<T extends Model>(models: readonly T[]): T[]
 }
 
 /**
- * Shipped model seeds, keyed by models.dev provider id. These exist ONLY as an
- * offline fallback: live discovery (models.dev / the provider's models endpoint)
- * is the source of truth, and auto-sync keeps lists current without plugin
- * releases. Each entry below was verified live (directory metadata + a real
- * completion) on 2026-07-07. Refreshed 2026-09-26: the OpenAI list was
- * re-verified live (listed by /v1/models, a real completion, and a completion
- * with temperature to confirm supportsTemperature); the Google and Anthropic
- * additions come from models.dev metadata cross-checked against the vendors'
- * model/deprecation docs, without a live completion (no key was available).
- * When touching this table, re-verify against https://models.dev/api.json and
- * the provider APIs — never add ids from memory.
+ * Shipped model seeds keyed by models.dev provider id, only an offline fallback:
+ * live discovery is the source of truth. When editing, verify against
+ * https://models.dev/api.json and the provider APIs; never add ids from memory.
  */
 export const CURRENT_MODEL_SEEDS: Record<
 	"openai" | "google" | "anthropic",
@@ -355,10 +327,8 @@ export const CURRENT_MODEL_SEEDS: Record<
 };
 
 /**
- * Previously shipped seed models that are retired upstream (verified live
- * 2026-07-07: OpenAI returns 404 model_not_found, Gemini 404s the whole 1.5
- * family). The refresh migration removes exactly these — nothing else — from
- * providers on the official endpoints.
+ * Previously shipped seeds now retired upstream. The refresh migration removes
+ * exactly these from providers on the official endpoints.
  */
 export const RETIRED_SEED_MODELS: Record<keyof typeof CURRENT_MODEL_SEEDS, string[]> = {
 	openai: ["gpt-4-32k", "gpt-4-1106-preview"],

@@ -80,7 +80,7 @@ export function frontmatterValueMatches(raw: unknown, target: string): boolean {
 }
 
 /**
- * Markdown files whose frontmatter matches a property target (issue #466):
+ * Markdown files whose frontmatter matches a property target:
  *   - `value === undefined` → presence mode: the file HAS the field (any value,
  *     including an empty/`null` value — Obsidian stores an empty property as `null`).
  *   - otherwise → the field equals `value` (see {@link frontmatterValueMatches}).

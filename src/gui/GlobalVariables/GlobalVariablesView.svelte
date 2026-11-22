@@ -21,7 +21,6 @@
   function loadFromSettings() {
     const state = settingsStore.getState();
     const globals = state.globalVariables || {};
-    // Preserve insertion order of object keys
     items = Object.keys(globals).map((k) => ({ name: k, value: globals[k] ?? "" }));
   }
 
@@ -32,16 +31,10 @@
   let suppressReload = false;
 
   function persistToSettings() {
-    // Never publish a lossy record. An empty name can't be keyed (it would be
-    // dropped) and duplicate names collapse last-wins — writing either to the
-    // store (and the debounced data.json save) is the data-loss footgun. While
-    // any name is empty or duplicated, keep the edit local and leave the
-    // previously-persisted values intact until the names are valid again.
-    // Validate and persist on TRIMMED names: the {{GLOBAL_VAR:<name>}} token
-    // trims the name before lookup, so a whitespace-only name ("   ") is
-    // effectively empty and "foo " collides with "foo". Treat both as
-    // invalid/duplicate (keep the edit local) and write trimmed, referenceable
-    // keys when valid.
+    // Never publish a lossy record: an empty name cannot be keyed and duplicate
+    // names collapse last-wins, so keep such edits local until the names are
+    // valid. Names are validated trimmed, since {{GLOBAL_VAR:<name>}} trims
+    // before lookup.
     const names = items.map((it) => it.name.trim());
     const hasEmpty = names.some((n) => !n);
     const hasDuplicate = new Set(names).size !== names.length;

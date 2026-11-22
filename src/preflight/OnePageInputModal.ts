@@ -179,11 +179,8 @@ export class OnePageInputModal extends Modal {
 		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
 		title.addClass("qa-onepage-title");
 
-		// Optional live preview area. Created (empty and collapsed) before the
-		// fields so it keeps its place between the title and the first input; the
-		// standing "Preview" heading is gone, because each row now carries its own
-		// label and a heading reading "Preview" would re-assert the promise
-		// "Won't be created:" exists to withdraw (#1590/#1594).
+		// Created empty before the fields, so it sits between the title and the
+		// first input. No "Preview" heading: each row carries its own label.
 		if (this.computePreview) {
 			this.previewContainerEl = this.contentEl.createDiv();
 			this.previewContainerEl.addClass("qa-onepage-preview", "qa-hidden");
@@ -204,13 +201,12 @@ export class OnePageInputModal extends Modal {
 		}
 		this.updateFieldVisibility(false);
 
-		// AFTER the fields: `this.result` is populated inside renderField, so the
-		// first pass used to run against an empty map and flash a stand-in
-		// ("Example Title") over prefilled answers for 150ms.
+		// After the fields: renderField populates `this.result`, so an earlier
+		// pass would flash stand-ins over prefilled answers.
 		if (this.computePreview) void this.updatePreviews();
 
 		// A sibling of the fields rather than their last row, so Submit stays in
-		// view however long the form is (#1910).
+		// view however long the form is.
 		this.modalEl.addClass("qa-has-modal-footer");
 		const buttonBar = this.modalEl.createDiv({
 			cls: "qa-prompt-actions qa-modal-footer",
@@ -491,12 +487,9 @@ export class OnePageInputModal extends Modal {
 	}
 
 	/**
-	 * Free-text fields accept clipboard-image paste UNLESS any scanned
-	 * occurrence of the variable was path context (file name, folder, capture
-	 * target, location target, template path) - an embed link would corrupt a
-	 * path (issue #1484). The destination is unresolved at preflight time, so
-	 * the saver runs with "" (vault-root placement and links that resolve
-	 * from anywhere).
+	 * Free-text fields accept clipboard-image paste unless any occurrence of the
+	 * variable was path context, where an embed link would corrupt the path. The
+	 * destination is unresolved at preflight, so the saver runs with "".
 	 */
 	private enableImagePaste(
 		req: FieldRequirement,
@@ -630,17 +623,9 @@ export class OnePageInputModal extends Modal {
 	}
 
 	/**
-	 * The answers as the consumer will actually receive them.
-	 *
-	 * Shared by `submit()` and the live preview so the preview cannot render a
-	 * value the submit path is about to withhold (#1590). The one rule that
-	 * differs from a plain copy of `this.result`: an empty DATE field is only an
-	 * answer when the token said `|optional`. A required blank date, or any date
-	 * whose text failed to parse, is OMITTED so it stays unresolved and the
-	 * sequential date prompt - with its picker and aliases - still fires.
-	 *
-	 * Deriving that in the preflight instead would only get half of it: the
-	 * parse-error set lives here, on the modal.
+	 * The answers as the consumer will receive them, shared with the live preview
+	 * so it never renders a withheld value. A required blank date, or one whose
+	 * text failed to parse, is omitted so the sequential date prompt still fires.
 	 */
 	private collectAnswers(): Record<string, string> {
 		const requirementsById = new Map(
@@ -655,12 +640,8 @@ export class OnePageInputModal extends Modal {
 				if (!requirement.optional || hasParseError) return;
 			}
 
-			// Store the field value verbatim. A textarea value used to be
-			// backslash-doubled here; nothing downstream un-doubled it (the formatter
-			// substitutes a {{VALUE}} verbatim and never linebreak-processes it), so
-			// the doubling corrupted paths/regex/code — and compounded with the
-			// |type:text YAML quoter, which escapes backslashes again. Keep it literal,
-			// matching the wide and single-line prompts.
+			// Stored verbatim: the formatter substitutes {{VALUE}} as-is, so
+			// escaping here would corrupt paths and code.
 			out[k] = v;
 		});
 		return out;
@@ -712,10 +693,8 @@ export class OnePageInputModal extends Modal {
 		// Debouncing orders starts, not completions. Commit only the latest pass.
 		const token = ++this.previewToken;
 		try {
-			// The same answers submit() will hand over, so the row never previews a
-			// value the run is about to re-ask for: an untouched required
-			// {{VDATE:}} is withheld here too, and the preview falls back to its
-			// example date instead of rendering an empty one (#1590).
+			// The same answers submit() hands over, so an untouched required
+			// {{VDATE:}} previews its example date rather than an empty one.
 			const rows = await this.computePreview(this.collectPreviewAnswers());
 			if (token !== this.previewToken || !this.previewContainerEl) return;
 

@@ -34,10 +34,9 @@ export async function executeMacroAI(
 	if (command.model === ASK_ME_MODEL) {
 		resolved = await pickMacroModel(app, executor);
 	} else {
-		// Prefer the pinned provider-scoped ref — but only while it matches
-		// the legacy string (a stale ref from a downgrade edit must not
-		// override the visible selection). Bare names resolve first-match,
-		// as they always have.
+		// Prefer the pinned provider-scoped ref, but only while it matches the
+		// legacy string (a stale ref from a downgrade edit must not override the
+		// visible selection). Bare names resolve first-match.
 		resolved = resolveModel(
 			activeModelRef(command.model, command.modelRef) ?? command.model,
 		);
@@ -51,11 +50,9 @@ export async function executeMacroAI(
 	const { model, provider: modelProvider } = resolved;
 
 	const formatter = new CompleteFormatter(app, plugin, executor, runtime);
-	// Same run context every other prompt surface gets (issue #1546): a
-	// {{VALUE}} inside the AI prompt template names the choice that is asking
-	// instead of prompting generically. Scoped per command id, like
-	// executeOpenFile below: a macro can hold several AI commands, and their
-	// prompts must not share one draft.
+	// A {{VALUE}} inside the AI prompt template names the choice that is asking.
+	// Scoped per command id, like executeOpenFile below: a macro can hold several
+	// AI commands, and their prompts must not share one draft.
 	formatter.setPromptRunContext({
 		choiceName: choice?.name,
 		draftScopeId: `${choice?.id ?? "macro"}#aiAssistant:${command.id}`,
@@ -111,7 +108,7 @@ async function pickMacroModel(app: App, executor: IChoiceExecutor): Promise<Reso
 		);
 	}
 
-	// Route to a remote interactive session (Raycast) when one is driving.
+	// Route to a remote interactive session when one is driving.
 	const promptProvider = executor.promptProvider;
 	if (promptProvider) {
 		const picked = String(
@@ -129,8 +126,6 @@ async function pickMacroModel(app: App, executor: IChoiceExecutor): Promise<Reso
 	}
 
 	if (executor.interactive === false) {
-		// Non-interactive run (CLI without `ui`): the "Ask me" model picker has
-		// no one to answer it. Abort with an actionable error instead of hanging.
 		throw new ChoiceAbortError(
 			"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
 			"Pick a specific model in the command, or re-run with the ui flag.",

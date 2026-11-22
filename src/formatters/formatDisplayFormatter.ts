@@ -15,12 +15,8 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		app: App,
 		protected readonly plugin: FormatterPluginContext,
 		dateParser?: IDateParser,
-		// Line-target fields (insert-after/before) preview with
-		// { resolveActiveFolder: false }: their runtime path
-		// (formatLocationString) deliberately leaves {{foldercurrent}} literal,
-		// so the preview must too — otherwise a manually typed or imported
-		// selector previews as a resolved folder while the capture searches for
-		// the literal token.
+		// Line-target fields leave {{foldercurrent}} literal at run time
+		// (formatLocationString), so their preview must too.
 		private readonly opts: { resolveActiveFolder?: boolean } = {},
 	) {
 		super(app);
@@ -34,10 +30,6 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 				expandLinebreakEscapes: true,
 			}));
 		} catch (error) {
-			// Return the input as-is if formatting fails during preview: this
-			// prevents crashes when typing incomplete syntax. The failure itself is
-			// the most useful thing the preview can say, so it goes on the
-			// diagnostics channel rather than being swallowed (issue #1558).
 			const described = describePreviewFailure(error);
 			if (described) this.diagnostics.add("error", described);
 			return stripCursorMarkers(input);
@@ -50,12 +42,10 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		{ expandLinebreakEscapes }: { expandLinebreakEscapes: boolean },
 	): Promise<string> {
 		let output: string = input;
-		// Expand global variables first so previews include their content
 		output = await this.replaceGlobalVarInString(output);
 		output = unescapePipesInTokens(output);
-		// Mirror CaptureChoiceFormatter: linebreak escapes are format-template
-		// material (including global snippets) and expand before token
-		// substitution, never on substituted content (issue #527).
+		// As in CaptureChoiceFormatter, linebreak escapes expand in the format
+		// template (including global snippets), never in substituted content.
 		if (expandLinebreakEscapes) {
 			output = this.expandLinebreakEscapesOutsideTokens(output);
 		}
@@ -66,10 +56,8 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		output = await this.replaceClipboardInString(output);
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
-		// Links + {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one
-		// pass so no token re-scans another's output (#1358). ({{title}} has
-		// never been resolved in this preview formatter — preserved by omitting
-		// it.) The preview resolver never returns null, so no throw here.
+		// Note-derived tokens in one pass, so no token re-scans another's output.
+		// {{title}} is never resolved here.
 		output = this.replaceCurrentFileTokensInString(output, {
 			links: true,
 			fileName: true,
@@ -82,9 +70,7 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		output = await this.replaceTemplateOutsideScripts(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceFileInString(output);
-		// Where the run has it (CompleteFormatter.format: after {{FILE:}}, before
-		// {{RANDOM:}}). `promptForMathValue` was already overridden below with a
-		// stand-in that nothing could reach (#1587).
+		// Where the run has it: after {{FILE:}}, before {{RANDOM:}}.
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
 

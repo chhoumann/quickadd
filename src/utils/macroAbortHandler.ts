@@ -13,13 +13,9 @@ interface MacroAbortHandlerOptions {
 }
 
 /**
- * Handles MacroAbortError instances in a consistent way across engines.
- * Logs the abort, optionally shows a notice depending on user settings,
- * and returns true when the error was handled.
- *
- * @param error The error that was caught
- * @param options Labels describing the operation being aborted
- * @returns true if the error was a MacroAbortError and has been handled
+ * Handles MacroAbortError instances consistently across engines: logs the
+ * abort, optionally shows a notice per user settings, and returns true when the
+ * error was handled.
  */
 export function handleMacroAbort(
 	error: unknown,
@@ -44,10 +40,9 @@ export function handleMacroAbort(
 
 	log.logMessage(withReason(logPrefix));
 
-	// A genuine user prompt-dismissal is a UserCancelError (a MacroAbortError subclass).
-	// Keep the legacy message-string check as a fallback so a user script that aborts with
-	// `params.abort("...cancelled by user")` still gets its notice suppressed as before
-	// (the strict subclass check is only what the URI x-cancel classification relies on).
+	// A genuine user dismissal is a UserCancelError. The message check also covers
+	// a user script that aborts with `params.abort("...cancelled by user")`, so its
+	// notice is suppressed too.
 	const isUserCancellation =
 		error instanceof UserCancelError ||
 		(typeof error.message === "string" &&

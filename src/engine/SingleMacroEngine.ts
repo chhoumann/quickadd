@@ -21,12 +21,9 @@ import {
 } from "../utils/macroUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
 
-// Member names that QuickAdd itself treats as conventions/metadata rather than entrypoints:
-// `settings` (consumed by initializeUserScriptSettings), `entry` (the object-export entrypoint
-// handled by MacroChoiceEngine), and `quickadd` (read by collectChoiceRequirements for declared
-// inputs). They are exported by many scripts, so a `{{MACRO:Name::settings}}` reference must keep
-// resolving (first-declared exporter wins, as it did before 2.12.1) instead of hard-aborting on a
-// conflict the way a real, ambiguous entrypoint should.
+// Members QuickAdd reads as conventions, not entrypoints. Many scripts export
+// them, so `{{MACRO:Name::settings}}` resolves to the first exporter instead of
+// aborting on the conflict.
 const RESERVED_CONVENTION_KEYS = new Set<string>([
 	"settings",
 	"entry",
@@ -45,8 +42,6 @@ type MemberAccessSelection = {
 	memberAccess: string[];
 };
 
-// `unknown` already subsumes `Promise<unknown>`; the callable may be sync or async
-// and its result is awaited at the call site either way.
 type UserScriptCallable = () => unknown;
 
 /**
@@ -71,7 +66,6 @@ function formatMacroOutput(value: unknown): string {
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
 	private readonly variables: Map<string, unknown>;
-	// Guards the reserved-key conflict notice so a single macro run surfaces it at most once.
 	private emittedConflictNotice = false;
 
 	constructor(
@@ -84,16 +78,12 @@ export class SingleMacroEngine {
 	) {
 		this.choiceExecutor = choiceExecutor;
 
-		// Decide which Map instance to use
 		if (variables) {
-			// Caller supplied its own map – use it everywhere
 			this.variables = variables;
 			this.choiceExecutor.variables = variables;
 		} else if (choiceExecutor.variables) {
-			// Re-use executor's existing map
 			this.variables = choiceExecutor.variables;
 		} else {
-			// Nothing passed in – create a fresh map and share it
 			this.variables = new Map<string, unknown>();
 			this.choiceExecutor.variables = this.variables;
 		}
@@ -107,21 +97,15 @@ export class SingleMacroEngine {
 		this.emittedConflictNotice = false;
 		const { basename, memberAccess } = getUserScriptMemberAccess(macroName);
 
-		// ------------------------------------------------------------------
-		// Step 1 – exact match (case-sensitive) on *trimmed* names.
-		// This preserves historical behaviour where two macros differing
-		// only by case are treated as distinct entities.
-		// ------------------------------------------------------------------
+		// Exact, case-sensitive match on trimmed names first, so macros differing
+		// only by case stay distinct.
 		const trimmed = (s: string | undefined) => (s ?? "").trim();
 		let macroChoice = flattenChoices(this.choices).find(
 			(choice): choice is IMacroChoice =>
 				choice.type === "Macro" && trimmed(choice.name) === trimmed(basename),
 		);
 
-		// ------------------------------------------------------------------
-		// Step 2 – fallback to case-insensitive lookup for user convenience.
-		// If this yields *multiple* matches we abort to prevent ambiguity.
-		// ------------------------------------------------------------------
+		// Then a case-insensitive fallback, aborting when it is ambiguous.
 		if (!macroChoice) {
 			const lower = (s: string | undefined) => trimmed(s).toLowerCase();
 			const ciMatches = flattenChoices(this.choices).filter(
@@ -146,7 +130,6 @@ export class SingleMacroEngine {
 			throw new Error(`macro '${macroName}' does not exist.`);
 		}
 
-		// Create a dedicated engine for this macro
 		const engine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
@@ -174,18 +157,14 @@ export class SingleMacroEngine {
 			}
 		}
 
-		// Always execute the whole macro first
 		await engine.run();
 		this.ensureNotAborted();
 		let result: unknown = engine.getOutput();
 
-		// Apply member access afterwards (if requested). Reaching this fallback with a
-		// member path means tryExecuteExport returned executed:false, i.e. the macro has
-		// no user-script command that could provide the member — so a failed lookup would
-		// otherwise resolve to an empty string silently. Warn instead of guessing.
+		// Reaching this with a member path means no user-script command could
+		// provide it, so warn instead of silently resolving to an empty string.
 		if (memberAccess?.length) {
-			// Use the found/value distinction so a member that genuinely exists but holds
-			// `undefined` is not mistaken for a missing one (which would warn spuriously).
+			// A member that exists but holds `undefined` is not missing.
 			const lookup = this.resolveMemberAccess(result, memberAccess);
 			if (!lookup.found) {
 				log.logWarning(
@@ -197,7 +176,6 @@ export class SingleMacroEngine {
 			result = lookup.value;
 		}
 
-		// A macro that returns a function gives that function's result.
 		if (typeof result === "function") {
 			result = await (result as UserScriptCallable)();
 		}
@@ -214,8 +192,7 @@ export class SingleMacroEngine {
 		macroChoice: IMacroChoice,
 		memberAccess: string[],
 	): Promise<{ executed: boolean; result?: unknown }> {
-		// commandListOf, not `?.length`: a string `commands` reports a length and
-		// then throws on `.map` below (#1593).
+		// commandListOf, not `?.length`: a string `commands` has a length too.
 		const originalCommands = commandListOf(macroChoice.macro?.commands);
 		if (!originalCommands.length) {
 			return { executed: false };
@@ -225,11 +202,8 @@ export class SingleMacroEngine {
 			.map((command, index) => ({ command, index }))
 			.filter(
 				(entry): entry is { command: IUserScript; index: number } =>
-					// isCommandLike, not just the type check: commandListOf converts the
-					// NON-ARRAY shapes, but a `null` hole INSIDE a real array sails
-					// straight through .map/.filter. Without this, `[ok, null, ok]` threw
-					// here on the `{{MACRO:Name::member}}` path while the same macro ran
-					// fine without member access (#1593).
+					// commandListOf normalizes non-array shapes only; a `null` hole
+					// inside an array still needs isCommandLike.
 					isCommandLike(entry.command) &&
 					entry.command.type === CommandType.UserScript,
 			);
@@ -259,13 +233,9 @@ export class SingleMacroEngine {
 			const updatedCommands = hasCommandList(refreshed)
 				? (refreshed)
 				: originalCommands;
-			// Pre-commands may have mutated the commands array, so re-resolve the selected
-			// command by its stable id. Both the candidate and the post-command slice are
-			// derived from this refreshed index so they cannot drift apart. The original
-			// positional index is only a fallback for legacy commands that genuinely have
-			// no id; if the command HAD an id but it is now gone (removed mid-run), leave
-			// the index unresolved so the guard below aborts rather than silently routing
-			// to a neighbouring script.
+			// Pre-commands may have changed `commands`, so re-resolve the selected
+			// command by id. A command that had an id but is gone leaves the index
+			// unresolved, so the guard below aborts rather than running a neighbour.
 			let refreshedIndex: number;
 			if (candidateId !== undefined) {
 				refreshedIndex = updatedCommands.findIndex(
@@ -481,10 +451,8 @@ export class SingleMacroEngine {
 			);
 		}
 
-		// Convention keys (settings/entry) are exported by many scripts and were resolved
-		// against the first script before 2.12.1. Preserve that — pick the first-declared
-		// exporter (matchingCandidates preserves command order) and surface a one-time
-		// notice pointing at the selector — rather than hard-aborting like a real entrypoint.
+		// Convention keys resolve to the first-declared exporter with a one-time
+		// notice, rather than aborting like a real entrypoint.
 		if (RESERVED_CONVENTION_KEYS.has(memberAccess[0])) {
 			const chosen = matchingCandidates[0];
 			this.warnReservedKeyConflict(

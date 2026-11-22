@@ -148,12 +148,10 @@ export function isLikelyContextLimitError(error: unknown): boolean {
 	return classifyProviderError(error) === "input_context";
 }
 
-// Anthropic's documented 400 for models that don't support forced tool use
-// (Claude Opus 5.5, Fable 5.1, Mythos 5.1 as of 2026-09):
+// Anthropic's documented 400 for models that do not support forced tool use:
 //   tool_choice: type "tool" and "any" are not supported for this model.
-// Neither Anthropic's Models API capabilities nor models.dev expose this as
-// model metadata, so the error itself is the signal; matching it (rather
-// than a list of model ids) also covers models that adopt the rule later.
+// Neither the Models API nor models.dev expose this as metadata, so the error
+// itself is the signal, which also covers models that adopt the rule later.
 const FORCED_TOOL_CHOICE_UNSUPPORTED_RE =
 	/tool_choice:\s*type\s*"tool"\s*and\s*"any"\s*are not supported/i;
 

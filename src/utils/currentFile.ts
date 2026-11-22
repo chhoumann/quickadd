@@ -17,7 +17,7 @@ export function namedCurrentNote(executor: RunContext | undefined): TFile | null
 /**
  * Whether the caller named the run's current note with `current=`. Only then
  * does the run keep that note, and write to it when no editor shows it.
- * Otherwise the current note is the active tab, as it was before `current=`.
+ * Otherwise the current note is the active tab.
  */
 export function namesCurrentNote(executor: RunContext | undefined): boolean {
 	return namedCurrentNote(executor) !== undefined;

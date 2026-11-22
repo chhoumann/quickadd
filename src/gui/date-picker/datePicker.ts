@@ -16,7 +16,7 @@ interface DatePickerOptions {
 	container: HTMLElement;
 	initialIso?: string;
 	weekStartsOn?: number;
-	/** When true, render a time control and emit datetime ISOs (issue #757). */
+	/** When true, render a time control and emit datetime ISOs. */
 	withTime?: boolean;
 	onSelect: (iso: string | null, source: DatePickerSelectSource) => void;
 }

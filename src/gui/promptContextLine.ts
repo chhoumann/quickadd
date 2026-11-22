@@ -1,6 +1,6 @@
 /**
  * Renders the muted line under a prompt's title that says which choice is
- * asking and where the answer lands (issue #1546). Shared by the input-prompt
+ * asking and where the answer lands. Shared by the input-prompt
  * modals, which do not share a base class: `GenericWideInputPrompt` extends
  * `Modal` directly and duplicates `display()`.
  *

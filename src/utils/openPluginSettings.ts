@@ -87,8 +87,7 @@ export function retitleSettingPage(app: App, page: SettingPage, title: string): 
 /**
  * Opens QuickAdd's settings tab, telling the user how to get there by hand when
  * the internal API is unavailable. Lives here rather than in `main.ts` so leaf
- * modules can reach it without value-importing the plugin entry point (the
- * import-cycle invariant from #1249).
+ * modules can reach it without value-importing the plugin entry point.
  *
  * Pass `notice: false` when the caller has already explained itself: a second,
  * generic notice on top of a specific one is noise.

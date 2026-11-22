@@ -63,7 +63,7 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
   });
 
   // Validate before the 24h memory cache so a bad 200 cannot poison Sync now
-  // for the rest of the session (independent of the reverted disk cache).
+  // for the rest of the session.
   const data = usableDirectory(response.json);
   if (!data) {
     throw new Error("models.dev returned an unexpected response.");
@@ -113,12 +113,10 @@ export function mapEndpointToModelsDevKey(endpoint: string): string | null {
 }
 
 // Provider /v1/models responses carry no capability metadata, so non-chat
-// entries can only be recognized by name. These families cannot serve chat
-// completions (verified against the live OpenAI and Groq catalogs):
-// speech-to-text, text-to-speech, embeddings, image generation, moderation,
-// rerankers, and realtime/audio endpoints. models.dev lists realtime models
-// with a text output modality, so the directory path needs the name check too
-// (gpt-realtime-2.1 returns 404 "not a chat model", verified 2026-09-26).
+// families are recognized by name: speech-to-text, text-to-speech, embeddings,
+// image generation, moderation, rerankers and realtime/audio. models.dev lists
+// realtime models with a text output, so the directory path needs the name
+// check too.
 export const NON_CHAT_MODEL_ID_RE =
   /(whisper|-tts|tts-|embed|dall-e|image|moderation|transcribe|realtime|rerank)/i;
 

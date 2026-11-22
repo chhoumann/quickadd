@@ -2,7 +2,7 @@
 // (suggesters, prompts) that are built without one being handed to them.
 //
 // Reading the instance from `main.ts` would import the plugin entry point,
-// which imports the entire app, into every one of those modules (see #1249).
+// which imports the entire app, into every one of those modules.
 // This module only names the capabilities they use, so it stays a graph leaf.
 // main.ts publishes the instance here during load and clears it on unload.
 import type { Plugin } from "obsidian";

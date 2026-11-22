@@ -24,8 +24,8 @@ export function registerQuickAddUri(
 	plugin.registerObsidianProtocolHandler("quickadd", async (e) => {
 		const parameters = e as unknown as UriParameters;
 
-		// Resolve callback targets only when the feature is enabled. With it off (or
-		// no x-* params) we run the exact legacy path - zero behavioural change.
+		// Resolve callback targets only when the feature is enabled; otherwise the
+		// run takes the plain path.
 		const targets: CallbackTargets = plugin.settings.enableUriCallbacks
 			? parseCallbackTargets(parameters)
 			: { any: false };
@@ -120,8 +120,8 @@ export function registerQuickAddUri(
 		try {
 			await choiceExecutor.execute(choice);
 		} catch (err) {
-			// Silent for a dismissal: a URI run that opens a prompt the user escapes is
-			// not a failure, and plugin legacy path has no x-cancel target to tell.
+			// Silent for a dismissal: escaping a prompt is not a failure, and without
+			// callbacks there is no x-cancel target to tell.
 			reportUnlessCancelled(err, `Could not run "${choice.name}"`);
 		}
 	}

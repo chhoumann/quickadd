@@ -32,12 +32,11 @@ interface Params {
 	/**
 	 * Whether the run may open a blocking picker (the prompt-template suggester).
 	 * Defaults to interactive; the non-interactive CLI sets it false so the picker
-	 * aborts with a clear error instead of hanging. Optional so existing callers
-	 * (api.ai) are unaffected.
+	 * aborts with a clear error instead of hanging.
 	 */
 	interactive?: boolean;
 	/**
-	 * When set (a remote interactive session, e.g. Raycast), the prompt-template
+	 * When set (a remote interactive session), the prompt-template
 	 * picker is forwarded to it instead of opening an Obsidian modal.
 	 */
 	promptProvider?: PromptProvider;
@@ -150,14 +149,12 @@ function pickPromptTemplate(
 	const basenames = promptTemplates.map((f) => f.basename);
 	const placeholder = "Select a prompt template";
 	return routePrompt(settings, {
-		// A remote interactive session (Raycast) answers with the selected
-		// template, or with typed text that names none.
+		// A remote interactive session answers with the selected template, or with
+		// typed text that names none.
 		remote: async (provider) => {
 			const picked = await provider.suggester(basenames, promptTemplates, placeholder);
 			return typeof picked === "string" ? undefined : picked;
 		},
-		// Non-interactive run (CLI without `ui`): the picker has no one to answer
-		// it, so opening it would hang.
 		headless: () => {
 			throw new ChoiceAbortError(
 				"This AI command asks which prompt template to use, but this run is non-interactive. " +

@@ -10,11 +10,9 @@ export interface Reorderable {
 type DragItem = Reorderable & { name?: string; type?: string };
 
 /**
- * Remove svelte-dnd-action's internal shadow-placeholder item, returning a NEW
- * array. Must be applied in BOTH the consider/finalize handlers AND the {#each}
- * so a placeholder can never linger in state and vanish / leave a ghost gap on
- * reorder (bugs #1244 / #883). Extracted to ONE tested helper so the three
- * call-sites per list can't drift apart.
+ * Removes svelte-dnd-action's shadow-placeholder item, returning a new array.
+ * Apply it in both the consider/finalize handlers and the {#each}, so a
+ * placeholder never lingers in state and leaves a ghost gap.
  */
 export function stripShadow<T extends Reorderable>(items: readonly T[]): T[] {
 	return items.filter((item) => item.id !== SHADOW_PLACEHOLDER_ITEM_ID);
@@ -27,15 +25,12 @@ export interface PlaceholderRecovery<T> {
 }
 
 /**
- * Capture a recovery payload from the shadow placeholder BEFORE stripShadow
+ * Captures a recovery payload from the shadow placeholder before stripShadow
  * discards it. The placeholder still carries SHADOW_PLACEHOLDER_ITEM_ID at
- * DRAG_STARTED and on the first DRAGGED_ENTERED (dispatched before the library
- * swaps in the real id), so stripping it leaves the zone with no trace of the
- * dragged item — a drop inside that window would commit, and persist, the list
- * without it (#1692). The shadow is a spread-copy of the dragged item, so
- * restoring the real id (the event's `info.id`) and dropping the library's
- * marker yields a faithful stand-in — in ANY zone, including the destination of
- * a cross-zone drag, which has no pre-drag snapshot of its own to recover from.
+ * DRAG_STARTED and the first DRAGGED_ENTERED, so stripping it leaves the zone
+ * with no trace of the dragged item, and a drop in that window would persist the
+ * list without it. The shadow is a spread-copy of the item, so restoring the real
+ * id yields a faithful stand-in in any zone.
  */
 export function capturePlaceholderRecovery<T extends Reorderable>(
 	items: readonly T[],
@@ -49,12 +44,11 @@ export function capturePlaceholderRecovery<T extends Reorderable>(
 }
 
 /**
- * One zone's bookkeeping for the placeholder window (#1692). `consider` strips
- * the shadow placeholder after capturing a recovery payload from it. `finalize`
- * strips it again and, when the finalized list lacks the dragged item, puts the
- * payload back at the index the placeholder last occupied. It does not restore
- * the pre-drag order instead, because the first DRAGGED_ENTERED can already
- * carry the user's intended position.
+ * One zone's bookkeeping for the placeholder window. `consider` strips the
+ * placeholder after capturing a recovery payload; `finalize` strips it again and,
+ * when the dragged item is missing, puts the payload back where the placeholder
+ * last stood. Not the pre-drag order: the first DRAGGED_ENTERED can already carry
+ * the intended position.
  */
 export function createDropRecovery<T extends Reorderable>() {
 	let recovery: PlaceholderRecovery<T> | null = null;
@@ -79,16 +73,10 @@ export function createDropRecovery<T extends Reorderable>() {
 
 /**
  * The entries of `value` a zone can key: objects with a unique, non-empty string
- * id. svelte-dnd-action reads `.id` on every item and the keyed {#each} throws
- * `each_key_duplicate` on a repeat (#1451, #1593). On a post-mount update that
- * throw escapes mountComponent's try, so zones run this in a $derived, not once
- * at setup.
- *
- * The choices view and the macro builder normalize their lists before they get
- * here (an id-less or duplicate-id entry gets a fresh uuid and is KEPT), so in
- * practice this only drops a `null`/primitive hole. It must stay that narrow: a
- * zone persists the list it renders, so dropping a real entry here would delete
- * it from data.json on the first reorder (#1608).
+ * id. The keyed {#each} throws `each_key_duplicate` on a repeat, and after mount
+ * that throw escapes mountComponent, so zones run this in a $derived. Lists are
+ * normalized before they get here, so in practice this only drops a `null` or
+ * primitive hole. Keep it that narrow: a zone persists what it renders.
  */
 export function keyedItems<T extends Reorderable>(value: unknown): T[] {
 	if (!Array.isArray(value)) return [];
@@ -103,9 +91,8 @@ export function keyedItems<T extends Reorderable>(value: unknown): T[] {
 }
 
 /**
- * Immutably replace the item whose id matches `next.id`, preserving order and
- * returning a NEW array. Replaces the in-place `items[index] = next` mutation,
- * which silently loses reactivity on a runes `$state`/`$bindable` array.
+ * Immutably replaces the item whose id matches `next.id`. An in-place
+ * `items[index] = next` loses reactivity on a runes `$state` array.
  */
 export function replaceById<T extends Reorderable>(
 	items: readonly T[],
@@ -136,11 +123,10 @@ export function moveById<T extends Reorderable>(
 const nameLabel = (item: DragItem) => item.name ?? "";
 
 /**
- * Turn the library's drag clone into the pill as a drag starts. The library
- * does it once the zone renders the shadow item, which stripShadow leaves out,
- * so a touch drag, which starts after the long-press without moving, showed
- * the whole dragged row over the next one until the finger moved (#2136).
- * Call from a zone's consider handler with the zone's resolveLabel.
+ * Turns the library's drag clone into the pill as a drag starts. The library
+ * only does it once the zone renders the shadow item, which stripShadow leaves
+ * out, so a touch drag would show the whole row until the finger moved. Call
+ * from a zone's consider handler.
  */
 export function showDragPillOnStart<T extends DragItem>(
 	event: CustomEvent<DndEvent<T>>,
@@ -194,12 +180,9 @@ export function baseDndOptions<T extends DragItem>(opts: {
 			transformDragPill(el, data ? resolveLabel(data) : "", data?.type === "Multi"),
 		dropTargetStyle: {},
 		dropTargetClasses: opts.dropTargetClasses ?? [],
-		// With flipDurationMs 0 the drop "animation" was already invisible; disabling
-		// it entirely also removes the library's finalize-time animation-target lookup
-		// (`children[originIndex]`), which THROWS when the LAST row is dropped during
-		// the placeholder window (stripShadow left the zone one child short) — the
-		// finalize then never fires, the drag never cleans up, and the list renders
-		// without the row until the settings tab is rebuilt (#1692, second wave).
+		// Disabling the drop animation also removes the library's finalize-time
+		// `children[originIndex]` lookup, which throws when the last row is dropped
+		// during the placeholder window, leaving the drag uncleaned.
 		dropAnimationDisabled: true,
 		autoAriaDisabled: true,
 		zoneItemTabIndex: -1,

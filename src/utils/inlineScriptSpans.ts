@@ -7,7 +7,7 @@ type InlineScriptSpan = { start: number; end: number; code: string };
  * code. A fence opens with 3+ backticks and the language, and closes at the
  * next run of 3+ backticks, which it consumes whole. `from` must not fall
  * inside a backtick run. The scan is linear; a regex for the same grammar
- * backtracks on long backtick runs and freezes the app (#1907).
+ * backtracks on long backtick runs and freezes the app.
  */
 export function findNextInlineScript(
 	input: string,

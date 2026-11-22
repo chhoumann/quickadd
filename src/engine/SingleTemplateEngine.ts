@@ -12,7 +12,7 @@ export class SingleTemplateEngine extends TemplateEngine {
 	/**
 	 * What the rendered template becomes. Defaults to the note's body, but a
 	 * `{{TEMPLATE:...}}` spliced into a FILE NAME or folder is part of that path,
-	 * so its prompts must not claim to be asking for note content (issue #1546).
+	 * so its prompts must not claim to be asking for note content.
 	 */
 	private promptScope: PromptScopeKind = "noteBody";
 	private preserveCursorMarkers = false;
@@ -46,7 +46,7 @@ export class SingleTemplateEngine extends TemplateEngine {
 		this.formatter.setTargetFolderPath(parentFolderPath(path));
 	}
 	public async run(): Promise<string> {
-		// Resolve format tokens in the template path (issue #620) before reading.
+		// Resolve format tokens in the template path before reading.
 		const resolvedTemplatePath = await this.resolveTemplateSourcePath(
 			this.templatePath,
 		);

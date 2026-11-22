@@ -1,15 +1,11 @@
 /**
- * Provider-agnostic agentic tool loop (#714). PURE — every Obsidian/provider touch
- * point is injected, so the loop is fully unit-testable with a fake `dispatch`.
- *
- * Per spec §7: dispatch → if tool calls, run each (one result PER call id) → append
- * assistant + tool-result turns → repeat until the model stops or the step budget is
- * hit. The LAST allowed step forces toolChoice:'none' so the run always lands on a
- * text answer with no orphaned tool_use. A handler throwing a hard-abort error
- * (MacroAbortError/UserCancelError) propagates out and kills the macro; any other
- * throw becomes an `isError` tool result the model can recover from. Caps bound cost
- * and exfiltration: a step ceiling, a per-result byte cap, and a cumulative
- * transcript-bytes ceiling (the real exfiltration metric).
+ * Provider-agnostic agentic tool loop; every Obsidian/provider touch point is
+ * injected. Each step runs every tool call (one result per call id) and repeats
+ * until the model stops. The last allowed step forces toolChoice:'none' so the
+ * run ends on a text answer. Abort errors propagate; any other handler throw
+ * becomes an `isError` result the model can recover from. A step ceiling, a
+ * per-result byte cap and a cumulative transcript-bytes ceiling bound cost and
+ * exfiltration.
  */
 import type {
 	NormalizedChatRequest,
@@ -63,14 +59,12 @@ export interface RunToolLoopDeps {
 		req: NormalizedChatRequest,
 		ctx: { isFinalStep: boolean },
 	) => Promise<ParsedChatResult>;
-	/** Look up a registered tool by name (returns undefined for an unknown tool). */
 	getTool: (name: string) => ToolEntry | undefined;
 	/**
 	 * Decide + gate one call. Return true to run it, false to decline (→ isError
 	 * result). THROW (MacroAbortError/UserCancelError) to abort the whole run.
 	 */
 	confirm: (call: NormalizedToolCall, tool: ToolEntry) => Promise<boolean>;
-	/** Validate model args against the tool's schema; return an error string or null. */
 	validateArgs: (tool: ToolEntry, args: Record<string, unknown>) => string | null;
 	/** True if the error must propagate and kill the macro (abort/cancel). */
 	isAbortError: (e: unknown) => boolean;
@@ -100,11 +94,8 @@ function byteLength(s: string): number {
 }
 
 /**
- * Approximate the bytes a single dispatch uploads: the WHOLE transcript is re-sent
- * every turn, so the exfiltration metric is the cumulative size of all messages
- * (system + user + assistant text/tool-call args + every tool result), summed across
- * turns — not each tool result counted once. Counts text payloads; ignores wire
- * framing/JSON keys (a small, stable constant per message).
+ * The whole transcript is re-sent every turn, so uploaded bytes are the
+ * cumulative size of all messages across turns. Wire framing is ignored.
  */
 function transcriptBytes(messages: NormalizedMessage[]): number {
 	let n = 0;
@@ -182,11 +173,8 @@ export async function runToolLoop(
 			return finish("aborted");
 		}
 
-		// A step is final because the budget ran out (step ceiling) OR because a
-		// prior step tripped stopWhen / the transcript-bytes ceiling (forceFinal).
-		// Track WHICH so the early-return branch can report 'max-steps' only when the
-		// budget forced it — the residual-toolCalls heuristic is unreachable via the
-		// Agent, which strips tools on the final step (tools:undefined/toolChoice:'none').
+		// Final because the step budget ran out, or because stopWhen or the byte
+		// ceiling forced it; only the budget reports 'max-steps'.
 		const budgetForcedFinal = step === maxSteps - 1;
 		const isFinalStep = forceFinal || budgetForcedFinal;
 		const turnReq: NormalizedChatRequest = {
@@ -204,9 +192,8 @@ export async function runToolLoop(
 		try {
 			turn = await deps.dispatch(turnReq, { isFinalStep });
 		} catch (e) {
-			// A growing transcript can overflow the context window mid-loop. Stop
-			// gracefully with whatever we have rather than throwing — no tool_use is
-			// dangling here (results were appended last step).
+			// A growing transcript can overflow the context window. Stop with what
+			// we have; no tool_use is dangling here.
 			if (deps.isContextOverflow?.(e)) return finish("context-overflow");
 			throw e;
 		}
@@ -215,7 +202,6 @@ export async function runToolLoop(
 		usage.completionTokens += turn.usage.completionTokens;
 		usage.totalTokens += turn.usage.totalTokens;
 
-		// Stop when the model produced no tool calls, or we are on the forced-final step.
 		if (
 			turn.normalizedStopReason !== "tool_calls" ||
 			turn.toolCalls.length === 0 ||
@@ -230,17 +216,9 @@ export async function runToolLoop(
 				usage: turn.usage,
 			});
 			await deps.onStepFinish?.(steps[steps.length - 1]);
-			// 'length' is a genuine provider output-cutoff signal and takes precedence.
-			// Otherwise report 'max-steps' only when the budget (step ceiling) forced
-			// this final step after at least one tool-using step — and no graceful stop
-			// (stopWhen / transcript-bytes) had already pre-empted it. Reaching a
-			// budget-forced final step at step > 0 means every prior step made tool
-			// calls (else the loop returns "stop" earlier), so the budget genuinely cut
-			// off an in-progress agentic run. A model that simply stopped, a single-turn
-			// (maxSteps 1) answer, or a stopWhen/transcript-forced wrap-up is 'stop'.
-			// (The Agent strips tools on the final step, so the model can no longer emit
-			// tool calls here; deriving max-steps from residual toolCalls was unreachable
-			// through the Agent.)
+			// 'length' is a provider cutoff and wins. Otherwise 'max-steps' only
+			// when the step ceiling cut off a tool-using run; a model that stopped,
+			// a single-turn answer, or a stopWhen/byte-forced wrap-up is 'stop'.
 			const reason: LoopFinishReason =
 				turn.normalizedStopReason === "length"
 					? "length"
@@ -250,7 +228,6 @@ export async function runToolLoop(
 			return finish(reason);
 		}
 
-		// Append the assistant turn (content + tool calls + provider echo blob).
 		messages.push({
 			role: "assistant",
 			content: turn.content,
@@ -275,8 +252,6 @@ export async function runToolLoop(
 		});
 		await deps.onStepFinish?.(steps[steps.length - 1]);
 
-		// Cumulative-bytes ceiling OR a user stopWhen condition → make the next step
-		// the forced-final text turn.
 		if (uploadedBytes > maxTranscriptBytes) forceFinal = true;
 		if (deps.shouldStop?.({ steps })) forceFinal = true;
 	}

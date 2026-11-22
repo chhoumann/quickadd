@@ -1,7 +1,7 @@
 import type { TFile } from "obsidian";
 
 /**
- * The note a top-level QuickAdd run was triggered from (issue #1429), captured
+ * The note a top-level QuickAdd run was triggered from, captured
  * once at the outermost execution boundary, before any QuickAdd modal opens.
  * `{{FIELD:…|default-from:active}}` always reads it, so a macro that opens
  * another note still takes its default from the note the run started in.

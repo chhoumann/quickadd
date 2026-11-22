@@ -10,9 +10,7 @@
  * field-value autocomplete suggestions. This helper walks the string once and
  * only splits on commas that sit outside a `[[ ... ]]` span.
  *
- * Values are trimmed and empty fragments are dropped, matching the previous
- * `split(",").map(trim).filter(length)` behaviour for non-wikilink input so the
- * change is byte-identical for plain comma lists.
+ * Values are trimmed and empty fragments are dropped.
  *
  * Known limitation: commas inside Markdown link destinations (`[text](a,b)`) are
  * still treated as separators. Inline fields rarely carry raw Markdown links and
@@ -20,7 +18,6 @@
  * real cases without turning this into a full Markdown parser.
  */
 export function splitWikilinkAwareList(value: string): string[] {
-	// Fast path: no comma means there is nothing to split.
 	if (!value.includes(",")) {
 		const trimmed = value.trim();
 		return trimmed ? [trimmed] : [];
