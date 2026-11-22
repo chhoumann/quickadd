@@ -165,6 +165,7 @@ describe("RemotePromptProvider form marshaling", () => {
 			fields: expected.fields.map((field) => ({
 				placeholder: undefined,
 				defaultValue: undefined,
+				defaultValues: undefined,
 				description: undefined,
 				options: undefined,
 				displayOptions: undefined,
