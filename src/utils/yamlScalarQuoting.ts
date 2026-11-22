@@ -46,7 +46,8 @@ export function quoteYamlDouble(value: string): string {
 
 /**
  * Whether the token at [matchStart, matchEnd) exactly spans an author-quoted
- * sole-value front matter scalar (`key: "{{TOKEN}}"` / `- '{{TOKEN}}'`).
+ * sole-value front matter scalar (`key: "{{TOKEN}}"` / `- '{{TOKEN}}'` /
+ * `key: ["{{TOKEN}}"]`).
  */
 export function isTokenExactlyQuotedYamlScalar(
 	input: string,
@@ -60,7 +61,7 @@ export function isTokenExactlyQuotedYamlScalar(
 		findYamlFrontMatterRange(input),
 	);
 	if (!ctx.isInYaml || !ctx.isQuoted) return false;
-	return ctx.isKeyValuePosition || ctx.isListItemPosition;
+	return ctx.isKeyValuePosition || ctx.isListItemPosition || ctx.isFlowListItemPosition;
 }
 
 /**
@@ -92,8 +93,9 @@ export function escapeValueInsideQuotedYamlScalar(
 /**
  * Whether a `|type:text` VALUE at [matchStart, matchEnd) should be written as a
  * quoted YAML scalar. True only when the token is the SOLE value at a front
- * matter key:value or list-item position and the author has not already quoted
- * it - so quoting never corrupts body prose or a partially quoted value.
+ * matter key:value, list-item or flow-list-item position and the author has not
+ * already quoted it - so quoting never corrupts body prose or a partially quoted
+ * value.
  *
  * We quote unconditionally at that position (not only for coercion-prone values)
  * because YAML has many indicator characters (`#`, `[`, `{`, `*`, `&`, `!`, ...)
@@ -112,5 +114,5 @@ export function shouldQuoteTextScalar(
 		findYamlFrontMatterRange(input),
 	);
 	if (!ctx.isInYaml || ctx.isQuoted) return false;
-	return ctx.isKeyValuePosition || ctx.isListItemPosition;
+	return ctx.isKeyValuePosition || ctx.isListItemPosition || ctx.isFlowListItemPosition;
 }

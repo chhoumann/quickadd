@@ -12,6 +12,7 @@ import { reportError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
+import { getFieldLinkTarget, rememberFieldLinkTarget, restoreFieldLinkTargets } from "../utils/fieldLinkValues";
 import type { ICommand } from "../types/macros/ICommand";
 import type { LoadedUserScript } from "../utils/userScript";
 import { executeUserScript, type ScriptParameters } from "./userScriptExecution";
@@ -161,6 +162,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 				sharedVariables.clear();
 				restoreDateVariableFormats(sharedVariables, new Map());
+				restoreFieldLinkTargets(sharedVariables, new Map());
 
 				entries?.forEach(([key, value]) => sharedVariables.set(key, value));
 			},
@@ -182,6 +184,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				existingVariables.forEach((value, key) => {
 					if (!providedVariables.has(key)) {
 						providedVariables.set(key, value);
+						const target = getFieldLinkTarget(existingVariables, key);
+						if (target !== undefined) rememberFieldLinkTarget(providedVariables, key, value, target);
 					}
 				});
 			}

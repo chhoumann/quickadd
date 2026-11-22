@@ -659,7 +659,7 @@ export abstract class ValueFormatter {
 			const effectiveKey = await this.ensureValueVariableResolved(parsed);
 
 			// Get the raw value from variables
-			const rawValue = this.variables.get(effectiveKey);
+			const rawValue = this.normalizeVariableRawValue(this.variables.get(effectiveKey), effectiveKey);
 			const effectiveRawValue = this.applyValueTokenOptions(rawValue, parsed);
 			if (this.singleTokenValue && (!parsed.multiFormat || parsed.multiFormat === "auto")) {
 				this.retainSingleTokenValue(output, match.index, match.index + match[0].length,
@@ -749,6 +749,11 @@ export abstract class ValueFormatter {
 	 * renders includes.
 	 */
 	protected async resolveIncludingTextDate(_variableName: string): Promise<void> {}
+
+	/** Hook for subclasses to resolve destination-dependent answers before VALUE rendering. */
+	protected normalizeVariableRawValue(rawValue: unknown, _variableName: string): unknown {
+		return rawValue;
+	}
 
 	/** The text a `{{VALUE:<name>}}` token renders for a resolved variable. */
 	protected getValueTokenText(variableName: string): string {

@@ -7,6 +7,7 @@ import { TFile } from "obsidian";
 import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
 import {
 	decodeFileValue,
+	FILE_PICK_PREFIX,
 	fileLinkNameFromPath,
 	type ParsedFileToken,
 	parseFileToken,
@@ -16,7 +17,14 @@ import { getPeriodicNoteSettings, PERIODIC_NOTE_REGEX, type Period, periodicNote
 import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
-import { escapeValueInsideQuotedYamlScalar } from "../utils/yamlScalarQuoting";
+import { escapeValueInsideQuotedYamlScalar, quoteYamlDouble, shouldQuoteTextScalar } from "../utils/yamlScalarQuoting";
+import { findYamlFrontMatterRange, getYamlContextForMatch } from "../utils/yamlContext";
+import {
+	ensureLinkValue,
+	getFieldLinkTarget,
+	linkifyFieldValue,
+	rememberFieldLinkTarget,
+} from "../utils/fieldLinkValues";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { resolveExistingVariableKey } from "../utils/valueSyntax";
@@ -36,6 +44,96 @@ export interface TemplateInclusionState {
 export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
 
 export { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./helpers/inlineScriptSpans";
+
+function findFlowListTrailingComma(
+	input: string,
+	start: number,
+): { commaIndex: number; afterComma: number; hasComment: boolean; consumesLineBreak: boolean } | null {
+	let i = start;
+	let hasComment = false;
+	while (i < input.length) {
+		const char = input[i];
+		if (char === " " || char === "\t" || char === "\r" || char === "\n") {
+			i++;
+		} else if (char === "#" && (i === start || /\s/.test(input[i - 1]))) {
+			hasComment = true;
+			const nl = input.indexOf("\n", i);
+			i = nl === -1 ? input.length : nl + 1;
+		} else {
+			break;
+		}
+	}
+	if (input[i] !== ",") return null;
+	let afterComma = i + 1;
+	while (afterComma < input.length && (input[afterComma] === " " || input[afterComma] === "\t")) {
+		afterComma++;
+	}
+	let consumesLineBreak = false;
+	if (!hasComment && !input.slice(start, i).includes("\n")) {
+		if (input[afterComma] === "\r" && input[afterComma + 1] === "\n") {
+			afterComma += 2;
+			consumesLineBreak = true;
+		} else if (input[afterComma] === "\n") {
+			afterComma += 1;
+			consumesLineBreak = true;
+		}
+	}
+	return { commaIndex: i, afterComma, hasComment, consumesLineBreak };
+}
+
+function unquotedCommentStart(line: string): number {
+	let quote: '"' | "'" | null = null;
+	for (let i = 0; i < line.length; i++) {
+		const char = line[i];
+		if (quote === '"') {
+			if (char === "\\") i++;
+			else if (char === '"') quote = null;
+		} else if (quote === "'") {
+			if (char === "'") {
+				if (line[i + 1] === "'") i++;
+				else quote = null;
+			}
+		} else if (char === '"' || char === "'") {
+			quote = char;
+		} else if (char === "#" && (i === 0 || line[i - 1] === " " || line[i - 1] === "\t")) {
+			return i;
+		}
+	}
+	return line.length;
+}
+
+function removePrecedingFlowComma(output: string): string {
+	let lineEnd = output.length;
+	let checkedLaterLines = false;
+	while (lineEnd > 0) {
+		const prevNl = output.lastIndexOf("\n", lineEnd - 1);
+		const lineStart = prevNl + 1;
+		const contentEnd = lineEnd > lineStart && output[lineEnd - 1] === "\r" ? lineEnd - 1 : lineEnd;
+		const line = output.slice(lineStart, contentEnd);
+		const commentOffset = checkedLaterLines ? unquotedCommentStart(line) : line.length;
+		let codeEnd = commentOffset;
+		while (codeEnd > 0 && (line[codeEnd - 1] === " " || line[codeEnd - 1] === "\t")) {
+			codeEnd--;
+		}
+		if (codeEnd === 0) {
+			if (prevNl === -1) return output;
+			lineEnd = prevNl;
+			checkedLaterLines = true;
+			continue;
+		}
+		if (line[codeEnd - 1] !== ",") return output;
+		const commaIndex = lineStart + codeEnd - 1;
+		if (commentOffset < line.length) {
+			return output.slice(0, commaIndex) + output.slice(commaIndex + 1);
+		}
+		let trimFrom = commaIndex;
+		while (trimFrom > lineStart && (output[trimFrom - 1] === " " || output[trimFrom - 1] === "\t")) {
+			trimFrom--;
+		}
+		return output.slice(0, trimFrom);
+	}
+	return output;
+}
 
 export abstract class Formatter extends ValueFormatter {
 	protected dateParser: IDateParser | undefined;
@@ -252,6 +350,7 @@ export abstract class Formatter extends ValueFormatter {
 					warn: this.warnSink,
 				});
 				const fieldVariableKey = await this.resolveFieldVariable(fullMatch, parsed);
+				const matchEnd = match.index + match[0].length;
 
 				// The FIELD key, not the bare specifier. `getVariableValue` is only
 				// reached when the suggester resolved `undefined` (a remote prompt
@@ -260,36 +359,85 @@ export abstract class Formatter extends ValueFormatter {
 				// namespace, so a `{{VALUE:status}}` answer could be served to a
 				// `{{FIELD:status}}` token - the separation FIELD_VARIABLE_PREFIX
 				// exists for. A FIELD shares its answer only by its own `|name:`.
-				const rawValue = this.hasConcreteVariable(fieldVariableKey)
+				const storedValue = this.hasConcreteVariable(fieldVariableKey)
 					? this.variables.get(fieldVariableKey)
 					: this.getVariableValue(fieldVariableKey);
+				const linkTargets = parsed.link ? getFieldLinkTarget(this.variables, fieldVariableKey) : undefined;
+				const rawValue = parsed.link
+					? linkTargets !== undefined
+						? this.renderFieldLinkTargets(linkTargets)
+						: this.linkFieldValue(storedValue)
+					: storedValue;
 				if (!parsed.multiFormat || parsed.multiFormat === "auto") {
-					this.retainSingleTokenValue(input, match.index, match.index + match[0].length, rawValue);
+					this.retainSingleTokenValue(input, match.index, matchEnd, rawValue);
 				}
+				const yamlCtx = parsed.link
+					? getYamlContextForMatch(input, match.index, matchEnd, findYamlFrontMatterRange(input))
+					: null;
+				const isFlowMultiLink = Boolean(
+					parsed.link && Array.isArray(rawValue) && !parsed.multiFormat && yamlCtx?.isFlowListItemPosition,
+				);
+				const isFlowSingleLink = Boolean(
+					parsed.link && !Array.isArray(rawValue) && yamlCtx?.isFlowListItemPosition && !yamlCtx.isQuoted,
+				);
+				const consumeQuotes = isFlowMultiLink && Boolean(yamlCtx?.isQuoted);
+				const effectiveMatchEnd = consumeQuotes ? matchEnd + 1 : matchEnd;
 				let replacement: string;
 
 				if (Array.isArray(rawValue)) {
-					replacement =
-						this.renderCollectedOrArrayValue({
-						input,
-						matchStart: match.index,
-						matchEnd: match.index + match[0].length,
-						rawValue,
-						fallbackKey: parsed.fieldName,
-						heuristicEnabled: false,
-						multiFormat: parsed.multiFormat ?? "auto",
-						}) ?? rawValue.join(",");
+					// Unquoted, `[{{FIELD:x|multi|link}}]` would write `[[[A]],[[B]]]`,
+					// a list of lists.
+					replacement = isFlowMultiLink
+						? rawValue.map((item) => quoteYamlDouble(String(item))).join(", ")
+						: (this.renderCollectedOrArrayValue({
+								input,
+								matchStart: match.index,
+								matchEnd,
+								rawValue,
+								fallbackKey: parsed.fieldName,
+								heuristicEnabled: false,
+								multiFormat: parsed.multiFormat ?? "auto",
+							}) ?? rawValue.join(","));
 				} else {
-					replacement = escapeValueInsideQuotedYamlScalar(
-						input,
-						match.index,
-						match.index + match[0].length,
-						// A named FIELD reads as {{VALUE:<name>}} writes it, so a date stays formatted.
-						String((parsed.name ? this.getValueTokenText(fieldVariableKey) : rawValue) ?? ""),
-					);
+					// A named FIELD reads as {{VALUE:<name>}} writes it, so a date stays formatted.
+					const value = parsed.name
+						? String(
+								(parsed.link
+									? linkTargets !== undefined
+										? rawValue
+										: this.linkFieldValue(this.getValueTokenText(fieldVariableKey))
+									: this.getValueTokenText(fieldVariableKey)) ?? "",
+							)
+						: String(rawValue ?? "");
+					// A link is a YAML flow sequence unless quoted.
+					replacement = parsed.link && value && shouldQuoteTextScalar(input, match.index, matchEnd)
+						? quoteYamlDouble(value)
+						: escapeValueInsideQuotedYamlScalar(input, match.index, matchEnd, value);
 				}
 
-				output += this.userText(replacement);
+				if (consumeQuotes) {
+					output = output.slice(0, -1);
+					regex.lastIndex = effectiveMatchEnd;
+				}
+
+				if ((isFlowMultiLink || isFlowSingleLink) && replacement === "") {
+					const trailing = findFlowListTrailingComma(input, effectiveMatchEnd);
+					if (trailing) {
+						if (trailing.hasComment) {
+							output += input.slice(effectiveMatchEnd, trailing.commaIndex);
+							regex.lastIndex = trailing.afterComma;
+						} else {
+							if (trailing.consumesLineBreak) {
+								output = output.replace(/[ \t]+$/, "");
+							}
+							regex.lastIndex = trailing.afterComma;
+						}
+					} else {
+						output = removePrecedingFlowComma(output);
+					}
+				} else {
+					output += this.userText(replacement);
+				}
 			} else {
 				output += match[0];
 			}
@@ -300,17 +448,59 @@ export abstract class Formatter extends ValueFormatter {
 		return output + input.slice(lastIndex);
 	}
 
+	private renderFieldLinkTarget(target: string): string {
+		if (!target.startsWith(FILE_PICK_PREFIX)) return target;
+		const encoded = target.slice(FILE_PICK_PREFIX.length);
+		const hash = encoded.indexOf("#");
+		if (hash === -1) return this.getFileLinkForStoredValue(target);
+		const path = encoded.slice(0, hash);
+		const subpath = encoded.slice(hash);
+		const file = this.app?.vault.getAbstractFileByPath(path);
+		if (file instanceof TFile) {
+			return (
+				this.app?.fileManager.generateMarkdownLink(file, this.getLinkSourcePath() ?? "", subpath) ??
+				`[[${fileLinkNameFromPath(path)}${subpath}]]`
+			);
+		}
+		return `[[${fileLinkNameFromPath(path)}${subpath}]]`;
+	}
+
+	private renderFieldLinkTargets(targets: string | string[]): string | string[] {
+		if (Array.isArray(targets)) {
+			return targets.map((item) => this.renderFieldLinkTarget(item)).filter(Boolean);
+		}
+		return this.renderFieldLinkTarget(targets);
+	}
+
+	private linkFieldValue(value: unknown): unknown {
+		return linkifyFieldValue(value, (text) => {
+			const sourcePath = this.getLinkSourcePath() ?? "";
+			const file = this.app?.metadataCache?.getFirstLinkpathDest?.(text, sourcePath);
+			const link = file && this.app?.fileManager?.generateMarkdownLink?.(file, sourcePath);
+			return link || ensureLinkValue(text);
+		});
+	}
+
 	/** Asks for a FIELD that has no answer yet and returns the key its answer is under. */
 	private async resolveFieldVariable(
 		fieldSpecifier: string,
-		parsed: { fieldName: string; name?: string },
+		parsed: { fieldName: string; name?: string; link?: boolean },
 	): Promise<string> {
 		// `|name:` shares a run variable, found as {{VALUE:<name>}} finds it.
 		const key = parsed.name
 			? (resolveExistingVariableKey(this.variables, parsed.name) ?? parsed.name)
 			: `${FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
 		if (!this.hasConcreteVariable(key)) {
-			this.variables.set(key, await this.suggestForField(fieldSpecifier, parsed));
+			let pickedTargets: string | string[] | undefined;
+			const answer = await this.suggestForField(
+				fieldSpecifier,
+				parsed,
+				parsed.link ? (targets) => { pickedTargets = targets; } : undefined,
+			);
+			this.variables.set(key, answer);
+			if (pickedTargets !== undefined) {
+				rememberFieldLinkTarget(this.variables, key, answer, pickedTargets);
+			}
 		}
 		return key;
 	}
@@ -498,12 +688,19 @@ export abstract class Formatter extends ValueFormatter {
 	protected abstract suggestForField(
 		variableName: string,
 		parsed: { fieldName: string },
+		onLinkTarget?: (targets: string | string[]) => void,
 	): Promise<string | string[]>;
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		return replaceDateVariableInString(input, {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
+	}
+
+	protected override normalizeVariableRawValue(rawValue: unknown, variableName: string): unknown {
+		const targets = getFieldLinkTarget(this.variables, variableName);
+		if (targets !== undefined) return this.renderFieldLinkTargets(targets);
+		return rawValue;
 	}
 
 	protected getValueTokenText(variableName: string): string {
@@ -521,6 +718,11 @@ export abstract class Formatter extends ValueFormatter {
 				renderStoredDateVariable(stored, dateFormat, undefined, this.dateParser)
 					?.text ?? ""
 			);
+		}
+		const targets = getFieldLinkTarget(this.variables, variableName);
+		if (typeof targets === "string") {
+			const rendered = this.renderFieldLinkTargets(targets);
+			return typeof rendered === "string" ? rendered : "";
 		}
 		return super.getValueTokenText(variableName);
 	}
