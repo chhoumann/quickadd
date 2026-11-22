@@ -9,7 +9,7 @@ import { applyDateSnap, type DateSnap, parseDateSnapSegment } from "../../utils/
 import { parseVDateOptions } from "../../utils/vdateSyntax";
 import { formatUnknownValue } from "../../utils/conditionalHelpers";
 import { decodeDateToken, defaultDateVariableFormat, encodeDateToken, isDateToken } from "../../utils/dateTokenCodec";
-import { uniqueKeyIgnoringCase } from "./keyIgnoringCase";
+import { uniqueKeyIgnoringCase } from "../../utils/uniqueKeyIgnoringCase";
 
 type ApplyCase = (value: string, style: string | undefined, token: string) => string;
 interface DateTokenContext {

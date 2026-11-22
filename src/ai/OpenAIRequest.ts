@@ -35,8 +35,6 @@ import {
 	type CommonResponse,
 } from "./providerRequest";
 
-export type { CommonResponse } from "./providerRequest";
-
 export function OpenAIRequest(
 	app: App,
 	apiKey: string,

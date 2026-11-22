@@ -21,10 +21,8 @@ import { resolveProviderApiKey } from "../providerSecrets";
 import { classifyProviderError } from "../providerErrors";
 import { preventCursorChange } from "../preventCursorChange";
 import { reportError } from "../../utils/errorUtils";
-import {
-	chatRequest,
-	type CommonResponse,
-} from "../OpenAIRequest";
+import { chatRequest } from "../OpenAIRequest";
+import type { CommonResponse } from "../providerRequest";
 import type {
 	JSONSchema,
 	NormalizedChatRequest,

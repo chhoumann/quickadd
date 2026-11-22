@@ -19,7 +19,7 @@ import { isWithinAllowedRoots } from "../allowedRoots";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
 import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
 import type { JSONSchema } from "../NormalizedTools";
-import { addPropertyValues } from "../../../api/propertyValues";
+import { addPropertyValues } from "../../../utils/propertyValues";
 import { applyGroupOptions, defineTool, truncateNoteText, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
 
 const DEFAULT_LIST = 100;

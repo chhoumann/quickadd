@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import type { AIProvider } from "./Provider";
-import type { CommonResponse } from "./OpenAIRequest";
+import type { CommonResponse } from "./providerRequest";
 
 /**
  * The invariant behind #1565 / #1568: the AI system prompt is sent to the model

@@ -74,7 +74,7 @@ import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, isEditorAction, usesSelectionAsCaptureValue, withoutCursorPosition, type CaptureAction } from "./captureAction";
 import { createFileWithInput, getFileByPath } from "./vaultFiles";
-import { hasCursorMarker, isCaptureContentEmpty, isCursorMarkerOnly } from "../formatters/helpers/captureContent";
+import { hasCursorMarker, isCaptureContentEmpty, isCursorMarkerOnly } from "../utils/capturePlacement";
 import { currentEditorView, currentFile, namesCurrentNote } from "../utils/currentFile";
 import {
 	getCanvasTextCaptureContent,

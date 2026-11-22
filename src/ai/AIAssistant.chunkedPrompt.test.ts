@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AIProvider } from "./Provider";
 import type { App } from "obsidian";
-import type { CommonResponse } from "./OpenAIRequest";
+import type { CommonResponse } from "./providerRequest";
 
 const storeState = vi.hoisted(() => ({
 	disableOnlineFeatures: false,

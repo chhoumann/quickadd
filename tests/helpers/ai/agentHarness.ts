@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { CommonResponse } from "src/ai/OpenAIRequest";
+import type { CommonResponse } from "src/ai/providerRequest";
 
 const chatRequestMock = vi.fn<(...args: unknown[]) => Promise<CommonResponse>>();
 vi.mock("src/ai/OpenAIRequest", () => ({

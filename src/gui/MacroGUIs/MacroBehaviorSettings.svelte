@@ -1,14 +1,6 @@
-<script lang="ts" module>
-import type IMacroChoice from "../../types/choices/IMacroChoice";
-
-export type MacroBehavior = Pick<
-	IMacroChoice,
-	"onePageInput" | "dateOrigin" | "runOnStartup" | "command" | "pickDayCommand" | "icon"
->;
-</script>
-
 <script lang="ts">
 import type { App } from "obsidian";
+import type { MacroBehavior } from "./macroBehavior";
 import SettingItem from "../components/SettingItem.svelte";
 import Toggle from "../components/Toggle.svelte";
 import OnePageOverrideSetting from "../ChoiceBuilder/components/OnePageOverrideSetting.svelte";

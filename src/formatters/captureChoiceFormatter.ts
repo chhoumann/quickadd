@@ -17,7 +17,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "../utils/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";
 import { restoreUserText, restoreUserTextInCapture } from "./helpers/userText";
-import { hasCursorMarker, isCaptureContentEmpty } from "./helpers/captureContent";
+import { hasCursorMarker, isCaptureContentEmpty } from "../utils/capturePlacement";
 import * as positioning from "../utils/insertionPositioning";
 import { blockquoteSeparator } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";

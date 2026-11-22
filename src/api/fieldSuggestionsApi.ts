@@ -2,7 +2,7 @@ import type { App } from "obsidian";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "../utils/InlineFieldParser";
-import { addPropertyValues } from "./propertyValues";
+import { addPropertyValues } from "../utils/propertyValues";
 
 export function createFieldSuggestionsApi(app: App) {
 	return {

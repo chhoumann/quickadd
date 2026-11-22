@@ -74,7 +74,7 @@ function trimTrailingCharsLinear(value: string, chars: string): string {
  * - `\` and `/` never reach a segment: Obsidian's `normalizePath` treats them as
  *   separators, and {@link normalizeGeneratedFilePathCore} converts `\` to `/`
  *   before this check for exactly that reason. QuickAdd then creates the parent
- *   folder (QuickAddEngine.createFileWithInput), so they are legal here.
+ *   folder (createFileWithInput), so they are legal here.
  * - `* ? " < > | ^ [ ] #` and tab all CREATE SUCCESSFULLY on macOS/Linux, so
  *   copying the stricter set from `TemplateEngine.validateFolderSegment` would
  *   reject names that Obsidian makes without complaint. (On Windows the

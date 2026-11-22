@@ -23,7 +23,8 @@ import { uuidv4 } from "../../utils/uuid";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 import { snapshot } from "../svelte/persist.svelte";
 import { reactiveProps } from "../svelte/reactiveProps.svelte";
-import MacroBehaviorSettings, { type MacroBehavior } from "./MacroBehaviorSettings.svelte";
+import MacroBehaviorSettings from "./MacroBehaviorSettings.svelte";
+import type { MacroBehavior } from "./macroBehavior";
 
 interface MacroBehaviorProps {
 	behavior: MacroBehavior;

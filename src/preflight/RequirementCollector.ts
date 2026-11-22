@@ -39,7 +39,7 @@ import { getFileTokenFiles } from "src/utils/vaultQueries";
 export type { FieldRequirement, FieldGroup } from "./fieldRequirements";
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
 import { defaultDateVariableFormat, encodeDateToken } from "../utils/dateTokenCodec";
-import { uniqueKeyIgnoringCase } from "../formatters/helpers/keyIgnoringCase";
+import { uniqueKeyIgnoringCase } from "../utils/uniqueKeyIgnoringCase";
 
 const OPTION_LIST_LABEL_MAX = 30;
 

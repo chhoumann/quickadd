@@ -1218,10 +1218,6 @@ body:has(> .modal-container:not(.quickAddModal)) .quickAddModal .qa-peek-button 
 	min-height: 10rem;
 }
 
-.qa-choice-icon-setting .setting-item-control {
-	gap: 8px;
-}
-
 .qa-choice-icon-setting-preview {
 	display: inline-flex;
 	align-items: center;
