@@ -272,6 +272,30 @@ describe("FieldSuggestionParser", () => {
 				"title|name:Title",
 				{ fieldName: "title", filters: {} },
 			],
+			[
+				"parses |link as a bare flag (issue #2295)",
+				"author|link|folder:Books",
+				{
+					fieldName: "author",
+					filters: { folder: "Books", folders: ["Books"] },
+					link: true,
+				},
+			],
+			[
+				"drops |link:false",
+				"author|link:false",
+				{ fieldName: "author", filters: {} },
+			],
+			[
+				"parses |multi|link as a list of links",
+				"categories|multi|link:true",
+				{ fieldName: "categories", filters: {}, multiSelect: true, link: true },
+			],
+			[
+				"parses |multi:linklist as a list of links",
+				"categories|multi:linklist",
+				{ fieldName: "categories", filters: {}, multiSelect: true, link: true },
+			],
 		])("%s", (_name, input, expected) => {
 			expect(FieldSuggestionParser.parse(input)).toEqual(expected);
 		});

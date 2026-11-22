@@ -45,8 +45,14 @@ export class FieldValueProcessor {
 		};
 	}
 
-	private static isUnresolvedFieldToken(value: string): boolean {
+	static isUnresolvedFieldToken(value: string): boolean {
 		return this.unresolvedFieldTokenRegex.test(value.trim());
+	}
+
+	static valuesMatch(left: string, right: string, caseSensitive = false): boolean {
+		return caseSensitive
+			? left === right
+			: this.normalizeForComparison(left) === this.normalizeForComparison(right);
 	}
 
 	/**
