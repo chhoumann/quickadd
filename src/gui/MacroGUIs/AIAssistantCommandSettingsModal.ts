@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, Setting, TextAreaComponent, debounce } from "obsidian";
+import { Setting, TextAreaComponent, debounce } from "obsidian";
 import { mountSystemPromptLiteralNote } from "../ai/systemPromptLiteralNote";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -10,18 +10,17 @@ import { estimateTokenCount } from "src/ai/tokenEstimator";
 import { addSamplingParamSettings } from "./samplingParamSettings";
 import { populateModelDropdown } from "../modelSelect";
 import { activeModelRef } from "src/ai/Provider";
+import { SettingsDialogModal } from "./SettingsDialogModal";
 
-export class AIAssistantCommandSettingsModal extends Modal {
-	public waitForClose: Promise<IAIAssistantCommand | null>;
-
-	private resolvePromise: (settings: IAIAssistantCommand | null) => void;
-
+/**
+ * Edits the live command in place (the reference the caller persists). Closing
+ * without Save restores it from the snapshot taken when the dialog opened.
+ */
+export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssistantCommand> {
 	private settings: IAIAssistantCommand;
-	// Snapshot of the command as it was opened, so Cancel/Esc can restore the live
-	// object (the same reference the caller persists) instead of committing edits.
 	private readonly originalSettings: IAIAssistantCommand;
-	private isResolved = false;
 	private showAdvancedSettings = false;
+	private promptTemplateSuggester: GenericTextSuggester | null = null;
 
 	private get systemPromptTokenLength(): number {
 		// The estimate is provider-agnostic, so it no longer depends on the model.
@@ -34,18 +33,12 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		this.settings = settings;
 		this.originalSettings = this.cloneSettings(settings);
 
-		this.waitForClose = new Promise<IAIAssistantCommand | null>((resolve) => {
-			this.resolvePromise = resolve;
-		});
-
 		this.open();
 		this.display();
 	}
 
-	private resolve(value: IAIAssistantCommand | null) {
-		if (this.isResolved) return;
-		this.isResolved = true;
-		this.resolvePromise(value);
+	protected save(): IAIAssistantCommand {
+		return this.settings;
 	}
 
 	// Proxy-safe deep clone of the editable fields. Avoids structuredClone, which
@@ -59,9 +52,8 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		};
 	}
 
-	// Restore the live command (same reference the caller persists) to its opened
-	// state so Cancel/Esc discards edits, including the nested objects.
-	private restoreOriginal(): void {
+	// Restores the nested objects too, so no edit made in this session survives.
+	protected discard(): void {
 		const snapshot = this.cloneSettings(this.originalSettings);
 		Object.assign(this.settings, snapshot);
 		this.settings.promptTemplate = snapshot.promptTemplate;
@@ -121,36 +113,20 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		this.addSystemPromptSetting(this.contentEl);
 
-		this.addButtonBar(this.contentEl);
-	}
-
-	private addButtonBar(container: HTMLElement): void {
-		const buttonRow = container.createDiv({
-			cls: "qa-command-button-row",
-		});
-
-		new ButtonComponent(buttonRow)
-			.setButtonText("Cancel")
-			.onClick(() => {
-				// Dismissing via Cancel discards every edit made in this session.
-				this.restoreOriginal();
-				this.resolve(null);
-				this.close();
-			});
-
-		new ButtonComponent(buttonRow)
-			.setButtonText("Save")
-			.setCta()
-			.onClick(() => {
-				this.resolve(this.settings);
-				this.close();
-			});
+		this.addSaveCancelButtons();
 	}
 
 	private reload(): void {
+		this.promptTemplateSuggester?.destroy();
 		this.contentEl.empty();
 
 		this.display();
+	}
+
+	onClose(): void {
+		super.onClose();
+		this.promptTemplateSuggester?.destroy();
+		this.promptTemplateSuggester = null;
 	}
 
 	addPromptTemplateSetting(container: HTMLElement) {
@@ -179,7 +155,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 					}
 				);
 
-				new GenericTextSuggester(
+				this.promptTemplateSuggester = new GenericTextSuggester(
 					this.app,
 					text.inputEl,
 					promptTemplateFiles
@@ -277,15 +253,5 @@ export class AIAssistantCommandSettingsModal extends Modal {
 					this.reload();
 				});
 			});
-	}
-
-	onClose(): void {
-		// Dismissing via Esc / click-outside / X discards edits (matches the
-		// Conditional/Open File modals). Only the Save button commits the working copy.
-		if (!this.isResolved) {
-			this.restoreOriginal();
-			this.resolve(null);
-		}
-		super.onClose();
 	}
 }

@@ -2,6 +2,7 @@
   import type { App } from "obsidian";
   import { settingsStore } from "../../settingsStore";
   import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+  import { suggester } from "../ChoiceBuilder/components/suggesterAction";
   import { indentOnTab } from "../components/textareaIndent";
   import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 
@@ -72,16 +73,8 @@
 
   // Drag-and-drop is intentionally not supported for Global Variables
 
-  // Attach format suggester to inputs
-  function attachSuggester(el: HTMLTextAreaElement | HTMLInputElement) {
-    // Constructed for its side effect (it wires itself to the element).
+  const formatSuggester = (el: HTMLTextAreaElement | HTMLInputElement) =>
     new FormatSyntaxSuggester(app, el, plugin);
-    return {
-      destroy() {
-        // Suggesters clean up themselves on blur/close; no explicit API needed
-      },
-    };
-  }
 
   let debounceTimer: number | undefined;
   function debouncedPersist() {
@@ -132,14 +125,14 @@
       <div class="qa-gv__row">
         <div class="qa-gv__cell qa-gv__name">
           <input type="text"
-                 use:attachSuggester
+                 use:suggester={formatSuggester}
                  bind:value={it.name}
                  oninput={() => { debouncedPersist(); }}
                  placeholder="Name" />
         </div>
         <div class="qa-gv__cell qa-gv__value">
           <textarea rows="2"
-                    use:attachSuggester
+                    use:suggester={formatSuggester}
                     use:indentOnTab
                     bind:value={it.value}
                     oninput={() => debouncedPersist()}

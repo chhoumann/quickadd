@@ -2,6 +2,8 @@
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+const suggesters = vi.hoisted(() => ({ live: 0 }));
+
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
 		getState: () => ({
@@ -36,7 +38,14 @@ vi.mock("./../suggesters/formatSyntaxSuggester", () => ({
 	FormatSyntaxSuggester: class {},
 }));
 vi.mock("../suggesters/genericTextSuggester", () => ({
-	GenericTextSuggester: class {},
+	GenericTextSuggester: class {
+		constructor() {
+			suggesters.live++;
+		}
+		destroy(): void {
+			suggesters.live--;
+		}
+	},
 }));
 vi.mock("src/formatters/formatDisplayFormatter", () => ({
 	FormatDisplayFormatter: class {
@@ -125,5 +134,19 @@ describe("AIAssistantCommandSettingsModal cancel/discard semantics", () => {
 
 		await expect(result).resolves.toBeNull();
 		expect(command.systemPrompt).toBe("original prompt");
+	});
+
+	it("tears down the prompt template suggester on re-render and close", async () => {
+		const live = suggesters.live;
+		const modal = new AIAssistantCommandSettingsModal(testApp(), makeCommand());
+		expect(suggesters.live - live).toBe(1);
+
+		const advanced = modal.contentEl.querySelectorAll<HTMLInputElement>("input[type=checkbox]")[1];
+		if (!advanced) throw new Error("Missing Show advanced settings toggle");
+		await fireEvent.click(advanced);
+		expect(suggesters.live - live, "re-render leaked the suggester").toBe(1);
+
+		modal.close();
+		expect(suggesters.live - live, "close leaked the suggester").toBe(0);
 	});
 });

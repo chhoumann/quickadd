@@ -4,7 +4,6 @@ import { TextInputSuggest } from "./suggest";
 import {
 	dispatchCompletion,
 	normalizeDisplayItem,
-	normalizeQuery,
 	renderHighlightRanges,
 } from "./utils";
 
@@ -62,7 +61,7 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	}
 
 	getSuggestions(query: string): string[] {
-		const safeQuery = normalizeQuery(query);
+		const safeQuery = normalizeDisplayItem(query);
 		const { alreadySelected, activeTerm } = this.parseMultiSelectInput(safeQuery);
 		const available = this.getRemainingOptions(alreadySelected);
 

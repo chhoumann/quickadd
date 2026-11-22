@@ -14,6 +14,12 @@ import {
 	formatDateAliasInline,
 	getOrderedDateAliases,
 } from "../../utils/dateAliases";
+import {
+	decodeDateToken,
+	defaultDateVariableFormat,
+	encodeDateToken,
+	isDateToken,
+} from "../../utils/dateTokenCodec";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
 	protected supportsPeek(): boolean {
@@ -71,8 +77,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.withTime = withTime === true;
 		// A |time/|datetime token without an explicit format gets a datetime
 		// default so the rendered value carries the time the user picked.
-		this.dateFormat =
-			dateFormat || (this.withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
+		this.dateFormat = dateFormat || defaultDateVariableFormat(this.withTime);
 		this.defaultValue = defaultValue;
 		// super() (via display() -> createInputField) already hydrated the input
 		// element + this.currentInput to the restored draft (or the defaultValue
@@ -90,12 +95,10 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		// that date the way the picker would, without counting it as an edit. The
 		// prompt already opened, so place the cursor again for the new text. A kept
 		// value that isn't a date stays as it is, so the field shows what submits.
-		if (this.currentInput.startsWith("@date:")) {
-			const iso = this.currentInput.slice(6).trim();
-			if (iso && formatISODate(iso, this.dateFormat) !== null) {
-				this.applyPickerSelection(iso, false);
-				positionInputPromptCursor(this.inputComponent.inputEl, options);
-			}
+		const keptIso = decodeDateToken(this.currentInput)?.trim();
+		if (keptIso && formatISODate(keptIso, this.dateFormat) !== null) {
+			this.applyPickerSelection(keptIso, false);
+			positionInputPromptCursor(this.inputComponent.inputEl, options);
 		}
 
 		// Create debounced preview update function (250ms delay, reset on each call)
@@ -227,15 +230,13 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			return;
 		}
 
-		if (input.startsWith("@date:")) {
-			const iso = input.slice(6).trim();
-			if (iso) {
-				this.selectedIso = iso;
-				this.lastPickerDisplayValue = undefined;
-				this.syncPickerSelection(iso);
-				this.renderPreviewFromIso(iso);
-				return;
-			}
+		const iso = decodeDateToken(input)?.trim();
+		if (iso) {
+			this.selectedIso = iso;
+			this.lastPickerDisplayValue = undefined;
+			this.syncPickerSelection(iso);
+			this.renderPreviewFromIso(iso);
+			return;
 		}
 
 		if (
@@ -322,13 +323,13 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 	protected transformInputOnSubmit(input: string): string {
 		const trimmed = input.trim();
-		if (trimmed.startsWith("@date:")) return trimmed;
+		if (isDateToken(trimmed)) return trimmed;
 		if (
 			this.selectedIso &&
 			this.lastPickerDisplayValue &&
 			trimmed === this.lastPickerDisplayValue
 		) {
-			return `@date:${this.selectedIso}`;
+			return encodeDateToken(this.selectedIso);
 		}
 		// Optional prompts take an empty box at face value instead of
 		// resurrecting the default the user just cleared.
@@ -338,13 +339,13 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 				this.dateFormat,
 			);
 			if (parsed.isValid && parsed.isoString) {
-				return `@date:${parsed.isoString}`;
+				return encodeDateToken(parsed.isoString);
 			}
 		}
 		if (trimmed) {
 			const parsed = parseNaturalLanguageDate(trimmed, this.dateFormat);
 			if (parsed.isValid && parsed.isoString) {
-				return `@date:${parsed.isoString}`;
+				return encodeDateToken(parsed.isoString);
 			}
 			// The preview already shows this typed text is not a valid date; the
 			// raw value is handed back verbatim (so nothing is silently dropped),

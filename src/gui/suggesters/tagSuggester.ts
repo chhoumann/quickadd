@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
-import { replaceRange } from "./utils";
+import { replaceInputRange } from "./utils";
 import { getQuickAddInstance } from "../../quickAddInstance";
 import { TagIndex } from "../../utils/vaultIndex/TagIndex";
 
@@ -115,7 +115,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 		// Ensure exactly one '#' in replacement
 		const replacement = item.startsWith("#") ? item : `#${item}`;
 
-		replaceRange(input, tagStart, tagEnd, replacement, { fromCompletion: true });
+		replaceInputRange(input, tagStart, tagEnd, replacement, { fromCompletion: true });
 		this.close();
 	}
 }

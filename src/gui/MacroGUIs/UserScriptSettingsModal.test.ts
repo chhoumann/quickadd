@@ -4,11 +4,10 @@ import { App } from "obsidian";
 import { CommandType } from "../../types/macros/CommandType";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { createUserScriptSecretRef } from "../../utils/userScriptSecrets";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 
-vi.mock("../../quickAddInstance", () => ({
-	getQuickAddInstance: vi.fn(() => ({})),
-}));
+const plugin = {} as ChoiceBuilderPlugin;
 
 vi.mock("../../formatters/formatDisplayFormatter", () => ({
 	FormatDisplayFormatter: class {
@@ -19,7 +18,9 @@ vi.mock("../../formatters/formatDisplayFormatter", () => ({
 }));
 
 vi.mock("../suggesters/formatSyntaxSuggester", () => ({
-	FormatSyntaxSuggester: class {},
+	FormatSyntaxSuggester: class {
+		destroy(): void {}
+	},
 }));
 
 function createCommand(settings: Record<string, unknown> = {}): IUserScript {
@@ -67,6 +68,7 @@ describe("UserScriptSettingsModal secret settings", () => {
 		const onCommandChange = vi.fn();
 		const modal = new UserScriptSettingsModal(
 			app,
+			plugin,
 			command,
 			createSettings(),
 			onCommandChange,
@@ -101,6 +103,7 @@ describe("UserScriptSettingsModal secret settings", () => {
 		const command = createCommand();
 		const modal = new UserScriptSettingsModal(
 			app,
+			plugin,
 			command,
 			createSettings({ id: "readwise-api-key" }),
 		);
@@ -134,7 +137,7 @@ describe("UserScriptSettingsModal secret settings", () => {
 		});
 		const onCommandChange = vi.fn();
 
-		new UserScriptSettingsModal(app, command, createSettings(), onCommandChange);
+		new UserScriptSettingsModal(app, plugin, command, createSettings(), onCommandChange);
 		await flushPromises();
 
 		expect(app.secretStorage.getSecret("quickadd-user-script-command-1-api-key"))
@@ -160,6 +163,7 @@ describe("UserScriptSettingsModal secret settings", () => {
 		const onCommandChange = vi.fn();
 		const modal = new UserScriptSettingsModal(
 			app,
+			plugin,
 			command,
 			createSettings(),
 			onCommandChange,

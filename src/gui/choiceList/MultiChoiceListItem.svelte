@@ -6,10 +6,10 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import { untrack } from "svelte";
-	import { Component, Platform, type App } from "obsidian";
+    import { Platform, type App } from "obsidian";
     import type IChoice from "src/types/choices/IChoice";
-    import { choiceMenuActions, showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
-	import { renderChoiceName } from "./renderChoiceName";
+    import { choiceRowMenu } from "./contextMenu";
+    import { choiceName } from "./renderChoiceName";
     import { childChoicesOf, hasUnreadableChildren } from "../../utils/choiceUtils";
     import type { ChoiceListActions } from "./choiceListActions";
 
@@ -53,29 +53,7 @@
     // would overwrite the value (the add row and the drop zone are its only two).
     const unreadable = $derived(hasUnreadableChildren(choice));
 
-    let nameElement = $state<HTMLSpanElement>();
-	const cmp = new Component();
-
-	$effect(() => {
-		if (nameElement) {
-			void renderChoiceName(choice.name, nameElement, cmp, app);
-		}
-	});
-
-	// renderChoiceName passes cmp to MarkdownRenderer.render as the lifecycle owner;
-	// unload it on destroy so any registered child components are disposed (no deps
-	// here, so the teardown runs only when this item is destroyed).
-	$effect(() => {
-		return () => cmp.unload();
-	});
-
-    function onContextMenu(evt: MouseEvent) {
-        showChoiceContextMenu(app, evt, choice, roots, choiceMenuActions(choice, actions));
-    }
-
-    function openMenu(anchor: HTMLElement) {
-        showChoiceContextMenuAtElement(app, anchor, choice, roots, choiceMenuActions(choice, actions));
-    }
+    const menu = choiceRowMenu(() => ({ choice, roots, actions }));
 
     // Nested children reordered: write the new order back to this Multi choice (the
     // choice object is shared with the root tree, so this mutates it in place), then
@@ -120,7 +98,7 @@
     <div
         class="multiChoiceListItem"
         data-choice-id={choice.id}
-        oncontextmenu={onContextMenu}
+        oncontextmenu={menu.onContextMenu}
         onclick={(evt) => {
             // Desktop-only: on mobile the bare row surface belongs to long-press
             // drag, and svelte-dnd-action's touch false-alarm replays a synthetic
@@ -150,7 +128,7 @@
             >
                 <ObsidianIcon iconId="chevron-down" size={16} />
             </span>
-            <span class="choiceListItemName" bind:this={nameElement}></span>
+            <span class="choiceListItemName" use:choiceName={{ name: choice.name, app }}></span>
             {#if choice.collapsed && children.length > 0}
                 <!-- What a closed folder hides is real information: a quiet
                      count keeps the list scannable without expanding. -->
@@ -164,7 +142,7 @@
             onConfigureChoice={() => actions.onConfigureChoice(choice)}
             onToggleCommand={() => actions.onToggleCommand(choice)}
             onDuplicateChoice={() => actions.onDuplicateChoice(choice)}
-            onOpenMenu={openMenu}
+            onOpenMenu={menu.openAt}
             {onMoveUp}
             {onMoveDown}
             {dragDisabled}

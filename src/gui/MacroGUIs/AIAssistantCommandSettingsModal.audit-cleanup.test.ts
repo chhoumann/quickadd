@@ -36,7 +36,9 @@ vi.mock("./../suggesters/formatSyntaxSuggester", () => ({
 	FormatSyntaxSuggester: class {},
 }));
 vi.mock("../suggesters/genericTextSuggester", () => ({
-	GenericTextSuggester: class {},
+	GenericTextSuggester: class {
+		destroy(): void {}
+	},
 }));
 vi.mock("src/formatters/formatDisplayFormatter", () => ({
 	FormatDisplayFormatter: class {

@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 
-import StandardCommand from "./StandardCommand.svelte";
+import CommandRow from "./CommandRow.svelte";
 import WaitCommand from "./WaitCommand.svelte";
 import ConditionalCommand from "./ConditionalCommand.svelte";
 import { WaitCommand as WaitCommandModel } from "../../../types/macros/QuickCommands/WaitCommand";
@@ -11,16 +11,31 @@ import { ConditionalCommand as ConditionalCommandModel } from "../../../types/ma
 
 const noop = () => {};
 
-describe("StandardCommand", () => {
+describe("CommandRow", () => {
 	it("fires onDeleteCommand with the command id when delete is clicked", async () => {
 		const command = new ObsidianCommand("My Command", "obsidian-cmd");
 		const onDeleteCommand = vi.fn();
-		const { container } = render(StandardCommand, {
+		const { getByLabelText } = render(CommandRow, {
 			props: { command, startDrag: noop, dragDisabled: true, onDeleteCommand },
 		});
-		const deleteBtn = container.querySelector(".clickable") as HTMLElement;
-		await fireEvent.click(deleteBtn);
+		await fireEvent.click(getByLabelText("Delete My Command"));
 		expect(onDeleteCommand).toHaveBeenCalledWith(command.id);
+	});
+
+	it("shows the configure button only for a step with something to configure", async () => {
+		const command = new ObsidianCommand("My Command", "obsidian-cmd");
+		const plain = render(CommandRow, {
+			props: { command, startDrag: noop, dragDisabled: true, onDeleteCommand: noop },
+		});
+		expect(plain.queryByLabelText("Configure My Command")).toBeNull();
+		plain.unmount();
+
+		const onConfigure = vi.fn();
+		const { getByLabelText } = render(CommandRow, {
+			props: { command, startDrag: noop, dragDisabled: true, onDeleteCommand: noop, onConfigure },
+		});
+		await fireEvent.click(getByLabelText("Configure My Command"));
+		expect(onConfigure).toHaveBeenCalledOnce();
 	});
 });
 

@@ -3,12 +3,11 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
-    import { alertToScreenReader, type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
-    import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
-    import { refocusDragHandle } from "../shared/refocusDragHandle";
+    import { type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
+    import { baseDndOptions, createDropRecovery, keyedItems, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
+    import { moveByKeyboard } from "../shared/keyboardReorder";
     import { createDragArming } from "../shared/dragArming.svelte";
-    import { Platform, type App } from "obsidian";
-    import { isChoiceLike, rootChoicesOf } from "../../utils/choiceUtils";
+    import type { App } from "obsidian";
     import type { ChoiceListActions } from "./choiceListActions";
 
     let {
@@ -47,78 +46,42 @@
         nested?: boolean;
     } = $props();
 
-    // Everything rendered and handed to the dnd zone is filtered to entries that
-    // can actually be keyed: an object with a unique, non-empty string id.
-    // svelte-dnd-action reads `.id` on every item and the keyed {#each} throws
-    // `each_key_duplicate` on a repeat (#1451) — and on a POST-mount update that
-    // throw escapes mountComponent's try entirely (see its doc comment), so this
-    // has to be a $derived, not a one-off check at setup.
-    //
-    // ChoiceView normalizes the tree at its seam before it ever gets here, so in
-    // practice this filter is a no-op: an id-less, non-string-id or duplicate-id
-    // choice has already been given a fresh uuid and KEPT. That matters, because
-    // the persist path below writes back the list this zone was seeded with — a
-    // filter that silently dropped a real choice would delete it from data.json on
-    // the first reorder, which is exactly what it used to do (#1608). The only
-    // thing it can still drop is a `null`/primitive hole, which carries nothing.
-    //
-    // Identical in shape to CommandList's `renderable`, deliberately.
-    const renderable = $derived.by(() => {
-        const seen = new Set<string>();
-        return rootChoicesOf(choices).filter((choice) => {
-            if (!isChoiceLike(choice)) return false;
-            const id = choice.id;
-            if (typeof id !== "string" || id === "" || seen.has(id)) return false;
-            seen.add(id);
-            return true;
-        });
-    });
+    // Everything rendered and handed to the dnd zone (see keyedItems). ChoiceView
+    // normalizes the tree first, so this only drops holes.
+    const renderable = $derived(keyedItems<IChoice>(choices));
 
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
     // own handler IS the top-level handler; nested lists receive it explicitly.
     const persistRoots = $derived(rootReorder ?? actions.onReorderChoices);
 
-    const isMobile = Platform.isMobile;
-
     let collapseId = $state("");
-    // Desktop drag is armed by grabbing the handle (shared with the macro builder; see
-    // createDragArming for the click-swallow failsafe). Mobile has no handle — the whole
-    // row is draggable by LONG-PRESS (delayTouchStart) — so drag stays enabled unless
-    // filtering.
-    const drag = createDragArming();
-    const dragDisabled = $derived(forceDragDisabled || (!isMobile && !drag.armed));
+    // Desktop drag is armed by grabbing the handle (see createDragArming). Mobile: the
+    // whole row drags by long-press. Filtering disables both.
+    const drag = createDragArming(() => forceDragDisabled);
+    const dragDisabled = $derived(drag.disabled);
     let listEl: HTMLDivElement | undefined = $state();
 
-    // The dragged choice, reconstructed from the last placeholder-id shadow that
-    // stripShadow discarded (see capturePlaceholderRecovery: stripping it leaves
-    // the zone with no trace of the dragged item until a later consider re-adds
-    // the shadow under the REAL id). A drop inside that window commits — and
-    // persists — the list without the dragged choice (#1692). Mouse drags always
-    // move enough to close the window; mobile long-press drags start stationary
-    // and routinely drop inside it (a hold-and-release, a small nudge, or a
-    // touchend before the next ~20ms observation tick). handleSort re-inserts
-    // the payload then, at the index the placeholder last occupied — the first
-    // DRAGGED_ENTERED can already carry the user's intended position, and a
-    // pre-drag-order restore would silently cancel it.
-    let placeholderRecovery: PlaceholderRecovery<IChoice> | null = null;
+    // Recovers the dragged choice when a drop lands in the placeholder window, which
+    // would otherwise commit (and persist) the list without it (#1692). Mouse drags
+    // always move enough to close the window; mobile long-press drags start
+    // stationary and routinely drop inside it.
+    const dropRecovery = createDropRecovery<IChoice>();
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
         drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
-        showDragPillOnStart(e as CustomEvent<DndEvent<IChoice>>);
-        const items = e.detail.items as IChoice[];
-        placeholderRecovery =
-            capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
+        const event = e as CustomEvent<DndEvent<IChoice>>;
+        showDragPillOnStart(event);
         collapseId = e.detail.info.id;
         // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
         // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
-        choices = stripShadow(items);
+        choices = dropRecovery.consider(event);
     }
 
     function handleSort(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return;
         collapseId = "";
-        let next = stripShadow(e.detail.items as IChoice[]);
+        let next = dropRecovery.finalize(e as CustomEvent<DndEvent<IChoice>>);
         const draggedId = e.detail.info.id;
         // Cross-zone de-dupe: on DROPPED_INTO_ANOTHER the dragged item landed in a
         // DIFFERENT zone, yet svelte-dnd can still report it in THIS (source) list — so
@@ -128,21 +91,7 @@
         // strip alone is insufficient at depth >= 2; both are load-bearing.
         if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) {
             next = next.filter((c) => c.id !== draggedId);
-        } else if (
-            placeholderRecovery?.item.id === draggedId &&
-            !next.some((c) => c.id === draggedId)
-        ) {
-            // Dropped inside the placeholder window (see placeholderRecovery):
-            // committing `next` would delete the dragged choice. Re-insert it
-            // where the stripped placeholder last stood.
-            next = [...next];
-            next.splice(
-                Math.min(placeholderRecovery.index, next.length),
-                0,
-                placeholderRecovery.item,
-            );
         }
-        placeholderRecovery = null;
         choices = next;
         // Desktop: disarm so a subsequent row interaction doesn't drag (handle must be
         // grabbed again). Mobile: dragDisabled ignores `armed`, so this is a no-op.
@@ -157,28 +106,24 @@
         drag.startDrag();
     };
 
-    // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle). Moves the choice
-    // one step within THIS list and persists via actions.onReorderChoices — the same
-    // path pointer drag uses on finalize. Each ChoiceList instance (including the
-    // nested ones inside a Multi) reorders its own list, so nested reorders bubble
-    // through MultiChoiceListItem's nestedActions just like a drag does.
-    function moveChoice(choice: IChoice, direction: -1 | 1) {
+    // Keyboard reorder within THIS list, persisted through actions.onReorderChoices
+    // like a drag's finalize, so nested reorders bubble through MultiChoiceListItem's
+    // nestedActions too. Cross-zone moves stay mouse-only. `renderable`, not
+    // `choices`: stripShadow reads `item.id`, so the raw list would throw on the very
+    // hole the render filter exists to hide.
+    function moveChoice(choice: IChoice, delta: -1 | 1) {
         if (forceDragDisabled) return; // never persist a filtered/derived list
-        // `renderable`, not `choices`: stripShadow reads `item.id`, so the raw
-        // list would throw on the very hole the render filter exists to hide.
-        const label = document.activeElement?.getAttribute("aria-label");
-        const list = stripShadow(renderable);
-        const next = moveById(list, choice.id, direction);
-        if (!next) return;
-        const target = next.findIndex((c) => c.id === choice.id);
-        choices = next;
-        actions.onReorderChoices(choices);
-        // autoAriaDisabled silences the library's own move alerts, so announce the
-        // keyboard reorder ourselves (cross-zone moves stay mouse-only).
-        alertToScreenReader(
-            `Moved ${choice.name} to position ${target + 1} of ${next.length}`,
-        );
-        if (label) void refocusDragHandle(listEl, label);
+        moveByKeyboard({
+            listEl,
+            items: stripShadow(renderable),
+            id: choice.id,
+            delta,
+            describe: (c) => c.name,
+            commit: (next) => {
+                choices = next;
+                actions.onReorderChoices(choices);
+            },
+        });
     }
 </script>
 

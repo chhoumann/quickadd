@@ -16,8 +16,7 @@ import {
 } from "../../template/fileExistsPolicy";
 import { log } from "../../logger/logManager";
 import { getAllFolderPathsInVault } from "../../utils/vaultQueries";
-import { getTemplateFile } from "../../utils/templateFolderUtils";
-import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
+import { validateTemplatePath } from "./validateTemplatePath";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -37,7 +36,6 @@ import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
 import FormatTokenHint from "./components/FormatTokenHint.svelte";
 import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
-import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
@@ -71,23 +69,6 @@ let {
 // which also read these once per render).
 const templatePaths = $derived(plugin.getTemplateFiles().map((f) => f.path));
 const allFolders = $derived(sortFolderPathsByTree(getAllFolderPathsInVault(app)));
-
-function validateTemplatePath(
-	raw: string,
-): boolean | string | { valid: boolean; message?: string } {
-	const value = raw.trim();
-	if (!value) return true;
-	// A path with format syntax (e.g. "Templates/{{value:type}} Template.md")
-	// can only be resolved when the choice runs, so don't flag it "not found";
-	// show a neutral hint instead (issue #620).
-	if (hasTemplatePathSyntax(value)) {
-		return { valid: true, message: "Contains format syntax — resolved at run time." };
-	}
-	// Resolve like the engine does at run time rather than requiring
-	// suggestion-list membership: a template outside the configured folders
-	// still runs fine and must not be flagged "not found" (master #1170/#1325).
-	return getTemplateFile(app, value) !== null || "Template not found";
-}
 
 // --- File name format ----------------------------------------------------
 // An empty field is the default note-title prompt; `enabled` just mirrors
@@ -209,7 +190,7 @@ function onModeChange(value: string) {
 				{app}
 				suggestions={templatePaths}
 				maxSuggestions={50}
-				validator={validateTemplatePath}
+				validator={(raw) => validateTemplatePath(app, raw)}
 				onChange={(value) => (choice.templatePath = value.trim())}
 			/>
 		{/snippet}
@@ -386,7 +367,11 @@ function onModeChange(value: string) {
 		</SettingItem>
 	{/if}
 
-	<OpenFileSetting bind:openFile={choice.openFile} description="Open the file." />
+	<SettingItem name="Open" desc="Open the file.">
+		{#snippet control()}
+			<Toggle bind:checked={choice.openFile} />
+		{/snippet}
+	</SettingItem>
 	{#if choice.openFile}
 		<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
 	{/if}

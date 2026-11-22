@@ -3,7 +3,6 @@ import type { FuzzySuggestModal, FuzzyMatch, App } from "obsidian";
 import {
 	createRenderFallbackWarner,
 	normalizeDisplayItem,
-	normalizeQuery,
 } from "../suggesters/utils";
 import { SuggesterModal } from "../GenericSuggester/SuggesterModal";
 import type { SuggestRender } from "../GenericSuggester/SuggesterModal";
@@ -118,7 +117,7 @@ export default class InputSuggester extends SuggesterModal<string> {
 
 		if (!this.allowCustomValue) return suggestions;
 
-		const customValue = normalizeQuery(this.inputEl.value);
+		const customValue = normalizeDisplayItem(this.inputEl.value);
 
 		if (!customValue) return suggestions;
 

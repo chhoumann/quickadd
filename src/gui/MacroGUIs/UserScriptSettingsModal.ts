@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { Modal, Notice, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
-import { getQuickAddInstance } from "../../quickAddInstance";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import {
 	mountFormatPreview,
 	type FormatPreviewHandle,
@@ -90,9 +90,11 @@ function formatTitlePart(value: unknown): string {
 export class UserScriptSettingsModal extends Modal {
 	/** One per `type: "format"` option; a script may declare several. */
 	private previewHandles: FormatPreviewHandle[] = [];
+	private suggesters: FormatSyntaxSuggester[] = [];
 
 	constructor(
 		app: App,
+		private readonly plugin: ChoiceBuilderPlugin,
 		private command: IUserScript,
 		private settings: {
 			[key: string]: unknown;
@@ -115,7 +117,7 @@ export class UserScriptSettingsModal extends Modal {
 		// Emptying contentEl does not stop a Svelte component, it only detaches it,
 		// so every re-render must tear the previews down explicitly or each orphan
 		// keeps a live $effect and the preview's 500ms diagnostics timer.
-		this.destroyPreviews();
+		this.destroyFormatFields();
 		this.contentEl.empty();
 
 		const titleName = formatTitlePart(this.settings?.name ?? this.command.name);
@@ -360,7 +362,7 @@ export class UserScriptSettingsModal extends Modal {
 		const text = formatOptionText(value);
 
 		const input = new TextAreaComponent(this.contentEl);
-		new FormatSyntaxSuggester(this.app, input.inputEl, getQuickAddInstance());
+		this.suggesters.push(new FormatSyntaxSuggester(this.app, input.inputEl, this.plugin));
 		attachTextareaIndent(input.inputEl, { passThroughUntilUsed: true });
 		input.inputEl.addClass("qa-user-script-format-textarea");
 		// Appended to contentEl rather than the Setting's controlEl (it needs the
@@ -372,7 +374,7 @@ export class UserScriptSettingsModal extends Modal {
 		// the input, the exact placement #1543 fixed in the choice builders.
 		const preview = mountFormatPreview(this.contentEl, {
 			app: this.app,
-			plugin: getQuickAddInstance(),
+			plugin: this.plugin,
 			value: text,
 		});
 		this.previewHandles.push(preview);
@@ -390,7 +392,7 @@ export class UserScriptSettingsModal extends Modal {
 	}
 
 	/**
-	 * Unmount every mounted preview.
+	 * Unmount every format field's preview and suggester.
 	 *
 	 * `display()` is re-entrant - the constructor calls it, and
 	 * `migrateSecretSettings()` calls it again from a `void`ed promise that can
@@ -398,13 +400,15 @@ export class UserScriptSettingsModal extends Modal {
 	 * stop a Svelte component: each orphan would keep a live `$effect` and the
 	 * preview's 500ms diagnostics timer rescheduling forever.
 	 */
-	private destroyPreviews(): void {
+	private destroyFormatFields(): void {
 		for (const handle of this.previewHandles) handle.destroy();
 		this.previewHandles = [];
+		for (const suggester of this.suggesters) suggester.destroy();
+		this.suggesters = [];
 	}
 
 	onClose(): void {
-		this.destroyPreviews();
+		this.destroyFormatFields();
 		super.onClose();
 	}
 

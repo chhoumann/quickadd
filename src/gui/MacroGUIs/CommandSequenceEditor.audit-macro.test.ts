@@ -8,6 +8,7 @@ import { fireEvent } from "@testing-library/svelte";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import { CommandSequenceEditor } from "./CommandSequenceEditor";
+import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { log } from "../../logger/logManager";
@@ -73,6 +74,28 @@ describe("CommandSequenceEditor silent-add feedback", () => {
 
 	beforeEach(() => {
 		noticeClass.instances.length = 0;
+	});
+
+	it("destroys its input suggesters with the editor", () => {
+		const editor = new CommandSequenceEditor({
+			app: testApp(),
+			plugin: { settings: { choices: [] } } as unknown as QuickAdd,
+			commands: [],
+			choices: [],
+		});
+		const container = document.createElement("div");
+		document.body.appendChild(container);
+		editor.render(container);
+		const destroy = vi.spyOn(GenericTextSuggester.prototype, "destroy");
+		try {
+			editor.destroy();
+
+			// Obsidian command, editor command and choice inputs.
+			expect(destroy).toHaveBeenCalledTimes(3);
+		} finally {
+			destroy.mockRestore();
+			container.remove();
+		}
 	});
 
 	it("warns when adding a choice name that matches no existing choice", async () => {

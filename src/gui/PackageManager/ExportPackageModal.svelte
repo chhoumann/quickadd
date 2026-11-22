@@ -2,7 +2,6 @@
 	import { filterFlatChoices, computeRootSelections, computeSummary } from "./exportSelection";
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
-	import type { PluginManifestInfo } from "../../types/pluginContext";
 	import type IChoice from "../../types/choices/IChoice";
 
 	import {
@@ -22,12 +21,12 @@
 
 	let {
 		app,
-		plugin,
+		pluginVersion,
 		allChoices,
 		close,
 	}: {
 		app: App;
-		plugin: PluginManifestInfo;
+		pluginVersion: string;
 		allChoices: IChoice[];
 		close: () => void;
 	} = $props();
@@ -127,7 +126,7 @@
 				choices: allChoices,
 				rootChoiceIds,
 				excludedChoiceIds: Array.from(excludedChoiceIds),
-				quickAddVersion: plugin.manifest.version,
+				quickAddVersion: pluginVersion,
 			});
 
 			exportWarnings = captureWarnings(result);

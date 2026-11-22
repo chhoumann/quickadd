@@ -1,7 +1,7 @@
 import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
 import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
-import { replaceRange } from "./utils";
+import { replaceInputRange } from "./utils";
 import { flattenChoices } from "../../utils/choiceUtils";
 import type {
 	FormatSuggestContext,
@@ -206,7 +206,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		}
 
 		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
+		replaceInputRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
 			fromCompletion: true,
 		});
 

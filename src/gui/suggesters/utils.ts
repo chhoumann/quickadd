@@ -100,19 +100,16 @@ export function createRenderFallbackWarner(
 	};
 }
 
-export function normalizeQuery(value: unknown): string {
-	return normalizeDisplayItem(value);
-}
-
 // Display-only helper: keep stored path intact, but hide trailing ".md" in UI labels.
 export function stripMdExtensionForDisplay(value: string): string {
 	return value.toLowerCase().endsWith(".md") ? value.slice(0, -3) : value;
 }
 
 /**
- * Replace text in a range
+ * Replace `[start, end)` of the field's text, put the caret after the
+ * replacement, and dispatch `input` so listeners see the change.
  */
-export function replaceRange(
+export function replaceInputRange(
 	input: HTMLInputElement | HTMLTextAreaElement,
 	start: number,
 	end: number,

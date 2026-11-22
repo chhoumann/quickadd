@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { CommandType } from "../../types/macros/CommandType";
 import type { IUserScript } from "../../types/macros/IUserScript";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 
 /**
@@ -25,14 +26,18 @@ const mocks = vi.hoisted(() => ({
 	deferrals: [] as Array<() => void>,
 	deferNext: false,
 	diagnostics: [] as Array<{ severity: string; message: string }>,
+	/** FormatSyntaxSuggester instances torn down, counted. */
+	suggestersDestroyed: { count: 0 },
 }));
 
-vi.mock("../../quickAddInstance", () => ({
-	getQuickAddInstance: vi.fn(() => ({})),
-}));
+const plugin = { settings: { choices: [] } } as unknown as ChoiceBuilderPlugin;
 
 vi.mock("../suggesters/formatSyntaxSuggester", () => ({
-	FormatSyntaxSuggester: class {},
+	FormatSyntaxSuggester: class {
+		destroy(): void {
+			mocks.suggestersDestroyed.count++;
+		}
+	},
 }));
 
 // Full contract, not just format(): FormatPreviewField also calls
@@ -98,10 +103,11 @@ function openModal(
 ): UserScriptSettingsModal & { contentEl: HTMLElement } {
 	return new UserScriptSettingsModal(
 		new App(),
+		plugin,
 		createCommand(),
 		scriptSettings(options) as ConstructorParameters<
 			typeof UserScriptSettingsModal
-		>[2],
+		>[3],
 	) as UserScriptSettingsModal & { contentEl: HTMLElement };
 }
 
@@ -254,10 +260,11 @@ describe("UserScriptSettingsModal format option preview", () => {
 		command.settings["Note format"] = true;
 		const modal = new UserScriptSettingsModal(
 			new App(),
+			plugin,
 			command,
 			scriptSettings(formatOption("ignored")) as ConstructorParameters<
 				typeof UserScriptSettingsModal
-			>[2],
+			>[3],
 		) as UserScriptSettingsModal & { contentEl: HTMLElement };
 		await flush();
 
@@ -300,10 +307,11 @@ describe("UserScriptSettingsModal format option preview", () => {
 		const command = createCommand();
 		const modal = new UserScriptSettingsModal(
 			new App(),
+			plugin,
 			command,
 			scriptSettings(formatOption("start")) as ConstructorParameters<
 				typeof UserScriptSettingsModal
-			>[2],
+			>[3],
 		);
 		await flush();
 
@@ -352,5 +360,20 @@ describe("UserScriptSettingsModal format option preview", () => {
 		modal.close();
 		expect(internals.previewHandles).toHaveLength(0);
 		expect(document.querySelectorAll(".qa-preview-row")).toHaveLength(0);
+	});
+
+	it("destroys each format field's suggester when display() re-runs and on close", async () => {
+		const modal = openModal({
+			First: { type: "format", defaultValue: "one", placeholder: "" },
+			Second: { type: "format", defaultValue: "two", placeholder: "" },
+		});
+		await flush();
+		const before = mocks.suggestersDestroyed.count;
+
+		(modal as unknown as { display: () => void }).display();
+		expect(mocks.suggestersDestroyed.count - before, "re-render leaked suggesters").toBe(2);
+
+		modal.close();
+		expect(mocks.suggestersDestroyed.count - before, "close leaked suggesters").toBe(4);
 	});
 });

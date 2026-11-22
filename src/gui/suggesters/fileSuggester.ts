@@ -8,7 +8,7 @@ import { FileIndex, type SearchResult } from "../../utils/vaultIndex/FileIndex";
 import type { IndexedFile, SearchContext } from "../../utils/vaultIndex/fileIndexTypes";
 import { normalizeForSearch } from "../../utils/vaultIndex/normalizeForSearch";
 import { getQuickAddInstance } from "../../quickAddInstance";
-import { createOwnedElement, getOwnerDocument } from "../../utils/activeWindow";
+import { createOwnedElement, getOwnerDocument, getOwnerWindow } from "../../utils/activeWindow";
 
 function createSuggestionPill(
 	owner: Node,
@@ -367,7 +367,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const activeDocument = getOwnerDocument(this.inputEl);
 
 		if (this.tooltipTimeout !== undefined) {
-			window.clearTimeout(this.tooltipTimeout);
+			getOwnerWindow(this.inputEl).clearTimeout(this.tooltipTimeout);
 			this.tooltipTimeout = undefined;
 		}
 		activeDocument.querySelector('.qa-file-tooltip')?.remove();
@@ -378,7 +378,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 		el.addEventListener('mouseenter', () => {
 			this.hideTooltip();
-			this.tooltipTimeout = window.setTimeout(() => {
+			this.tooltipTimeout = getOwnerWindow(this.inputEl).setTimeout(() => {
 				const tooltip = this.createTooltip(file);
 				if (tooltip) {
 					activeDocument.body.appendChild(tooltip);
@@ -481,20 +481,8 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		lastInputLength: number,
 		alias?: string
 	): number {
-		// Need to get file again, otherwise it won't be recognized by the link generator. (hotfix, but not a good solution)
-		const file = this.app.vault.getAbstractFileByPath(
-			linkFile.path
-		);
-		if (!(file instanceof TFile)) {
-			return this.makeLinkManually(
-				currentInputValue,
-				linkFile.path,
-				cursorPosition,
-				lastInputLength
-			);
-		}
 		const link = this.app.fileManager.generateMarkdownLink(
-			file,
+			linkFile,
 			this.getSourcePath(),
 			"",
 			alias ?? ""

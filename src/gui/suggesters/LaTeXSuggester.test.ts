@@ -57,14 +57,14 @@ function oldTwoStageSuggestions(inputStr: string): string[] {
 	return fuse.search(lastInput).map((value) => value.item);
 }
 
-function getSuggestions(inputStr: string): string[] {
+function getSuggestions(inputStr: string, from: string[] = symbols): string[] {
 	return LaTeXSuggester.prototype.getSuggestions.call(
 		{
 			inputEl: {
 				selectionStart: inputStr.length,
 			},
 			lastInput: "",
-			symbols,
+			symbols: from,
 		},
 		inputStr,
 	);
@@ -78,6 +78,13 @@ describe("LaTeXSuggester", () => {
 			for (const input of ["\\al", "\\alpha", "\\A", "prefix \\ma"]) {
 				expect(getSuggestions(input)).toEqual(oldTwoStageSuggestions(input));
 			}
+		});
+
+		it("searches its own symbols, not those of the first suggester that searched", () => {
+			ensureContainsPolyfill();
+
+			expect(getSuggestions("\\al")).toContain("\\alpha");
+			expect(getSuggestions("\\ze", ["\\zeta", "\\eta"])).toEqual(["\\zeta"]);
 		});
 
 		it("returns no suggestions when there is no LaTeX command match", () => {

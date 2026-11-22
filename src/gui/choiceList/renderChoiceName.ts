@@ -1,4 +1,4 @@
-import { MarkdownRenderer, type App, type Component } from "obsidian";
+import { Component, MarkdownRenderer, type App } from "obsidian";
 import { createOwnedElement } from "../../utils/activeWindow";
 
 /**
@@ -39,4 +39,27 @@ export async function renderChoiceName(
 		return;
 	}
 	await MarkdownRenderer.render(app, choiceName, element, "/", component);
+}
+
+interface ChoiceNameParams {
+	name: string;
+	app: App;
+}
+
+/**
+ * Svelte action for a choice row's name: renders it, re-renders on rename, and
+ * unloads the Markdown render's lifecycle component with the row so any child
+ * components it registered are disposed.
+ */
+export function choiceName(element: HTMLElement, params: ChoiceNameParams) {
+	const component = new Component();
+	void renderChoiceName(params.name, element, component, params.app);
+	return {
+		update(next: ChoiceNameParams) {
+			void renderChoiceName(next.name, element, component, next.app);
+		},
+		destroy() {
+			component.unload();
+		},
+	};
 }

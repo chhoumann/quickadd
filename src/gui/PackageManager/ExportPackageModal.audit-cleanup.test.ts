@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, waitFor } from "@testing-library/svelte";
 import { Notice } from "obsidian";
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import ExportPackageModal from "./ExportPackageModal.svelte";
 import type * as PackageExportService from "../../services/packageExportService";
@@ -68,16 +67,12 @@ function fakeApp(): App {
 	} as unknown as App;
 }
 
-function fakePlugin(): QuickAdd {
-	return { manifest: { version: "1.0.0" } } as unknown as QuickAdd;
-}
-
 async function selectRootAndSave(): Promise<{ close: ReturnType<typeof vi.fn> }> {
 	const close = vi.fn();
 	const { container } = render(ExportPackageModal, {
 		props: {
 			app: fakeApp(),
-			plugin: fakePlugin(),
+			pluginVersion: "1.0.0",
 			allChoices: [ROOT_CHOICE],
 			close,
 		},

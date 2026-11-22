@@ -1,8 +1,7 @@
 import { TextInputSuggest } from "./suggest";
 import Fuse from "fuse.js";
-import { renderMath } from "obsidian";
+import { renderMath, type App } from "obsidian";
 import { LATEX_CURSOR_MOVE_HERE, LaTeXSymbols } from "../../LaTeXSymbols";
-import { getQuickAddInstance } from "../../quickAddInstance";
 
 const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 
@@ -13,7 +12,9 @@ const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 // retried on every modal open.
 const renderedMathCache = new Map<string, HTMLElement | null>();
 
-let fuseIndex: Fuse<string> | null = null;
+// One index per symbol list, built on first search, so a suggester never
+// searches another list's symbols.
+const fuseIndexes = new WeakMap<readonly string[], Fuse<string>>();
 
 function getRenderedMath(symbol: string): HTMLElement | null {
 	if (renderedMathCache.has(symbol)) {
@@ -32,24 +33,33 @@ function getRenderedMath(symbol: string): HTMLElement | null {
 	return rendered;
 }
 
-function getFuseIndex(symbols: string[]): Fuse<string> {
-	if (fuseIndex === null) {
-		fuseIndex = new Fuse(symbols, {
-			findAllMatches: true,
-			threshold: 0.8,
-		});
+function getFuseIndex(symbols: readonly string[]): Fuse<string> {
+	let index = fuseIndexes.get(symbols);
+	if (!index) {
+		index = new Fuse(symbols, { findAllMatches: true, threshold: 0.8 });
+		fuseIndexes.set(symbols, index);
 	}
+	return index;
+}
 
-	return fuseIndex;
+/**
+ * Moves the caret to the first LaTeX cursor marker in `input` and removes the
+ * marker. Returns false when the input holds none.
+ */
+export function moveCursorToMarker(input: HTMLInputElement | HTMLTextAreaElement): boolean {
+	const at = input.value.indexOf(LATEX_CURSOR_MOVE_HERE);
+	if (at === -1) return false;
+	input.value = input.value.slice(0, at) + input.value.slice(at + LATEX_CURSOR_MOVE_HERE.length);
+	input.setSelectionRange(at, at);
+	return true;
 }
 
 export class LaTeXSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
-	private symbols: string[];
+	private readonly symbols: readonly string[] = LaTeXSymbols;
 
-	constructor(public inputEl: HTMLInputElement | HTMLTextAreaElement) {
-		super(getQuickAddInstance().app, inputEl);
-		this.symbols = Object.assign([], LaTeXSymbols);
+	constructor(app: App, public inputEl: HTMLInputElement | HTMLTextAreaElement) {
+		super(app, inputEl);
 	}
 
 	getSuggestions(inputStr: string): string[] {
@@ -110,20 +120,8 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		this.inputEl.trigger("input");
 		this.close();
 
-		if (item.includes(LATEX_CURSOR_MOVE_HERE)) {
-			const cursorPos = this.inputEl.value.indexOf(
-				LATEX_CURSOR_MOVE_HERE
-			);
-			this.inputEl.value = this.inputEl.value.replace(
-				LATEX_CURSOR_MOVE_HERE,
-				""
-			);
-			this.inputEl.setSelectionRange(cursorPos, cursorPos);
-		} else {
-			this.inputEl.setSelectionRange(
-				insertedEndPosition,
-				insertedEndPosition
-			);
+		if (!(item.includes(LATEX_CURSOR_MOVE_HERE) && moveCursorToMarker(this.inputEl))) {
+			this.inputEl.setSelectionRange(insertedEndPosition, insertedEndPosition);
 		}
 	}
 }

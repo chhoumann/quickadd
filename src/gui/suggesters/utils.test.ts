@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { log } from "../../logger/logManager";
 import { 
-	replaceRange, 
+	replaceInputRange, 
 	renderExactHighlight, 
 	renderHighlightRanges,
 	stripMdExtensionForDisplay,
@@ -21,7 +21,7 @@ class MockInput {
 	}
 	
 	dispatchEvent() {
-		// Required by replaceRange but not tested
+		// Required by replaceInputRange but not tested
 	}
 }
 
@@ -32,11 +32,11 @@ describe("Suggester Utils", () => {
 		mockInput = new MockInput();
 	});
 
-	describe("replaceRange", () => {
+	describe("replaceInputRange", () => {
 		it("should replace text in specified range", () => {
 			mockInput.value = "Hello World";
 
-			replaceRange(mockInput as any, 6, 11, "Universe");
+			replaceInputRange(mockInput as any, 6, 11, "Universe");
 
 			expect(mockInput.value).toBe("Hello Universe");
 			expect(mockInput.selectionStart).toBe(14);

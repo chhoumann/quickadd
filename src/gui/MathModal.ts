@@ -9,7 +9,7 @@ import {
 } from "obsidian";
 import { getQuickAddInstance } from "../quickAddInstance";
 import { LATEX_CURSOR_MOVE_HERE } from "../LaTeXSymbols";
-import { LaTeXSuggester } from "./suggesters/LaTeXSuggester";
+import { LaTeXSuggester, moveCursorToMarker } from "./suggesters/LaTeXSuggester";
 import { promptCancelled } from "../errors/UserCancelError";
 
 export class MathModal extends Modal {
@@ -18,6 +18,7 @@ export class MathModal extends Modal {
 	private resolvePromise: (input: string) => void;
 	private rejectPromise: (reason?: unknown) => void;
 	private inputEl: HTMLTextAreaElement;
+	private suggester: LaTeXSuggester;
 	private didSubmit = false;
 
 	private keybindListener = (evt: KeyboardEvent) => {
@@ -29,7 +30,7 @@ export class MathModal extends Modal {
 
 		if (evt.key === "Tab") {
 			evt.preventDefault();
-			this.cursorToGoTo();
+			moveCursorToMarker(this.inputEl);
 		}
 	};
 
@@ -48,7 +49,7 @@ export class MathModal extends Modal {
 			this.rejectPromise = reject;
 		});
 
-		new LaTeXSuggester(this.inputEl);
+		this.suggester = new LaTeXSuggester(this.app, this.inputEl);
 
 		this.inputEl.focus();
 		this.inputEl.select();
@@ -95,19 +96,6 @@ export class MathModal extends Modal {
 
 		container.empty();
 		container.append(html);
-	}
-
-	private cursorToGoTo() {
-		if (this.inputEl.value.includes(LATEX_CURSOR_MOVE_HERE)) {
-			const cursorPos = this.inputEl.value.indexOf(
-				LATEX_CURSOR_MOVE_HERE
-			);
-			this.inputEl.value = this.inputEl.value.replace(
-				LATEX_CURSOR_MOVE_HERE,
-				""
-			);
-			this.inputEl.setSelectionRange(cursorPos, cursorPos);
-		}
 	}
 
 	private createButton(
@@ -172,5 +160,6 @@ export class MathModal extends Modal {
 		super.onClose();
 		this.resolveInput();
 		this.removeInputListeners();
+		this.suggester.destroy();
 	}
 }

@@ -21,8 +21,8 @@ import { settingsStore } from "./settingsStore";
 import { getAllFolderPathsInVault } from "./utils/vaultQueries";
 import { normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
-import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
-import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
+import { openExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
+import { openImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
 import { syncImportedChoiceCommands } from "./services/packageImportCommands";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { QuickAddSettings } from "./settings";
@@ -402,14 +402,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.addButton((button) => {
 			exportButton = button;
 			button.setButtonText("Export package…").onClick(() => {
-				const choicesSnapshot = rootChoicesOf(
-					settingsStore.getState().choices,
-				);
-				new ExportPackageModal(
+				openExportPackageModal(
 					this.app,
-					this.plugin,
-					choicesSnapshot,
-				).open();
+					this.plugin.manifest.version,
+					rootChoicesOf(settingsStore.getState().choices),
+				);
 			});
 		});
 
@@ -418,10 +415,9 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText("Import package…").onClick(() => {
-				new ImportPackageModal(this.app, {
-					onImported: (result, previousChoices) =>
-						syncImportedChoiceCommands(this.plugin, previousChoices, result),
-				}).open();
+				openImportPackageModal(this.app, (result, previousChoices) =>
+					syncImportedChoiceCommands(this.plugin, previousChoices, result),
+				);
 			}),
 		);
 

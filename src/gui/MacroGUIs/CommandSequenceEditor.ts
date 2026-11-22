@@ -99,6 +99,7 @@ export class CommandSequenceEditor {
 	private commandListProps: CommandListProps | null = null;
 	private containerEl: HTMLElement | null = null;
 	private unreadableCardHandle: MountHandle | null = null;
+	private suggesters: GenericTextSuggester[] = [];
 
 	constructor(options: CommandSequenceEditorOptions) {
 		this.app = options.app;
@@ -172,6 +173,8 @@ export class CommandSequenceEditor {
 		this.commandListProps = null;
 		this.unreadableCardHandle?.destroy();
 		this.unreadableCardHandle = null;
+		this.suggesters.forEach((suggester) => suggester.destroy());
+		this.suggesters = [];
 	}
 
 	private loadObsidianCommands(): void {
@@ -473,7 +476,7 @@ export class CommandSequenceEditor {
 	): TextComponent {
 		input.inputEl.addClass("qa-command-sequence-input");
 		input.setPlaceholder(placeholder);
-		new GenericTextSuggester(this.app, input.inputEl, suggestions);
+		this.suggesters.push(new GenericTextSuggester(this.app, input.inputEl, suggestions));
 		input.inputEl.addEventListener("keypress", (event: KeyboardEvent) => {
 			if (event.key === "Enter") void add();
 		});

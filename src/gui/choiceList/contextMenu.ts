@@ -1,4 +1,3 @@
-import type { App } from "obsidian";
 import { Menu as ObsidianMenu } from "obsidian";
 import type IChoice from "src/types/choices/IChoice";
 import type { ChoiceListActions } from "./choiceListActions";
@@ -94,37 +93,34 @@ function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
   return false;
 }
 
-/** The row menu's callbacks for `choice`, bound to the choice list's actions. */
-export function choiceMenuActions(choice: IChoice, actions: ChoiceListActions): MenuActions {
+/** What a choice row's menu needs, read when the menu opens (props are live). */
+interface ChoiceRowMenuContext {
+  choice: IChoice;
+  roots: IChoice[] | undefined;
+  actions: ChoiceListActions;
+}
+
+/**
+ * The two entry points to a choice row's menu, shared by leaf and folder rows:
+ * right-click on the row, and the keyboard-reachable "More options" button
+ * (WCAG 2.1.1), which anchors the menu at the button's bottom-left so it works
+ * without a mouse pointer.
+ */
+export function choiceRowMenu(read: () => ChoiceRowMenuContext) {
   return {
-    onRename: () => actions.onRenameChoice(choice),
-    onToggle: () => actions.onToggleCommand(choice),
-    onConfigure: () => actions.onConfigureChoice(choice),
-    onDuplicate: () => actions.onDuplicateChoice(choice),
-    onDelete: () => actions.onDeleteChoice(choice),
-    onMove: (targetId: string) => actions.onMoveChoice(choice, targetId),
+    onContextMenu(evt: MouseEvent): void {
+      evt.preventDefault();
+      buildChoiceMenu(read()).showAtMouseEvent(evt);
+    },
+    openAt(anchor: HTMLElement): void {
+      const rect = anchor.getBoundingClientRect();
+      buildChoiceMenu(read()).showAtPosition({ x: rect.left, y: rect.bottom });
+    },
   };
 }
 
-type MenuActions = {
-  onRename: () => void;
-  onToggle: () => void;
-  onConfigure: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
-  onMove: (targetId: string) => void;
-};
-
-/**
- * Build the choice context menu (shared by the mouse and keyboard entry points).
- * "Move to" is rendered as a flattened list of targets for reliability.
- */
-function buildChoiceMenu(
-  app: App,
-  choice: IChoice,
-  roots: IChoice[] | undefined,
-  actions: MenuActions,
-): ObsidianMenu {
+/** "Move to" is rendered as a flattened list of targets for reliability. */
+function buildChoiceMenu({ choice, roots, actions }: ChoiceRowMenuContext): ObsidianMenu {
   const menu = new ObsidianMenu();
 
   menu
@@ -134,12 +130,23 @@ function buildChoiceMenu(
           choice.command ? "Disable in command palette" : "Enable in command palette",
         )
         .setIcon("zap")
-        .onClick(actions.onToggle),
+        .onClick(() => actions.onToggleCommand(choice)),
     )
-    .addItem((item) => item.setTitle("Rename").setIcon("pencil").onClick(actions.onRename))
-    .addItem((item) => item.setTitle("Configure").setIcon("settings").onClick(actions.onConfigure))
-    .addItem((item) => item.setTitle("Duplicate").setIcon("copy").onClick(actions.onDuplicate))
-    .addItem((item) => item.setTitle("Delete").setIcon("trash-2").onClick(actions.onDelete))
+    .addItem((item) =>
+      item.setTitle("Rename").setIcon("pencil").onClick(() => actions.onRenameChoice(choice)),
+    )
+    .addItem((item) =>
+      item
+        .setTitle("Configure")
+        .setIcon("settings")
+        .onClick(() => actions.onConfigureChoice(choice)),
+    )
+    .addItem((item) =>
+      item.setTitle("Duplicate").setIcon("copy").onClick(() => actions.onDuplicateChoice(choice)),
+    )
+    .addItem((item) =>
+      item.setTitle("Delete").setIcon("trash-2").onClick(() => actions.onDeleteChoice(choice)),
+    )
     .addSeparator();
 
   // Offer a way back OUT of a folder for keyboard/menu users (cross-zone drag is
@@ -149,7 +156,7 @@ function buildChoiceMenu(
       item
         .setTitle("Move to: (root)")
         .setIcon("folder-up")
-        .onClick(() => actions.onMove(MOVE_TO_ROOT_TARGET_ID)),
+        .onClick(() => actions.onMoveChoice(choice, MOVE_TO_ROOT_TARGET_ID)),
     );
   }
 
@@ -164,43 +171,10 @@ function buildChoiceMenu(
         item
           .setTitle(`Move to: ${t.path}`)
           .setIcon("folder-open")
-          .onClick(() => actions.onMove(t.id)),
+          .onClick(() => actions.onMoveChoice(choice, t.id)),
       ),
     );
   }
 
   return menu;
-}
-
-/**
- * Show the context menu for a choice at the mouse event (right-click on a row).
- */
-export function showChoiceContextMenu(
-  app: App,
-  evt: MouseEvent,
-  choice: IChoice,
-  roots: IChoice[] | undefined,
-  actions: MenuActions,
-): void {
-  evt.preventDefault();
-  buildChoiceMenu(app, choice, roots, actions).showAtMouseEvent(evt);
-}
-
-/**
- * Show the same menu anchored to an element (the keyboard-accessible "More options"
- * button), positioned at the element's bottom-left so it works without a mouse
- * pointer. WCAG 2.1.1 — the row's right-click menu is reachable from the keyboard.
- */
-export function showChoiceContextMenuAtElement(
-  app: App,
-  anchor: HTMLElement,
-  choice: IChoice,
-  roots: IChoice[] | undefined,
-  actions: MenuActions,
-): void {
-  const rect = anchor.getBoundingClientRect();
-  buildChoiceMenu(app, choice, roots, actions).showAtPosition({
-    x: rect.left,
-    y: rect.bottom,
-  });
 }

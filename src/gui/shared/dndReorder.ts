@@ -49,6 +49,60 @@ export function capturePlaceholderRecovery<T extends Reorderable>(
 }
 
 /**
+ * One zone's bookkeeping for the placeholder window (#1692). `consider` strips
+ * the shadow placeholder after capturing a recovery payload from it. `finalize`
+ * strips it again and, when the finalized list lacks the dragged item, puts the
+ * payload back at the index the placeholder last occupied. It does not restore
+ * the pre-drag order instead, because the first DRAGGED_ENTERED can already
+ * carry the user's intended position.
+ */
+export function createDropRecovery<T extends Reorderable>() {
+	let recovery: PlaceholderRecovery<T> | null = null;
+	return {
+		consider(event: CustomEvent<DndEvent<T>>): T[] {
+			const { items, info } = event.detail;
+			recovery = capturePlaceholderRecovery(items, info.id) ?? recovery;
+			return stripShadow(items);
+		},
+		finalize(event: CustomEvent<DndEvent<T>>): T[] {
+			const next = stripShadow(event.detail.items);
+			const draggedId = event.detail.info.id;
+			const pending = recovery;
+			recovery = null;
+			if (pending?.item.id === draggedId && !next.some((item) => item.id === draggedId)) {
+				next.splice(Math.min(pending.index, next.length), 0, pending.item);
+			}
+			return next;
+		},
+	};
+}
+
+/**
+ * The entries of `value` a zone can key: objects with a unique, non-empty string
+ * id. svelte-dnd-action reads `.id` on every item and the keyed {#each} throws
+ * `each_key_duplicate` on a repeat (#1451, #1593). On a post-mount update that
+ * throw escapes mountComponent's try, so zones run this in a $derived, not once
+ * at setup.
+ *
+ * The choices view and the macro builder normalize their lists before they get
+ * here (an id-less or duplicate-id entry gets a fresh uuid and is KEPT), so in
+ * practice this only drops a `null`/primitive hole. It must stay that narrow: a
+ * zone persists the list it renders, so dropping a real entry here would delete
+ * it from data.json on the first reorder (#1608).
+ */
+export function keyedItems<T extends Reorderable>(value: unknown): T[] {
+	if (!Array.isArray(value)) return [];
+	const seen = new Set<string>();
+	return value.filter((item): item is T => {
+		if (typeof item !== "object" || item === null) return false;
+		const id: unknown = (item as { id?: unknown }).id;
+		if (typeof id !== "string" || id === "" || seen.has(id)) return false;
+		seen.add(id);
+		return true;
+	});
+}
+
+/**
  * Immutably replace the item whose id matches `next.id`, preserving order and
  * returning a NEW array. Replaces the in-place `items[index] = next` mutation,
  * which silently loses reactivity on a runes `$state`/`$bindable` array.

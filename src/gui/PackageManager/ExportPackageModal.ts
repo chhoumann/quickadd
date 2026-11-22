@@ -1,39 +1,18 @@
 import type { App } from "obsidian";
-import { Modal } from "obsidian";
-import type { PluginManifestInfo } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import ExportPackageModalComponent from "./ExportPackageModal.svelte";
-import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import { SvelteModal } from "../svelte/SvelteModal";
 
-export class ExportPackageModal extends Modal {
-	private handle: MountHandle | null = null;
-
-	constructor(
-		app: App,
-		private plugin: PluginManifestInfo,
-		private choices: IChoice[],
-	) {
-		super(app);
-	}
-
-	onOpen(): void {
-		this.modalEl.addClass("quickAddModal", "qa-package-modal", "packageExportModal");
-		this.setTitle("Export QuickAdd package");
-		this.handle = mountComponent(
-			this.contentEl,
-			ExportPackageModalComponent,
-			{
-				app: this.app,
-				plugin: this.plugin,
-				allChoices: this.choices,
-				close: () => this.close(),
-			},
-			{ what: "the package exporter" },
-		);
-	}
-
-	onClose(): void {
-		this.handle?.destroy();
-		this.handle = null;
-	}
+export function openExportPackageModal(
+	app: App,
+	pluginVersion: string,
+	choices: IChoice[],
+): void {
+	new SvelteModal(app, {
+		title: "Export QuickAdd package",
+		cls: ["quickAddModal", "qa-package-modal", "packageExportModal"],
+		component: ExportPackageModalComponent,
+		props: (close) => ({ app, pluginVersion, allChoices: choices, close }),
+		what: "the package exporter",
+	}).open();
 }

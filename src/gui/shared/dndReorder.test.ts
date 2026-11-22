@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
-import { baseDndOptions, moveById, replaceById, stripShadow } from "./dndReorder";
+import { type DndEvent, SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
+import {
+	baseDndOptions,
+	createDropRecovery,
+	keyedItems,
+	moveById,
+	replaceById,
+	stripShadow,
+} from "./dndReorder";
 
 const item = (id: string, extra: Record<string, unknown> = {}) => ({ id, ...extra });
 
@@ -102,5 +109,50 @@ describe("baseDndOptions", () => {
 		expect(options.useCursorForDetection).toBe(true);
 		expect(options.centreDraggedOnCursor).toBe(false);
 		expect(options.autoAriaDisabled).toBe(true);
+	});
+});
+
+describe("keyedItems", () => {
+	it("keeps the first of each unique string id and drops holes", () => {
+		const a = item("a");
+		const input = [a, null, 7, item(""), { name: "no id" }, item("a", { dup: true }), item("b")];
+		expect(keyedItems(input)).toEqual([a, item("b")]);
+	});
+
+	it("reads a non-array as empty", () => {
+		expect(keyedItems({ 0: item("a") })).toEqual([]);
+	});
+});
+
+describe("createDropRecovery", () => {
+	type Item = { id: string; name: string };
+	const event = (items: unknown[], id: string) =>
+		({ detail: { items, info: { id } } }) as unknown as CustomEvent<DndEvent<Item>>;
+	const shadow = (of: Item) => ({
+		...of,
+		id: SHADOW_PLACEHOLDER_ITEM_ID,
+		[SHADOW_ITEM_MARKER_PROPERTY_NAME]: true,
+	});
+	const a = { id: "a", name: "A" };
+	const b = { id: "b", name: "B" };
+	const c = { id: "c", name: "C" };
+
+	it("puts back a dragged item a drop inside the placeholder window left out (#1692)", () => {
+		const zone = createDropRecovery<Item>();
+		expect(zone.consider(event([b, shadow(a), c], "a"))).toEqual([b, c]);
+		expect(zone.finalize(event([b, c], "a"))).toEqual([b, a, c]);
+	});
+
+	it("leaves a finalized list that already holds the dragged item alone", () => {
+		const zone = createDropRecovery<Item>();
+		zone.consider(event([shadow(a), b], "a"));
+		expect(zone.finalize(event([b, a], "a"))).toEqual([b, a]);
+	});
+
+	it("forgets the payload once the drag finalizes", () => {
+		const zone = createDropRecovery<Item>();
+		zone.consider(event([shadow(a), b], "a"));
+		zone.finalize(event([a, b], "a"));
+		expect(zone.finalize(event([b], "a"))).toEqual([b]);
 	});
 });

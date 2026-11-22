@@ -1,4 +1,4 @@
-import { setIcon } from "obsidian";
+import { addAliasFlair } from "../suggesters/aliasFlair";
 
 export interface SearchableMultiSelectItem<T> {
 	/** Selection identity. Rows with the same key share selected state. */
@@ -213,9 +213,7 @@ export default class SearchableMultiSelect<T> {
 		if (alias !== undefined) {
 			// As in the quick switcher: the alias that matched, the item beneath.
 			text.createSpan({ cls: "qa-searchable-multi-select__option-note", text: item.label });
-			const flair = row.createSpan({ cls: "qa-searchable-multi-select__option-flair" });
-			flair.setAttribute("aria-label", "Alias");
-			setIcon(flair, "forward");
+			addAliasFlair(row, "qa-searchable-multi-select__option-flair");
 		}
 		const input = row.createEl("input", { type: "checkbox" });
 		input.name = `qa-multi-select-${this.instanceId}`;
