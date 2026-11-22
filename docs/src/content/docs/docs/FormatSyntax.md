@@ -49,6 +49,7 @@ text. A Templater tag in the format itself can still use an answer, as in
 | [`{{VALUE:Red,Green,Blue}}`](#value-suggest) | Pick from a list |
 | [`{{VDATE:due,YYYY-MM-DD}}`](#vdate) | Ask for a date ("tomorrow" works) |
 | [`{{FIELD:project}}`](#field) | Suggest values that property already has in your vault |
+| [`{{FIELD:author\|link}}`](#field-link) | Pick a note for that property and insert a link to it |
 | [`{{PROPERTY}}`](#property) | Insert the property's current value (property Captures only) |
 | [`{{CURSOR}}`](#cursor) | Place the cursor inside a Template or Capture |
 | [`{{FILE:People}}`](#file) | Pick a note from a folder |
@@ -938,8 +939,45 @@ YAML list, including in template-backed captures.
 The one-page input form doesn't inline FIELD multi-selects yet.
 When a format contains `{{FIELD:...|multi}}`, QuickAdd collects the other
 one-page inputs first, then opens the regular multi-select for the FIELD
-value.
+value. [`|multi|link`](#field-link) is the exception: its notes are picked
+one at a time, so the form asks for them.
 :::
+
+#### Values that are notes: `|link` {#field-link}
+
+Some properties hold links, like `author: "[[Ted Chiang]]"`. Add `|link` and
+the picker treats the values as notes:
+
+```markdown title="You write"
+---
+author: {{FIELD:author|link}}
+categories: {{FIELD:categories|multi|link}}
+---
+```
+
+```yaml title="You get (after picking Ted Chiang, then Books and Reading)"
+author: "[[Ted Chiang]]"
+categories:
+  - "[[Books]]"
+  - "[[Reading]]"
+```
+
+- Values show by note name, in link color. Links to the same note count as one value, so `[[Ted Chiang]]` and `[[Ted Chiang|Ted]]` appear once.
+- The picker opens on the property's values. As you type, other notes in the vault join the list. Values the property already has rank first, unless another note matches what you typed much better. Aliases match too.
+- A name no note has gets a `Link to [[name]]` row. Picking it writes the link without creating the note.
+- The pick is always written as a link, so you never type brackets. A link to an existing note follows your **Files and links** settings.
+- When the link is the whole property value, or one item of a list like `categories: [{{FIELD:category|link}}]`, it is quoted so the front matter stays valid YAML. You don't need quotes around the placeholder.
+
+`|multi|link` picks several notes: the checklist holds the property's values,
+and **Add a custom value** searches the other notes. `|multi:linklist` means
+the same as `|multi|link`.
+
+A plain name that reaches a `|link` placeholder from a script, the CLI, or a
+[`|name:`](#field-name) answer is written as a link too: `Ted Chiang` becomes
+a link to that note, or `[[Ted Chiang]]` if no note has that name.
+
+The [one-page input form](/docs/Advanced/onePageInputs/) asks for `|link` and
+`|multi|link` fields with the same search.
 
 #### Label the prompt: `|label:` {#field-label}
 

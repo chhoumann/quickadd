@@ -451,6 +451,19 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	text-align: start;
 }
 
+.qa-field-link,
+.qa-field-link-values .qa-searchable-multi-select__option-label,
+.quickAddModal .qa-onepage-field-link-picker .qa-onepage-file-picker__chip-label {
+	color: var(--link-color);
+}
+
+.qa-field-link.is-unresolved,
+.qa-field-link-values .qa-searchable-multi-select__option-label.is-unresolved,
+.quickAddModal .qa-onepage-field-link-picker .qa-onepage-file-picker__chip.is-unresolved .qa-onepage-file-picker__chip-label {
+	color: var(--link-unresolved-color);
+	opacity: var(--link-unresolved-opacity);
+}
+
 .quickAddModal .qa-onepage-file-picker__remove,
 .quickAddModal .qa-onepage-multi-suggester__remove {
 	display: inline-flex;
