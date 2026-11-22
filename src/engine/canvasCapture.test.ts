@@ -7,7 +7,7 @@ import {
 	resolveConfiguredCanvasCaptureTarget,
 	setCanvasTextCaptureContent,
 } from "./canvasCapture";
-import type { CaptureAction } from "./captureAction";
+import type { CaptureAction } from "../utils/captureAction";
 
 function createApp(overrides: Record<string, unknown> = {}): App {
 	const app = {

@@ -72,7 +72,7 @@ import {
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
-import { getCaptureAction, isEditorAction, usesSelectionAsCaptureValue, withoutCursorPosition, type CaptureAction } from "./captureAction";
+import { getCaptureAction, isEditorAction, usesSelectionAsCaptureValue, withoutCursorPosition, type CaptureAction } from "../utils/captureAction";
 import { createFileWithInput, getFileByPath } from "./vaultFiles";
 import { hasCursorMarker, isCaptureContentEmpty, isCursorMarkerOnly } from "../utils/capturePlacement";
 import { currentEditorView, currentFile, namesCurrentNote } from "../utils/currentFile";

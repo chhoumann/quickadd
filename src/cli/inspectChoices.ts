@@ -5,7 +5,7 @@ import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { getWritePosition } from "../engine/captureAction";
+import { getWritePosition } from "../utils/captureAction";
 import { deriveFolderMode } from "../utils/folderMode";
 import { flattenChoicesWithPath } from "../utils/choiceUtils";
 import { collectChoiceRequirements, getUnresolvedRequirements, listDeferredMacroSteps } from "../preflight/collectChoiceRequirements";

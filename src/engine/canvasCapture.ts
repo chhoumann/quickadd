@@ -5,7 +5,7 @@ import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import type { CaptureAction } from "./captureAction";
+import type { CaptureAction } from "../utils/captureAction";
 import { isTFileLike } from "../utils/isTFileLike";
 
 type CanvasDataNodeLike = {

@@ -9,7 +9,7 @@ import Dropdown from "../../components/Dropdown.svelte";
 import InsertAfterFields from "./InsertAfterFields.svelte";
 import InsertBeforeFields from "./InsertBeforeFields.svelte";
 import PropertyCaptureFields from "./PropertyCaptureFields.svelte";
-import { getWritePosition } from "../../../engine/captureAction";
+import { getWritePosition } from "../../../utils/captureAction";
 
 /**
  * Write-position dropdown. Changing it zeroes every mutually exclusive position

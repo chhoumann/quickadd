@@ -41,6 +41,7 @@ describe("LaTeXSuggester", () => {
 
 			expect(suggest("\\alpha")).toEqual(["\\alpha"]);
 			expect(suggest("\\sqrt")).toEqual(["\\sqrt"]);
+			expect(suggest("\\Delta")).toContain("\\Delta");
 		});
 
 		it("completes a command prefix", () => {

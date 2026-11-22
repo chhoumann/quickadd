@@ -11,7 +11,7 @@ import {
 	NAME_VALUE_REGEX,
 } from "../constants";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { getCaptureAction, isEditorAction } from "../engine/captureAction";
+import { getCaptureAction, isEditorAction } from "../utils/captureAction";
 import { templaterParseTemplate } from "../utils/templaterIntegration";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "../utils/capturePlacement";

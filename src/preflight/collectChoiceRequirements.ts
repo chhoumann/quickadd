@@ -57,7 +57,7 @@ import {
 	type DeferredStep,
 } from "./macroFormRoster";
 import { defaultDateVariableFormat } from "../utils/dateTokenCodec";
-import { usesSelectionAsCaptureValue } from "src/engine/captureAction";
+import { usesSelectionAsCaptureValue } from "src/utils/captureAction";
 
 interface CollectChoiceRequirementsOptions {
 	seedCaptureSelectionAsValue?: boolean;

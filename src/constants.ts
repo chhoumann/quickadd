@@ -43,10 +43,6 @@ export const FILE_REGEX = /{{FILE:([^\n\r{}]*)}}/i;
 // the format (it overlapped the capture class; every consumer trims group 2), and
 // no `{` in any interior class.
 export const DATE_VARIABLE_REGEX = /{{VDATE:([^\n\r},|{]*)(?:,([^\n\r}|{]*))?(?:\|([^\n\r}{]*))?}}/i;
-export const LINK_TO_CURRENT_FILE_REGEX = /{{LINKCURRENT}}/i;
-// {{LINKSECTION}} resolves to a link to the current file at the heading the
-// cursor is under, so the link scrolls there instead of the top.
-export const LINK_TO_CURRENT_SECTION_REGEX = /{{LINKSECTION}}/i;
 export const MARKDOWN_FILE_EXTENSION_REGEX = /\.md$/i;
 export const CANVAS_FILE_EXTENSION_REGEX = /\.canvas$/i;
 export const BASE_FILE_EXTENSION_REGEX = /\.base$/i;

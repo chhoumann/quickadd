@@ -186,7 +186,7 @@ export class PromptApi {
 	}
 }
 
-export function rethrowPromptError(error: unknown): never {
+function rethrowPromptError(error: unknown): never {
 	if (error instanceof MacroAbortError) {
 		throw error;
 	}

@@ -124,7 +124,7 @@ function didTemplaterHandleCursor(
  * Waits until the filesystem reports a stable mtime for the file or the timeout
  * elapses, rather than an arbitrary debounce.
  */
-export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
+async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
 	try {
 		const adapter = app.vault.adapter;
 		if (!("stat" in adapter) || typeof adapter.stat !== "function") return;
@@ -150,7 +150,7 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 	}
 }
 
-export function getTemplaterPlugin(app: App): TemplaterPluginLike | null {
+function getTemplaterPlugin(app: App): TemplaterPluginLike | null {
 	const plugin = getCommunityPlugin(app, "templater-obsidian");
 	return isRecord(plugin) ? plugin : null;
 }
@@ -274,7 +274,7 @@ export async function createNoteAfterTemplaterTrigger(
 	return file;
 }
 
-export async function waitForTemplaterTriggerOnCreateToComplete(
+async function waitForTemplaterTriggerOnCreateToComplete(
 	app: App,
 	file: TFile,
 	opts: { timeoutMs?: number; appearTimeoutMs?: number } = {},

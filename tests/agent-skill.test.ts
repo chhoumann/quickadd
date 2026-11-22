@@ -8,7 +8,7 @@ import type QuickAdd from "../src/main";
 import type ICaptureChoice from "../src/types/choices/ICaptureChoice";
 import { registerQuickAddCliHandlers } from "../src/cli/registerQuickAddCliHandlers";
 import { applyPackageImport, parseQuickAddPackage } from "../src/services/packageImportService";
-import { getWritePosition } from "../src/engine/captureAction";
+import { getWritePosition } from "../src/utils/captureAction";
 
 // skills/quickadd/SKILL.md is what agents follow. It is prose next to code that
 // changes, so check the parts an agent copies verbatim.

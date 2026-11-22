@@ -17,7 +17,7 @@ import { collectChoiceRequirements, getUnresolvedRequirements } from "./collectC
 import type { FieldGroup, FieldRequirement } from "./RequirementCollector";
 import { mergeRepeatedRequirement } from "./fieldRequirements";
 import { isDiscoveryMacro, markDiscoveryMacro, setPreparedChoiceInputs } from "./preparedChoiceInputs";
-import { usesSelectionAsCaptureValue } from "src/engine/captureAction";
+import { usesSelectionAsCaptureValue } from "src/utils/captureAction";
 
 export interface DiscoveryNoteField {
 	id: string;

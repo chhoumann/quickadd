@@ -78,8 +78,9 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
 		if (match) {
 			this.lastInput = match[1];
+			const queryLower = this.lastInput.toLowerCase();
 			suggestions = this.symbols.filter((val) =>
-				val.toLowerCase().includes(this.lastInput)
+				val.toLowerCase().includes(queryLower)
 			);
 		}
 
