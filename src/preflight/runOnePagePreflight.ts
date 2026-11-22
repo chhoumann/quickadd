@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import { TFile, type App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatter";
 import type QuickAdd from "src/main";
@@ -10,8 +10,11 @@ import { OnePageInputModal, type PreviewRow } from "./OnePageInputModal";
 import { likelyTargetFolderPath } from "src/utils/previewTargetFolder";
 import {
 	canonicalizeOnePageFileValue,
+	decodeFileValue,
 	FILE_VARIABLE_PREFIX,
+	fileLinkNameFromPath,
 } from "src/utils/fileSyntax";
+import { rememberFieldLinkTarget } from "src/utils/fieldLinkValues";
 import { toWikiLink } from "src/utils/linkWrap";
 import {
 	collectChoiceRequirements,
@@ -152,10 +155,30 @@ export async function runOnePagePreflight(
 
 		if (unresolved.length === 0) return false; // Everything prefilled, skip modal
 
-		const modalRequirements = unresolved.filter(
-			(requirement) => !requirement.runtimeOnly || discoveryPlan?.config.fieldUsages.has(requirement.id),
-		);
+		const asksAtRunTime = (requirement: (typeof unresolved)[number]): boolean =>
+			Boolean(requirement.runtimeOnly && !discoveryPlan?.config.fieldUsages.has(requirement.id)) ||
+			Boolean(choiceExecutor.promptProvider && requirement.fieldLink);
+		const modalRequirements = unresolved.filter((requirement) => !asksAtRunTime(requirement));
 		if (modalRequirements.length === 0) return false;
+
+		const renderFieldLinkPick = (target: string): string => {
+			const decoded = decodeFileValue(target);
+			if (decoded.kind !== "file") return target;
+			const hash = decoded.path.indexOf("#");
+			const path = hash === -1 ? decoded.path : decoded.path.slice(0, hash);
+			const subpath = hash === -1 ? undefined : decoded.path.slice(hash);
+			const file = app.vault.getAbstractFileByPath?.(path);
+			if (file instanceof TFile) {
+				return (
+					app.fileManager?.generateMarkdownLink?.(file, "", subpath) ??
+					`[[${fileLinkNameFromPath(path)}${subpath ?? ""}]]`
+				);
+			}
+			return `[[${fileLinkNameFromPath(path)}${subpath ?? ""}]]`;
+		};
+		const modalFieldLinkIds = new Set(
+			modalRequirements.filter((requirement) => requirement.fieldLink).map((requirement) => requirement.id),
+		);
 
 		// Show modal
 		// Optional live preview of a couple of key outputs (best-effort)
@@ -201,6 +224,20 @@ export async function runOnePagePreflight(
 								.map((req) => req.id),
 						);
 						for (const [k, v] of Object.entries(values)) {
+							if (modalFieldLinkIds.has(k)) {
+								if (Array.isArray(v)) {
+									const rendered = v.map((item) => renderFieldLinkPick(String(item)));
+									formatter["variables"].set(k, rendered);
+									rememberFieldLinkTarget(formatter["variables"], k, rendered, v.map(String));
+									continue;
+								}
+								if (typeof v === "string" && v) {
+									const rendered = renderFieldLinkPick(v);
+									formatter["variables"].set(k, rendered);
+									rememberFieldLinkTarget(formatter["variables"], k, rendered, v);
+									continue;
+								}
+							}
 							formatter["variables"].set(
 								k,
 								linklistKeys.has(k) && Array.isArray(v)
@@ -269,7 +306,9 @@ export async function runOnePagePreflight(
 				joinWith?: string;
 			}
 		>();
+		const fieldLinkMultiByKey = new Map<string, boolean>();
 		for (const req of modal?.activeRequirements ?? modalRequirements) {
+			if (req.fieldLink) fieldLinkMultiByKey.set(req.id, req.fieldLink.multiSelect);
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
 				const options = req.options ?? [];
 				const displayOptions = req.displayOptions ?? options;
@@ -313,6 +352,17 @@ export async function runOnePagePreflight(
 
 		const answerVariables = discoveryPlan ? new Map<string, unknown>() : choiceExecutor.variables;
 		Object.entries(values).forEach(([k, v]) => {
+			const linkMulti = fieldLinkMultiByKey.get(k);
+			if (linkMulti !== undefined) {
+				const picks = modal?.fieldLinkSelections.get(k) ?? [];
+				const rendered = picks.map(renderFieldLinkPick);
+				const answer = linkMulti ? rendered : (rendered[0] ?? "");
+				answerVariables.set(k, answer);
+				if (picks.length > 0) {
+					rememberFieldLinkTarget(answerVariables, k, answer, linkMulti ? [...picks] : picks[0]);
+				}
+				return;
+			}
 			const fileInfo = fileInfoByKey.get(k);
 			if (fileInfo !== undefined) {
 				const structuredPicks = modal?.fileSelections.get(k) ??

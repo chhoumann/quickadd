@@ -16,6 +16,7 @@ import { classifyStep } from "./macroCommandRole";
 import { buildFormRoster, type FormRosterEntry } from "./macroFormRoster";
 import { collectChoiceRequirements, getUnresolvedRequirements } from "./collectChoiceRequirements";
 import type { FieldGroup, FieldRequirement } from "./RequirementCollector";
+import { getFieldLinkTarget, rememberFieldLinkTarget } from "src/utils/fieldLinkValues";
 import { isDiscoveryMacro, markDiscoveryMacro, setPreparedChoiceInputs } from "./preparedChoiceInputs";
 
 export interface DiscoveryNoteField {
@@ -232,7 +233,10 @@ export function storeDiscoveryFormAnswers(
 		const values = new Map<string, unknown>();
 		for (const [fieldId, { variable, condition }] of step.bindings) {
 			if ((!condition || acceptsDiscoverySelection(condition, selections)) && answers.has(fieldId)) {
-				values.set(variable, answers.get(fieldId));
+				const answer = answers.get(fieldId);
+				values.set(variable, answer);
+				const target = getFieldLinkTarget(answers, fieldId);
+				if (target !== undefined) rememberFieldLinkTarget(values, variable, answer, target);
 			}
 		}
 		setPreparedChoiceInputs(executor, step.occurrenceId, { choiceId: step.choiceId, values, discovery });

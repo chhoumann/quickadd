@@ -1,4 +1,5 @@
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
+import { getFieldLinkTarget, rememberFieldLinkTarget } from "src/utils/fieldLinkValues";
 import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 
 export interface PreparedChoiceInputs {
@@ -71,6 +72,8 @@ export async function withPreparedChoiceInputs<T>(
 	for (const [key, value] of inputs.values) {
 		if (executor.variables.get(key) != null) continue;
 		executor.variables.set(key, value);
+		const target = getFieldLinkTarget(inputs.values, key);
+		if (target !== undefined) rememberFieldLinkTarget(executor.variables, key, value, target);
 		if (key === "value") temporaryValue = true;
 	}
 	try {

@@ -85,6 +85,7 @@ export class OnePageInputModal extends Modal {
 	private readonly result = new Map<string, string>();
 	public readonly multiSelections = new Map<string, string[]>();
 	public readonly fileSelections = new Map<string, string[]>();
+	public readonly fieldLinkSelections = new Map<string, string[]>();
 	public readonly discoverySelections = new Map<string, TemplateNoteSelection>();
 	private readonly discoverySuggesters: NoteDiscoveryInputSuggest[] = [];
 	private readonly fieldElements = new Map<string, HTMLElement[]>();
@@ -321,6 +322,8 @@ export class OnePageInputModal extends Modal {
 		else this.multiSelections.delete(req.id);
 		if (control.fileSelections) this.fileSelections.set(req.id, control.fileSelections);
 		else this.fileSelections.delete(req.id);
+		if (control.fieldLinkSelections) this.fieldLinkSelections.set(req.id, control.fieldLinkSelections);
+		else this.fieldLinkSelections.delete(req.id);
 		if (control.dateParseError) this.dateParseErrors.add(req.id);
 		else this.dateParseErrors.delete(req.id);
 	}
@@ -686,6 +689,10 @@ export class OnePageInputModal extends Modal {
 		}
 		for (const [id, picks] of this.multiSelections) {
 			if (this.isFieldVisible(id)) out[id] = [...picks];
+		}
+		for (const [id, picks] of this.fieldLinkSelections) {
+			if (!this.isFieldVisible(id)) continue;
+			out[id] = requirementsById.get(id)?.fieldLink?.multiSelect ? [...picks] : (picks[0] ?? "");
 		}
 		return out;
 	}

@@ -32,6 +32,8 @@ export interface FieldRequirement {
 	filters?: string; // serialized filters for FIELD variables
 	/** field-suggest: the `{{FIELD:...}}` specifier, when `id` is the run variable its `|name:` names. */
 	fieldSpecifier?: string;
+	/** field-suggest with `|link`: the values are notes, picked as links. */
+	fieldLink?: { multiSelect: boolean; defaultValues?: string[] };
 	source?: "collected" | "script"; // provenance for UX badges
 	/** Any path usage disables image paste for every occurrence of this field. */
 	pathContext?: boolean;

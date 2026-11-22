@@ -107,8 +107,32 @@ vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
 	},
 }));
 
-const { suggesterConfigs } = vi.hoisted(() => ({
+const { suggesterConfigs, fieldLinkSuggesters } = vi.hoisted(() => ({
 	suggesterConfigs: [] as SuggesterInputSuggestConfig[],
+	fieldLinkSuggesters: [] as Array<{
+		onSelect: (pick: { value: string; display: string; unresolved: boolean; title?: string }) => void;
+		pickedLinks: () => readonly string[];
+	}>,
+}));
+
+vi.mock("src/gui/suggesters/FieldLinkInputSuggest", () => ({
+	FieldLinkInputSuggest: class {
+		close = vi.fn();
+		destroy = vi.fn();
+		constructor(
+			_app: App,
+			_input: HTMLInputElement,
+			_specifier: string,
+			pickedLinks: () => readonly string[],
+			onSelect: (pick: { value: string; display: string; unresolved: boolean; title?: string }) => void,
+		) {
+			fieldLinkSuggesters.push({ onSelect, pickedLinks });
+		}
+		resolveTypedSync(text: string) {
+			const name = text.trim().replace(/^\[\[|\]\]$/g, "");
+			return name ? { value: `[[${name}]]`, display: name, unresolved: name === "Ghost" } : null;
+		}
+	},
 }));
 
 vi.mock("src/gui/suggesters/SuggesterInputSuggest", async (importOriginal) => {
@@ -173,6 +197,7 @@ describe("OnePageInputModal", () => {
 		ensureObsidianDomPolyfills();
 		filePickerSuggesters.length = 0;
 		suggesterConfigs.length = 0;
+		fieldLinkSuggesters.length = 0;
 		noticeMessages.length = 0;
 		noteSelections.length = 0;
 		noteSuggesterSetup.mockReset();
@@ -1101,6 +1126,68 @@ describe("OnePageInputModal", () => {
 			modalButton(modal).click();
 			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
 			expect(noticeMessages).toEqual([]);
+		});
+	});
+
+	describe("link FIELD picker (issue #2295)", () => {
+		const chipLabels = (modal: OnePageInputModal) =>
+			Array.from(modal.contentEl.querySelectorAll(".qa-onepage-field-link-picker .qa-onepage-file-picker__chip"), (chip) => ({
+				label: chip.querySelector(".qa-onepage-file-picker__chip-label")?.textContent,
+				unresolved: chip.classList.contains("is-unresolved"),
+			}));
+
+		it("starts a single link field with its default and replaces it on a pick", () => {
+			const id = "FIELD:author|link";
+			const modal = new OnePageInputModal({} as App, [
+				{ id, label: "author", type: "field-suggest", defaultValue: "[[Ted Chiang]]", fieldLink: { multiSelect: false } },
+			], new Map());
+			expect(modal.fieldLinkSelections.get(id)).toEqual(["[[Ted Chiang]]"]);
+
+			fieldLinkSuggesters[0].onSelect({ value: "[[Ghost]]", display: "Ghost", unresolved: true });
+
+			expect(modal.fieldLinkSelections.get(id)).toEqual(["[[Ghost]]"]);
+			expect(chipLabels(modal)).toEqual([{ label: "Ghost", unresolved: true }]);
+		});
+
+		it("adds picks to a list, once each, and drops the last on Backspace", () => {
+			const id = "FIELD:categories|multi|link";
+			const modal = new OnePageInputModal({} as App, [
+				{ id, label: "categories", type: "field-suggest", fieldLink: { multiSelect: true, defaultValues: ["[[Books]]"] } },
+			], new Map());
+			const [suggester] = fieldLinkSuggesters;
+			suggester.onSelect({ value: "[[Reading]]", display: "Reading", unresolved: false });
+			suggester.onSelect({ value: "[[Books]]", display: "Books", unresolved: false });
+
+			expect(modal.fieldLinkSelections.get(id)).toEqual(["[[Books]]", "[[Reading]]"]);
+			expect(suggester.pickedLinks()).toEqual(["[[Books]]", "[[Reading]]"]);
+			modal.contentEl.querySelector<HTMLInputElement>(".qa-onepage-file-picker__input")!
+				.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+			expect(modal.fieldLinkSelections.get(id)).toEqual(["[[Books]]"]);
+		});
+
+		it("links a name typed but not picked when the form is submitted", async () => {
+			const id = "FIELD:categories|multi|link";
+			const modal = new OnePageInputModal({} as App, [
+				{ id, label: "categories", type: "field-suggest", fieldLink: { multiSelect: true } },
+			], new Map());
+			fieldLinkSuggesters[0].onSelect({ value: "[[Books]]", display: "Books", unresolved: false });
+			modal.contentEl.querySelector<HTMLInputElement>(".qa-onepage-file-picker__input")!.value = "Ghost";
+
+			modalButton(modal).click();
+
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "[[Books]], [[Ghost]]" });
+			expect(modal.fieldLinkSelections.get(id)).toEqual(["[[Books]]", "[[Ghost]]"]);
+		});
+
+		it("previews a list field's picks as a list", async () => {
+			const id = "FIELD:categories|multi|link";
+			const computePreview = vi.fn(() => []);
+			const modal = new OnePageInputModal({} as App, [
+				{ id, label: "categories", type: "field-suggest", fieldLink: { multiSelect: true, defaultValues: ["[[Books]]"] } },
+			], new Map(), { computePreview });
+			await (modal as any).updatePreviews();
+			expect(computePreview).toHaveBeenLastCalledWith({ [id]: ["[[Books]]"] });
+			modal.close();
 		});
 	});
 

@@ -2,6 +2,7 @@ import { DropdownComponent, Setting, TextAreaComponent, TextComponent, type App 
 import { FIELD_VARIABLE_PREFIX } from "src/constants";
 import { attachCalendarToggle, createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
+import { FieldLinkInputSuggest, type FieldLinkPick } from "src/gui/suggesters/FieldLinkInputSuggest";
 import { FilePickerInputSuggest, type FilePickerOption } from "src/gui/suggesters/FilePickerInputSuggest";
 import {
 	customSuggesterOption,
@@ -27,6 +28,8 @@ export interface FieldControl {
 	value: string;
 	multiSelections?: string[];
 	fileSelections?: string[];
+	/** A link FIELD's picked links, in pick order. */
+	fieldLinkSelections?: string[];
 	dateParseError: boolean;
 	suggesters: Array<{ close(): void; destroy(): void }>;
 	dispose: Array<() => void>;
@@ -345,19 +348,17 @@ export class OnePageFieldRenderer {
 				break;
 			}
 			case "field-suggest": {
+				const fieldSpecifier = this.fieldSpecifierOf(req);
+				if (req.fieldLink) {
+					this.renderFieldLinkField(req, req.fieldLink, fieldSpecifier, starting, setValue);
+					break;
+				}
 				const setting = this.setting(req);
 				const input = new TextComponent(setting.controlEl);
 				input
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
-				// Attach inline suggester powered by vault data & filters encoded in
-				// req.id. Collected FIELD requirements are keyed "FIELD:<specifier>";
-				// strip the prefix so the suggester parses the bare field specifier.
-				const fieldSpecifier = req.fieldSpecifier ??
-					(req.id.startsWith(FIELD_VARIABLE_PREFIX)
-						? req.id.slice(FIELD_VARIABLE_PREFIX.length)
-						: req.id);
 				try {
 					control.suggesters.push(new FieldValueInputSuggest(this.app, input.inputEl, fieldSpecifier));
 				} catch {
@@ -575,6 +576,95 @@ export class OnePageFieldRenderer {
 			input.inputEl.value = "";
 			sync();
 		};
+
+		sync();
+	}
+
+	private fieldSpecifierOf(req: FieldRequirement): string {
+		if (req.fieldSpecifier) return req.fieldSpecifier;
+		return req.id.startsWith(FIELD_VARIABLE_PREFIX)
+			? req.id.slice(FIELD_VARIABLE_PREFIX.length)
+			: req.id;
+	}
+
+	private renderFieldLinkField(
+		req: FieldRequirement,
+		fieldLink: NonNullable<FieldRequirement["fieldLink"]>,
+		fieldSpecifier: string,
+		starting: string,
+		setValue: (id: string, value: string) => void,
+	): void {
+		const control = this.host.controlFor(req);
+		const { multiSelect } = fieldLink;
+		const setting = this.setting(req);
+		setting.settingEl.addClass("qa-onepage-file-picker-setting");
+		const container = setting.controlEl.createDiv({
+			cls: "qa-onepage-file-picker qa-onepage-field-link-picker",
+		});
+		const selectionEl = container.createDiv({ cls: "qa-onepage-file-picker__selection" });
+		selectionEl.setAttribute("aria-live", "polite");
+		const input = new TextComponent(container);
+		input.inputEl.addClass("qa-onepage-file-picker__input");
+		input.setPlaceholder(req.placeholder ?? (multiSelect ? "Search and add notes..." : "Search notes..."));
+		input.inputEl.setAttribute(
+			"aria-label",
+			multiSelect ? `Add notes for ${req.label}` : `Choose note for ${req.label}`,
+		);
+
+		const picks: FieldLinkPick[] = [];
+		const sync = () => {
+			control.fieldLinkSelections = picks.map((pick) => pick.value);
+			setValue(req.id, control.fieldLinkSelections.join(", "));
+			selectionEl.empty();
+			selectionEl.toggleClass("qa-hidden", picks.length === 0);
+			for (const pick of picks) {
+				const chip = selectionEl.createDiv({ cls: "qa-onepage-file-picker__chip" });
+				chip.toggleClass("is-unresolved", pick.unresolved);
+				chip.setAttribute("title", pick.title ?? pick.value);
+				chip.createSpan({ cls: "qa-onepage-file-picker__chip-label", text: pick.display });
+				const remove = chip.createEl("button", { cls: "qa-onepage-file-picker__remove", text: "×" });
+				remove.type = "button";
+				remove.setAttribute("aria-label", `Remove ${pick.display}`);
+				remove.addEventListener("click", () => {
+					picks.splice(picks.indexOf(pick), 1);
+					sync();
+					input.inputEl.focus();
+				});
+			}
+		};
+		const add = (pick: FieldLinkPick) => {
+			if (!pick.value || picks.some((picked) => picked.value === pick.value)) return;
+			if (!multiSelect) picks.length = 0;
+			picks.push(pick);
+			sync();
+		};
+
+		const suggester = new FieldLinkInputSuggest(
+			this.app,
+			input.inputEl,
+			fieldSpecifier,
+			() => picks.map((pick) => pick.value),
+			add,
+			multiSelect,
+		);
+		control.suggesters.push(suggester);
+		for (const value of multiSelect ? (fieldLink.defaultValues ?? []) : [starting]) {
+			const pick = suggester.resolveTypedSync(value);
+			if (pick) add(pick);
+		}
+		control.commitDraft = () => {
+			const pick = suggester.resolveTypedSync(input.inputEl.value);
+			if (!pick) return;
+			add(pick);
+			input.inputEl.value = "";
+		};
+
+		input.inputEl.addEventListener("keydown", (event) => {
+			if (event.key !== "Backspace" || input.inputEl.value !== "" || picks.length === 0) return;
+			event.preventDefault();
+			picks.pop();
+			sync();
+		});
 
 		sync();
 	}
