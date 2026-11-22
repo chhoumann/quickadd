@@ -90,7 +90,7 @@ describe("CommandSequenceEditor silent-add feedback", () => {
 		try {
 			editor.destroy();
 
-			// Obsidian command, editor command and choice inputs.
+			// Obsidian command, user script and choice inputs.
 			expect(destroy).toHaveBeenCalledTimes(3);
 		} finally {
 			destroy.mockRestore();

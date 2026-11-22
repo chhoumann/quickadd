@@ -96,7 +96,6 @@ vi.mock("src/gui/MathModal", () => ({
 vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	__esModule: true,
 	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
 		async runAndGetOutput() {
 			return "";
 		}

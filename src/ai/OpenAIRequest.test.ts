@@ -649,6 +649,51 @@ describe("OpenAIRequest", () => {
 		});
 	});
 
+	describe("2xx replies that are not answers", () => {
+		it.each([
+			["an error object", { error: { message: "Model unavailable" } }],
+			["an error string", { error: "Model unavailable" }],
+		])("rejects and logs an error for %s sent with status 200", async (_name, json) => {
+			getModelProviderMock.mockReturnValue(openAIProvider);
+			requestUrlMock.mockResolvedValue({ status: 200, json });
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).rejects.toThrow(
+				"Error while making request to OpenAI: Model unavailable",
+			);
+			const [, result] = finishAIRequestLogEntryMock.mock.calls[0];
+			expect(result).toMatchObject({ status: "error", errorMessage: "Model unavailable" });
+		});
+
+		it("rejects a reply without the provider's envelope", async () => {
+			getModelProviderMock.mockReturnValue(anthropicProvider);
+			requestUrlMock.mockResolvedValue({ status: 200, json: { id: "msg-1" } });
+			const makeRequest = OpenAIRequest(makeApp(), "key", anthropicModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).rejects.toThrow('The response has no "content" array.');
+		});
+
+		it("names the block reason when Gemini blocks the prompt", async () => {
+			getModelProviderMock.mockReturnValue(geminiProvider);
+			requestUrlMock.mockResolvedValue({ status: 200, json: { promptFeedback: { blockReason: "SAFETY" } } });
+			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).rejects.toThrow("The prompt was blocked (SAFETY).");
+		});
+
+		it.each(["", null])("returns an empty answer when the message content is %j", async (content) => {
+			getModelProviderMock.mockReturnValue(openAIProvider);
+			requestUrlMock.mockResolvedValue({
+				json: openAIResponse({
+					choices: [{ finish_reason: "stop", index: 0, message: { role: "assistant", content } }],
+				}),
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).resolves.toMatchObject({ content: "" });
+		});
+	});
+
 	describe("logging lifecycle", () => {
 		it("logs a pending entry then a success entry with usage and duration", async () => {
 			getModelProviderMock.mockReturnValue(openAIProvider);

@@ -12,13 +12,9 @@ import { populateModelDropdown } from "../modelSelect";
 import { activeModelRef } from "src/ai/Provider";
 import { SettingsDialogModal } from "./SettingsDialogModal";
 
-/**
- * Edits the live command in place (the reference the caller persists). Closing
- * without Save restores it from the snapshot taken when the dialog opened.
- */
+/** Edits a working copy of the step; Save resolves it, anything else resolves null. */
 export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssistantCommand> {
-	private settings: IAIAssistantCommand;
-	private readonly originalSettings: IAIAssistantCommand;
+	private readonly settings: IAIAssistantCommand;
 	private showAdvancedSettings = false;
 	private promptTemplateSuggester: GenericTextSuggester | null = null;
 
@@ -27,11 +23,16 @@ export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssi
 		return estimateTokenCount(this.settings.systemPrompt);
 	}
 
-	constructor(app: App, settings: IAIAssistantCommand) {
+	constructor(app: App, command: IAIAssistantCommand) {
 		super(app);
 
-		this.settings = settings;
-		this.originalSettings = this.cloneSettings(settings);
+		// Spread, not structuredClone: the command is a Svelte $state proxy when
+		// edited from the macro command list, and structuredClone throws on one.
+		this.settings = {
+			...command,
+			promptTemplate: { ...command.promptTemplate },
+			modelParameters: { ...command.modelParameters },
+		};
 
 		this.open();
 		this.display();
@@ -39,25 +40,6 @@ export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssi
 
 	protected save(): IAIAssistantCommand {
 		return this.settings;
-	}
-
-	// Proxy-safe deep clone of the editable fields. Avoids structuredClone, which
-	// throws DataCloneError on a Svelte dev-mode $state proxy (the command passed in
-	// is one such proxy when edited from the macro command list).
-	private cloneSettings(settings: IAIAssistantCommand): IAIAssistantCommand {
-		return {
-			...settings,
-			promptTemplate: { ...settings.promptTemplate },
-			modelParameters: { ...settings.modelParameters },
-		};
-	}
-
-	// Restores the nested objects too, so no edit made in this session survives.
-	protected discard(): void {
-		const snapshot = this.cloneSettings(this.originalSettings);
-		Object.assign(this.settings, snapshot);
-		this.settings.promptTemplate = snapshot.promptTemplate;
-		this.settings.modelParameters = snapshot.modelParameters;
 	}
 
 	private display(): void {
@@ -100,8 +82,6 @@ export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssi
 		this.addShowAdvancedSettingsToggle(this.contentEl);
 
 		if (this.showAdvancedSettings) {
-			if (!this.settings.modelParameters)
-				this.settings.modelParameters = {};
 			addSamplingParamSettings(
 				this.contentEl,
 				this.settings.modelParameters,

@@ -47,7 +47,7 @@ const DEFAULT_WHAT = "this part of QuickAdd";
  * `<svelte:boundary>`.
  *
  * For reactive updates after mount, pass a `$state`-backed props object and
- * mutate it (see createCommandListProps).
+ * mutate it (see reactiveProps).
  */
 export function mountComponent<Props extends object, Exports extends object>(
 	target: HTMLElement,

@@ -1,6 +1,7 @@
+// Member order is the macro builder's dropdown order.
 export enum EditorCommandType {
-	Cut = "Cut",
 	Copy = "Copy",
+	Cut = "Cut",
 	Paste = "Paste",
 	PasteWithFormat = "Paste with format",
 	SelectActiveLine = "Select active line",

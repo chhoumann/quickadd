@@ -18,7 +18,6 @@ vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSetting
 vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({ default: class {} }));
 vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
 		async runAndGetOutput(code: string) {
 			scriptRuns.push(code);
 			return "SCRIPT-RAN";
@@ -30,9 +29,6 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 		async runAndGetOutput(name: string) {
 			macroRuns.push(name);
 			return "MACRO-RAN";
-		}
-		getVariables() {
-			return new Map();
 		}
 	},
 }));

@@ -171,6 +171,31 @@ describe("OpenAI tool turns use the Responses API on api.openai.com", () => {
 	});
 });
 
+describe("2xx replies on the tool-calling path", () => {
+	it("rejects an error envelope sent with status 200", async () => {
+		requestUrlMock.mockReturnValueOnce(ok({ error: { message: "Model unavailable" } }));
+
+		await expect(
+			chatRequest("sk", gpt6, openaiCompatible("https://openrouter.ai/api/v1", "OpenRouter"), toolRequest()),
+		).rejects.toThrow("Error while making request to OpenRouter: Model unavailable");
+	});
+
+	it("accepts a Responses API answer whose error field is null", async () => {
+		requestUrlMock.mockReturnValueOnce(
+			ok({
+				id: "resp_3",
+				status: "completed",
+				error: null,
+				output: [{ id: "msg_1", type: "message", role: "assistant", content: [{ type: "output_text", text: "Hi" }] }],
+			}),
+		);
+
+		const res = await chatRequest("sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest());
+
+		expect(res.content).toBe("Hi");
+	});
+});
+
 describe("OpenAI-compatible endpoints keep Chat Completions", () => {
 	it.each([
 		["a third-party endpoint", "https://api.groq.com/openai/v1"],

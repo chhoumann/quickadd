@@ -19,7 +19,7 @@ export function stripShadow<T extends Reorderable>(items: readonly T[]): T[] {
 }
 
 /** What a drop needs to undo an over-eager placeholder strip: the item and where it stood. */
-export interface PlaceholderRecovery<T> {
+interface PlaceholderRecovery<T> {
 	item: T;
 	index: number;
 }
@@ -32,7 +32,7 @@ export interface PlaceholderRecovery<T> {
  * list without it. The shadow is a spread-copy of the item, so restoring the real
  * id yields a faithful stand-in in any zone.
  */
-export function capturePlaceholderRecovery<T extends Reorderable>(
+function capturePlaceholderRecovery<T extends Reorderable>(
 	items: readonly T[],
 	draggedId: string,
 ): PlaceholderRecovery<T> | null {

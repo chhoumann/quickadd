@@ -6,10 +6,8 @@ import type {
 import { ButtonComponent, Notice, Setting } from "obsidian";
 import CommandList from "./CommandList.svelte";
 import { editorCommands } from "./editorCommands";
-import {
-	createCommandListProps,
-	type CommandListProps,
-} from "./commandListProps.svelte";
+import type { CommandListProps } from "./commandListProps";
+import { reactiveProps } from "../svelte/reactiveProps.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type { ICommand } from "../../types/macros/ICommand";
@@ -183,7 +181,7 @@ export class CommandSequenceEditor {
 	private renderCommandList(parent: HTMLElement): boolean {
 		const commandListEl = parent.createDiv("commandList");
 
-		this.commandListProps = createCommandListProps({
+		this.commandListProps = reactiveProps<CommandListProps>({
 			app: this.app,
 			plugin: this.plugin,
 			commands: this.commandsRef,
@@ -325,12 +323,12 @@ export class CommandSequenceEditor {
 
 		const addEditorCommandFromDropdown = () => {
 			if (!dropdownComponent.getValue()) return;
-			const Command = editorCommands.get(dropdownComponent.getValue());
-			if (!Command) {
+			const create = editorCommands.get(dropdownComponent.getValue());
+			if (!create) {
 				log.logError("invalid editor command type");
 				throw new Error("invalid editor command type");
 			}
-			this.addCommand(new Command());
+			this.addCommand(create());
 			dropdownComponent.setValue("");
 		};
 

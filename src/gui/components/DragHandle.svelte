@@ -25,7 +25,7 @@
         label: string;
         dragDisabled: boolean;
         /** Arm the list's pointer drag (flip dragDisabled=false). Must not preventDefault. */
-        onDragStart: () => void;
+        onDragStart: (event: PointerEvent) => void;
         onMoveUp?: () => void;
         onMoveDown?: () => void;
         size?: number;
@@ -59,7 +59,7 @@
     aria-label={label}
     aria-keyshortcuts={reorderable ? "ArrowUp ArrowDown" : undefined}
     tabindex={dragDisabled ? 0 : -1}
-    onpointerdown={() => onDragStart()}
+    onpointerdown={onDragStart}
     onkeydown={onKeyDown}
 >
     <ObsidianIcon iconId="grip-vertical" {size} />

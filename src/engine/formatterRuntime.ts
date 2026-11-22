@@ -20,9 +20,7 @@ export function createFormatterExecutionRuntime(
 				choiceExecutor,
 				variables,
 			);
-			const output =
-				(await engine.runAndGetOutput(macroName, { label }, choiceChain)) ?? "";
-			return { output, variables: engine.getVariables() };
+			return engine.runAndGetOutput(macroName, { label }, choiceChain);
 		},
 
 		async runTemplate(request) {
@@ -56,8 +54,7 @@ export function createFormatterExecutionRuntime(
 				variables,
 				choiceChain,
 			);
-			const output = await engine.runAndGetOutput(code);
-			return { output, variables: engine.params.variables };
+			return engine.runAndGetOutput(code);
 		},
 	};
 	return runtime;

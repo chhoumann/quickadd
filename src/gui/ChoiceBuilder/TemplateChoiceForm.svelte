@@ -106,24 +106,10 @@ function onFolderModeChange(value: string) {
 }
 
 let folderInputValue = $state("");
-let folderSuggester: ExclusiveSuggester | undefined;
 
 function attachFolderSuggester(el: HTMLInputElement | HTMLTextAreaElement) {
-	folderSuggester = new ExclusiveSuggester(
-		app,
-		el,
-		allFolders,
-		choice.folder.folders,
-	);
-	return folderSuggester;
+	return new ExclusiveSuggester(app, el, allFolders, () => choice.folder.folders);
 }
-
-// Keep the exclusion set in sync with the current folder list. Tolerates a
-// destroyed suggester after the input unmounts on a mode switch; the input is
-// recreated with a fresh suggester when "specified" mode returns.
-$effect(() => {
-	folderSuggester?.updateCurrentItems(choice.folder.folders);
-});
 
 function addFolder() {
 	const input = folderInputValue.trim();

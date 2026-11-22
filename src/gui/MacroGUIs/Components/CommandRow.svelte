@@ -14,7 +14,7 @@
 		onMoveDown,
 	}: {
 		command: ICommand;
-		startDrag: () => void;
+		startDrag: (event: PointerEvent) => void;
 		dragDisabled: boolean;
 		onDeleteCommand: (commandId: string) => void;
 		/** Shows the settings button when the step has something to configure. */

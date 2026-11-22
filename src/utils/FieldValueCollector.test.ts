@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import type { CachedMetadata, TFile } from "obsidian";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
-import { collectFieldValuesProcessed } from "./FieldValueCollector";
+import { collectFieldValuesProcessed, generateFieldCacheKey } from "./FieldValueCollector";
+import { FieldSuggestionParser } from "./FieldSuggestionParser";
 
 /** An app whose vault holds `files`, each with the frontmatter `frontmatterOf` returns. */
 function vaultWith<F extends { path: string }>(
@@ -73,5 +74,13 @@ Id:: 999999
 
 		expect(first).toHaveLength(1500);
 		expect(second).toEqual(first);
+	});
+});
+
+describe("generateFieldCacheKey", () => {
+	it("keeps one folder named with a comma apart from two folders", () => {
+		const key = (input: string) => generateFieldCacheKey(FieldSuggestionParser.parse(input).filters);
+
+		expect(key("status|exclude-folder:A,B")).not.toBe(key("status|exclude-folder:A|exclude-folder:B"));
 	});
 });

@@ -8,6 +8,7 @@ import type { PromptRunContext, PromptScopeKind } from "./promptScope";
  * inline scripts. The engines implement it (`src/engine/formatterRuntime.ts`)
  * and hand it to the formatter they build, because the engines build
  * formatters and a formatter that imported an engine would close that loop.
+ * Macros and inline scripts write to the `variables` map they are given.
  */
 export interface FormatterExecutionRuntime {
 	runMacro(request: {
@@ -16,7 +17,7 @@ export interface FormatterExecutionRuntime {
 		choiceExecutor: IChoiceExecutor;
 		variables: Map<string, unknown>;
 		choiceChain: ChoiceChain;
-	}): Promise<{ output: string; variables: Map<string, unknown> }>;
+	}): Promise<string>;
 
 	runTemplate(request: {
 		templatePath: string;
@@ -35,5 +36,5 @@ export interface FormatterExecutionRuntime {
 		choiceExecutor: IChoiceExecutor;
 		variables: Map<string, unknown>;
 		choiceChain: ChoiceChain;
-	}): Promise<{ output: unknown; variables: Record<string, unknown> }>;
+	}): Promise<unknown>;
 }

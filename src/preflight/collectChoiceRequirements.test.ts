@@ -27,6 +27,7 @@ import {
 	listDeferredMacroSteps,
 } from "./collectChoiceRequirements";
 import { captureTargetKeyFor, readPreselectedCaptureTarget } from "./captureTargetKey";
+import { applyFolderMode } from "src/utils/folderMode";
 
 const {
 	getMarkdownFilesInFolderMock,
@@ -357,6 +358,22 @@ describe("collectChoiceRequirements - template include scanning", () => {
 
 		expect(requirements.map((requirement) => requirement.id)).toEqual(["client", "fname", "body"]);
 	});
+
+	it.each(["active-file", "obsidian-default", "prompt"] as const)(
+		"does not require a token in configured folders the %s mode never reads",
+		async (mode) => {
+			templateBodies.set("Templates/Source.md", "Body");
+			const templateChoice = createTemplateChoice("Templates/Source.md");
+			templateChoice.folder = applyFolderMode(
+				{ ...templateChoice.folder, folders: ["Archive/{{VALUE:IgnoredFolder}}"] },
+				mode,
+			);
+
+			const requirements = await collect(templateChoice, createChoiceExecutor());
+
+			expect(requirements.map((requirement) => requirement.id)).not.toContain("IgnoredFolder");
+		},
+	);
 
 	it("collects requirements from TEMPLATE includes in Template file names", async () => {
 		templateBodies.set("Templates/Source.md", "Body");

@@ -70,8 +70,8 @@
 		onChange(folders.filter((folder) => folder !== path));
 	}
 
-	let startDrag = () => {
-		drag.startDrag();
+	let startDrag = (event: PointerEvent) => {
+		drag.startDrag(event);
 	};
 </script>
 

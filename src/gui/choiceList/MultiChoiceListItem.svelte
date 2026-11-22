@@ -30,7 +30,7 @@
         roots: IChoice[];
         collapseId: string;
         dragDisabled: boolean;
-        startDrag: (e?: Event) => void;
+        startDrag: (event: PointerEvent) => void;
         app: App;
         actions: ChoiceListActions;
         forceDragDisabled?: boolean;

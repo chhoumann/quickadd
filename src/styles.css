@@ -631,7 +631,6 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 }
 
 .quickAddModal .qa-vdate-input,
-.quickAddModal .qa-template-format-input,
 .quickAddModal .qa-folder-path-input {
 	width: 100%;
 }
@@ -643,17 +642,6 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	max-width: none;
 	width: 100%;
 	text-align: left;
-}
-
-.quickAddModal .qa-template-format-input {
-	margin-bottom: 8px;
-}
-
-.quickAddModal .qa-modal-button-row {
-	display: flex;
-	justify-content: flex-end;
-	gap: 0.5rem;
-	margin-top: 1rem;
 }
 
 .quickAddModal .qa-prompt-actions {
@@ -1218,19 +1206,6 @@ body:has(> .modal-container:not(.quickAddModal)) .quickAddModal .qa-peek-button 
 	min-height: 10rem;
 }
 
-.qa-choice-icon-setting-preview {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex: 0 0 auto;
-	color: var(--text-muted);
-}
-
-.qa-choice-icon-input {
-	min-width: 12rem;
-	max-width: 100%;
-}
-
 /* docs.ts - documentation links (#1541). Obsidian deliberately mutes links inside
    `.setting-item-description` (`--link-color: var(--text-muted)`), so a bare anchor
    there reads as prose, which is a large part of why QuickAdd's docs stayed
@@ -1640,17 +1615,6 @@ body:has(> .modal-container:not(.quickAddModal)) .quickAddModal .qa-peek-button 
 	}
 }
 
-.chooseFolderWhenCreatingNoteContainer {
-	display: flex;
-	align-content: center;
-	justify-content: space-between;
-	margin-bottom: 10px;
-}
-
-.chooseFolderFromSubfolderContainer {
-    margin: 20px 0 0 0;
-}
-
 .clickable:hover {
 	cursor: pointer;
 }
@@ -2028,11 +1992,6 @@ body:has(> .modal-container:not(.quickAddModal)) .quickAddModal .qa-peek-button 
 
 .qa-unresolved-pill {
   background: var(--color-red, #e74c3c);
-  color: white;
-}
-
-.qa-create-pill {
-  background: var(--color-green, #27ae60);
   color: white;
 }
 

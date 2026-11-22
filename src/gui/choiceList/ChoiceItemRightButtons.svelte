@@ -24,7 +24,7 @@
         onConfigureChoice: () => void;
         onToggleCommand: () => void;
         onDuplicateChoice: () => void;
-        onDragHandleDown: (e?: Event) => void;
+        onDragHandleDown: (event: PointerEvent) => void;
         onMoveUp?: () => void;
         onMoveDown?: () => void;
         onOpenMenu?: (anchor: HTMLElement) => void;

@@ -25,6 +25,7 @@ import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDisc
 import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
 import { getTemplateFile } from "src/utils/templateFolderUtils";
 import { isFolder } from "src/utils/vaultQueries";
+import { deriveFolderMode } from "src/utils/folderMode";
 import { log } from "src/logger/logManager";
 import {
 	getUserScriptPreloadKey,
@@ -177,7 +178,9 @@ async function collectForTemplateChoice(
 		await collector.scanString(choice.templatePath, true, "templatePath");
 	}
 
-	if (choice.folder?.enabled) {
+	// Only the specified mode formats the configured folders; the engine never
+	// reads them in the other modes, so a token there must not be required.
+	if (choice.folder && deriveFolderMode(choice.folder) === "specified") {
 		for (const folder of choice.folder.folders ?? []) {
 			await scanContentWithTemplateIncludes(
 				app,

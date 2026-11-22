@@ -640,10 +640,47 @@ export function buildChatBody(
 	}
 }
 
+/** The array every successful reply carries on this wire. */
+function envelopeKey(wire: ChatWire): string {
+	switch (wire) {
+		case "anthropic":
+			return "content";
+		case "gemini":
+			return "candidates";
+		case "openai-responses":
+			return "output";
+		default:
+			return "choices";
+	}
+}
+
+/**
+ * Reject a 2xx reply that is not an answer: an error envelope (gateways such
+ * as OpenRouter report some failures with status 200) or a body without the
+ * wire's envelope. The Responses API sends `error: null` on success, so only a
+ * non-null error counts.
+ */
+function assertChatEnvelope(wire: ChatWire, json: Record<string, unknown>): void {
+	const error = json.error as { message?: unknown } | string | null | undefined;
+	if (error !== null && error !== undefined) {
+		const message = typeof error === "string" ? error : error.message;
+		throw new Error(typeof message === "string" ? message : JSON.stringify(error));
+	}
+	const key = envelopeKey(wire);
+	if (Array.isArray(json[key])) return;
+	const blockReason = (json.promptFeedback as { blockReason?: unknown } | undefined)?.blockReason;
+	throw new Error(
+		typeof blockReason === "string"
+			? `The prompt was blocked (${blockReason}).`
+			: `The response has no "${key}" array.`,
+	);
+}
+
 export function parseChatResponse(
 	wire: ChatWire,
 	json: Record<string, unknown>,
 ): ParsedChatResult {
+	assertChatEnvelope(wire, json);
 	switch (wire) {
 		case "anthropic":
 			return parseAnthropicResponse(json);

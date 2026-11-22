@@ -20,10 +20,10 @@ describe("editor command choices", () => {
 	});
 
 	it.each(labels)("creates independent persisted %s commands", (label) => {
-		const Command = editorCommands.get(label);
-		if (!Command) throw new Error(`Missing editor command: ${label}`);
-		const first = new Command();
-		const second = new Command();
+		const create = editorCommands.get(label);
+		if (!create) throw new Error(`Missing editor command: ${label}`);
+		const first = create();
+		const second = create();
 		expect(first).toMatchObject({
 			name: label,
 			type: "EditorCommand",

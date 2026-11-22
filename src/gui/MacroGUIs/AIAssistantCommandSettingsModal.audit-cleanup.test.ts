@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { testApp } from "../../../tests/helpers/settings/modalApp";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
@@ -23,28 +23,15 @@ vi.mock("src/settingsStore", () => ({
 		}),
 	},
 }));
-vi.mock("src/quickAddInstance", () => ({
-	getQuickAddInstance: vi.fn(() => ({})),
-}));
 vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 }));
 vi.mock("src/ai/tokenEstimator", () => ({
 	estimateTokenCount: vi.fn(() => 0),
 }));
-vi.mock("./../suggesters/formatSyntaxSuggester", () => ({
-	FormatSyntaxSuggester: class {},
-}));
 vi.mock("../suggesters/genericTextSuggester", () => ({
 	GenericTextSuggester: class {
 		destroy(): void {}
-	},
-}));
-vi.mock("src/formatters/formatDisplayFormatter", () => ({
-	FormatDisplayFormatter: class {
-		async format(input: string) {
-			return input;
-		}
 	},
 }));
 
@@ -84,13 +71,6 @@ function getModelSelect(
 // the pinned model had been deleted. It must now surface the stale value with a
 // "(missing)" option so the dropdown reflects the saved selection.
 describe("AIAssistantCommandSettingsModal Model dropdown missing-model handling", () => {
-	beforeAll(() => {
-		const modalProto = Object.getPrototypeOf(
-			AIAssistantCommandSettingsModal.prototype
-		) as { onClose?: () => void };
-		modalProto.onClose ??= function onClose() {};
-	});
-
 	it("adds a disabled (missing) option and selects it when the stored model is gone", () => {
 		const command = makeCommand("deleted-model");
 		const modal = new AIAssistantCommandSettingsModal(testApp(), command);
@@ -172,16 +152,8 @@ function clickSave(modal: AIAssistantCommandSettingsModal): void {
 }
 
 describe("AIAssistantCommandSettingsModal prompt-template persistence", () => {
-	beforeAll(() => {
-		const modalProto = Object.getPrototypeOf(
-			AIAssistantCommandSettingsModal.prototype
-		) as { onClose?: () => void };
-		modalProto.onClose ??= function onClose() {};
-	});
-
-	it("persists an enabled prompt template through Save", () => {
-		const command = makeCommand("gpt-test");
-		const modal = new AIAssistantCommandSettingsModal(testApp(), command);
+	it("persists an enabled prompt template through Save", async () => {
+		const modal = new AIAssistantCommandSettingsModal(testApp(), makeCommand("gpt-test"));
 
 		const { toggle, text } = getPromptTemplateControls(modal);
 		toggle.click(); // enable
@@ -190,7 +162,8 @@ describe("AIAssistantCommandSettingsModal prompt-template persistence", () => {
 
 		clickSave(modal);
 
-		expect(command.promptTemplate.enable).toBe(true);
-		expect(command.promptTemplate.name).toBe("MyTemplate.md");
+		await expect(modal.waitForClose).resolves.toMatchObject({
+			promptTemplate: { enable: true, name: "MyTemplate.md" },
+		});
 	});
 });

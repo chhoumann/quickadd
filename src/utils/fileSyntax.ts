@@ -408,15 +408,3 @@ export function buildFileDisplayInfos(
 		};
 	});
 }
-
-/**
- * Display labels for a folder's files: each note's name, with
- * the basename and parent folder folded in when needed so duplicate labels stay
- * distinguishable in plain-text suggesters.
- */
-export function buildFileDisplayLabels(
-	files: TFile[],
-	metadataCache?: (file: TFile) => CachedMetadata | null,
-): string[] {
-	return buildFileDisplayInfos(files, metadataCache).map((info) => info.label);
-}

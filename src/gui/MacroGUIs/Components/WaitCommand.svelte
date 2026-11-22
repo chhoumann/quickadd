@@ -14,7 +14,7 @@
         onMoveDown,
     }: {
         command: IWaitCommand;
-        startDrag: () => void;
+        startDrag: (event: PointerEvent) => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onUpdateCommand: (command: IWaitCommand) => void;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-	buildFileDisplayLabels,
+	buildFileDisplayInfos,
 	canonicalizeOnePageFileValue,
 	decodeFileValue,
 	FILE_CUSTOM_PREFIX,
@@ -246,7 +246,10 @@ describe("canonicalizeOnePageFileValue", () => {
 
 type LabelRow = { path: string; title?: string; h1s: string[]; h2s?: string[]; label: string };
 
-describe("buildFileDisplayLabels", () => {
+describe("buildFileDisplayInfos labels", () => {
+	const buildFileDisplayLabels = (...args: Parameters<typeof buildFileDisplayInfos>) =>
+		buildFileDisplayInfos(...args).map((info) => info.label);
+
 	const makeFile = (path: string) => {
 		const segment = path.split("/").pop() ?? path;
 		const basename = segment.replace(/\.md$/, "");

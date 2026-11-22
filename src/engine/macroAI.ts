@@ -5,6 +5,7 @@ import type { ChoiceChain } from "./choiceChain";
 import type { IAIAssistantCommand } from "../types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "../ai/AIAssistant";
 import { resolveProviderApiKey } from "../ai/providerSecrets";
+import { assertOnlineFeaturesEnabled } from "../ai/onlineFeatures";
 import { settingsStore } from "../settingsStore";
 import { CompleteFormatter } from "../formatters/completeFormatter";
 import type { FormatterPluginContext } from "../types/pluginContext";
@@ -22,11 +23,7 @@ export async function executeMacroAI(
 	choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
 	command: IAIAssistantCommand,
 ) {
-	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Blocking request: Online features are disabled in settings."
-		);
-	}
+	assertOnlineFeaturesEnabled();
 
 	const aiSettings = settingsStore.getState().ai;
 

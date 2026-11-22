@@ -3,10 +3,10 @@ import { CommandType } from "../CommandType";
 import { Command } from "../Command";
 import type { IEditorCommand } from "./IEditorCommand";
 
-export abstract class EditorCommand extends Command implements IEditorCommand {
+export class EditorCommand extends Command implements IEditorCommand {
 	editorCommandType: EditorCommandType;
 
-	protected constructor(type: EditorCommandType) {
+	constructor(type: EditorCommandType) {
 		super(type, CommandType.EditorCommand);
 
 		this.editorCommandType = type;

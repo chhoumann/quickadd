@@ -22,7 +22,7 @@
 		app: App;
 		roots: IChoice[];
 		dragDisabled: boolean;
-		startDrag: (e?: Event) => void;
+		startDrag: (event: PointerEvent) => void;
 		actions: ChoiceListActions;
 		onMoveUp?: () => void;
 		onMoveDown?: () => void;

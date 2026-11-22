@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { App } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { PROVIDER_PRESETS } from "src/ai/providerPresets";
@@ -18,13 +18,6 @@ function findButtonByText(modal: ProviderPickerModal, text: string): HTMLButtonE
 // Connect/Add now close after a successful add and Connect refuses a duplicate
 // (same name + endpoint).
 describe("ProviderPickerModal add behavior", () => {
-	beforeAll(() => {
-		const modalProto = Object.getPrototypeOf(
-			ProviderPickerModal.prototype,
-		) as { onClose?: () => void };
-		modalProto.onClose ??= function onClose() {};
-	});
-
 	it("closes the picker after adding a custom provider (no stay-open duplicate footgun)", () => {
 		const providers: AIProvider[] = [];
 		const modal = new ProviderPickerModal(new App() as App, providers);

@@ -92,9 +92,9 @@
 
     // Arm the desktop drag on the handle's pointerdown (no-op while filtering). The
     // failsafe that disarms a press-that-never-becomes-a-drag lives in createDragArming.
-    let startDrag = () => {
+    let startDrag = (event: PointerEvent) => {
         if (forceDragDisabled) return; // do not enable drag while filtering
-        drag.startDrag();
+        drag.startDrag(event);
     };
 
     // Keyboard reorder within THIS list, persisted through actions.onReorderChoices

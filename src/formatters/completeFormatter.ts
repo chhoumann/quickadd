@@ -726,17 +726,13 @@ export class CompleteFormatter extends Formatter {
 		macroName: string,
 		context?: { label?: string },
 	): Promise<string> {
-		const { output, variables } = await this.requireRuntime(`{{MACRO:${macroName}}}`).runMacro({
+		return this.requireRuntime(`{{MACRO:${macroName}}}`).runMacro({
 			macroName,
 			label: context?.label,
 			choiceExecutor: this.requireChoiceExecutor(`{{MACRO:${macroName}}}`),
 			variables: this.variables,
 			choiceChain: this.choiceChain,
 		});
-		variables.forEach((value, key) => {
-			this.variables.set(key, value);
-		});
-		return output;
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
@@ -806,16 +802,12 @@ export class CompleteFormatter extends Formatter {
 
 			if (code) {
 				const token = "an inline script";
-				const { output: outVal, variables } = await this.requireRuntime(token).runInlineScript({
+				const outVal = await this.requireRuntime(token).runInlineScript({
 					code,
 					choiceExecutor: this.requireChoiceExecutor(token),
 					variables: this.variables,
 					choiceChain: this.choiceChain,
 				});
-
-				for (const key in variables) {
-					this.variables.set(key, variables[key]);
-				}
 
 				if (typeof outVal === "string") {
 					// Keep string insertion byte-for-byte compatible, including the

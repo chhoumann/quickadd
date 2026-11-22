@@ -8,7 +8,7 @@ import type { Plain } from "../svelte/persist.svelte";
  * Props for CommandList, shared between the component and its imperative host.
  *
  * `commands` is the host->child channel: the host (CommandSequenceEditor) owns a
- * $state-backed instance of this object (see createCommandListProps) and mutates
+ * $state-backed instance of this object (see reactiveProps) and mutates
  * `commands` to push add/delete/configure results into the mounted component.
  * The child reports its own edits back up via the `saveCommands` callback.
  */
@@ -26,16 +26,4 @@ export interface CommandListProps {
 	// Branch pages mutate the command when left, then call onEdited.
 	onEditThenBranch?: (command: IConditionalCommand, onEdited: () => void) => void;
 	onEditElseBranch?: (command: IConditionalCommand, onEdited: () => void) => void;
-}
-
-/**
- * Create a $state-backed props object to pass to `mount(CommandList, ...)`.
- * Mutating `.commands` on the returned object re-renders the mounted component
- * (the documented way to feed reactive props to an imperatively-mounted Svelte 5
- * component). Lives in a `.svelte.ts` file so `$state` is available.
- */
-export function createCommandListProps(initial: CommandListProps): CommandListProps {
-	// $state must initialize a variable declaration (not be returned directly).
-	const props = $state(initial);
-	return props;
 }

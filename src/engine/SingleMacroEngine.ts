@@ -183,10 +183,6 @@ export class SingleMacroEngine {
 		return formatMacroOutput(result);
 	}
 
-	public getVariables(): Map<string, unknown> {
-		return this.variables;
-	}
-
 	private async tryExecuteExport(
 		engine: MacroChoiceEngine,
 		macroChoice: IMacroChoice,

@@ -1,4 +1,5 @@
 import { Platform } from "obsidian";
+import { getOwnerWindow } from "../../utils/activeWindow";
 
 /**
  * The desktop "arm drag by grabbing the handle" state machine, shared by every drag
@@ -12,11 +13,12 @@ import { Platform } from "obsidian";
  * SWALLOW the next row-button click. We disarm on the next pointer release UNLESS a real
  * drag started (markStarted, called from the zone's consider handler, hands the disarm
  * to the finalize/reset path). Capture phase so a stopPropagation in the library's own
- * handlers can't hide the release.
+ * handlers can't hide the release. The listener goes on the handle's own window, since
+ * a release in a popout never reaches the main one.
  *
  * Usage: `const drag = createDragArming(() => forceDragDisabled);`
  *  - dragDisabled: `drag.disabled`
- *  - startDrag (handle pointerdown): `drag.startDrag()`
+ *  - startDrag (handle pointerdown): `drag.startDrag(event)`
  *  - consider handler: `drag.markStarted()`
  *  - finalize handler: `drag.reset()`
  */
@@ -27,16 +29,17 @@ export function createDragArming(forceDisabled: () => boolean = () => false) {
 	// failsafe whether the finalize/reset path already owns the disarm.
 	let started = false;
 
-	function startDrag() {
+	function startDrag(event: Event) {
 		armed = true;
 		started = false;
+		const win = getOwnerWindow(event.target as Node);
 		const disarm = () => {
-			window.removeEventListener("pointerup", disarm, true);
-			window.removeEventListener("pointercancel", disarm, true);
+			win.removeEventListener("pointerup", disarm, true);
+			win.removeEventListener("pointercancel", disarm, true);
 			if (!started) armed = false;
 		};
-		window.addEventListener("pointerup", disarm, true);
-		window.addEventListener("pointercancel", disarm, true);
+		win.addEventListener("pointerup", disarm, true);
+		win.addEventListener("pointercancel", disarm, true);
 	}
 
 	return {

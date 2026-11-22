@@ -38,9 +38,6 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 			spies.macroEngineRuns.push(name);
 			return Promise.resolve("MACRO RAN");
 		}
-		getVariables() {
-			return new Map();
-		}
 	},
 }));
 

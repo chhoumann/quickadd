@@ -6,7 +6,7 @@ import { moveByKeyboard } from "../shared/keyboardReorder";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
-import type { CommandListProps } from "./commandListProps.svelte";
+import type { CommandListProps } from "./commandListProps";
 import CommandRow from "./Components/CommandRow.svelte";
 import { CommandType } from "../../types/macros/CommandType";
 import WaitCommand from "./Components/WaitCommand.svelte";
@@ -120,8 +120,8 @@ function handleSort(e: CustomEvent<DndEvent>) {
 // Arm svelte-dnd-action's pointer drag (desktop handle). NO preventDefault here —
 // see DragHandle: preventDefault on pointerdown would suppress the compat mousedown
 // the library starts the drag from.
-let startDrag = () => {
-	drag.startDrag();
+let startDrag = (event: PointerEvent) => {
+	drag.startDrag(event);
 };
 
 // Keyboard reorder: persists via the same snapshot path as a pointer drag's finalize.
@@ -214,7 +214,7 @@ async function configureAssistant(command: IAIAssistantCommand) {
 		.waitForClose;
 
 	if (newSettings) {
-		updateCommand(command);
+		updateCommand(newSettings);
 	}
 }
 

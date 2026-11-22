@@ -127,7 +127,14 @@ Check which inputs are still missing before a non-interactive run:
 
 ```bash
 obsidian vault=dev quickadd:check choice="Daily log"
+obsidian vault=dev quickadd:check choice="Weekly review" date=lw
 ```
+
+`date=` takes the same days as on [`quickadd:run`](#quickadd--quickaddrun), so
+the check matches the run you are about to start: a Which day input that `date=`
+answers is not reported missing. When a choice asks Which day and you pass no
+`date=`, `missingFlags` lists `date=<when>`. A day QuickAdd can't parse returns
+`{"ok":false}`.
 
 ### Suggest links and tags: `quickadd:suggest` {#quickaddsuggest}
 
@@ -273,15 +280,19 @@ run interactively and select the offered note in the discovery prompt.
 ### Names the CLI reserves {#reserved-flag-names}
 
 The bare `key=value` form (pattern 2) ignores names that a command already uses
-as flags or selectors: `choice`, `id`, `vars`, `ui`, `verify`, `date`,
-`current` (on `quickadd` / `quickadd:run`), `fields` (on `quickadd:check`), and
-`path` (on `quickadd:run-template`). If a choice has a variable named after one of these
-(for example `{{VALUE:verify}}`), pass it with the `value-` prefix or via
-`vars` instead - neither is ever treated as a flag:
+as flags or selectors: `choice`, `id`, `vars`, `ui`, `verify` (on `quickadd` /
+`quickadd:run`), `date` and `current` (on `quickadd:run`,
+`quickadd:run-template`, `quickadd:check`, and `quickadd:interactive`), `fields`
+(on `quickadd:check`), and `path` (on `quickadd:run-template`). If a choice has
+a variable named after one of these (for example `{{VALUE:verify}}`), pass it
+with the `value-` prefix or via `vars` instead - neither is ever treated as a
+flag. `date=` always sets the run's day, so a variable named `date` takes
+`value-date=<value>`:
 
 ```bash
 obsidian vault=dev quickadd choice="My choice" value-verify="a value"
 obsidian vault=dev quickadd choice="My choice" vars='{"verify":"a value"}'
+obsidian vault=dev quickadd:check choice="My choice" value-date="2026-10-07"
 ```
 
 ## What happens when inputs are missing {#non-interactive-behavior}
@@ -349,7 +360,9 @@ obsidian vault=dev quickadd:interactive choice="Import from Readwise"
 ```
 
 The command returns connection details immediately and runs the choice in the
-background. Attach to the session and drive it:
+background. `date=` sets the run's day as on
+[`quickadd:run`](#quickadd--quickaddrun); a day QuickAdd can't parse returns
+`{"ok":false}` before a session opens. Attach to the session and drive it:
 
 - `GET  http://127.0.0.1:<port>/poll?session=<id>&token=<token>` - long-polls for the next event: `{"kind":"prompt","requestId":…,"prompt":{…}}`, `{"kind":"done","result":…}`, `{"kind":"error","error":…}`, or a periodic `{"kind":"idle"}` keepalive (just poll again).
 - `POST http://127.0.0.1:<port>/reply?session=<id>&token=<token>` with body `{"requestId":…,"value":…}` to answer, or `{"requestId":…,"cancelled":true}` to cancel (which ends the run - except on an `info` panel, see below).

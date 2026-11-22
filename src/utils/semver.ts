@@ -38,22 +38,6 @@ export function parseSemver(version: string): ParsedVersion | null {
 	return { major, minor, patch };
 }
 
-/** True when either version is unparseable, so an update is never missed. */
-export function isMajorUpdate(
-	currentVersion: string,
-	previousVersion: string,
-): boolean {
-	const current = parseSemver(currentVersion);
-	const previous = parseSemver(previousVersion);
-
-	if (!current || !previous) {
-		return true;
-	}
-
-	return current.major > previous.major;
-}
-
-
 /**
  * Orders two parsed versions: negative if `a` is older than `b`, positive if
  * newer, 0 if equal.

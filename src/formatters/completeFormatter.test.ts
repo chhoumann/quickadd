@@ -21,10 +21,10 @@ import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const mocks = vi.hoisted(() => ({
 	macroRunAndGetOutput: vi.fn(),
-	macroGetVariables: vi.fn(() => new Map()),
 	templateRun: vi.fn(),
 	inlineRunAndGetOutput: vi.fn(),
-	inlineParamsVariables: {} as Record<string, unknown>,
+	/** The variables map the last macro or inline-script engine was given. */
+	engineVariables: undefined as Map<string, unknown> | undefined,
 	inputPromptPrompt: vi.fn(),
 	inputPromptFactory: vi.fn(),
 	genericInputPrompt: vi.fn(),
@@ -48,7 +48,9 @@ vi.mock("obsidian", async () => (await import("../../tests/helpers/formatters/mo
 vi.mock("../engine/SingleMacroEngine", () => ({
 	SingleMacroEngine: class {
 		runAndGetOutput = mocks.macroRunAndGetOutput;
-		getVariables = mocks.macroGetVariables;
+		constructor(...args: unknown[]) {
+			mocks.engineVariables = args[5] as Map<string, unknown>;
+		}
 	},
 }));
 
@@ -93,8 +95,10 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 
 vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	SingleInlineScriptEngine: class {
-		params = { variables: mocks.inlineParamsVariables };
 		runAndGetOutput = mocks.inlineRunAndGetOutput;
+		constructor(...args: unknown[]) {
+			mocks.engineVariables = args[4] as Map<string, unknown>;
+		}
 	},
 }));
 
@@ -266,12 +270,9 @@ function mockTemplateVault(templates: Record<string, string>) {
 }
 
 beforeEach(() => {
-	for (const key of Object.keys(mocks.inlineParamsVariables)) {
-		delete mocks.inlineParamsVariables[key];
-	}
+	mocks.engineVariables = undefined;
 	mocks.dateAliases = {};
 	vi.clearAllMocks();
-	mocks.macroGetVariables.mockReturnValue(new Map());
 	mocks.getSmartDefaults.mockReturnValue([]);
 	mocks.resolveActiveDefault.mockReturnValue(null);
 
@@ -368,17 +369,11 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		expect(mocks.macroRunAndGetOutput).toHaveBeenCalledTimes(2);
 	});
 
-	it("uses an empty string when the macro engine returns nullish", async () => {
-		mocks.macroRunAndGetOutput.mockResolvedValue(null);
-		const f = defaultFormatter();
-		await expect(f.formatFolderPath("[{{MACRO:noop}}]")).resolves.toBe("[]");
-	});
-
-	it("copies variables produced by the macro engine into the formatter", async () => {
-		mocks.macroRunAndGetOutput.mockResolvedValue("done");
-		mocks.macroGetVariables.mockReturnValue(
-			new Map<string, unknown>([["fromMacro", "value123"]]),
-		);
+	it("reads variables the macro sets for later tokens", async () => {
+		mocks.macroRunAndGetOutput.mockImplementation(async () => {
+			mocks.engineVariables?.set("fromMacro", "value123");
+			return "done";
+		});
 		const f = defaultFormatter();
 		// Run a macro, then reference the variable it set via {{VALUE:fromMacro}}.
 		await expect(
@@ -626,8 +621,10 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 	it("propagates variables set by the inline script", async () => {
 		// The script block is replaced by its output ("") and the variable it
 		// registered becomes available for the following {{VALUE}} token.
-		mocks.inlineRunAndGetOutput.mockResolvedValue("");
-		mocks.inlineParamsVariables.scriptVar = "fromScript";
+		mocks.inlineRunAndGetOutput.mockImplementation(async () => {
+			mocks.engineVariables?.set("scriptVar", "fromScript");
+			return "";
+		});
 		const f = defaultFormatter();
 		await expect(
 			f.formatFolderPath("```js quickadd\nnoop\n```{{VALUE:scriptVar}}"),

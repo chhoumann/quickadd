@@ -29,11 +29,6 @@ function getButton(
 
 describe("ConditionalCommandSettingsModal save validation", () => {
 	beforeAll(() => {
-		const modalProto = Object.getPrototypeOf(
-			ConditionalCommandSettingsModal.prototype
-		) as { onClose?: () => void };
-		modalProto.onClose ??= function onClose() {};
-
 		// The test obsidian stub's DropdownComponent lacks addOptions; back-fill it
 		// so the modal's operator dropdown can render (harness gap, not a code bug).
 		const dropdownProto = DropdownComponent.prototype as unknown as {
