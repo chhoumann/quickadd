@@ -882,22 +882,39 @@ export async function requestUrl(request: string | { url: string; throw?: boolea
 }
 
 export class Notice {
-  static instances: Array<{ message: string; timeout?: number; messageEl: HTMLElement }> = [];
-  noticeEl: HTMLElement;
-  containerEl: HTMLElement;
-  messageEl: HTMLElement;
+  static instances: Notice[] = [];
   message: string;
   timeout?: number;
+  #elements?: { containerEl: HTMLElement; messageEl: HTMLElement };
 
   constructor(message: string, timeout?: number) {
-    this.containerEl = document.createElement("div");
-    this.messageEl = document.createElement("div");
-    this.noticeEl = this.messageEl;
-    this.containerEl.appendChild(this.messageEl);
-    this.messageEl.textContent = message;
     this.message = message;
     this.timeout = timeout;
-    Notice.instances.push({ message, timeout, messageEl: this.messageEl });
+    Notice.instances.push(this);
+  }
+
+  // Built on first use, so a Node test that only checks the message needs no DOM.
+  get #dom() {
+    if (!this.#elements) {
+      const containerEl = document.createElement("div");
+      const messageEl = document.createElement("div");
+      containerEl.appendChild(messageEl);
+      messageEl.textContent = this.message;
+      this.#elements = { containerEl, messageEl };
+    }
+    return this.#elements;
+  }
+
+  get containerEl(): HTMLElement {
+    return this.#dom.containerEl;
+  }
+
+  get messageEl(): HTMLElement {
+    return this.#dom.messageEl;
+  }
+
+  get noticeEl(): HTMLElement {
+    return this.#dom.messageEl;
   }
 
   hide() {}

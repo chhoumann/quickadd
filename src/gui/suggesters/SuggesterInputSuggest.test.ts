@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { SuggesterInputSuggest } from "./SuggesterInputSuggest";
 
-function makeSuggest(options: string[], { caseSensitive = false, multiSelect = false } = {}) {
+function makeSuggest(
+	options: string[],
+	{ caseSensitive = false, multiSelect = false, onSelect = undefined as ((item: string) => void) | undefined } = {},
+) {
 	const input = document.createElement("input");
 	document.body.appendChild(input);
-	return new SuggesterInputSuggest(new App(), input, options, caseSensitive, multiSelect);
+	return new SuggesterInputSuggest(new App(), input, options, caseSensitive, multiSelect, onSelect);
 }
 
 const options = ["Aqua Carpatica", "Bank Stołeczny", "C", "Creative Labs", "Kawa Górska"];
@@ -44,5 +47,28 @@ describe("SuggesterInputSuggest ranking", () => {
 		const el = document.createElement("div");
 		suggest.renderSuggestion("Aqua Carpatica", el);
 		expect(el.innerHTML).toBe('Aqua <mark class="qa-highlight">Carp</mark>atica');
+	});
+});
+
+// The ", "-joined multi-select text is ambiguous when an option label equals the
+// join of two others ("a", "b" and "a, b"), so each pick is reported on its own.
+describe("SuggesterInputSuggest onSelect", () => {
+	it("reports each multi-select pick, telling 'a' + 'b' apart from a literal 'a, b'", () => {
+		const picksTwo: string[] = [];
+		const two = makeSuggest(["a", "b", "a, b"], { multiSelect: true, onSelect: (item) => picksTwo.push(item) });
+		two.selectSuggestion("a");
+		two.selectSuggestion("b");
+		expect(picksTwo).toEqual(["a", "b"]);
+
+		const picksOne: string[] = [];
+		const one = makeSuggest(["a", "b", "a, b"], { multiSelect: true, onSelect: (item) => picksOne.push(item) });
+		one.selectSuggestion("a, b");
+		expect(picksOne).toEqual(["a, b"]);
+	});
+
+	it("does not fire for single-select suggesters", () => {
+		const onSelect = vi.fn();
+		makeSuggest(["x", "y"], { onSelect }).selectSuggestion("x");
+		expect(onSelect).not.toHaveBeenCalled();
 	});
 });

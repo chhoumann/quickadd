@@ -11,24 +11,39 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 
 const mocks = vi.hoisted(() => {
 	const state = {
-		/** Every builder page constructed: its kind, constructor args and onSave. */
-		builders: [] as Array<{ kind: string; args: unknown[]; onSave: (choice: unknown) => void }>,
+		/** Every builder page constructed: its kind and the arguments it was handed, by role. */
+		builders: [] as Array<{
+			kind: string;
+			choice: { id: string; backfilled?: boolean };
+			onSave: (choice: unknown) => void;
+			choiceList?: unknown[];
+		}>,
 		/** What open() reports: whether Obsidian opened the page. */
 		opens: true,
 		yesNoPrompt: vi.fn(),
 		storeChoices: [] as IChoice[],
 		logError: vi.fn(),
 		/**
-		 * A builder page class that records its args and the `onSave` at
-		 * `onSaveAt`. Like the real builders, it fills in a missing field on the
-		 * choice (`backfilled`) as it is constructed.
+		 * A builder page class that records the choice, `onSave` and (for the
+		 * macro builder) choice list it was given, found by role so the fake does
+		 * not restate each constructor's parameter order. Like the real builders,
+		 * it fills in a missing field on the choice (`backfilled`) as it is
+		 * constructed.
 		 */
-		fakeBuilderPage: (kind: string, onSaveAt: number) =>
+		fakeBuilderPage: (kind: string) =>
 			class {
 				constructor(...args: unknown[]) {
-					const choice = args[kind === "Macro" ? 2 : 1] as { backfilled?: boolean };
+					const choice = args.find(
+						(arg): arg is { id: string; type: string; backfilled?: boolean } =>
+							typeof arg === "object" && arg !== null && "type" in arg && "id" in arg,
+					)!;
 					choice.backfilled ??= true;
-					state.builders.push({ kind, args, onSave: args[onSaveAt] as (choice: unknown) => void });
+					state.builders.push({
+						kind,
+						choice,
+						onSave: args.find((arg) => typeof arg === "function") as (choice: unknown) => void,
+						choiceList: args.find(Array.isArray),
+					});
 				}
 				open() {
 					return state.opens;
@@ -49,19 +64,19 @@ vi.mock("../../logger/logManager", () => ({
 }));
 
 // Mock the builder pages so importing the module does not pull in the full
-// Obsidian/Svelte stack. Each records its constructor args and the `onSave`
-// it was given; `open()` reports whether Obsidian opened it.
+// Obsidian/Svelte stack. Each records the choice and `onSave` it was given;
+// `open()` reports whether Obsidian opened it.
 vi.mock("../ChoiceBuilder/templateChoiceBuilder", () => ({
-	TemplateChoiceBuilder: mocks.fakeBuilderPage("Template", 3),
+	TemplateChoiceBuilder: mocks.fakeBuilderPage("Template"),
 }));
 vi.mock("../ChoiceBuilder/captureChoiceBuilder", () => ({
-	CaptureChoiceBuilder: mocks.fakeBuilderPage("Capture", 3),
+	CaptureChoiceBuilder: mocks.fakeBuilderPage("Capture"),
 }));
 vi.mock("../MacroGUIs/MacroBuilder", () => ({
-	MacroBuilder: mocks.fakeBuilderPage("Macro", 4),
+	MacroBuilder: mocks.fakeBuilderPage("Macro"),
 }));
 vi.mock("../MultiChoiceBuilder", () => ({
-	MultiChoiceBuilder: mocks.fakeBuilderPage("Multi", 2),
+	MultiChoiceBuilder: mocks.fakeBuilderPage("Multi"),
 }));
 
 vi.mock("../confirmAction", () => ({
@@ -332,35 +347,27 @@ describe("choiceUiService", () => {
 	describe("getChoiceBuilder", () => {
 		const onSave = () => {};
 
-		it.each(["Template", "Capture"] as const)("builds the %s builder page", (type) => {
+		it.each(["Template", "Capture", "Multi"] as const)("opens the %s builder on the choice", (type) => {
 			const choice = createChoice(type, "T");
-			const plugin = {} as unknown as QuickAdd;
-			getChoiceBuilder(choice, fakeApp, plugin, onSave);
-			expect(mocks.builders.at(-1)).toMatchObject({
-				kind: type,
-				args: [fakeApp, choice, plugin, onSave],
-			});
+			getChoiceBuilder(choice, fakeApp, {} as unknown as QuickAdd, onSave);
+
+			const builder = mocks.builders.at(-1)!;
+			expect(builder.kind).toBe(type);
+			expect(builder.choice).toBe(choice);
+			expect(builder.onSave).toBe(onSave);
 		});
 
-		it("builds the Macro builder page with the store's choices", () => {
+		it("gives the Macro builder the store's choices to pick from", () => {
 			const storeChoice = createChoice("Template", "Stored");
 			mocks.storeChoices = [storeChoice];
 			const choice = createChoice("Macro", "M");
-			const plugin = {} as unknown as QuickAdd;
-			getChoiceBuilder(choice, fakeApp, plugin, onSave);
-			expect(mocks.builders.at(-1)).toMatchObject({
-				kind: "Macro",
-				args: [fakeApp, plugin, choice, [storeChoice], onSave],
-			});
-		});
-
-		it("builds the folder page for Multi choices", () => {
-			const choice = createChoice("Multi", "Mu");
 			getChoiceBuilder(choice, fakeApp, {} as unknown as QuickAdd, onSave);
-			expect(mocks.builders.at(-1)).toMatchObject({
-				kind: "Multi",
-				args: [fakeApp, choice, onSave],
-			});
+
+			const builder = mocks.builders.at(-1)!;
+			expect(builder.kind).toBe("Macro");
+			expect(builder.choice).toBe(choice);
+			expect(builder.onSave).toBe(onSave);
+			expect(builder.choiceList).toEqual([storeChoice]);
 		});
 	});
 
@@ -587,13 +594,9 @@ describe("choiceUiService", () => {
 			const result = await deleteChoiceWithConfirmation(macro, app);
 
 			expect(result).toBe(false);
-			expect((Notice as unknown as { instances: { message: string }[] }).instances)
-				.toContainEqual({
-					message:
-						"Could not clear user script secrets. The choice was not deleted.",
-					timeout: undefined,
-					messageEl: expect.any(HTMLElement),
-				});
+			expect((Notice as unknown as { instances: { message: string }[] }).instances.map((notice) => notice.message)).toContain(
+				"Could not clear user script secrets. The choice was not deleted.",
+			);
 		});
 
 		// The failure notice is reachable for a folder too (the secret lives on a
@@ -621,13 +624,9 @@ describe("choiceUiService", () => {
 			const result = await deleteChoiceWithConfirmation(folder, app);
 
 			expect(result).toBe(false);
-			expect((Notice as unknown as { instances: { message: string }[] }).instances)
-				.toContainEqual({
-					message:
-						"Could not clear user script secrets. The folder was not deleted.",
-					timeout: undefined,
-					messageEl: expect.any(HTMLElement),
-				});
+			expect((Notice as unknown as { instances: { message: string }[] }).instances.map((notice) => notice.message)).toContain(
+				"Could not clear user script secrets. The folder was not deleted.",
+			);
 		});
 
 		it("does not include Multi/Macro warnings for a plain Template choice", async () => {

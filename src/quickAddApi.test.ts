@@ -161,6 +161,7 @@ vi.mock("./utils/errorUtils", async () => {
 const { QuickAddApi } = await import("./quickAddApi");
 const { MacroAbortError } = await import("./errors/MacroAbortError");
 const { promptCancelled } = await import("./errors/UserCancelError");
+const { FieldSuggestionCache } = await import("./utils/FieldSuggestionCache");
 
 // ---------------------------------------------------------------------------
 // Test doubles for app / plugin / choiceExecutor
@@ -1316,9 +1317,17 @@ describe("fieldSuggestions.getFieldValues", () => {
 });
 
 describe("fieldSuggestions.clearCache", () => {
-	it("delegates to the FieldSuggestionCache singleton without throwing", () => {
+	it("clears one field's cached suggestions, or all of them", () => {
 		const { api } = getApi();
-		expect(() => api.fieldSuggestions.clearCache()).not.toThrow();
-		expect(() => api.fieldSuggestions.clearCache("status")).not.toThrow();
+		const cache = FieldSuggestionCache.getInstance();
+		cache.set("status", new Set(["open"]));
+		cache.set("priority", new Set(["high"]));
+
+		api.fieldSuggestions.clearCache("status");
+		expect(cache.get("status")).toBeNull();
+		expect(cache.get("priority")).toEqual(new Set(["high"]));
+
+		api.fieldSuggestions.clearCache();
+		expect(cache.get("priority")).toBeNull();
 	});
 });

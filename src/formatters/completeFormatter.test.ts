@@ -1201,6 +1201,36 @@ describe("CompleteFormatter - {{VALUE:variable}} prompting", () => {
 			f.formatFolderPath("{{VALUE:A,B}}"),
 		).rejects.toBeInstanceOf(MacroAbortError);
 	});
+
+	// #163: a variable that exists (even empty or null) is reused, not re-asked.
+	it.each([
+		{ value: "", expected: "Rating: " },
+		{ value: null, expected: "Rating: " },
+		{ value: "0", expected: "Rating: 0" },
+		{ value: "false", expected: "Rating: false" },
+		{ value: "8/10", expected: "Rating: 8/10" },
+	])("reuses an existing $value variable without prompting", async ({ value, expected }) => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("rating", value);
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const plugin = makePlugin();
+		const f = new CompleteFormatter(app as any, plugin as any, executor, testFormatterRuntime(app, plugin));
+
+		await expect(f.formatFolderPath("Rating: {{VALUE:rating}}")).resolves.toBe(expected);
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+
+	it("prompts for a variable that is set to undefined", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("prompted");
+		const executor = createChoiceExecutor();
+		executor.variables.set("rating", undefined);
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const plugin = makePlugin();
+		const f = new CompleteFormatter(app as any, plugin as any, executor, testFormatterRuntime(app, plugin));
+
+		await expect(f.formatFolderPath("Rating: {{VALUE:rating}}")).resolves.toBe("Rating: prompted");
+		expect(mocks.inputPromptPrompt).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe("CompleteFormatter - VDATE variable prompting", () => {

@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";

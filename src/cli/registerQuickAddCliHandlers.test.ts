@@ -489,6 +489,30 @@ describe("registerQuickAddCliHandlers", () => {
 		});
 	});
 
+	// run-template takes the honest outcome path, so its success is verified;
+	// the legacy quickadd:run path can only claim an unverified success.
+	it("marks a run-template success as verified", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+		const payload = JSON.parse(
+			String(await run!.handler({ path: "Templates/Daily.md", "value-value": "Note" })),
+		);
+
+		expect(payload).toMatchObject({ ok: true, verified: true });
+	});
+
+	it("documents the ok:true caveat in the quickadd:run command descriptions", () => {
+		const { plugin, handlers } = createPlugin([templateChoice]);
+		registerQuickAddCliHandlers(plugin);
+
+		for (const command of ["quickadd", "quickadd:run"]) {
+			expect(handlers.find((h) => h.command === command)?.description).toMatch(/verified/i);
+		}
+	});
+
 	it("forwards the engine's real message on the verified run-template path too", async () => {
 		const { plugin, handlers } = createPlugin([]);
 		withTemplateFile(plugin, "Templates/Daily.md");

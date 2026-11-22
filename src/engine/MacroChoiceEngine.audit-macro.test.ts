@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from "vitest";
 

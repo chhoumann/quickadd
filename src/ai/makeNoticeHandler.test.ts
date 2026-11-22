@@ -54,4 +54,25 @@ describe("makeNoticeHandler", () => {
 		expect(noticeSetMessageMock).toHaveBeenCalledTimes(1);
 		expect(noticeHideMock).toHaveBeenCalledTimes(1);
 	});
+
+	it("renders the failure status as a clear headline with the detail after it", () => {
+		const handler = makeNoticeHandler(true);
+
+		handler.setMessage("dead", "Request failed (HTTP 401): invalid api key");
+
+		const rendered = noticeSetMessageMock.mock.calls.at(-1)?.[0] as string;
+		expect(rendered).not.toContain("Assistant is dead.");
+		expect(rendered).toContain("AI request failed.");
+		expect(rendered).toContain("invalid api key");
+	});
+
+	it("keeps the gerund wording for normal status updates", () => {
+		const handler = makeNoticeHandler(true);
+
+		handler.setMessage("prompting", "Using custom prompt.");
+
+		const rendered = noticeSetMessageMock.mock.calls.at(-1)?.[0] as string;
+		expect(rendered).toContain("Assistant is prompting.");
+		expect(rendered).toContain("Using custom prompt.");
+	});
 });

@@ -57,22 +57,14 @@ describe("isLoopbackClient", () => {
 describe("interactivePromptServer long-poll waiter", () => {
 	it("parks a single waiter and hands a concurrent poll an immediate idle", async () => {
 		const s = interactivePromptServer.createSession();
-		const srv = interactivePromptServer as unknown as {
-			handlePoll(session: unknown, res: unknown): void;
-			sessions: Map<string, unknown>;
-		};
-		const session = srv.sessions.get(s.id);
 
-		const first = fakeRes();
-		const second = fakeRes();
-
-		// First poll parks (nothing queued yet) — no response written.
-		srv.handlePoll(session, first.res);
+		// First poll parks (nothing queued yet) - no response written.
+		const first = poll(s);
 		expect(first.events).toHaveLength(0);
 
 		// A concurrent/overlapping poll must not overwrite the parked waiter;
 		// it gets an immediate idle so the client simply re-polls.
-		srv.handlePoll(session, second.res);
+		const second = poll(s);
 		expect(second.events).toEqual([{ kind: "idle" }]);
 
 		// Emitting a prompt fires the *parked* (first) waiter, not the second.
@@ -80,13 +72,12 @@ describe("interactivePromptServer long-poll waiter", () => {
 			type: "confirm",
 			header: "Proceed?",
 		});
-		expect(first.events).toHaveLength(1);
-		expect((first.events[0] as { kind: string }).kind).toBe("prompt");
+		expect(first.events).toEqual([expect.objectContaining({ kind: "prompt" })]);
 
 		// A stale close from the already-fired first poll must not disturb state.
 		first.close();
 
-		interactivePromptServer.submitReply(s.id, pendingRequestId(s.id), true);
+		interactivePromptServer.submitReply(s.id, requestIdIn(first.events), true);
 		await expect(prompt).resolves.toBe(true);
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 	});
@@ -94,14 +85,9 @@ describe("interactivePromptServer long-poll waiter", () => {
 	it("aborts the run when an attached client stops polling (disconnect watchdog)", async () => {
 		vi.useFakeTimers();
 		const s = interactivePromptServer.createSession();
-		const srv = interactivePromptServer as unknown as {
-			handlePoll(session: unknown, res: unknown): void;
-			sessions: Map<string, { finished: boolean }>;
-		};
-		const session = srv.sessions.get(s.id);
 
 		// Client attaches (arms the watchdog), receives a prompt, then goes silent.
-		srv.handlePoll(session, fakeRes().res);
+		poll(s);
 		const prompt = interactivePromptServer.emitPrompt(s.id, {
 			type: "confirm",
 			header: "Proceed?",
@@ -113,12 +99,13 @@ describe("interactivePromptServer long-poll waiter", () => {
 		// No further polls: the watchdog must fire and abort the awaiting prompt.
 		await vi.advanceTimersByTimeAsync(75_000 + 10);
 		await rejected;
-		expect(srv.sessions.get(s.id)?.finished).toBe(true);
+		expect(poll(s).events).toEqual([
+			{ kind: "error", error: "Interactive client disconnected." },
+		]);
 
-		// finish() scheduled a cleanup timeout; flush it so the session doesn't
-		// linger in the map (and leak into later tests) once real timers resume.
+		// The ended session is dropped once its cleanup timeout passes.
 		await vi.advanceTimersByTimeAsync(60_000);
-		expect(srv.sessions.has(s.id)).toBe(false);
+		expect(poll(s).status()).toBe(404);
 	});
 
 	// Raycast closes the in-flight poll socket on Escape and never polls again.
@@ -127,68 +114,49 @@ describe("interactivePromptServer long-poll waiter", () => {
 	it("aborts the run shortly after the client hangs up its parked poll", async () => {
 		vi.useFakeTimers();
 		const s = interactivePromptServer.createSession();
-		const srv = interactivePromptServer as unknown as {
-			handlePoll(session: unknown, res: unknown): void;
-			sessions: Map<string, { finished: boolean }>;
-		};
-		const session = srv.sessions.get(s.id);
 
 		// The client collects the prompt, parks its next poll, then hangs up on it
 		// without answering.
-		srv.handlePoll(session, fakeRes().res);
+		poll(s);
 		const prompt = interactivePromptServer.emitPrompt(s.id, {
 			type: "confirm",
 			header: "Proceed?",
 		});
 		const rejected = expect(prompt).rejects.toThrow(/ended/i);
-		const parked = fakeRes();
-		srv.handlePoll(session, parked.res);
+		const parked = poll(s);
 		expect(parked.events).toHaveLength(0);
 		parked.close();
 
 		await vi.advanceTimersByTimeAsync(3_000 + 10);
-		expect(srv.sessions.get(s.id)?.finished).toBe(true);
 		await rejected;
 		// The terminal event a reconnecting client would collect is the disconnect error.
-		const late = fakeRes();
-		srv.handlePoll(session, late.res);
-		expect(late.events).toEqual([
+		expect(poll(s).events).toEqual([
 			{ kind: "error", error: "Interactive client disconnected." },
 		]);
 
 		await vi.advanceTimersByTimeAsync(60_000);
-		expect(srv.sessions.has(s.id)).toBe(false);
+		expect(poll(s).status()).toBe(404);
 	});
 
 	it("keeps the run alive when a new poll arrives within the grace", async () => {
 		vi.useFakeTimers();
 		const s = interactivePromptServer.createSession();
-		const srv = interactivePromptServer as unknown as {
-			handlePoll(session: unknown, res: unknown): void;
-			sessions: Map<string, { finished: boolean }>;
-		};
-		const session = srv.sessions.get(s.id);
 
-		const first = fakeRes();
-		srv.handlePoll(session, first.res);
-		first.close();
+		poll(s).close();
 
 		// StrictMode's double mount, or a client re-polling after an answered poll.
 		await vi.advanceTimersByTimeAsync(1_000);
-		const second = fakeRes();
-		srv.handlePoll(session, second.res);
-
+		const second = poll(s);
 		await vi.advanceTimersByTimeAsync(3_000 + 10);
-		expect(srv.sessions.get(s.id)?.finished).toBe(false);
 
+		// Still alive: the parked poll receives the prompt, not a disconnect error.
 		const prompt = interactivePromptServer.emitPrompt(s.id, {
 			type: "confirm",
 			header: "Proceed?",
 		});
-		expect(second.events).toHaveLength(1);
-		expect((second.events[0] as { kind: string }).kind).toBe("prompt");
+		expect(second.events).toEqual([expect.objectContaining({ kind: "prompt" })]);
 
-		interactivePromptServer.submitReply(s.id, pendingRequestId(s.id), true);
+		interactivePromptServer.submitReply(s.id, requestIdIn(second.events), true);
 		await expect(prompt).resolves.toBe(true);
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 	});
@@ -198,14 +166,8 @@ describe("interactivePromptServer long-poll waiter", () => {
 	it("does not start a grace when an answered poll's socket closes", async () => {
 		vi.useFakeTimers();
 		const s = interactivePromptServer.createSession();
-		const srv = interactivePromptServer as unknown as {
-			handlePoll(session: unknown, res: unknown): void;
-			sessions: Map<string, { finished: boolean }>;
-		};
-		const session = srv.sessions.get(s.id);
 
-		const answered = fakeRes();
-		srv.handlePoll(session, answered.res);
+		const answered = poll(s);
 		const prompt = interactivePromptServer.emitPrompt(s.id, {
 			type: "confirm",
 			header: "Proceed?",
@@ -214,9 +176,9 @@ describe("interactivePromptServer long-poll waiter", () => {
 		answered.close();
 
 		await vi.advanceTimersByTimeAsync(3_000 + 10);
-		expect(srv.sessions.get(s.id)?.finished).toBe(false);
 
-		interactivePromptServer.submitReply(s.id, pendingRequestId(s.id), true);
+		// Still alive: the prompt can still be answered.
+		interactivePromptServer.submitReply(s.id, requestIdIn(answered.events), true);
 		await expect(prompt).resolves.toBe(true);
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 	});
@@ -245,8 +207,8 @@ describe("interactivePromptServer session multiplexing", () => {
 		expect(interactivePromptServer.submitReply(a.id, rid, "wrong-request")).toBe(false);
 
 		// Reply to each with its actual pending requestId (the only pending one).
-		const ridA = pendingRequestId(a.id);
-		const ridB = pendingRequestId(b.id);
+		const ridA = pendingRequestId(a);
+		const ridB = pendingRequestId(b);
 		expect(interactivePromptServer.submitReply(a.id, ridA, "answer-A")).toBe(true);
 		expect(interactivePromptServer.submitReply(b.id, ridB, "answer-B")).toBe(true);
 
@@ -286,7 +248,7 @@ describe("interactivePromptServer session multiplexing", () => {
 			header: "Name",
 			multiline: false,
 		});
-		const rid = pendingRequestId(s.id);
+		const rid = pendingRequestId(s);
 		expect(
 			interactivePromptServer.submitReply(s.id, rid, undefined, true),
 		).toBe(true);
@@ -313,7 +275,7 @@ describe("interactivePromptServer session multiplexing", () => {
 				() => (settled = true),
 				() => (settled = true),
 			);
-			const rid = pendingRequestId(s.id);
+			const rid = pendingRequestId(s);
 
 			const outcome = replyOverWire(s.id, { requestId: rid, cancelled: flag });
 
@@ -340,7 +302,7 @@ describe("interactivePromptServer session multiplexing", () => {
 			header: "Name",
 			multiline: false,
 		});
-		const rid = pendingRequestId(s.id);
+		const rid = pendingRequestId(s);
 		expect(
 			replyOverWire(s.id, { requestId: rid, value: "Ada", cancelled: false }).status,
 		).toBe(200);
@@ -360,7 +322,7 @@ describe("interactivePromptServer session multiplexing", () => {
 				type: "confirm",
 				header: "Proceed?",
 			});
-			const rid = pendingRequestId(s.id);
+			const rid = pendingRequestId(s);
 
 			const outcome = replyOverWire(s.id, { requestId: rid, value });
 
@@ -382,7 +344,7 @@ describe("interactivePromptServer session multiplexing", () => {
 				type: "confirm",
 				header: "Proceed?",
 			});
-			const rid = pendingRequestId(s.id);
+			const rid = pendingRequestId(s);
 			expect(replyOverWire(s.id, { requestId: rid, value }).status).toBe(200);
 			await expect(prompt).resolves.toBe(value);
 			interactivePromptServer.finish(s.id, { kind: "done", result: {} });
@@ -402,7 +364,7 @@ describe("interactivePromptServer session multiplexing", () => {
 			header: "Heads up",
 			text: ["Something to read."],
 		});
-		const rid = pendingRequestId(s.id);
+		const rid = pendingRequestId(s);
 
 		expect(replyOverWire(s.id, { requestId: rid, cancelled: true }).status).toBe(200);
 
@@ -419,7 +381,7 @@ describe("interactivePromptServer session multiplexing", () => {
 		async (_name, spec) => {
 			const s = interactivePromptServer.createSession();
 			const prompt = interactivePromptServer.emitPrompt(s.id, spec);
-			const rid = pendingRequestId(s.id);
+			const rid = pendingRequestId(s);
 
 			expect(replyOverWire(s.id, { requestId: rid, cancelled: true }).status).toBe(
 				200,
@@ -484,7 +446,7 @@ describe("interactivePromptServer session multiplexing", () => {
 			header: "Name",
 			multiline: false,
 		});
-		const rid = pendingRequestId(s.id);
+		const rid = pendingRequestId(s);
 
 		interactivePromptServer.abortSession(s.id);
 
@@ -543,20 +505,7 @@ describe("interactivePromptServer session multiplexing", () => {
 			error: "Input cancelled by user",
 		});
 
-		const { res, events } = fakeRes();
-		(
-			interactivePromptServer as unknown as {
-				handlePoll: (session: unknown, res: unknown) => void;
-				sessions: Map<string, unknown>;
-			}
-		).handlePoll(
-			(
-				interactivePromptServer as unknown as {
-					sessions: Map<string, unknown>;
-				}
-			).sessions.get(s.id),
-			res,
-		);
+		const { events } = poll(s);
 
 		expect(events[0]).toEqual({
 			kind: "error",
@@ -582,7 +531,7 @@ describe("interactivePromptServer session multiplexing", () => {
 			header: "Name",
 			multiline: false,
 		});
-		const rid = pendingRequestId(s.id);
+		const rid = pendingRequestId(s);
 		expect(replyOverWire(s.id, { requestId: rid, value: null }).status).toBe(200);
 		await expect(prompt).resolves.toBeNull();
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
@@ -603,22 +552,29 @@ describe("interactivePromptServer session multiplexing", () => {
 	});
 });
 
+type Session = { id: string; token: string };
+
 /**
  * Drives a request through the real `handle()` router, so the method gate, the auth
- * gate and the status mapping are the ones production uses. Everything below the
- * router (session lookup, abort, reply) is shared with the direct-call tests.
+ * gate and the status mapping are the ones production uses. The router is the HTTP
+ * server's request listener, so this is what a client's request runs.
  */
-async function overWire(
-	method: string,
-	path: string,
-	query: string,
-): Promise<{ status: number; body: Record<string, unknown> }> {
-	const { res, events } = fakeRes();
+function request(method: string, path: string, query: string) {
+	const events: unknown[] = [];
 	let status = 0;
-	(res as { writeHead: (code: number) => void }).writeHead = (code: number) => {
-		status = code;
+	let closeHandler: (() => void) | null = null;
+	const res = {
+		writeHead(code: number) {
+			status = code;
+		},
+		end(payload?: string) {
+			if (payload) events.push(JSON.parse(payload));
+		},
+		on(event: string, cb: () => void) {
+			if (event === "close") closeHandler = cb;
+		},
 	};
-	await (
+	const done = (
 		interactivePromptServer as unknown as {
 			handle: (req: unknown, res: unknown) => Promise<void>;
 		}
@@ -634,43 +590,37 @@ async function overWire(
 		},
 		res,
 	);
-	return { status, body: (events[0] ?? {}) as Record<string, unknown> };
-}
-
-/** Minimal ServerResponse stand-in capturing what `send()` writes. */
-function fakeRes(): {
-	res: unknown;
-	events: unknown[];
-	close: () => void;
-} {
-	const events: unknown[] = [];
-	let closeHandler: (() => void) | null = null;
 	return {
-		res: {
-			writeHead() {},
-			end(payload?: string) {
-				if (payload) events.push(JSON.parse(payload));
-			},
-			on(event: string, cb: () => void) {
-				if (event === "close") closeHandler = cb;
-			},
-		},
+		done,
 		events,
-		close() {
-			closeHandler?.();
-		},
+		status: () => status,
+		/** The client hangs up on this request. */
+		close: () => closeHandler?.(),
 	};
 }
 
-/** Reads the single pending requestId for a session (test helper). */
-function pendingRequestId(sessionId: string): string {
-	const sessions = (
-		interactivePromptServer as unknown as {
-			sessions: Map<string, { pending: Map<string, unknown> }>;
-		}
-	).sessions;
-	const pending = sessions.get(sessionId)?.pending;
-	const first = pending ? [...pending.keys()][0] : undefined;
-	if (!first) throw new Error("no pending prompt");
-	return first;
+async function overWire(
+	method: string,
+	path: string,
+	query: string,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+	const sent = request(method, path, query);
+	await sent.done;
+	return { status: sent.status(), body: (sent.events[0] ?? {}) as Record<string, unknown> };
+}
+
+/** A client's long poll. It reaches the session synchronously and may stay parked. */
+function poll(session: Session) {
+	return request("GET", "/poll", `session=${session.id}&token=${session.token}`);
+}
+
+function requestIdIn(events: unknown[]): string {
+	const prompt = events.find((event) => (event as { kind?: string }).kind === "prompt");
+	if (!prompt) throw new Error("no prompt delivered");
+	return (prompt as { requestId: string }).requestId;
+}
+
+/** Collects the session's queued prompt the way a client does, and returns its requestId. */
+function pendingRequestId(session: Session): string {
+	return requestIdIn(poll(session).events);
 }

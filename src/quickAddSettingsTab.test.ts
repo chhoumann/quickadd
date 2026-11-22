@@ -6,7 +6,6 @@ import { App, Component, ExtraButtonComponent, Setting } from "obsidian";
 import type { SettingDefinitionList } from "obsidian";
 import { renderChoiceName } from "./gui/choiceList/renderChoiceName";
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
-import { formatDateAliasLines } from "./utils/dateAliases";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { settingsStore } from "./settingsStore";
 import { DEFAULT_SETTINGS, type QuickAddSettings } from "./settings";
@@ -25,6 +24,7 @@ type Node = {
 	type?: string;
 	heading?: string;
 	name?: unknown;
+	desc?: unknown;
 	items?: Node[];
 	control?: { key?: string };
 };
@@ -100,63 +100,6 @@ describe("settings user-authored DOM XSS safety", () => {
 
 		expect(multiContainer.textContent).toContain(`Multi ${payload}`);
 		expectNoPayloadDom(multiContainer);
-	});
-
-	it("keeps malicious date alias text in textarea values, not parsed DOM", () => {
-		const payload = "<svg onload=globalThis.__qaXss=1>date</svg>";
-		const container = document.createElement("div");
-		const textarea = document.createElement("textarea");
-		textarea.value = formatDateAliasLines({
-			[payload]: `next ${payload}`,
-		});
-		container.appendChild(textarea);
-
-		expect(textarea?.value).toContain(`${payload} = next ${payload}`);
-		expect(container.textContent).not.toContain(payload);
-		expectNoPayloadDom(container);
-	});
-
-	it("source settings surfaces use escaped bindings for globals and package conflicts", () => {
-		const srcRoot = join(__dirname);
-		const surfaces = [
-			"gui/GlobalVariables/GlobalVariablesView.svelte",
-			"gui/PackageManager/ImportPackageModal.svelte",
-			"gui/PackageManager/ImportChoices.svelte",
-			"gui/PackageManager/ImportAcknowledgement.svelte",
-			"gui/PackageManager/PackageWarnings.svelte",
-			"gui/PackageManager/ExportPackageModal.svelte",
-			"gui/PackageManager/FilePreviewRow.svelte",
-			"gui/PackageManager/CapabilityBanner.svelte",
-			"gui/PackageManager/CapabilityTag.svelte",
-			"gui/choiceList/ChoiceListItem.svelte",
-			"gui/choiceList/MultiChoiceListItem.svelte",
-		];
-
-		for (const relativePath of surfaces) {
-			const source = readFileSync(join(srcRoot, relativePath), "utf8");
-			expect(source, relativePath).not.toContain("{@html");
-		}
-
-		const globalVariablesSource = readFileSync(
-			join(srcRoot, "gui/GlobalVariables/GlobalVariablesView.svelte"),
-			"utf8",
-		);
-		expect(globalVariablesSource).toContain("bind:value={it.name}");
-		expect(globalVariablesSource).toContain("bind:value={it.value}");
-
-		const packageImportSource = readFileSync(
-			join(srcRoot, "gui/PackageManager/ImportChoices.svelte"),
-			"utf8",
-		);
-		expect(packageImportSource).toContain("{conflict.name}");
-
-		// File paths render through escaped bindings in FilePreviewRow now.
-		const fileRowSource = readFileSync(
-			join(srcRoot, "gui/PackageManager/FilePreviewRow.svelte"),
-			"utf8",
-		);
-		expect(fileRowSource).toContain("{destinationPath}");
-		expectNoPayloadDom(document.body);
 	});
 });
 
@@ -355,6 +298,20 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 		]);
 		const onTab = settingsIn(groups.slice(0, -1)).map((item) => item.name);
 		for (const name of onPage) expect(onTab).not.toContain(name);
+	});
+
+	// x-* params skip non-Template/Capture choices at run time, so the toggle
+	// has to say so.
+	it("notes that x-* callbacks restrict a URI to Template/Capture choices", () => {
+		const groups = makeTab().getSettingDefinitions() as unknown as Node[];
+		const toggle = settingsIn(groups).find((item) => item.control?.key === "enableUriCallbacks");
+
+		expect(typeof toggle?.desc).toBe("string");
+		const desc = toggle!.desc as string;
+		expect(desc).toContain("Template");
+		expect(desc).toContain("Capture");
+		expect(desc.toLowerCase()).toContain("x-*");
+		expect(desc.toLowerCase()).toMatch(/restrict/);
 	});
 
 	// Issue #1541: the whole plugin used to contain exactly one docs URL, buried

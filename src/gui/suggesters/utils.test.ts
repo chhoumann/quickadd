@@ -7,6 +7,7 @@ import {
 	renderHighlightRanges,
 	stripMdExtensionForDisplay,
 	createRenderFallbackWarner,
+	installSkipAffordance,
 } from "./utils";
 
 // Mock HTMLInputElement for testing
@@ -265,5 +266,27 @@ describe("createRenderFallbackWarner (#1604)", () => {
 		customRow(new Error("b"));
 
 		expect(logWarning).toHaveBeenCalledTimes(2);
+	});
+});
+
+// Optional option-list suggesters need a pointer/touch way to skip, not only
+// the Mod+Shift+Enter hotkey.
+describe("installSkipAffordance", () => {
+	it("renders a Skip button that invokes onSkip", () => {
+		const modalEl = document.createElement("div");
+		const onSkip = vi.fn();
+
+		installSkipAffordance({ modalEl }, onSkip);
+
+		const button = modalEl.querySelector<HTMLButtonElement>("button.qa-suggester-skip-button");
+		expect(button?.textContent).toBe("Skip (leave empty)");
+		button?.click();
+		expect(onSkip).toHaveBeenCalledTimes(1);
+	});
+
+	it("installs no button when the modal has no modalEl", () => {
+		const onSkip = vi.fn();
+		installSkipAffordance({}, onSkip);
+		expect(onSkip).not.toHaveBeenCalled();
 	});
 });

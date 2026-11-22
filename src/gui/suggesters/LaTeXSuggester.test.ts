@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import Fuse from "fuse.js";
 import { renderMath } from "obsidian";
-import { describe, expect, it, vi } from "vitest";
+import type { App } from "obsidian";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LaTeXSuggester } from "./LaTeXSuggester";
 
 vi.mock("obsidian", async (importOriginal) => ({
@@ -13,106 +13,103 @@ vi.mock("obsidian", async (importOriginal) => ({
 	}),
 }));
 
-const symbols = [
-	"\\alpha",
-	"\\Alpha",
-	"\\aleph",
-	"\\beta",
-	"\\gamma",
-	"\\mathcal{A}",
-	"\\notalpha",
-];
-
-function ensureContainsPolyfill(): void {
-	const stringPrototype = String.prototype as typeof String.prototype & {
-		contains?: (searchString: string) => boolean;
+function createSuggester() {
+	const app = {
+		dom: { appContainerEl: document.body },
+		keymap: { pushScope: vi.fn(), popScope: vi.fn() },
+	} as unknown as App;
+	const input = document.createElement("textarea");
+	document.body.appendChild(input);
+	const suggester = new LaTeXSuggester(app, input);
+	/** Suggestions for `value` with the caret at `caret` (default: the end). */
+	const suggest = (value: string, caret = value.length) => {
+		input.value = value;
+		input.setSelectionRange(caret, caret);
+		return suggester.getSuggestions(value);
 	};
-
-	if (!stringPrototype.contains) {
-		stringPrototype.contains = String.prototype.includes;
-	}
-}
-
-function oldTwoStageSuggestions(inputStr: string): string[] {
-	const inputBeforeCursor = inputStr.slice(0, inputStr.length);
-	const lastBackslashPos = inputBeforeCursor.lastIndexOf("\\");
-	const commandText = inputBeforeCursor.slice(lastBackslashPos);
-	const match = /\\([a-z{}A-Z0-9]*)$/.exec(commandText);
-
-	let lastInput = "";
-	let suggestions: string[] = [];
-
-	if (match) {
-		lastInput = match[1];
-		suggestions = symbols.filter((val) =>
-			//@ts-ignore
-			val.toLowerCase().contains(lastInput)
-		);
-	}
-
-	const fuse = new Fuse(suggestions, {
-		findAllMatches: true,
-		threshold: 0.8,
-	});
-	return fuse.search(lastInput).map((value) => value.item);
-}
-
-function getSuggestions(inputStr: string, from: string[] = symbols): string[] {
-	return LaTeXSuggester.prototype.getSuggestions.call(
-		{
-			inputEl: {
-				selectionStart: inputStr.length,
-			},
-			lastInput: "",
-			symbols: from,
-		},
-		inputStr,
-	);
+	return { suggester, suggest };
 }
 
 describe("LaTeXSuggester", () => {
+	afterEach(() => {
+		document.body.replaceChildren();
+	});
+
 	describe("getSuggestions", () => {
-		it("preserves the old two-stage Fuse ranking after reusing a shared full index", () => {
-			ensureContainsPolyfill();
+		it("returns only the symbol for an exact command", () => {
+			const { suggest } = createSuggester();
 
-			for (const input of ["\\al", "\\alpha", "\\A", "prefix \\ma"]) {
-				expect(getSuggestions(input)).toEqual(oldTwoStageSuggestions(input));
-			}
+			expect(suggest("\\alpha")).toEqual(["\\alpha"]);
+			expect(suggest("\\sqrt")).toEqual(["\\sqrt"]);
 		});
 
-		it("searches its own symbols, not those of the first suggester that searched", () => {
-			ensureContainsPolyfill();
+		it("completes a command prefix", () => {
+			const { suggest } = createSuggester();
 
-			expect(getSuggestions("\\al")).toContain("\\alpha");
-			expect(getSuggestions("\\ze", ["\\zeta", "\\eta"])).toEqual(["\\zeta"]);
+			expect(suggest("\\alp")).toEqual(["\\alpha"]);
+			expect(suggest("\\inft")).toEqual(["\\infty"]);
 		});
 
-		it("returns no suggestions when there is no LaTeX command match", () => {
-			ensureContainsPolyfill();
+		it("ranks the closest match first among symbols containing the command", () => {
+			const { suggest } = createSuggester();
 
-			expect(getSuggestions("alpha")).toEqual([]);
+			expect(suggest("\\frac")).toEqual([
+				"\\frac{☚}{☚}☚",
+				"\\cfrac{☚}{☚}☚",
+				"\\dfrac{☚}{☚}☚",
+				"\\tfrac{☚}{☚}☚",
+				"\\genfrac",
+			]);
+		});
+
+		it("suggests only symbols containing the typed command", () => {
+			const { suggest } = createSuggester();
+
+			const results = suggest("\\al");
+
+			expect(results).toEqual(expect.arrayContaining(["\\alpha", "\\aleph", "\\maltese"]));
+			expect(results.every((symbol) => symbol.toLowerCase().includes("al"))).toBe(true);
+		});
+
+		it("completes the last command after other text", () => {
+			const { suggest } = createSuggester();
+
+			const results = suggest("x^2 + \\be");
+
+			expect(results).toContain("\\beta");
+			expect(results.every((symbol) => symbol.includes("be"))).toBe(true);
+		});
+
+		it("completes the command before the caret, ignoring text after it", () => {
+			const { suggest } = createSuggester();
+
+			expect(suggest("\\alp tail", 4)).toEqual(["\\alpha"]);
+		});
+
+		it("returns nothing without a backslash command or for an unknown command", () => {
+			const { suggest } = createSuggester();
+
+			expect(suggest("alpha")).toEqual([]);
+			expect(suggest("\\xyzzy")).toEqual([]);
 		});
 	});
 
 	describe("renderSuggestion", () => {
-		it("clones cached rendered previews for each row", () => {
+		it("renders each symbol once and gives every row its own preview copy", () => {
+			const { suggester } = createSuggester();
 			const rowA = document.createElement("div");
 			const rowB = document.createElement("div");
-			const setText = vi.fn(function (this: HTMLElement, text: string) {
-				this.textContent = text;
-			});
-			rowA.setText = setText;
-			rowB.setText = setText;
 
-			LaTeXSuggester.prototype.renderSuggestion("\\alpha", rowA);
-			LaTeXSuggester.prototype.renderSuggestion("\\alpha", rowB);
+			suggester.renderSuggestion("\\alpha", rowA);
+			suggester.renderSuggestion("\\alpha", rowB);
 
 			const rendered = vi.mocked(renderMath).mock.results[0].value;
 			expect(renderMath).toHaveBeenCalledTimes(1);
+			expect(rowA.textContent).toBe("\\alpha");
+			expect(rowA.querySelector(".math-preview")).not.toBeNull();
 			expect(rowA.lastChild).not.toBe(rendered);
 			expect(rowB.lastChild).not.toBe(rendered);
 			expect(rowA.lastChild).not.toBe(rowB.lastChild);
-			expect(rendered.parentElement).toBeNull();
 		});
 	});
 });

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import type { AIProvider } from "./Provider";
-import type { CommonResponse } from "./providerRequest";
 
 /**
  * The invariant behind #1565 / #1568: the AI system prompt is sent to the model
@@ -13,8 +12,11 @@ import type { CommonResponse } from "./providerRequest";
  * then reached the model as eight literal characters. The affordance is gone;
  * this pins the behaviour it was lying about, in both directions:
  *
- *   - the system prompt arrives at OpenAIRequest byte-identical to the input, and
+ *   - the system prompt arrives in the provider request byte-identical to the
+ *     input, and
  *   - the formatter is never invoked with it.
+ *
+ * The agent's seed request is pinned the same way in tools/Agent.test.ts.
  *
  * If #1572 ever makes system prompts formattable, this test fails, and whoever
  * changes it is the person who should also restore the preview and the token
@@ -28,25 +30,17 @@ const storeState = vi.hoisted(() => ({
 }));
 
 const mocks = vi.hoisted(() => ({
-	makeRequest: vi.fn(),
-	openAIRequest: vi.fn(),
-	isLikelyContextLimitError: vi.fn(() => false),
+	requestUrl: vi.fn(),
 	getMarkdownFilesInFolder: vi.fn((): unknown[] => []),
 }));
 
-// Reached transitively from Agent -> CompleteFormatter; its real entry point
-// `require`s "obsidian", which does not exist outside the app.
+vi.mock("obsidian", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	requestUrl: mocks.requestUrl,
+}));
 
 vi.mock("src/settingsStore", () => ({
 	settingsStore: { getState: () => storeState },
-}));
-
-vi.mock("./OpenAIRequest", () => ({
-	OpenAIRequest: mocks.openAIRequest,
-}));
-
-vi.mock("./providerErrors", () => ({
-	isLikelyContextLimitError: mocks.isLikelyContextLimitError,
 }));
 
 vi.mock("src/utils/vaultQueries", () => ({
@@ -61,19 +55,38 @@ const SYSTEM_PROMPT =
 	"You are a helpful assistant. Today is {{DATE}} and the note is {{VALUE:title}}.";
 
 function makeApp(): App {
-	return {} as App;
+	return { workspace: {} } as unknown as App;
 }
 
-function response(content: string): CommonResponse {
+/** An OpenAI-compatible chat completion that echoes the user message. */
+function completion(userMessage: string) {
 	return {
-		id: content,
+		id: "r",
 		model: "test-model",
-		content,
-		usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-		stopReason: "stop",
-		stopSequence: null,
 		created: 0,
+		choices: [{ index: 0, message: { role: "assistant", content: `response:${userMessage}` }, finish_reason: "stop" }],
+		usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
 	};
+}
+
+type WireMessage = { role: string; content: string };
+
+/** The chat messages of every request sent to the provider, in order. */
+function sentRequests(): WireMessage[][] {
+	return mocks.requestUrl.mock.calls.map(
+		([request]) => (JSON.parse((request as { body: string }).body) as { messages: WireMessage[] }).messages,
+	);
+}
+
+/** The system message of every request sent to the provider. */
+function systemPromptsSent(): string[] {
+	const requests = sentRequests();
+	expect(requests.length).toBeGreaterThan(0);
+	return requests.map((messages) => messages.find((m) => m.role === "system")?.content ?? "<none>");
+}
+
+function userMessagesSent(): string[] {
+	return sentRequests().map((messages) => messages.find((m) => m.role === "user")?.content ?? "<none>");
 }
 
 function baseSettings() {
@@ -99,19 +112,13 @@ const resolvingFormatter = vi.fn(async (input: string) =>
 	input.replace(/\{\{[^}]*\}\}/g, "RESOLVED"),
 );
 
-/** The `systemPrompt` argument OpenAIRequest was constructed with. */
-function systemPromptSentToProvider(): unknown {
-	expect(mocks.openAIRequest).toHaveBeenCalled();
-	return mocks.openAIRequest.mock.calls[0][4];
-}
-
 beforeEach(() => {
 	vi.clearAllMocks();
 	storeState.disableOnlineFeatures = false;
-	mocks.openAIRequest.mockReturnValue(mocks.makeRequest);
-	mocks.makeRequest.mockImplementation(async (prompt: string) =>
-		response(`response:${prompt}`),
-	);
+	mocks.requestUrl.mockImplementation(async (request: { body: string }) => {
+		const { messages } = JSON.parse(request.body) as { messages: WireMessage[] };
+		return { status: 200, json: completion(messages.at(-1)?.content ?? "") };
+	});
 });
 
 describe("the AI system prompt is sent verbatim", () => {
@@ -122,10 +129,10 @@ describe("the AI system prompt is sent verbatim", () => {
 			resolvingFormatter,
 		);
 
-		expect(systemPromptSentToProvider()).toBe(SYSTEM_PROMPT);
+		expect(systemPromptsSent()).toEqual([SYSTEM_PROMPT]);
 		// The prompt IS formatted - this is the contrast that makes the system
 		// prompt's exemption a deliberate behaviour rather than a dead code path.
-		expect(mocks.makeRequest).toHaveBeenCalledWith("Summarise RESOLVED");
+		expect(userMessagesSent()).toEqual(["Summarise RESOLVED"]);
 		expect(resolvingFormatter).toHaveBeenCalledTimes(1);
 		expect(resolvingFormatter).not.toHaveBeenCalledWith(SYSTEM_PROMPT);
 	});
@@ -146,13 +153,9 @@ describe("the AI system prompt is sent verbatim", () => {
 				`Chunk: ${String(variables.chunk)}`,
 		);
 
-		// One OpenAIRequest is built for the whole run and reused per chunk, so
-		// checking the constructor argument covers every dispatched request.
-		expect(systemPromptSentToProvider()).toBe(SYSTEM_PROMPT);
-		expect(mocks.makeRequest.mock.calls.length).toBeGreaterThan(0);
-		for (const [prompt] of mocks.makeRequest.mock.calls) {
-			expect(prompt).not.toContain("RESOLVED");
-		}
+		const systemPrompts = systemPromptsSent();
+		expect(systemPrompts.length).toBeGreaterThan(1);
+		expect(new Set(systemPrompts)).toEqual(new Set([SYSTEM_PROMPT]));
 	});
 
 	it("runAIAssistant formats the prompt TEMPLATE and leaves the system prompt alone", async () => {
@@ -166,6 +169,7 @@ describe("the AI system prompt is sent verbatim", () => {
 		mocks.getMarkdownFilesInFolder.mockReturnValue([template]);
 
 		const app = {
+			workspace: {},
 			vault: {
 				getAbstractFileByPath: () => template,
 				cachedRead: async () => "Summarise {{VALUE:body}}",
@@ -182,36 +186,10 @@ describe("the AI system prompt is sent verbatim", () => {
 			resolvingFormatter,
 		);
 
-		expect(systemPromptSentToProvider()).toBe(SYSTEM_PROMPT);
-		expect(mocks.makeRequest).toHaveBeenCalledWith("Summarise RESOLVED");
+		expect(systemPromptsSent()).toEqual([SYSTEM_PROMPT]);
+		expect(userMessagesSent()).toEqual(["Summarise RESOLVED"]);
 		expect(resolvingFormatter).toHaveBeenCalledTimes(1);
 		expect(resolvingFormatter).not.toHaveBeenCalledWith(SYSTEM_PROMPT);
-	});
-
-	it("Agent seeds the system message unformatted", async () => {
-		// `ai.agent()` falls back to the AI settings modal's default system prompt
-		// when the script passes none, so this path is fed by the same field.
-		const { Agent } = await import("./tools/Agent");
-		const format = vi.fn(async (input: string) => input);
-		const agent = new Agent(
-			makeApp(),
-			{} as never,
-			{ model: "test-model", system: SYSTEM_PROMPT },
-			format,
-		);
-
-		// prompt omitted: buildSeedMessages short-circuits to "" and never formats,
-		// so this stays a unit test of the system-message seam.
-		const messages = await (
-			agent as unknown as {
-				buildSeedMessages: (o: object) => Promise<
-					Array<{ role: string; content: unknown }>
-				>;
-			}
-		).buildSeedMessages({});
-
-		expect(messages[0]).toEqual({ role: "system", content: SYSTEM_PROMPT });
-		expect(format).not.toHaveBeenCalled();
 	});
 
 	it("keeps the token characters intact rather than stripping them", async () => {
@@ -223,6 +201,6 @@ describe("the AI system prompt is sent verbatim", () => {
 
 		// The specific failure mode the removed preview hid: authors saw a date and
 		// the model saw the eight characters.
-		expect(systemPromptSentToProvider()).toContain("{{DATE}}");
+		expect(systemPromptsSent()[0]).toContain("{{DATE}}");
 	});
 });

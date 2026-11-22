@@ -1,576 +1,304 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { itPerf } from '../../../tests/perfUtils';
 import { FileIndex } from './FileIndex';
-import { normalizeForSearch } from './normalizeForSearch';
 import { TFile } from 'obsidian';
-import type { App, Vault, MetadataCache, Workspace } from 'obsidian';
+import type { App, CachedMetadata, Plugin } from 'obsidian';
 
-// Mock Obsidian types
-const createMockApp = (): App => {
-	const mockFiles: TFile[] = [];
-
-	return {
-		vault: {
-			getMarkdownFiles: vi.fn(() => mockFiles),
-			getAbstractFileByPath: (path: string) => mockFiles.find(f => f.path === path),
-			getRoot: () => ({ path: '' }),
-			on: vi.fn(),
-			create: vi.fn().mockResolvedValue({ path: 'test.md', basename: 'test' })
-		} as unknown as Vault,
-		metadataCache: {
-			getFileCache: () => ({
-				frontmatter: { alias: ['test-alias'] },
-				headings: [{ heading: 'Test Heading' }],
-				blocks: { 'block1': { id: 'block1' } },
-				tags: [{ tag: '#test' }]
-			}),
-			unresolvedLinks: {},
-			on: vi.fn()
-		} as unknown as MetadataCache,
-		workspace: {
-			on: vi.fn(),
-			getActiveFile: () => null,
-			getLeaf: vi.fn()
-		} as unknown as Workspace
-	} as App;
-};
-
-const createMockIndexedFile = (overrides: {
+interface NoteSpec {
 	path: string;
-	basename: string;
-	aliases?: string[];
+	aliases?: string[] | string;
 	headings?: string[];
-	blockIds?: string[];
 	tags?: string[];
-	modified?: number;
-	folder?: string;
-}) => {
-	const aliases = overrides.aliases ?? [];
-	return {
-		path: overrides.path,
-		pathNormalized: normalizeForSearch(overrides.path),
-		basename: overrides.basename,
-		basenameNormalized: normalizeForSearch(overrides.basename),
-		aliases,
-		aliasesNormalized: aliases.map((alias) => normalizeForSearch(alias)),
-		headings: overrides.headings ?? [],
-		blockIds: overrides.blockIds ?? [],
-		tags: overrides.tags ?? [],
-		modified: overrides.modified ?? Date.now(),
-		folder: overrides.folder ?? ''
+}
+
+// A real TFile instance (not a cast): the vault event handlers guard with
+// `instanceof TFile`, so a plain object would be silently ignored.
+const mdFile = (path: string): TFile =>
+	Object.assign(new TFile(), {
+		path,
+		basename: path.replace(/\.md$/, '').split('/').pop() ?? path,
+		extension: 'md',
+		parent: { path: path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '' },
+		stat: { mtime: 1 },
+	});
+
+const metadataFor = (spec: NoteSpec | undefined): CachedMetadata => ({
+	frontmatter: spec?.aliases === undefined ? {} : { aliases: spec.aliases },
+	headings: (spec?.headings ?? []).map((heading, i) => ({
+		heading,
+		level: 1,
+		position: {
+			start: { line: i, col: 0, offset: 0 },
+			end: { line: i, col: heading.length, offset: heading.length },
+		},
+	})),
+	tags: (spec?.tags ?? []).map((tag) => ({
+		tag,
+		position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } },
+	})),
+});
+
+type Handler = (...args: unknown[]) => void;
+
+/**
+ * A fake vault whose files and metadata the test controls, plus the event
+ * handlers the index registers, so tests drive it the way Obsidian does.
+ */
+function createVault() {
+	let notes: NoteSpec[] = [];
+	const handlers: Record<string, Handler> = {};
+	const on = (event: string, handler: Handler) => {
+		handlers[event] = handler;
+		return {};
 	};
-};
+	const unresolvedLinks: Record<string, Record<string, number>> = {};
+	let unresolvedLinkReads = 0;
+
+	const app = {
+		vault: {
+			getMarkdownFiles: vi.fn(() => notes.map((note) => mdFile(note.path))),
+			on,
+		},
+		metadataCache: {
+			getFileCache: vi.fn((file: TFile) => metadataFor(notes.find((note) => note.path === file.path))),
+			get unresolvedLinks() {
+				unresolvedLinkReads++;
+				return unresolvedLinks;
+			},
+			on,
+		},
+		workspace: { on },
+	} as unknown as App;
+
+	const plugin = { registerEvent: vi.fn((ref: unknown) => ref) } as unknown as Plugin;
+
+	return {
+		app,
+		handlers,
+		unresolvedLinks,
+		unresolvedLinkReads: () => unresolvedLinkReads,
+		setNotes(next: NoteSpec[]) {
+			notes = next;
+		},
+		createIndex() {
+			FileIndex.destroyInstance();
+			return FileIndex.getInstance(app, plugin);
+		},
+	};
+}
+
+const paths = (results: { file: { path: string } }[]) => results.map((r) => r.file.path);
 
 describe('FileIndex', () => {
-	let mockApp: App;
+	let vault: ReturnType<typeof createVault>;
 	let fileIndex: FileIndex;
 
+	const indexNotes = async (notes: NoteSpec[]) => {
+		vault.setNotes(notes);
+		await fileIndex.ensureIndexed();
+	};
+
 	beforeEach(() => {
-		mockApp = createMockApp();
-		// Create a mock plugin with registerEvent
-		const mockPlugin = {
-			registerEvent: vi.fn((eventRef) => eventRef)
-		} as any;
-		// Reset singleton using the test subclass
+		vault = createVault();
+		fileIndex = vault.createIndex();
+	});
+
+	afterEach(() => {
 		FileIndex.destroyInstance();
-		fileIndex = FileIndex.getInstance(mockApp, mockPlugin);
 	});
 
-	describe('scoring system', () => {
-		it('should boost same-folder files', () => {
-			const mockFile = createMockIndexedFile({
-				path: 'folder/test.md',
-				basename: 'test',
-				folder: 'folder'
-			});
-
-			const context = { currentFolder: 'folder' };
-			const score = (fileIndex as any).calculateScore(mockFile, 'test', context, 0.5);
-
-			expect(score).toBeLessThan(0.5); // Should be boosted (lower score)
-		});
-
-		it('should penalize alias match types', () => {
-			const mockFile = createMockIndexedFile({
-				path: 'test.md',
-				basename: 'test',
-				aliases: ['exact-match']
-			});
-
-			const score = (fileIndex as any).calculateScore(mockFile, 'exact-match', {}, 0.5, 'alias');
-
-			expect(score).toBeGreaterThan(0.5); // Should be penalized (higher score = worse ranking)
-		});
-
-		it('should rank basename matches better than alias matches', () => {
-			const mockFile = createMockIndexedFile({
-				path: 'test.md',
-				basename: 'test',
-				aliases: ['my-alias']
-			});
-
-			const aliasScore = (fileIndex as any).calculateScore(mockFile, 'my-alias', {}, 0.5, 'alias');
-			const basenameScore = (fileIndex as any).calculateScore(mockFile, 'test', {}, 0.5, 'exact');
-
-			expect(aliasScore).toBeGreaterThan(basenameScore); // Alias should have worse score (higher = worse)
-		});
-
-		it('should boost files with tag overlap', () => {
-			const currentFile = createMockIndexedFile({
-				path: 'current.md',
-				basename: 'current',
-				tags: ['#shared-tag']
-			});
-
-			const testFile = createMockIndexedFile({
-				path: 'test.md',
-				basename: 'test',
-				tags: ['#shared-tag', '#other-tag']
-			});
-
-			// Simulate current file in map
-			(fileIndex as any).fileMap.set('current.md', currentFile);
-
-			const mockCurrentFile = { path: 'current.md' } as TFile;
-			const context = { currentFile: mockCurrentFile };
-
-			const score = (fileIndex as any).calculateScore(testFile, 'test', context, 0.5);
-
-			expect(score).toBeLessThan(0.5); // Should be boosted
-		});
+	it('returns no results before indexing', () => {
+		expect(fileIndex.search('test', {}, 10)).toEqual([]);
 	});
 
-	describe('basic functionality', () => {
-		it('should have required methods', () => {
-			expect(typeof fileIndex.search).toBe('function');
-			expect(typeof fileIndex.ensureIndexed).toBe('function');
-			expect(typeof fileIndex.getIndexedFileCount).toBe('function');
-			expect(typeof fileIndex.getFile).toBe('function');
+	describe('ranking', () => {
+		it('returns the exact basename match first', async () => {
+			await indexNotes([{ path: 'contest.md' }, { path: 'testing.md' }, { path: 'test.md' }]);
+
+			const [first] = fileIndex.search('test', {}, 10);
+
+			expect(first.file.path).toBe('test.md');
+			expect(first.matchType).toBe('exact');
 		});
 
-		it('should return empty results for searches before indexing', () => {
-			const results = fileIndex.search('test', {}, 10);
-			expect(Array.isArray(results)).toBe(true);
+		it('ranks a note in the current folder above same-named notes elsewhere', async () => {
+			await indexNotes([{ path: 'folder2/note.md' }, { path: 'note.md' }, { path: 'folder1/note.md' }]);
+
+			const results = fileIndex.search('note', { currentFolder: 'folder1' }, 10);
+
+			expect(paths(results)[0]).toBe('folder1/note.md');
+			const score = (path: string) => results.find((r) => r.file.path === path)!.score;
+			expect(score('folder1/note.md')).toBeLessThan(score('folder2/note.md'));
 		});
 
-		it('should use incremental updates for single file changes', async () => {
-			// Use fake timers for deterministic testing
-			vi.useFakeTimers();
+		it('ranks a note sharing tags with the current file above an otherwise equal note', async () => {
+			await indexNotes([
+				{ path: 'current.md', tags: ['#shared'] },
+				{ path: 'note-plain.md' },
+				{ path: 'note-tagd.md', tags: ['#shared', '#other'] },
+			]);
 
-			// Reset the existing index to ensure clean state
-			FileIndex.destroyInstance();
-			const freshPlugin = { registerEvent: vi.fn((eventRef) => eventRef) } as any;
-			const freshIndex = FileIndex.getInstance(mockApp, freshPlugin);
+			const results = fileIndex.search('note', { currentFile: mdFile('current.md') }, 10);
 
-			// Set up initial files with proper metadata
-			const initialFiles = [
-				{ path: 'file1.md', basename: 'file1', extension: 'md', parent: { path: '' }, stat: { mtime: Date.now() } },
-				{ path: 'file2.md', basename: 'file2', extension: 'md', parent: { path: '' }, stat: { mtime: Date.now() } }
-			] as TFile[];
-
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(initialFiles);
-			mockApp.metadataCache.getFileCache = vi.fn(() => ({
-				frontmatter: {},
-				headings: [],
-				tags: []
-			}));
-
-			// Initial index – ensure all batched timers run so both files are indexed
-			const indexPromise = freshIndex.ensureIndexed();
-			// Flush any pending timers (including 0-ms ones) used inside performReindex()
-			await vi.runAllTimersAsync();
-			await indexPromise;
-			expect(freshIndex.getIndexedFileCount()).toBeGreaterThanOrEqual(1);
-
-			// Spy on the methods - use proper type assertion
-			const freshIndexWithPrivates = freshIndex as unknown as {
-				updateFuseIndex: () => void;
-				processPendingFuseUpdates: () => void;
-				addFile: (file: TFile) => void;
-			};
-			const updateFuseIndexSpy = vi.spyOn(freshIndexWithPrivates, 'updateFuseIndex');
-			const processPendingUpdatesSpy = vi.spyOn(freshIndexWithPrivates, 'processPendingFuseUpdates');
-
-			// Simulate adding a single file
-			const newFile = {
-				path: 'file3.md',
-				basename: 'file3',
-				extension: 'md',
-				parent: { path: '' },
-				stat: { mtime: Date.now() }
-			} as TFile;
-			freshIndexWithPrivates.addFile(newFile);
-
-			// Advance timers to trigger debounced update
-			vi.advanceTimersByTime(150);
-
-			// Should use incremental update, not full rebuild
-			expect(processPendingUpdatesSpy).toHaveBeenCalled();
-			expect(updateFuseIndexSpy).not.toHaveBeenCalled();
-			expect(freshIndex.getIndexedFileCount()).toBeGreaterThanOrEqual(2);
-
-			// Clean up
-			vi.useRealTimers();
+			expect(paths(results).slice(0, 2)).toEqual(['note-tagd.md', 'note-plain.md']);
 		});
 
-		it('should batch multiple rapid updates', async () => {
-			// Create mock pending updates
-			const indexWithPrivates = fileIndex as unknown as {
-				pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'>;
-				scheduleFuseUpdate: (path: string, op: 'add' | 'update' | 'remove') => void;
-			};
+		it('scores an alias match worse than an equal basename match', async () => {
+			await indexNotes([
+				{ path: 'random.md', aliases: ['project-x'] },
+				{ path: 'project-y.md' },
+			]);
 
-			// Simulate rapid file operations
-			indexWithPrivates.scheduleFuseUpdate('file1.md', 'add');
-			indexWithPrivates.scheduleFuseUpdate('file2.md', 'update');
-			indexWithPrivates.scheduleFuseUpdate('file1.md', 'remove'); // Should coalesce with add
+			const results = fileIndex.search('project', {}, 10);
+			const basenameHit = results.find((r) => r.file.path === 'project-y.md')!;
+			const aliasHit = results.find((r) => r.file.path === 'random.md')!;
 
-			// Check that add+remove was coalesced
-			expect(indexWithPrivates.pendingFuseUpdates.has('file1.md')).toBe(false);
-			expect(indexWithPrivates.pendingFuseUpdates.get('file2.md')).toBe('update');
+			expect(aliasHit.matchType).toBe('alias');
+			expect(aliasHit.displayText).toBe('project-x');
+			expect(aliasHit.score).toBeGreaterThan(basenameHit.score);
 		});
 
-		it('should handle remove+add sequence as update', () => {
-			const indexWithPrivates = fileIndex as unknown as {
-				pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'>;
-				scheduleFuseUpdate: (path: string, op: 'add' | 'update' | 'remove') => void;
-			};
+		it('returns alias prefix matches before fuzzy results', async () => {
+			await indexNotes([
+				{ path: 'fuzzy-match.md' },
+				{ path: 'random.md', aliases: ['alias-match'] },
+				{ path: 'another.md', aliases: ['alice'] },
+			]);
 
-			// Simulate rename operation (remove then add)
-			indexWithPrivates.scheduleFuseUpdate('file.md', 'remove');
-			indexWithPrivates.scheduleFuseUpdate('file.md', 'add');
-
-			// Should be treated as update
-			expect(indexWithPrivates.pendingFuseUpdates.get('file.md')).toBe('update');
-		});
-
-		it('should not rescan unresolved links on every file update, only lazily in search', () => {
-			const indexWithPrivates = fileIndex as unknown as {
-				updateUnresolvedLinks: () => void;
-				updateFile: (file: TFile) => void;
-				unresolvedLinksDirty: boolean;
-			};
-
-			// Force a clean starting state so update-driven calls are measured directly.
-			indexWithPrivates.updateUnresolvedLinks();
-			expect(indexWithPrivates.unresolvedLinksDirty).toBe(false);
-
-			const spy = vi.spyOn(indexWithPrivates, 'updateUnresolvedLinks');
-
-			const file = {
-				path: 'note.md',
-				basename: 'note',
-				extension: 'md',
-				parent: { path: '' },
-				stat: { mtime: Date.now() }
-			} as TFile;
-			for (let i = 0; i < 5; i++) {
-				indexWithPrivates.updateFile(file);
-			}
-
-			expect(spy).not.toHaveBeenCalled();
-			expect(indexWithPrivates.unresolvedLinksDirty).toBe(true);
-
-			fileIndex.search('no', {}, 10);
-			expect(spy).toHaveBeenCalledTimes(1);
-			expect(indexWithPrivates.unresolvedLinksDirty).toBe(false);
-
-			fileIndex.search('no', {}, 10);
-			expect(spy).toHaveBeenCalledTimes(1);
-
-			spy.mockRestore();
-		});
-	});
-
-	describe('alias improvements', () => {
-		it.skip('should return alias prefix matches before fuzzy results', async () => {
-			// Create files with different match types
-			const files = [
-				{ path: 'fuzzy-match.md', basename: 'fuzzy-match', aliases: [] },
-				{ path: 'alias-file.md', basename: 'random', aliases: ['alias-match'] },
-				{ path: 'another.md', basename: 'another', aliases: ['alice'] }
-			];
-
-			// Mock the vault to return our test files
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
-				files.map(f => ({ ...f, extension: 'md', parent: { path: '' } }))
-			);
-
-			// Mock metadata cache
-			mockApp.metadataCache.getFileCache = vi.fn((file) => {
-				const testFile = files.find(f => f.path === file.path);
-				return testFile ? {
-					frontmatter: { aliases: testFile.aliases }
-				} : null;
-			});
-
-			await fileIndex.ensureIndexed();
 			const results = fileIndex.search('ali', {}, 10);
 
-			// Should find alias matches
-			expect(results.length).toBeGreaterThan(0);
-			const aliasMatches = results.filter(r => r.matchType === 'alias');
-			expect(aliasMatches.length).toBe(2);
+			// Equal-score alias hits keep vault order.
+			expect(results.slice(0, 2).map((r) => [r.file.path, r.matchType, r.displayText])).toEqual([
+				['random.md', 'alias', 'alias-match'],
+				['another.md', 'alias', 'alice'],
+			]);
+			expect(results.slice(2).every((r) => r.matchType !== 'alias')).toBe(true);
+		});
 
-			// Verify we found the expected files
-			const paths = aliasMatches.map(r => r.file.path);
-			expect(paths).toContain('alias-file.md');
-			expect(paths).toContain('another.md');
+		it('matches a composed query against a decomposed filename', async () => {
+			const nfdName = 'Rücken-Fit'.normalize('NFD');
+			await indexNotes([{ path: `${nfdName}.md` }]);
+
+			expect(paths(fileIndex.search('Rü', {}, 10))).toEqual([`${nfdName}.md`]);
 		});
 	});
 
-	describe('alias extraction', () => {
-		it('should split comma-separated alias strings', async () => {
-			const files = [
-				{
-					path: 'test.md',
-					basename: 'test',
-					extension: 'md',
-					parent: { path: '' },
-					stat: { mtime: Date.now() }
-				}
-			] as TFile[];
+	describe('aliases', () => {
+		it('splits comma-separated alias strings', async () => {
+			await indexNotes([{ path: 'test.md', aliases: 'hello, world' }]);
 
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
-			mockApp.metadataCache.getFileCache = vi.fn(() => ({
-				frontmatter: { aliases: 'hello, world' }
-			}));
-
-			await fileIndex.ensureIndexed();
-
-			const helloResults = fileIndex.search('hello', {}, 10);
-			const worldResults = fileIndex.search('world', {}, 10);
-
-			expect(helloResults.some(result =>
-				result.matchType === 'alias' && result.displayText === 'hello'
-			)).toBe(true);
-			expect(worldResults.some(result =>
-				result.matchType === 'alias' && result.displayText === 'world'
-			)).toBe(true);
+			expect(fileIndex.search('hello', {}, 10)[0]).toMatchObject({ matchType: 'alias', displayText: 'hello' });
+			expect(fileIndex.search('world', {}, 10)[0]).toMatchObject({ matchType: 'alias', displayText: 'world' });
 		});
 
-		it('should read aliases from case-insensitive keys', async () => {
-			const files = [
-				{
-					path: 'upper.md',
-					basename: 'upper',
-					extension: 'md',
-					parent: { path: '' },
-					stat: { mtime: Date.now() }
-				},
-				{
-					path: 'note.md',
-					basename: 'note',
-					extension: 'md',
-					parent: { path: '' },
-					stat: { mtime: Date.now() }
-				}
-			] as TFile[];
-
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
-			mockApp.metadataCache.getFileCache = vi.fn((file) => {
-				if (file.path === 'upper.md') {
-					return { frontmatter: { Aliases: ['Caps'] } };
-				}
-				if (file.path === 'note.md') {
-					return { frontmatter: { aLiAs: 'Mixed' } };
-				}
-				return { frontmatter: {} };
-			});
-
+		it('reads aliases from case-insensitive frontmatter keys', async () => {
+			vault.setNotes([{ path: 'upper.md' }, { path: 'note.md' }]);
+			vi.mocked(vault.app.metadataCache.getFileCache).mockImplementation((file: TFile) =>
+				file.path === 'upper.md'
+					? { frontmatter: { Aliases: ['Caps'] } }
+					: { frontmatter: { aLiAs: 'Mixed' } },
+			);
 			await fileIndex.ensureIndexed();
 
-			const capsResults = fileIndex.search('caps', {}, 10);
-			const mixedResults = fileIndex.search('mixed', {}, 10);
-
-			expect(capsResults.some(result =>
-				result.matchType === 'alias' && result.displayText === 'Caps'
-			)).toBe(true);
-			expect(mixedResults.some(result =>
-				result.matchType === 'alias' && result.displayText === 'Mixed'
-			)).toBe(true);
+			expect(fileIndex.search('caps', {}, 10)[0]).toMatchObject({ matchType: 'alias', displayText: 'Caps' });
+			expect(fileIndex.search('mixed', {}, 10)[0]).toMatchObject({ matchType: 'alias', displayText: 'Mixed' });
 		});
 	});
 
 	describe('heading search', () => {
-		it.skip('should support global heading search with #', async () => {
-			// Create files with headings
-			const files = [
-				{ path: 'file1.md', basename: 'file1', headings: ['Introduction', 'My Heading', 'Conclusion'] },
-				{ path: 'file2.md', basename: 'file2', headings: ['Overview', 'My Special Heading'] }
-			];
+		beforeEach(async () => {
+			await indexNotes([
+				{ path: 'file1.md', headings: ['Introduction', 'My Heading', 'Conclusion'] },
+				{ path: 'file2.md', headings: ['Overview', 'My Special Heading'] },
+			]);
+		});
 
-			// Mock the vault
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
-				files.map(f => ({ ...f, extension: 'md', parent: { path: '' } }))
-			);
-
-			// Mock metadata cache with headings
-			// @ts-ignore
-			mockApp.metadataCache.getFileCache = vi.fn((file) => {
-				const testFile = files.find(f => f.path === file.path);
-				return testFile ? {
-					headings: testFile.headings.map((h, i) => ({
-						heading: h,
-						level: 1,
-						position: {
-							start: { line: i * 10, col: 0, offset: 0 },
-							end: { line: i * 10, col: h.length, offset: h.length }
-						}
-					})) as any // cast to satisfy HeadingCache type
-				} : null;
-			});
-
-			await fileIndex.ensureIndexed();
+		it('finds headings across all notes with a leading #', () => {
 			const results = fileIndex.search('#my heading', {}, 10);
 
-			// Should find files with matching headings
-			expect(results.length).toBeGreaterThan(0);
-			const headingMatches = results.filter(r => r.matchType === 'heading');
-			expect(headingMatches.length).toBeGreaterThan(0);
+			expect(results.map((r) => [r.matchType, r.displayText])).toEqual([['heading', 'file1#My Heading']]);
+		});
 
-			// Verify display text contains heading
-			const hasHeadingInDisplay = headingMatches.some(r =>
-				r.displayText.toLowerCase().includes('heading')
-			);
-			expect(hasHeadingInDisplay).toBe(true);
+		it('finds headings inside the named note', () => {
+			const results = fileIndex.search('file2#special', {}, 10);
+
+			expect(results.map((r) => [r.matchType, r.displayText])).toEqual([['heading', 'file2#My Special Heading']]);
 		});
 	});
 
-	describe('search functionality', () => {
-		it('should match normalized query against decomposed filenames', async () => {
-			const nfcName = 'Rücken-Fit';
-			const nfdName = nfcName.normalize('NFD');
-			const files = [
-				{
-					path: `${nfdName}.md`,
-					basename: nfdName,
-					extension: 'md',
-					parent: { path: '' },
-					stat: { mtime: Date.now() }
-				}
-			] as TFile[];
+	describe('vault changes after indexing', () => {
+		// Exact/prefix/substring tiers scan the file map; this query only reaches
+		// the fuzzy (Fuse) tier, so it proves the fuzzy index was updated too.
+		const fuzzyFinds = (query: string, path: string) =>
+			paths(fileIndex.search(query, {}, 10)).includes(path);
 
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
-			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
-
-			await fileIndex.ensureIndexed();
-			const results = fileIndex.search('Rü', {}, 10);
-
-			expect(results.some(result => result.file.basename === nfdName)).toBe(true);
+		beforeEach(async () => {
+			vi.useFakeTimers();
+			vault.setNotes([{ path: 'file1.md' }, { path: 'file2.md' }]);
+			const done = fileIndex.ensureIndexed();
+			await vi.runAllTimersAsync();
+			await done;
 		});
 
-		it.skip('should return exact matches first', async () => {
-			const files = [
-				{ path: 'test.md', basename: 'test' },
-				{ path: 'testing.md', basename: 'testing' },
-				{ path: 'contest.md', basename: 'contest' }
-			];
-
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
-				files.map(f => ({ ...f, extension: 'md', parent: { path: '' } }))
-			);
-
-			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
-
-			await fileIndex.ensureIndexed();
-			const results = fileIndex.search('test', {}, 10);
-
-			// Should find results
-			expect(results.length).toBeGreaterThan(0);
-
-			// Should have an exact match
-			const exactMatch = results.find(r => r.file.basename === 'test' && r.matchType === 'exact');
-			expect(exactMatch).toBeDefined();
+		afterEach(() => {
+			vi.useRealTimers();
 		});
 
-		it.skip('should handle relative path suggestions', async () => {
-			const files = [
-				{ path: 'folder1/note.md', basename: 'note' },
-				{ path: 'folder2/note.md', basename: 'note' },
-				{ path: 'note.md', basename: 'note' }
-			];
+		it('makes a created note fuzzy-searchable after the debounce', () => {
+			vault.handlers.create(mdFile('rescued.md'));
+			vi.advanceTimersByTime(150);
 
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
-				files.map(f => ({
-					...f,
-					extension: 'md',
-					parent: { path: f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '' }
-				}))
-			);
-
-			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
-
-			await fileIndex.ensureIndexed();
-
-			// Search from folder1 context
-			const context = { currentFolder: 'folder1' };
-			const results = fileIndex.search('note', context, 10);
-
-			// Same folder file should be boosted
-			const folder1Result = results.find(r => r.file.path === 'folder1/note.md');
-			const folder2Result = results.find(r => r.file.path === 'folder2/note.md');
-
-			expect(folder1Result).toBeDefined();
-			expect(folder2Result).toBeDefined();
-			expect(folder1Result!.score).toBeLessThan(folder2Result!.score);
+			expect(fileIndex.getFile('rescued.md')).toBeDefined();
+			expect(fuzzyFinds('rescd', 'rescued.md')).toBe(true);
 		});
-	});
 
-	describe('performance', () => {
-		itPerf('should handle large vaults efficiently', async () => {
-			// Mock a large number of files
-			const mockFiles = Array.from({ length: 1000 }, (_, i) => ({
-				path: `file-${i}.md`,
-				basename: `file-${i}`,
-				stat: { mtime: Date.now() },
-				parent: { path: 'folder' },
-				extension: 'md'
-			})) as TFile[];
+		it('leaves no trace of a note created and deleted within the debounce', () => {
+			vault.handlers.create(mdFile('rescued.md'));
+			vault.handlers.delete(mdFile('rescued.md'));
+			vi.advanceTimersByTime(150);
 
-			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(mockFiles);
+			expect(fileIndex.getFile('rescued.md')).toBeUndefined();
+			expect(fuzzyFinds('rescd', 'rescued.md')).toBe(false);
+		});
 
-			// Mock getFileCache to return empty metadata for all files
-			mockApp.metadataCache.getFileCache = vi.fn(() => ({
-				frontmatter: {},
-				headings: [],
-				blocks: {},
-				tags: []
-			}));
+		it('moves a renamed note to its new path exactly once', () => {
+			vault.handlers.create(mdFile('rescued.md'));
+			vi.advanceTimersByTime(150);
+			vault.handlers.rename(mdFile('archive/rescued.md'), 'rescued.md');
+			vi.advanceTimersByTime(150);
 
-			const startTime = performance.now();
-			await fileIndex.ensureIndexed();
-			const endTime = performance.now();
+			expect(paths(fileIndex.search('rescd', {}, 10)).filter((p) => p.includes('rescued'))).toEqual([
+				'archive/rescued.md',
+			]);
+		});
 
-			// Should complete indexing in reasonable time (< 2 seconds for 1000 files)
-			// This is more realistic for CI environments and slower machines
-			expect(endTime - startTime).toBeLessThan(2000);
+		it('reads unresolved links lazily on search, not on every metadata change', () => {
+			const readsBefore = vault.unresolvedLinkReads();
+			vault.unresolvedLinks['file1.md'] = { 'Missing Note': 1 };
 
-			// Verify all files were indexed
-			expect(fileIndex.getIndexedFileCount()).toBe(1000);
+			for (let i = 0; i < 5; i++) vault.handlers.changed(mdFile('file1.md'));
+			expect(vault.unresolvedLinkReads()).toBe(readsBefore);
+
+			expect(fileIndex.search('missing', {}, 10)).toEqual([
+				expect.objectContaining({ matchType: 'unresolved', displayText: 'Missing Note' }),
+			]);
+			expect(fileIndex.search('missing', {}, 10)).toHaveLength(1);
+			expect(vault.unresolvedLinkReads()).toBe(readsBefore + 1);
 		});
 	});
 });
 
-describe('FileIndex recency accessors (note-picker seam)', () => {
-	let mockApp: App;
+describe('FileIndex recency (note-picker seam)', () => {
+	let vault: ReturnType<typeof createVault>;
 	let fileIndex: FileIndex;
-	let fireFileOpen: (file: TFile | null) => void;
+	const open = (path: string) => vault.handlers['file-open'](mdFile(path));
 
 	beforeEach(() => {
+		vault = createVault();
+		fileIndex = vault.createIndex();
+	});
+
+	afterEach(() => {
 		FileIndex.destroyInstance();
-		mockApp = createMockApp();
-		// Capture the 'file-open' handler the index registers so we can drive it.
-		(mockApp.workspace.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(
-			(event: string, handler: (file: TFile | null) => void) => {
-				if (event === 'file-open') fireFileOpen = handler;
-				return {} as never;
-			},
-		);
-		const mockPlugin = {
-			registerEvent: vi.fn((eventRef) => eventRef),
-		} as any;
-		fileIndex = FileIndex.getInstance(mockApp, mockPlugin);
 	});
 
 	it('getInstanceIfExists returns the singleton, and undefined after reset', () => {
@@ -582,140 +310,72 @@ describe('FileIndex recency accessors (note-picker seam)', () => {
 	it('destroyInstance cancels a pending debounced reindex', () => {
 		vi.useFakeTimers();
 		try {
-			let fireResolved: (() => void) | undefined;
-			const app = createMockApp();
-			(app.metadataCache.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(
-				(event: string, handler: () => void) => {
-					if (event === 'resolved') fireResolved = handler;
-					return {} as never;
-				},
-			);
-			FileIndex.destroyInstance();
-			FileIndex.getInstance(app, { registerEvent: vi.fn() } as any);
-
 			// An empty index schedules a full reindex on 'resolved'.
-			fireResolved?.();
+			vault.handlers.resolved();
 			FileIndex.destroyInstance();
 			vi.advanceTimersByTime(1000);
 
-			expect(app.vault.getMarkdownFiles).not.toHaveBeenCalled();
+			expect(vault.app.vault.getMarkdownFiles).not.toHaveBeenCalled();
 		} finally {
 			vi.useRealTimers();
 		}
 	});
 
 	it('getLastOpenedAt reports the open timestamp and undefined for unopened files', () => {
-		expect(typeof fireFileOpen).toBe('function');
-		expect(fileIndex.getLastOpenedAt('Opened.md')).toBeUndefined();
+		vi.useFakeTimers({ now: 1_700_000_000_000 });
+		try {
+			expect(fileIndex.getLastOpenedAt('Opened.md')).toBeUndefined();
 
-		fireFileOpen({ path: 'Opened.md' } as TFile);
+			open('Opened.md');
 
-		expect(typeof fileIndex.getLastOpenedAt('Opened.md')).toBe('number');
-		expect(fileIndex.getLastOpenedAt('Never.md')).toBeUndefined();
+			expect(fileIndex.getLastOpenedAt('Opened.md')).toBe(1_700_000_000_000);
+			expect(fileIndex.getLastOpenedAt('Never.md')).toBeUndefined();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
-	it('getLastOpenedAt is a non-mutating peek (stable across repeated reads)', () => {
-		fireFileOpen({ path: 'A.md' } as TFile);
-		const first = fileIndex.getLastOpenedAt('A.md');
-		const second = fileIndex.getLastOpenedAt('A.md');
-		expect(first).toBe(second);
-		expect(typeof first).toBe('number');
-	});
-
-	it('a full reindex does not reorder the recency LRU (createIndexedFile peeks)', async () => {
+	it('a full reindex keeps open order, so the oldest-opened note is evicted first', async () => {
 		// Open order establishes recency: A (oldest) -> B -> C (newest).
-		fireFileOpen({ path: 'A.md' } as TFile);
-		fireFileOpen({ path: 'B.md' } as TFile);
-		fireFileOpen({ path: 'C.md' } as TFile);
+		open('A.md');
+		open('B.md');
+		open('C.md');
 
-		const lruKeys = () =>
-			Array.from(
-				(
-					(fileIndex as unknown as {
-						recentFiles: { cache: Map<string, number> };
-					}).recentFiles.cache
-				).keys(),
-			);
-		expect(lruKeys()).toEqual(['A.md', 'B.md', 'C.md']);
-
-		// Vault iteration order intentionally differs from open order. With the
-		// mutating get() bug, reindexing each file rewrites the LRU to this order,
-		// leaving C.md (not A.md) as the next eviction victim.
-		const makeFile = (path: string): TFile =>
-			({
-				path,
-				basename: path.replace(/\.md$/, ''),
-				extension: 'md',
-				parent: { path: '' },
-				stat: { mtime: 1 },
-			}) as unknown as TFile;
-		(mockApp.vault.getMarkdownFiles as unknown as ReturnType<typeof vi.fn>).mockReturnValue([
-			makeFile('C.md'),
-			makeFile('B.md'),
-			makeFile('A.md'),
-		]);
-		mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
-
+		// Vault iteration order intentionally differs from open order: reading
+		// recency during the reindex must not promote files in vault order.
+		vault.setNotes([{ path: 'C.md' }, { path: 'B.md' }, { path: 'A.md' }]);
 		await fileIndex.ensureIndexed();
+		expect(fileIndex.getFile('A.md')?.openedAt).toBe(fileIndex.getLastOpenedAt('A.md'));
 
-		// Recency order is preserved: A.md is still the oldest / next-evicted.
-		expect(lruKeys()).toEqual(['A.md', 'B.md', 'C.md']);
-		// And openedAt values survive the reindex unchanged.
-		expect(typeof fileIndex.getFile('A.md')?.openedAt).toBe('number');
+		// The recency list holds 100 entries; 98 more opens evict exactly one.
+		for (let i = 0; i < 98; i++) open(`other-${i}.md`);
+
+		expect(fileIndex.getLastOpenedAt('A.md')).toBeUndefined();
+		expect(fileIndex.getLastOpenedAt('B.md')).toBeDefined();
+		expect(fileIndex.getLastOpenedAt('C.md')).toBeDefined();
 	});
 });
 
 describe('FileIndex reindex atomicity (concurrent vault mutations)', () => {
-	let mockApp: App;
+	let vault: ReturnType<typeof createVault>;
 	let fileIndex: FileIndex;
-	// Captured vault event handlers (create/delete/rename) so a test can fire a
-	// mutation at a controlled moment: mid-reindex, between batch yields.
-	let vaultHandlers: Record<string, (file: TFile, oldPath?: string) => void>;
-
-	// A real TFile instance (not a cast): the create/delete/rename handlers guard
-	// with `instanceof TFile`, so a plain object would be silently ignored.
-	const mdFile = (path: string): TFile =>
-		Object.assign(new TFile(), {
-			path,
-			basename: (path.replace(/\.md$/, '').split('/').pop() ?? path),
-			extension: 'md',
-			parent: { path: path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '' },
-			stat: { mtime: 1 },
-		});
 
 	beforeEach(() => {
 		vi.useFakeTimers();
-		vaultHandlers = {};
-		FileIndex.destroyInstance();
-		mockApp = createMockApp();
-		// Capture the vault listeners the index registers during construction.
-		(mockApp.vault.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(
-			(event: string, handler: (file: TFile, oldPath?: string) => void) => {
-				vaultHandlers[event] = handler;
-				return {} as never;
-			},
-		);
-		mockApp.metadataCache.getFileCache = vi.fn(() => ({
-			frontmatter: {},
-			headings: [],
-			tags: [],
-		}));
-		const mockPlugin = { registerEvent: vi.fn((ref) => ref) } as any;
-		fileIndex = FileIndex.getInstance(mockApp, mockPlugin);
+		vault = createVault();
+		fileIndex = vault.createIndex();
 	});
 
 	afterEach(() => {
+		FileIndex.destroyInstance();
 		vi.useRealTimers();
 	});
 
 	// Drives performReindex() to the point where it has snapshotted the vault and
 	// is parked on its first setTimeout(0) yield, then runs `duringWindow` (the
 	// concurrent mutation), then flushes the remaining yields and the swap+replay.
-	const reindexWith = async (
-		initial: TFile[],
-		duringWindow: () => void,
-	): Promise<void> => {
-		(mockApp.vault.getMarkdownFiles as any).mockReturnValue(initial);
+	const reindexWith = async (initial: string[], duringWindow: () => void): Promise<void> => {
+		vault.setNotes(initial.map((path) => ({ path })));
 		const done = fileIndex.ensureIndexed(); // runs synchronously up to first yield
 		duringWindow();
 		await vi.runAllTimersAsync();
@@ -723,30 +383,26 @@ describe('FileIndex reindex atomicity (concurrent vault mutations)', () => {
 	};
 
 	it('keeps a file CREATED during the async reindex window', async () => {
-		await reindexWith([mdFile('a.md'), mdFile('b.md')], () => {
-			vaultHandlers.create(mdFile('c.md'));
+		await reindexWith(['a.md', 'b.md'], () => {
+			vault.handlers.create(mdFile('c.md'));
 		});
 
-		// Without the fix the create mutated the about-to-be-discarded old map and
-		// was suppressed by the isIndexing guard, so c.md vanished from the index.
 		expect(fileIndex.getFile('c.md')).toBeDefined();
 		expect(fileIndex.getIndexedFileCount()).toBe(3);
 	});
 
 	it('drops a file DELETED during the async reindex window', async () => {
-		await reindexWith([mdFile('a.md'), mdFile('b.md')], () => {
-			vaultHandlers.delete(mdFile('b.md'));
+		await reindexWith(['a.md', 'b.md'], () => {
+			vault.handlers.delete(mdFile('b.md'));
 		});
 
-		// Without the fix b.md was already in the snapshot/newFileMap and the
-		// concurrent delete was lost, leaving a stale ghost entry in the picker.
 		expect(fileIndex.getFile('b.md')).toBeUndefined();
 		expect(fileIndex.getIndexedFileCount()).toBe(1);
 	});
 
 	it('reflects a RENAME that lands during the async reindex window', async () => {
-		await reindexWith([mdFile('old.md'), mdFile('keep.md')], () => {
-			vaultHandlers.rename(mdFile('new.md'), 'old.md');
+		await reindexWith(['old.md', 'keep.md'], () => {
+			vault.handlers.rename(mdFile('new.md'), 'old.md');
 		});
 
 		expect(fileIndex.getFile('old.md')).toBeUndefined();
@@ -757,10 +413,10 @@ describe('FileIndex reindex atomicity (concurrent vault mutations)', () => {
 	it('survives mutations fired between intermediate reindex batches (>50 files)', async () => {
 		// 60 files => 2 batches => a genuine intermediate setTimeout(0) yield, so
 		// the mutations land mid-build rather than only at the final yield.
-		const many = Array.from({ length: 60 }, (_, i) => mdFile(`f${i}.md`));
+		const many = Array.from({ length: 60 }, (_, i) => `f${i}.md`);
 		await reindexWith(many, () => {
-			vaultHandlers.create(mdFile('mid.md'));
-			vaultHandlers.delete(many[3]); // delete an already-snapshotted file
+			vault.handlers.create(mdFile('mid.md'));
+			vault.handlers.delete(mdFile(many[3])); // delete an already-snapshotted file
 		});
 
 		expect(fileIndex.getFile('mid.md')).toBeDefined();
@@ -770,58 +426,46 @@ describe('FileIndex reindex atomicity (concurrent vault mutations)', () => {
 
 	it('keeps a mid-build create even when the reindex itself throws', async () => {
 		// 60 files so the throw happens in the SECOND batch, after a real yield.
-		const files = Array.from({ length: 60 }, (_, i) => mdFile(`f${i}.md`));
-		(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
-		mockApp.metadataCache.getFileCache = vi.fn((file: TFile) => {
+		vault.setNotes(Array.from({ length: 60 }, (_, i) => ({ path: `f${i}.md` })));
+		vi.mocked(vault.app.metadataCache.getFileCache).mockImplementation((file: TFile) => {
 			if (file.path === 'f55.md') throw new Error('boom'); // build fails post-yield
-			return { frontmatter: {}, headings: [], tags: [] };
+			return {};
 		});
 
 		const done = fileIndex.ensureIndexed();
 		const settled = expect(done).rejects.toThrow('boom');
-		vaultHandlers.create(mdFile('rescued.md')); // fires during the first yield
+		vault.handlers.create(mdFile('rescued.md')); // fires during the first yield
 		await vi.runAllTimersAsync();
 		await settled;
 
-		// The reindex failed and never swapped, but because the handler applied to
-		// the still-live map (not only the discarded buffer), the concurrent create
-		// is not lost - and buffering is disarmed so later mutations resume normally.
 		expect(fileIndex.getFile('rescued.md')).toBeDefined();
-		expect(
-			(fileIndex as unknown as { reindexBuffer: unknown }).reindexBuffer,
-		).toBeNull();
+		// The error path reconciled Fuse with the file map: a fuzzy-only query (one
+		// the exact/prefix/substring tiers miss) still finds the rescued file.
+		expect(paths(fileIndex.search('rescd'))).toContain('rescued.md');
 
-		// And the error path reconciled Fuse with fileMap: a fuzzy-only query (one
-		// the exact/prefix/substring tiers miss) still finds the rescued file, so
-		// fuzzy search does not diverge from the fileMap-scanning tiers.
-		const fuzzyHit = fileIndex
-			.search('rescd')
-			.some((r) => r.file.path === 'rescued.md');
-		expect(fuzzyHit).toBe(true);
+		// Indexing is over, so later mutations take the normal incremental path.
+		vault.handlers.create(mdFile('later.md'));
+		vi.advanceTimersByTime(150);
+		expect(paths(fileIndex.search('latr'))).toContain('later.md');
 	});
 
 	it('coalesces a create-then-delete within the window to nothing', async () => {
-		await reindexWith([mdFile('a.md')], () => {
-			vaultHandlers.create(mdFile('tmp.md'));
-			vaultHandlers.delete(mdFile('tmp.md'));
+		await reindexWith(['a.md'], () => {
+			vault.handlers.create(mdFile('tmp.md'));
+			vault.handlers.delete(mdFile('tmp.md'));
 		});
 
 		expect(fileIndex.getFile('tmp.md')).toBeUndefined();
 		expect(fileIndex.getIndexedFileCount()).toBe(1);
 	});
 
-	it('leaves no buffer behind after the reindex completes (normal path resumes)', async () => {
-		await reindexWith([mdFile('a.md')], () => {});
+	it('resumes incremental fuzzy updates after the reindex completes', async () => {
+		await reindexWith(['a.md'], () => {});
 
-		const internals = fileIndex as unknown as {
-			reindexBuffer: unknown;
-			pendingFuseUpdates: Map<string, unknown>;
-		};
-		expect(internals.reindexBuffer).toBeNull();
+		vault.handlers.create(mdFile('later.md'));
+		vi.advanceTimersByTime(150);
 
-		// A post-reindex create now takes the normal incremental path again.
-		vaultHandlers.create(mdFile('later.md'));
-		expect(internals.pendingFuseUpdates.has('later.md')).toBe(true);
 		expect(fileIndex.getFile('later.md')).toBeDefined();
+		expect(paths(fileIndex.search('latr'))).toContain('later.md');
 	});
 });

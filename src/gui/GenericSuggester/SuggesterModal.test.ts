@@ -61,3 +61,62 @@ describe("suggesters with aliases", () => {
 		});
 	}
 });
+
+describe("suggester queries", () => {
+	it("matches non-string display items by their text", () => {
+		const items = [{ id: 1 }, { id: 2 }];
+		const prompt = new GenericSuggester(new App(), [1, 2] as unknown as string[], items);
+
+		expect(prompt.getSuggestions("2").map((match) => match.item)).toEqual([items[1]]);
+	});
+
+	it("treats an undefined query as empty and lists every item", () => {
+		const prompt = new GenericSuggester(new App(), ["Alpha", "Beta"], ["a", "b"]);
+
+		expect(prompt.getSuggestions(undefined as unknown as string).map((match) => match.item)).toEqual(["a", "b"]);
+	});
+});
+
+describe("Tab autocomplete", () => {
+	// Obsidian keeps the visible rows on its undocumented `chooser`; the stub
+	// exposes the same shape so a test can set what the picker is showing.
+	const showing = (rows: string[], selectedItem: number, query: string) => {
+		const prompt = new GenericSuggester(new App(), ["Alpha", "Beta"], ["Alpha", "Beta"]);
+		const internal = prompt as unknown as {
+			inputEl: HTMLInputElement;
+			chooser: { values: { item: string }[]; selectedItem: number };
+		};
+		internal.chooser.values = rows.map((item) => ({ item }));
+		internal.chooser.selectedItem = selectedItem;
+		internal.inputEl.value = query;
+		const errors: unknown[] = [];
+		const onError = (event: ErrorEvent) => {
+			errors.push(event.error);
+			event.preventDefault();
+		};
+		const pressTab = () => {
+			// jsdom reports listener exceptions as window error events.
+			window.addEventListener("error", onError);
+			internal.inputEl.dispatchEvent(new KeyboardEvent("keydown", { code: "Tab", bubbles: true }));
+			window.removeEventListener("error", onError);
+		};
+		return { input: internal.inputEl, pressTab, errors };
+	};
+
+	it("completes the query to the selected suggestion", () => {
+		const { input, pressTab } = showing(["Alpha", "Beta"], 1, "Be");
+
+		pressTab();
+
+		expect(input.value).toBe("Beta");
+	});
+
+	it("keeps the typed query when nothing matches", () => {
+		const { input, pressTab, errors } = showing([], 0, "no-match");
+
+		pressTab();
+
+		expect(errors).toEqual([]);
+		expect(input.value).toBe("no-match");
+	});
+});

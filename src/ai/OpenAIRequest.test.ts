@@ -129,18 +129,16 @@ beforeEach(() => {
 
 describe("OpenAIRequest", () => {
 	describe("guard clauses", () => {
-		it("throws and does not call requestUrl when online features are disabled", async () => {
+		// The block message must not name OpenAI when another provider is targeted.
+		it.each([
+			["OpenAI", openAIModel, openAIProvider],
+			["Anthropic", anthropicModel, anthropicProvider],
+		])("blocks a %s request with a provider-neutral message when online features are disabled", async (_name, model, provider) => {
 			storeState.disableOnlineFeatures = true;
-			const makeRequest = OpenAIRequest(
-				makeApp(),
-				"key",
-				openAIModel,
-				currentProvider(),
-				"system"
-			);
+			const makeRequest = OpenAIRequest(makeApp(), "key", model, provider as AIProvider, "system");
 
 			await expect(makeRequest("prompt")).rejects.toThrow(
-				"Online features are disabled in settings."
+				/^Blocking request: Online features are disabled in settings\.$/
 			);
 			expect(requestUrlMock).not.toHaveBeenCalled();
 			expect(beginAIRequestLogEntryMock).not.toHaveBeenCalled();
