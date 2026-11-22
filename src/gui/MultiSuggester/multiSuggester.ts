@@ -3,9 +3,11 @@ import { Modal, Notice, Setting } from "obsidian";
 import { normalizeDisplayItem } from "../suggesters/utils";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { itemWithAlias } from "../../utils/fileSyntax";
+import type { FieldLinkSuggestion } from "../../utils/fieldLinkValues";
 import SearchableMultiSelect, {
 	type SearchableMultiSelectItem,
 } from "../SearchableMultiSelect/searchableMultiSelect";
+import { CustomValueSuggest } from "./customValueSuggest";
 
 interface MultiSuggesterOptions {
 	/** Modal title / prompt header. */
@@ -24,6 +26,19 @@ interface MultiSuggesterOptions {
 	preselected?: string[];
 	/** Other names each item can be found by, by index (a note's aliases). */
 	aliases?: string[][];
+	/** The value a typed custom entry stands for, such as the link to the note it names. */
+	resolveTyped?: (typed: string) => string;
+	/** The values are links: labels show in link color. */
+	linkValues?: boolean;
+	/** Option values that link to a note that does not exist. */
+	unresolvedValues?: ReadonlySet<string>;
+	customPlaceholder?: string;
+	emptyText?: string;
+	/** Suggestions under the custom-value field, without the values already listed. */
+	suggestCustom?: (query: string, excludedValues: ReadonlySet<string>) => FieldLinkSuggestion[];
+	/** A custom value's label, such as a link's note name. */
+	customLabel?: (value: string) => string;
+	isCustomUnresolved?: (value: string) => boolean;
 }
 
 /**
@@ -46,6 +61,7 @@ export default class MultiSuggester extends Modal {
 	private readonly selected = new Set<string>();
 	private readonly customValues: string[] = [];
 	private picker: SearchableMultiSelect<string>;
+	private customSuggest?: CustomValueSuggest;
 	// The in-progress custom-value text. Held on the instance (not a render-scoped
 	// local) so submit() can fold an un-"Add"ed draft into the result instead of
 	// silently dropping it.
@@ -78,6 +94,14 @@ export default class MultiSuggester extends Modal {
 		});
 		this.render();
 		this.open();
+		this.focusInitialInput();
+	}
+
+	private focusInitialInput(): void {
+		if (this.items.length === 0 && this.opts.allowCustomValue) {
+			if (!document.body.classList.contains("is-mobile")) this.focusCustomInput();
+			return;
+		}
 		this.picker.focusSearchOnOpen();
 	}
 
@@ -119,6 +143,7 @@ export default class MultiSuggester extends Modal {
 			"qaSearchableMultiSelectModal",
 			"qaMultiSuggester",
 		);
+		if (this.opts.linkValues) this.containerEl.addClass("qa-field-link-values");
 		this.titleEl.setText(this.opts.placeholder ?? "Select one or more");
 		const { contentEl } = this;
 		contentEl.empty();
@@ -132,14 +157,17 @@ export default class MultiSuggester extends Modal {
 				else this.selected.delete(value);
 			},
 			getSelectedCount: () => this.selected.size,
+			emptyText: this.opts.emptyText,
 		});
 
+		this.customSuggest?.destroy();
+		this.customSuggest = undefined;
 		if (this.opts.allowCustomValue) {
 			const customSetting = new Setting(contentEl)
 				.setName("Add a custom value")
 				.addText((text) => {
 					text
-						.setPlaceholder("Not in the list…")
+						.setPlaceholder(this.opts.customPlaceholder ?? "Not in the list…")
 						.setValue(this.draft)
 						.onChange((v) => (this.draft = v));
 					text.inputEl.addClass("qa-multi-custom-input");
@@ -147,11 +175,22 @@ export default class MultiSuggester extends Modal {
 					// typed value is only added by the explicit "Add" button and is
 					// otherwise silently lost.
 					text.inputEl.addEventListener("keydown", (evt) => {
-						if (evt.key === "Enter") {
-							evt.preventDefault();
-							this.commitDraft();
-						}
+						if (evt.key !== "Enter" || this.customSuggest?.isSuggestOpen()) return;
+						evt.preventDefault();
+						this.commitDraft();
 					});
+					const suggestCustom = this.opts.suggestCustom;
+					if (suggestCustom) {
+						this.customSuggest = new CustomValueSuggest(
+							this.app,
+							text.inputEl,
+							(query) => suggestCustom(query, new Set([...this.items, ...this.customValues])),
+							(suggestion) => this.addValue(
+								suggestion.kind === "option" ? this.typedValue(suggestion.option.id) : suggestion.link,
+							),
+							this.scope,
+						);
+					}
 				})
 				.addButton((btn) =>
 					btn.setButtonText("Add").onClick(() => this.commitDraft()),
@@ -190,11 +229,13 @@ export default class MultiSuggester extends Modal {
 				label: normalizeDisplayItem(this.displayItems[index] ?? value),
 				searchText: value,
 				aliases: this.opts.aliases?.[index],
+				...(this.opts.unresolvedValues?.has(value) ? { labelCls: "is-unresolved" } : {}),
 			})),
 			...this.customValues.map((value) => ({
 				key: value,
 				value,
-				label: value,
+				label: this.opts.customLabel?.(value) ?? value,
+				...(this.opts.isCustomUnresolved?.(value) ? { labelCls: "is-unresolved" } : {}),
 			})),
 		];
 	}
@@ -219,17 +260,22 @@ export default class MultiSuggester extends Modal {
 			new Notice(`"${trimmed}" is already added.`);
 			return false;
 		}
+		this.addValue(value);
+		return true;
+	}
+
+	private addValue(value: string): void {
 		this.selectValue(value);
 		this.draft = "";
 		this.render();
 		// render() rebuilds contentEl, dropping focus from the (now-recreated) custom
 		// input; restore it so adding several values in a row stays fluid.
 		this.focusCustomInput();
-		return true;
 	}
 
 	/** A typed value, or the option one of whose aliases it is: an alias names its note. */
 	private typedValue(typed: string): string {
+		if (this.opts.resolveTyped) return this.opts.resolveTyped(typed);
 		return itemWithAlias(this.items, this.opts.aliases ?? [], typed) ?? typed;
 	}
 
@@ -260,6 +306,7 @@ export default class MultiSuggester extends Modal {
 
 	onClose() {
 		super.onClose();
+		this.customSuggest?.destroy();
 		if (this.didSubmit) {
 			this.resolvePromise(this.skipped ? [] : this.collectResult());
 		} else {

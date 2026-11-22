@@ -1,11 +1,16 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
+import type { PromptProvider } from "../../interactive/promptProvider";
+import { FieldLinkSuggester } from "../../gui/FieldLinkSuggester/fieldLinkSuggester";
 import GenericInputPrompt from "../../gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "../../gui/InputSuggester/inputSuggester";
 import MultiSuggester from "../../gui/MultiSuggester/multiSuggester";
 import GenericSuggester from "../../gui/GenericSuggester/genericSuggester";
 import { FieldSuggestionParser } from "../../utils/FieldSuggestionParser";
-import { collectFieldValuesProcessedDetailed } from "../../utils/FieldValueCollector";
+import {
+	collectFieldValuesProcessedDetailed,
+	collectFieldValuesWithSource,
+} from "../../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../../utils/activeNoteFieldDefault";
 import { buildFileDisplayInfos, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, itemWithAlias, type ParsedFileToken } from "../../utils/fileSyntax";
@@ -13,14 +18,24 @@ import { UserCancelError } from "../../errors/UserCancelError";
 import { isCancellationError } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
 import { getFileTokenFiles } from "../../utils/vaultQueries";
+import {
+	createFieldLinkOptions,
+	rankFieldLinkOptions,
+	storedFieldLinkTarget,
+	type FieldLinkOptions,
+	type FieldLinkSuggestion,
+} from "../../utils/fieldLinkValues";
+
+const OTHER_NOTES_LIMIT = 200;
 
 interface VaultPromptContext {
 	app: App;
 	executor: IChoiceExecutor | undefined;
 	getSourcePath: () => string | null;
+	onLinkTarget?: (targets: string | string[]) => void;
 }
 
-export async function suggestForField({ app, executor, getSourcePath }: VaultPromptContext, fieldInput: string): Promise<string | string[]> {
+export async function suggestForField({ app, executor, getSourcePath, onLinkTarget }: VaultPromptContext, fieldInput: string): Promise<string | string[]> {
 
 	// Route the final picker to a remote interactive session (Raycast) when one
 	// is driving; the vault-side value collection below still runs unchanged.
@@ -30,22 +45,55 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		// on unknown keys here: the field replacer in formatter.ts already parses
 		// the same token with { warnUnknown: true } before calling this, so
 		// warning again would emit a duplicate notice per malformed FIELD token.
-		const { fieldName, filters, multiSelect, label } =
+		const { fieldName, filters, multiSelect, label, link } =
 			FieldSuggestionParser.parse(fieldInput);
 
-		// Resolve the active-note default (issue #1429) BEFORE collection but apply
-		// it AFTER, so the resolved value never enters the collection cache key
-		// (which is keyed partly on filters.defaultValue). Gate strictly on
-		// "active"; an unknown source is ignored. `null` => no usable active value
-		// (no/non-Markdown active file, or a missing/empty/object property).
+		const activeFile = executor?.triggerContext?.activeFile ?? null;
 		const activeDefault =
 			filters.defaultFrom === "active"
-				? resolveActiveNoteFieldDefault(
-						app,
-						executor?.triggerContext?.activeFile ?? null,
-						fieldName,
-					)
+				? resolveActiveNoteFieldDefault(app, activeFile, fieldName)
 				: null;
+
+		const title = label ?? `Enter value for ${fieldName}`;
+		let placeholder =
+			multiSelect && !label ? `Select values for ${fieldName}` : title;
+
+		if (link) {
+			const { values: collectedEntries, hasDefaultValue: literalHasDefault } =
+				await collectFieldValuesWithSource(app, fieldName, filters);
+			let entries = collectedEntries;
+			let hasDefaultValue = literalHasDefault;
+			let effectiveDefault = filters.defaultValue;
+			let effectiveDefaultSourcePath: string | undefined;
+
+			if (!multiSelect && typeof activeDefault === "string") {
+				entries = [{ value: activeDefault, sourcePath: activeFile?.path ?? "" }, ...entries];
+				effectiveDefault = activeDefault;
+				effectiveDefaultSourcePath = activeFile?.path;
+				hasDefaultValue = true;
+			} else if (!multiSelect && Array.isArray(activeDefault) && activeDefault.length > 0) {
+				log.logMessage(
+					`{{FIELD:${fieldName}|default-from:active}}: the active note's "${fieldName}" is a list value, which applies only to |multi FIELD prompts, so no default was prefilled.`,
+				);
+			}
+
+			const links = createFieldLinkOptions(app, entries, getSourcePath() ?? "", {
+				pinnedFirst: hasDefaultValue,
+			});
+			if (hasDefaultValue && effectiveDefault) {
+				placeholder = `${placeholder} (default: ${links.displayFor(effectiveDefault, effectiveDefaultSourcePath)})`;
+			}
+			return await suggestFieldLinks(
+				app,
+				provider,
+				links,
+				placeholder,
+				multiSelect ?? false,
+				activeDefault,
+				activeFile?.path,
+				onLinkTarget,
+			);
+		}
 
 		// Collect and process via shared collector (filters unmutated).
 		const { values: collectedValues, hasDefaultValue: literalHasDefault } =
@@ -79,9 +127,6 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 			);
 		}
 
-		const title = label ?? `Enter value for ${fieldName}`;
-		let placeholder =
-			multiSelect && !label ? `Select values for ${fieldName}` : title;
 		if (hasDefaultValue && effectiveDefault) {
 			placeholder = `${placeholder} (default: ${effectiveDefault})`;
 		}
@@ -179,6 +224,112 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		}
 		throw error;
 	}
+}
+
+async function suggestFieldLinks(
+	app: App,
+	provider: PromptProvider | undefined,
+	links: FieldLinkOptions,
+	placeholder: string,
+	multiSelect: boolean,
+	activeDefault: string | string[] | null,
+	activeSourcePath?: string,
+	onLinkTarget?: (targets: string | string[]) => void,
+): Promise<string | string[]> {
+	const toLink = (value: string) => links.linkForTyped(value);
+	const toTarget = (value: string): string => {
+		const resolved = links.resolveTyped(value);
+		if (resolved.kind === "option") return storedFieldLinkTarget(resolved.option);
+		return resolved.kind === "new" ? resolved.link : "";
+	};
+	const collectMulti = (picks: string[], optionByLink?: ReadonlyMap<string, FieldLinkOptions["existingOptions"][number]>): string[] => {
+		const seen = new Set<string>();
+		const outLinks: string[] = [];
+		const outTargets: string[] = [];
+		for (const pick of picks) {
+			const matched = optionByLink?.get(pick);
+			const link = matched ? links.linkForOption(matched) : toLink(pick);
+			if (!link || seen.has(link)) continue;
+			seen.add(link);
+			outLinks.push(link);
+			outTargets.push(matched ? storedFieldLinkTarget(matched) : toTarget(pick));
+		}
+		onLinkTarget?.(outTargets);
+		return outLinks;
+	};
+
+	if (provider) {
+		const remoteOptions = links.allOptions;
+		const remoteDisplays = remoteOptions.map((option) => option.display);
+		const remoteIds = remoteOptions.map((option) => option.id);
+		if (!multiSelect) {
+			const reply = String(await provider.suggester(remoteDisplays, remoteIds, placeholder, true));
+			const target = toTarget(reply);
+			if (target) onLinkTarget?.(target);
+			return toLink(reply);
+		}
+		const preselected = (activeDefault === null ? [] : [activeDefault].flat())
+			.map((value) => {
+				const resolved = links.resolveTyped(value, activeSourcePath);
+				if (resolved.kind === "option") return resolved.option.id;
+				return resolved.kind === "new" ? resolved.link : "";
+			})
+			.filter(Boolean);
+		const picks = await provider.suggesterMulti(remoteDisplays, remoteIds, {
+			placeholder,
+			allowCustomInput: true,
+			preselected: preselected.length > 0 ? preselected : undefined,
+		});
+		return collectMulti(picks);
+	}
+
+	if (!multiSelect) {
+		return await FieldLinkSuggester.Suggest(app, links, {
+			placeholder,
+			...(onLinkTarget ? { onPick: (target) => onLinkTarget(target) } : {}),
+		});
+	}
+
+	const existing = links.existingOptions;
+	const displays = existing.map((option) => option.display);
+	const existingLinks = existing.map((option) => links.linkForOption(option));
+	const optionByLink = new Map(existing.map((option, index) => [existingLinks[index], option]));
+	const preselected = (activeDefault === null ? [] : [activeDefault].flat())
+		.map((value) => links.linkForTyped(value, activeSourcePath))
+		.filter(Boolean);
+	const picks = await MultiSuggester.Suggest(app, displays, existingLinks, {
+		placeholder,
+		allowCustomValue: true,
+		aliases: existing.map((option) => [...option.aliases]),
+		linkValues: true,
+		unresolvedValues: new Set(existingLinks.filter((_, index) => existing[index].kind === "unresolved")),
+		customPlaceholder: "Search other notes or type a link…",
+		emptyText: "No existing values yet. Add notes below.",
+		resolveTyped: toLink,
+		customLabel: (value) => links.displayFor(value),
+		isCustomUnresolved: (value) => links.isUnresolved(value),
+		suggestCustom: (query, excluded) => suggestOtherNotes(links, query, excluded),
+		...(preselected.length > 0 ? { preselected } : {}),
+	});
+	return collectMulti(picks, optionByLink);
+}
+
+function suggestOtherNotes(
+	links: FieldLinkOptions,
+	query: string,
+	listed: ReadonlySet<string>,
+): FieldLinkSuggestion[] {
+	const excludeIds = new Set<string>();
+	for (const value of listed) {
+		const resolution = links.resolveTyped(value);
+		if (resolution.kind === "option") excludeIds.add(resolution.option.id);
+	}
+	return rankFieldLinkOptions(links, query, {
+		limit: OTHER_NOTES_LIMIT,
+		scope: "other-only",
+		excludeIds,
+		includeNewRow: true,
+	}).filter((suggestion) => suggestion.kind !== "new" || !listed.has(suggestion.link));
 }
 
 export async function suggestForFile({ app, executor, getSourcePath }: VaultPromptContext, parsed: ParsedFileToken): Promise<string | string[]> {

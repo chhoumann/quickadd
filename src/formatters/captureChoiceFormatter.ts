@@ -118,7 +118,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	protected getLinkSourcePath(): string | null {
-		return this.sourcePath ?? this.file?.path ?? null;
+		return this.sourcePath ?? this.file?.path ?? super.getLinkSourcePath();
 	}
 
 	protected async getClipboardContent(): Promise<string> {

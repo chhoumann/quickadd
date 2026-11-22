@@ -51,6 +51,7 @@ vi.mock("../gui/GenericInputPrompt/GenericInputPrompt", () => ({
 }));
 
 vi.mock("../gui/InputSuggester/inputSuggester", () => ({ default: {} }));
+vi.mock("src/gui/FieldLinkSuggester/fieldLinkSuggester", () => ({ FieldLinkSuggester: {} }));
 vi.mock("../gui/MultiSuggester/multiSuggester", () => ({ default: {} }));
 vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
 	default: { Prompt: mocks.datePrompt },

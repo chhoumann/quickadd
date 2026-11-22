@@ -27,7 +27,7 @@ const MIN_PROMPT_ROOM_BELOW_PX = 150;
  * bar takes the click aimed at Submit.
  */
 function actionBarLimit(inputEl: HTMLElement, input: DOMRect): number {
-	const actions = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions")?.getBoundingClientRect();
+	const actions = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions, .qa-multi-actions")?.getBoundingClientRect();
 	return actions && actions.height > 0 && actions.top >= input.bottom
 		? actions.top - LIST_GAP_PX
 		: Infinity;
