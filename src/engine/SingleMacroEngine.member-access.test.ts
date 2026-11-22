@@ -14,6 +14,7 @@ import { CommandType } from "../types/macros/CommandType";
 import { log } from "../logger/logManager";
 import { SingleMacroEngine } from "./SingleMacroEngine";
 import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
+import { createVariablesProxy } from "../utils/variablesProxy";
 
 const { mockInitializeUserScriptSettings, mockGetUserScript } = vi.hoisted(
 	() => ({
@@ -233,6 +234,43 @@ describe("SingleMacroEngine member access", () => {
 		});
 	});
 
+	describe("output text", () => {
+		const circular: Record<string, unknown> = { name: "loop" };
+		circular.self = circular;
+
+		const run = async (macroName: string, output: unknown) => {
+			const userScript = createUserScript("user-script", "script.js");
+			const engineInstance = macroEngineFactory();
+			engineInstance.run = vi.fn().mockResolvedValue(undefined);
+			engineInstance.getOutput = vi.fn().mockReturnValue(output);
+			macroEngineFactory = () => engineInstance;
+			mockGetUserScript.mockResolvedValue({ f: () => output });
+			const engine = new SingleMacroEngine(
+				app, plugin, testFormatterRuntime(app, plugin),
+				[baseMacroChoice([userScript])], choiceExecutor,
+			);
+			return engine.runAndGetOutput(macroName);
+		};
+
+		it.each([
+			["the whole macro", "My Macro"],
+			["a member", "My Macro::f"],
+		])("writes an Error's message when %s returns one", async (_label, macroName) => {
+			await expect(run(macroName, new Error("Lookup failed"))).resolves.toBe("Lookup failed");
+		});
+
+		it.each([
+			["the whole macro", "My Macro"],
+			["a member", "My Macro::f"],
+		])("writes a circular object's type tag when %s returns one", async (_label, macroName) => {
+			await expect(run(macroName, circular)).resolves.toBe("[object Object]");
+		});
+
+		it("writes JSON for a plain object", async () => {
+			await expect(run("My Macro", { a: 1 })).resolves.toBe('{"a":1}');
+		});
+	});
+
 	it("runs the macro when no member access is requested", async () => {
 		const userScript = createUserScript("user-script", "script.js");
 		const macroChoice = baseMacroChoice([userScript]);
@@ -258,7 +296,8 @@ describe("SingleMacroEngine member access", () => {
 		const choices: IChoice[] = [macroChoice];
 
 		const engineInstance = macroEngineFactory();
-		engineInstance.params.variables = { existing: "value" };
+		// As in MacroChoiceEngine: a script's variables are a view of the run's map.
+		engineInstance.params.variables = createVariablesProxy(choiceExecutor.variables);
 		macroEngineFactory = () => engineInstance;
 
 		const exportFn = vi.fn().mockImplementation(

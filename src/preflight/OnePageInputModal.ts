@@ -1,4 +1,4 @@
-import { OnePageFieldRenderer, type FieldControl } from "./OnePageFieldRenderer";
+import { OnePageFieldRenderer, SKIP_EMPTY_LABEL, type FieldControl } from "./OnePageFieldRenderer";
 import {
 	ButtonComponent,
 	Modal,
@@ -388,7 +388,7 @@ export class OnePageInputModal extends Modal {
 				if (req.optional && !skip) {
 					select.createEl("option", {
 						value: "",
-						text: "Skip (leave empty)",
+						text: SKIP_EMPTY_LABEL,
 						prepend: true,
 					});
 				} else if (!req.optional && skip) {

@@ -53,3 +53,16 @@ export interface FieldGroup {
 	id: string;
 	label: string;
 }
+
+/**
+ * Folds another step's requirement into the field an earlier step already asks
+ * for. It stays optional only when every step leaves it optional, it is a path
+ * or runtime-only field when any step's is, and a text field several steps
+ * share gets the wider text area, which also takes one line.
+ */
+export function mergeRepeatedRequirement(existing: FieldRequirement, requirement: FieldRequirement): void {
+	existing.optional = Boolean(existing.optional && requirement.optional);
+	if (requirement.pathContext) existing.pathContext = true;
+	if (requirement.runtimeOnly) existing.runtimeOnly = true;
+	if (existing.type === "text" && requirement.type === "textarea") existing.type = "textarea";
+}

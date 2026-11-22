@@ -7,16 +7,17 @@ import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { parsePropertyTarget } from "../../utils/propertyTarget";
 import { parseCaptureFileFilterTarget } from "../../utils/captureFileFilterTarget";
 import type { FieldFilter } from "../../utils/FieldSuggestionParser";
+import { normalizeMarkdownFilePath } from "../vaultFiles";
 
 /**
  * The vault path of the Markdown note a bare folder-candidate path would collide
- * with, i.e. {@link QuickAddEngine.normalizeMarkdownFilePath}`("", candidate)`.
+ * with.
  * Callers bind {@link CaptureTargetScopeDeps.markdownFileExists} by probing the
  * vault for exactly this path, so the classifier's folder-vs-file disambiguation
  * matches resolveCaptureTarget's (which uses the same normalize) byte-for-byte.
  */
 export function markdownFilePathForFolderCandidate(candidate: string): string {
-	return `${candidate.replace(/^\/+/, "").replace(MARKDOWN_FILE_EXTENSION_REGEX, "")}.md`;
+	return normalizeMarkdownFilePath("", candidate);
 }
 
 /**

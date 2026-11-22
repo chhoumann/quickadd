@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LINK_TO_CURRENT_FILE_REGEX, TITLE_REGEX } from '../constants';
 import * as positioning from '../utils/insertionPositioning';
 
-// Local helper mirroring Formatter.replaceLinkToCurrentFileInString,
+// Local helper mirroring how Formatter resolves {{linkcurrent}},
 // but without importing Formatter (to avoid obsidian deps in tests).
 async function replaceLinkToCurrentFileInString(
   input: string,
@@ -113,7 +113,7 @@ describe('Insert after — {{linkcurrent}} resolution', () => {
   });
 });
 
-// Local helper mirroring Formatter.replaceTitleInString without importing it
+// Local helper mirroring how Formatter resolves {{title}}, without importing it
 function replaceTitleInStringLocal(input: string, title: string): string {
   let output = input;
   while (TITLE_REGEX.test(output)) {

@@ -82,8 +82,8 @@ describe("canvasCapture", () => {
 		const board = { path: "Board.canvas" } as TFile;
 		const otherBoard = { path: "Other.canvas" } as TFile;
 
-		expect(resolveActiveCanvasCaptureTarget(app, "append", board)).toBeNull();
-		expect(resolveActiveCanvasCaptureTarget(app, "append", otherBoard)).toMatchObject({ kind: "text", canvasFile: { path: "Other.canvas" } });
+		expect(resolveActiveCanvasCaptureTarget(app, "top", board)).toBeNull();
+		expect(resolveActiveCanvasCaptureTarget(app, "top", otherBoard)).toMatchObject({ kind: "text", canvasFile: { path: "Other.canvas" } });
 	});
 
 	it("rejects unsupported cursor action for text cards", () => {
@@ -159,7 +159,7 @@ describe("canvasCapture", () => {
 			},
 		});
 
-		const target = resolveActiveCanvasCaptureTarget(app, "prepend");
+		const target = resolveActiveCanvasCaptureTarget(app, "bottom");
 		expect(target).not.toBeNull();
 		expect(target?.kind).toBe("file");
 		if (target?.kind === "file") {
@@ -198,7 +198,7 @@ describe("canvasCapture", () => {
 			},
 		});
 
-		const target = resolveActiveCanvasCaptureTarget(app, "prepend");
+		const target = resolveActiveCanvasCaptureTarget(app, "bottom");
 		expect(target).not.toBeNull();
 		expect(target?.kind).toBe("file");
 		if (target?.kind === "file") {
@@ -235,7 +235,7 @@ describe("canvasCapture", () => {
 			},
 		});
 
-		expect(() => resolveActiveCanvasCaptureTarget(app, "prepend")).toThrow(
+		expect(() => resolveActiveCanvasCaptureTarget(app, "bottom")).toThrow(
 			"markdown files only",
 		);
 	});
@@ -264,7 +264,7 @@ describe("canvasCapture", () => {
 			app,
 			"Boards/Plan.canvas",
 			"t1",
-			"append",
+			"top",
 		);
 
 		expect(target.kind).toBe("text");
@@ -300,7 +300,7 @@ describe("canvasCapture", () => {
 			app,
 			"Boards/Plan.canvas",
 			"t1",
-			"append",
+			"top",
 		);
 		expect(target.kind).toBe("text");
 		if (target.kind !== "text") return;
@@ -348,7 +348,7 @@ describe("canvasCapture", () => {
 			app,
 			"Boards/Plan.canvas",
 			"t1",
-			"append",
+			"top",
 		);
 		expect(target.kind).toBe("text");
 		if (target.kind !== "text") return;
@@ -379,7 +379,7 @@ describe("canvasCapture", () => {
 				app,
 				"Boards/Plan.canvas",
 				"missing-node",
-				"append",
+				"top",
 			),
 		).rejects.toThrow("was not found");
 	});
@@ -399,7 +399,7 @@ describe("canvasCapture", () => {
 			getCanvasActionUnsupportedReason("file", "newLineBelow" as CaptureAction),
 		).toContain("cursor-based");
 		expect(
-			getCanvasActionUnsupportedReason("file", "prepend" as CaptureAction),
+			getCanvasActionUnsupportedReason("file", "bottom" as CaptureAction),
 		).toBeNull();
 	});
 });

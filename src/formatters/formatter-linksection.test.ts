@@ -19,7 +19,7 @@ class StubFormatter extends FormatterStub {
 	}
 
 	public process(input: string): string {
-		return this.replaceLinkToCurrentSectionInString(input);
+		return this.replaceCurrentFileTokensInString(input, { links: true });
 	}
 
 	public setBehavior(behavior: Behavior) {

@@ -3,6 +3,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { QuickAddEngine } from "./QuickAddEngine";
+import { normalizeMarkdownFilePath, stripLeadingSlash } from "./vaultFiles";
 import { BASE_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utils/vaultQueries";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
@@ -19,7 +20,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { captureCandidates, captureScopeFiles } from "./helpers/captureCandidates";
 import { itemWithAlias } from "../utils/fileSyntax";
 import { classifyCaptureTargetScope, markdownFilePathForFolderCandidate, type CaptureTargetScope } from "./helpers/captureTargetScope";
-import { resolveCaptureTarget as resolveCaptureTargetFromString, type CaptureTargetResolution } from "./helpers/captureTargetResolution";
+import { namesExistingNote, resolveCaptureTarget as resolveCaptureTargetFromString, type CaptureTargetResolution } from "./helpers/captureTargetResolution";
 import { currentFile, missingCurrentNoteMessage } from "../utils/currentFile";
 
 export abstract class CaptureTargetEngine extends QuickAddEngine {
@@ -141,7 +142,7 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 		scope: CaptureTargetScope,
 		preselected: string,
 	): string | null {
-		const stripped = this.stripLeadingSlash(preselected);
+		const stripped = stripLeadingSlash(preselected);
 
 		if (scope.kind === "folder") {
 			return scope.folderPathSlash &&
@@ -194,8 +195,6 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 			getAbstractFileByPath: (path) =>
 				this.app.vault.getAbstractFileByPath(path),
 			isFolder: (path) => isFolder(this.app, path),
-			normalizeMarkdownFilePath: (folderPath, fileName) =>
-				this.normalizeMarkdownFilePath(folderPath, fileName),
 		});
 	}
 
@@ -302,29 +301,7 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 		value: string,
 		vaultBasenames: Set<string>,
 	): boolean {
-		const raw = value.trim();
-		if (!raw) return false;
-		let normalized: string;
-		try {
-			normalized = normalizeGeneratedFilePath(
-				raw,
-				"Capture target file path",
-			);
-		} catch {
-			return false;
-		}
-
-		const base = normalized.replace(/\.(md|canvas)$/i, "");
-		const pathCandidates = [normalized, `${base}.md`, `${base}.canvas`];
-		if (
-			pathCandidates.some(
-				(path) => !!this.app.vault.getAbstractFileByPath(path),
-			)
-		) {
-			return true;
-		}
-		const basename = base.slice(base.lastIndexOf("/") + 1);
-		return vaultBasenames.has(basename.toLowerCase());
+		return namesExistingNote(value, vaultBasenames, (path) => !!this.app.vault.getAbstractFileByPath(path));
 	}
 
 	/**
@@ -426,7 +403,7 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 
 	protected normalizeCaptureFilePath(path: string): string {
 		const normalizedPath = normalizeGeneratedFilePath(
-			this.stripLeadingSlash(path),
+			stripLeadingSlash(path),
 			"Capture target file path",
 		);
 		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
@@ -446,7 +423,7 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 		}
 
 		// Contain the assembled target at assembly — BEFORE the run() existence probe
-		// (`fileExists(filePath)`) that precedes the create sink. normalizeGeneratedFilePath
+		// (the vault `exists` check) that precedes the create sink. normalizeGeneratedFilePath
 		// intentionally leaves absolute/drive/UNC paths for the boundary check, so without
 		// this a 'Capture to' formatting to e.g. "C:/secret.md" would reach adapter.exists
 		// out-of-vault on Windows before createFileWithInput could reject it. Mirrors the
@@ -469,7 +446,7 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 			}
 		}
 
-		return this.normalizeMarkdownFilePath("", path);
+		return normalizeMarkdownFilePath("", path);
 	}
 
 	/**

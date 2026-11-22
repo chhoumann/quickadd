@@ -65,9 +65,6 @@ class StubFormatter extends FormatterStub {
 	) {
 		return this.replaceCurrentFileTokensInString(input, opts);
 	}
-	linkCurrentStandalone(input: string) {
-		return this.replaceLinkToCurrentFileInString(input);
-	}
 }
 
 const allTokens = { links: true, fileName: true, folder: true, title: true } as const;
@@ -93,13 +90,11 @@ describe("#1358 note-derived token rescan", () => {
 			expect(f.combined("{{TITLE}}", allTokens)).toBe("{{title}}");
 		});
 
-		it("standalone replaceLinkToCurrentFileInString no longer loops on a {{linkcurrent}}-named file", async () => {
+		it("{{linkcurrent}} body, file linked literally as {{linkcurrent}}", () => {
 			const f = new StubFormatter();
 			f.setBehavior("optional");
 			f.setLink("[[{{linkcurrent}}]]");
-			await expect(f.linkCurrentStandalone("{{LINKCURRENT}}")).resolves.toBe(
-				"[[{{linkcurrent}}]]",
-			);
+			expect(f.combined("{{LINKCURRENT}}", allTokens)).toBe("[[{{linkcurrent}}]]");
 		});
 	});
 

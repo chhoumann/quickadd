@@ -52,6 +52,8 @@ import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
 import { mapEditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
+import { deriveFolderMode, type FolderMode } from "../utils/folderMode";
+import { canonicalFolderPath, chooseFolder } from "./folderSelection";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
@@ -137,7 +139,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				await this.choiceExecutor.resolveDateOrigin?.(this.choice);
 			}
 
-			if (!this.validateAppendLinkDestination(linkOptions)) return;
+			const linkDestinationError = appendLinkDestinationError(this.app, linkOptions);
+			if (linkDestinationError) {
+				this.outcome.fail(linkDestinationError);
+				return;
+			}
 
 			// Open-only discovery returns before evaluating the template source.
 			const templatePath = await this.resolveTemplateSourcePath(
@@ -170,7 +176,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					selectedUpdate.mode, selectedUpdate.file, templatePath, linkOptions,
 				);
 				if (!createdFile) {
-					this.failRun(this.lastTemplateFileFailure ?? `Could not apply template to '${targetFilePath}'.`, "none");
+					this.outcome.fail(this.lastTemplateFileFailure ?? `Could not apply template to '${targetFilePath}'.`, "none");
 					return;
 				}
 				effect = "changed";
@@ -194,7 +200,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 							existingFile.extension !== "canvas" &&
 							existingFile.extension !== "base"))
 				) {
-					this.failRun(
+					this.outcome.fail(
 						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
 					return;
@@ -212,9 +218,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					// cause (whichever mode ran - create, overwrite or append); prefer it
 					// and do not log a vaguer second line for the same failure.
 					if (this.lastTemplateFileFailure) {
-						this.failRun(this.lastTemplateFileFailure, "none");
+						this.outcome.fail(this.lastTemplateFileFailure, "none");
 					} else {
-						this.failRun(
+						this.outcome.fail(
 							`Could not resolve file exists behavior for '${targetFilePath}'.`,
 							"warning",
 						);
@@ -230,7 +236,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					// No second log line: createFileWithTemplate already reported the real
 					// cause. Record that same cause as the outcome, so a caller who cannot
 					// see notices is told what the notice said (#1603).
-					this.failRun(
+					this.outcome.fail(
 						this.lastTemplateFileFailure ??
 							`Could not create file '${targetFilePath}'.`,
 						"none",
@@ -327,41 +333,24 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 	}
 
-	/**
-	 * A failure exit that is not a throw: log it for the desktop, and record the same
-	 * message as the run's outcome so a caller who cannot see notices learns the cause
-	 * instead of the CLI's fixed "Choice execution failed" sentence (#1603).
-	 */
-	private failRun(
-		message: string,
-		level: "error" | "warning" | "none" = "error",
-	): void {
-		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-		// "none" is for a failure a lower layer has ALREADY reported: logging again
-		// would put a second notice on screen for one failure, which is exactly what
-		// report-once removes elsewhere (#1601).
-		if (level === "warning") log.logWarning(message);
-		else if (level === "error") log.logError(message);
-		this.outcome.failure(message);
-	}
-
 	private async resolveNewNotePath({ templatePath, format, discoveryVaultRelativePath }: {
 		templatePath: string;
 		format: string;
 		discoveryVaultRelativePath: string | null;
 	}): Promise<string> {
+		const folderMode = deriveFolderMode(this.choice.folder);
 		let folderPath = "";
 
 		if (discoveryVaultRelativePath) {
 			folderPath = parentFolderPath(discoveryVaultRelativePath);
-		} else if (this.choice.folder.enabled) {
-			folderPath = await this.getFolderPath();
-		} else {
+		} else if (folderMode === "obsidian-default") {
 			// Respect Obsidian's "Default location for new notes" setting
 			const parent = this.app.fileManager.getNewFileParent(
 				currentFile(this.app, this.choiceExecutor)?.path ?? "",
 			);
 			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
+		} else {
+			folderPath = await this.getFolderPath(folderMode);
 		}
 
 		// Make the resolved folder available to {{FOLDER}} in the file name.
@@ -373,7 +362,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		// as folderEnabled), and the answer that reroutes it is the very one
 		// being typed - so Obsidian's default location is not something this
 		// prompt can promise.
-		if (this.choice.folder.enabled) {
+		if (folderMode !== "obsidian-default") {
 			this.formatter.setPromptRunContext({
 				destination: folderPath,
 				destinationKind: "folder",
@@ -394,7 +383,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			this.shouldTreatFormattedNameAsVaultRelativePath(
 				routedName,
 				strippedPrefix,
-				this.choice.folder.enabled,
+				folderMode !== "obsidian-default",
 			);
 
 		return this.normalizeTemplateFilePath(
@@ -418,15 +407,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 			variables.delete("value");
 		};
-	}
-
-	private validateAppendLinkDestination(
-		linkOptions: NormalizedAppendLinkOptions,
-	): boolean {
-		const error = appendLinkDestinationError(this.app, linkOptions);
-		if (!error) return true;
-		this.failRun(error);
-		return false;
 	}
 
 	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {
@@ -667,58 +647,39 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		return folderPaths;
 	}
 
-	// The branch precedence below is mirrored by the choice builder's folder-mode
-	// dropdown (utils/folderMode.ts → deriveFolderMode). If you change
-	// the order or conditions here, update that helper (and its 16-combo test) so
-	// the dropdown keeps showing the mode that actually runs.
-	private async getFolderPath() {
+	/** The folder a configured mode resolves to; the mode comes from deriveFolderMode. */
+	private async getFolderPath(mode: Exclude<FolderMode, "obsidian-default">) {
 		const config = this.choice.folder;
-		// Configured folders are matched against vault paths below (subfolder
-		// ordering, allowed roots), so they are canonicalized before any of that,
-		// not only when a selection is resolved. The picker replaces them with the
-		// vault's folders, so for it they are not formatted at all: a token in an
-		// unused folder must not prompt or fail.
-		const folders: string[] = config?.chooseWhenCreatingNote ? [] : (
-			await this.formatFolderPaths([...config.folders])
-		).map((folder) => this.canonicalFolderPath(folder));
-		const currentFolder = this.getCurrentFolderSuggestion();
-		const topItems = currentFolder ? [currentFolder] : [];
-		let destinations = folders;
-		let allowedRoots: string[] | undefined = folders;
-		if (config?.chooseWhenCreatingNote) {
-			destinations = sortFolderPathsByTree(getAllFolderPathsInVault(this.app));
-			allowedRoots = undefined;
-		} else if (config?.createInSameFolderAsActiveFile) {
-			const activeFile = currentFile(this.app, this.choiceExecutor);
-			if (!activeFile || !activeFile.parent) {
-				log.logWarning(
-					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
-				);
-				return "";
-			}
-			destinations = [activeFile.parent.path];
-			allowedRoots = undefined;
-		} else if (config?.chooseFromSubfolders) {
-			// Configured root order wins; descendants are tree-sorted within each root.
-			destinations = orderFolderPathsByConfiguredRoots(
-				sortFolderPathsByTree(getAllFolderPathsInVault(this.app)), folders,
-			);
-		}
-		return this.getOrCreateFolder(destinations, {
-			allowCreate: true, allowedRoots, topItems, executor: this.choiceExecutor,
-		});
-	}
+		const currentFolder = currentFile(this.app, this.choiceExecutor)?.parent?.path;
+		const choose = (destinations: string[], allowedRoots?: string[]) =>
+			chooseFolder(this.app, destinations, {
+				allowCreate: true, allowedRoots, currentFolder, executor: this.choiceExecutor,
+			});
 
-	private getCurrentFolderSuggestion():
-		| { path: string; label: string }
-		| null {
-		const activeFile = currentFile(this.app, this.choiceExecutor);
-		const parent = activeFile?.parent;
-		if (!activeFile || !parent) return null;
-		const path = parent.path ?? "";
-		return {
-			path,
-			label: "<current folder>",
-		};
+		switch (mode) {
+			// The picker offers the vault's folders, so configured folders are not
+			// formatted at all: a token in an unused folder must not prompt or fail.
+			case "prompt":
+				return choose(sortFolderPathsByTree(getAllFolderPathsInVault(this.app)));
+			case "active-file":
+				if (currentFolder === undefined) {
+					log.logWarning(
+						"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
+					);
+					return "";
+				}
+				return choose([currentFolder]);
+			case "specified": {
+				// Configured folders are matched against vault paths below (subfolder
+				// ordering, allowed roots), so they are canonicalized before any of
+				// that, not only when a selection is resolved.
+				const folders = (await this.formatFolderPaths([...config.folders])).map(canonicalFolderPath);
+				// Configured root order wins; descendants are tree-sorted within each root.
+				const destinations = config.chooseFromSubfolders
+					? orderFolderPathsByConfiguredRoots(sortFolderPathsByTree(getAllFolderPathsInVault(this.app)), folders)
+					: folders;
+				return choose(destinations, folders);
+			}
+		}
 	}
 }

@@ -6,7 +6,7 @@ class TestFormatter extends FormatterStub {
 
     protected async format(input: string): Promise<string> {
         let output = input;
-        output = this.replaceTitleInString(output);
+        output = this.replaceCurrentFileTokensInString(output, { title: true });
         return output;
     }
 
@@ -24,7 +24,7 @@ class TestFormatter extends FormatterStub {
     }
 
     public testReplaceTitleInString(input: string): string {
-        return this.replaceTitleInString(input);
+        return this.replaceCurrentFileTokensInString(input, { title: true });
     }
 }
 
@@ -35,7 +35,7 @@ describe('Formatter - Title Handling', () => {
         formatter = new TestFormatter();
     });
 
-    describe('replaceTitleInString', () => {
+    describe('{{title}} resolution', () => {
         it.each([
 	{ name: 'should replace {{title}} with the set title', input: 'Note: {{title}}', expected: 'Note: My Note Title' },
 	{ name: 'should replace {{TITLE}} (case insensitive)', input: 'Note: {{TITLE}}', expected: 'Note: My Note Title' },

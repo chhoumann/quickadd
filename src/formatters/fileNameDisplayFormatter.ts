@@ -1,16 +1,11 @@
 import { stripCursorMarkers } from "../utils/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
-import { expandGlobalVariables } from "./helpers/globalVariables";
 import { unescapePipesInTokens } from "../utils/pipeEscapes";
 import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "../utils/inlineScriptSpans";
-import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
-import {
-	describePreviewFailure,
-	PreviewDiagnostics,
-} from "./previewDiagnostics";
+import { describePreviewFailure } from "./previewDiagnostics";
 import type { App } from "obsidian";
 import { TFile, TFolder } from "obsidian";
-import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
+import { TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import type { RunClocks } from "../types/dateOrigin";
@@ -20,16 +15,8 @@ import {
 	findIllegalFilePathChars,
 	previewGeneratedFilePath,
 } from "../utils/generatedFilePath";
-import { getTemplateFile } from "../utils/templateFolderUtils";
 
 import type { FormatterPluginContext } from "../types/pluginContext";
-
-/**
- * Includes one preview pass may expand, across the whole format string.
- * Generous next to any real naming template (which includes one file, or none),
- * and small enough that a pathological include tree cannot stall a keystroke.
- */
-const MAX_PREVIEW_TEMPLATE_INCLUDES = 25;
 
 /** Detect an unfinished token with linear scans; preview input may include an entire template. */
 function hasUnterminatedToken(input: string): boolean {
@@ -54,9 +41,11 @@ function textOutsideScriptSpans(text: string): string {
 }
 
 export class FileNameDisplayFormatter extends PreviewFormatter {
+	protected readonly showsTokenHints = false;
+
 	constructor(
 		app: App,
-		private readonly plugin?: FormatterPluginContext,
+		protected readonly plugin?: FormatterPluginContext,
 		dateParser?: IDateParser,
 	) {
 		super(app);
@@ -71,15 +60,9 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		this.clocks = clocks;
 	}
 
-	/**
-	 * Includes this pass may still expand. See {@link getTemplateContent}.
-	 */
-	private templateIncludeBudget = MAX_PREVIEW_TEMPLATE_INCLUDES;
-
 	public async format(input: string): Promise<string> {
 		let output: string = input;
-		this.diagnostics = new PreviewDiagnostics();
-		this.templateIncludeBudget = MAX_PREVIEW_TEMPLATE_INCLUDES;
+		this.beginPreviewPass();
 
 		try {
 			output = stripCursorMarkers(await this.formatInternal(input, { included: false }));
@@ -241,10 +224,6 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		return output;
 	}
 
-	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
-	}
-
 	/**
 	 * A prompt header, variable name or macro name is not part of the name at
 	 * run time, so a stand-in built from one that could not be part of a file
@@ -265,78 +244,12 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		return suggestedValues[0] ?? getSuggestionPreview(suggestedValues);
 	}
 
-	/** Skip script fences during inclusion: runtime consumes scripts first, while previews must remain inert. */
-	private async replaceTemplateOutsideScripts(input: string): Promise<string> {
-		const spans = findInlineScriptSpans(input);
-		if (spans.length === 0) return this.replaceTemplateInString(input);
-
-		let output = "";
-		let index = 0;
-		for (const span of spans) {
-			output += await this.replaceTemplateInString(
-				input.slice(index, span.start),
-			);
-			output += input.slice(span.start, span.end);
-			index = span.end;
-		}
-		return output + (await this.replaceTemplateInString(input.slice(index)));
-	}
-
-	/** Resolve included bodies through this preview, never a runtime engine that could execute scripts or prompt. */
-	protected async getTemplateContent(templatePath: string): Promise<string> {
-		const app = this.app;
-		if (!app) {
-			this.reportProblem(`Template preview unavailable: ${templatePath}`);
-			return `[QuickAdd: template preview unavailable] ${templatePath}`;
-		}
-
-		// Depth and cycle detection (in the shared `replaceTemplateInString`) both
-		// unwind per include, so neither bounds a format string that keeps
-		// producing NEW includes - and it can, now that the template pass runs
-		// before global expansion: a global snippet holding a {{TEMPLATE:}} token
-		// re-arms the loop with an empty `visited` set. One budget for the whole
-		// pass terminates that, and bounds the fan-out of a wide include tree on a
-		// field that resolves on every keystroke.
-		if (this.templateIncludeBudget <= 0) {
-			const placeholder = `[QuickAdd: too many template includes to preview]`;
-			this.reportProblem(placeholder);
-			return placeholder;
-		}
-
-		const file = getTemplateFile(app, templatePath);
-		if (!file) {
-			// An error, not a quiet placeholder: the run THROWS here
-			// (TemplateEngine.getTemplateContent) and the choice dies, so the row
-			// must read "Unresolved:" rather than presenting a name.
-			this.reportProblem(`Template not found: ${templatePath}`);
-			return `[QuickAdd: template not found] ${templatePath}`;
-		}
-
-		this.templateIncludeBudget--;
-		// The depth counter is preview-LOCAL on purpose. At run time
-		// `CompleteFormatter.getTemplateContent` hands the child engine a COPY of
-		// the state with depth + 1, while `visited` is shared by reference - so
-		// incrementing depth inside the shared `replaceTemplateInString` would
-		// advance the runtime by two per level and halve its inclusion limit. The
-		// preview has no child formatter to carry it, so it counts here.
-		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
-		this.templateInclusion.depth++;
-		try {
-			const body = await app.vault.cachedRead(file);
-			const resolved = this.resolveTitleInIncludedBody(
-				await this.formatInternal(body, { included: true }),
-			);
-			this.warnIfJoinedIntoOneLine(templatePath, resolved);
-			return resolved;
-		} catch (error) {
-			// Contained here rather than by format()'s catch, so one bad token
-			// inside an included template does not blank the whole field's preview.
-			const described = describePreviewFailure(error);
-			if (described) this.diagnostics.add("error", described);
-			return `[QuickAdd: template preview failed] ${templatePath}`;
-		} finally {
-			this.templateInclusion.depth--;
-		}
+	protected async formatIncludedTemplate(body: string, templatePath: string): Promise<string> {
+		const resolved = this.resolveTitleInIncludedBody(
+			await this.formatInternal(body, { included: true }),
+		);
+		this.warnIfJoinedIntoOneLine(templatePath, resolved);
+		return resolved;
 	}
 
 	/** Included bodies use the stored title or empty string, matching runtime without inventing an example title. */
@@ -356,57 +269,5 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		this.warn(
 			`Template "${templatePath}" is ${lines.length} lines; a file name is one line, so they are joined with spaces.`,
 		);
-	}
-
-	protected async replaceDateVariableInString(input: string): Promise<string> {
-		// The date only. FormatDisplayFormatter appends " (default: X)" /
-		// " (optional)" hints about the token; this row is a FILE NAME, and the
-		// run splices in the formatted date and nothing else - so a hint here
-		// asserted a name that could never be created (#1563/#1578). The hints
-		// survive where they are true: on the body preview, and in the run's own
-		// prompt placeholder ("Enter value for due (default: tomorrow)").
-		return input.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
-			// Only a NAMELESS token stays literal, which is what the run does with it.
-			const name = variableName?.trim();
-			if (!name) return match;
-
-			// A unit that never resolves is an authoring mistake the run aborts on,
-			// so it belongs on the diagnostics channel (held back until the field is
-			// idle) rather than being swallowed. The options still come back usable,
-			// so the TEXT does not flicker while the unit is being typed.
-			const { options, error } = parseVDateOptionsForPreview(rawOptions);
-			if (error) this.reportProblem(error);
-
-			const date = this.previewDateVariable(match, name, dateFormat, options);
-			return date.text ?? `[${date.format}]`;
-		});
-	}
-
-	protected replaceRandomInString(input: string): string {
-		let output = input;
-		
-		// Replace {{RANDOM:n}} with a preview showing example output
-		output = output.replace(/{{RANDOM:(\d+)}}/gi, (match, length) => {
-			const len = parseInt(length);
-			if (len <= 0 || len > 100) {
-				return match; // Return original if invalid
-			}
-			
-			// For filename preview, show a simple example
-			const exampleChars = 'ABC123';
-			let preview = '';
-			for (let i = 0; i < Math.min(len, 6); i++) {
-				preview += exampleChars.charAt(i % exampleChars.length);
-			}
-			
-			// For long strings, show ellipsis
-			if (len > 6) {
-				preview += '...';
-			}
-			
-			return preview;
-		});
-		
-		return output;
 	}
 }

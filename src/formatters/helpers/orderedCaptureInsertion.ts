@@ -6,6 +6,47 @@ import { extractHeadingsFromLines } from "../../utils/sectionLink";
 import { computeOrderedSectionInsertIndex, maskFencedHeadings, type MomentLike } from "../../utils/orderedSectionPlacement";
 import * as positioning from "../../utils/insertionPositioning";
 
+/** The capture at the top of the note body, below any front matter. */
+export function placeAtNoteBodyStart(
+	payload: CapturePlacementResult,
+	fileContent: string,
+	separateBlockquotes = false,
+): CapturePlacementResult {
+	const result = insertAtNoteBodyStartWithResult(fileContent, payload.content, { separateBlockquotes });
+	return placeCapture(payload, result.content, result.insertedStartOffset === null || payload.cursor.kind === "none"
+		? null : result.insertedStartOffset + payload.cursor.value);
+}
+
+/** The capture on the lines after line `position` of the note. */
+export function placeAfterLine(
+	payload: CapturePlacementResult,
+	fileContent: string,
+	position: number,
+	task: boolean,
+): CapturePlacementResult {
+	const result = positioning.insertTextAfterPositionInBody(payload.content, fileContent, position, task,
+		payload.cursor.kind === "offset" ? payload.cursor.value : undefined);
+	return placeCapture(payload, result.content, result.insertedEndOffset);
+}
+
+/**
+ * The line after which `text` goes at the end of the section `anchorLine`
+ * starts. `lastAnchorLine` is a multi-line anchor's last line, which the text
+ * never goes inside.
+ */
+export function sectionEndPosition({ lines, anchorLine, lastAnchorLine = anchorLine, considerSubsections, fileContent, text }: {
+	lines: string[];
+	anchorLine: number;
+	lastAnchorLine?: number;
+	considerSubsections: boolean;
+	fileContent: string;
+	text: string;
+}): number {
+	const end = getEndOfSection(lines, anchorLine,
+		positioning.anchorAllowsSubsections(considerSubsections, lines, anchorLine));
+	return positioning.findInsertAfterPositionAtSectionEnd(lines, Math.max(end, lastAnchorLine), fileContent, text);
+}
+
 export function insertOrderedCapture({ capture, targetString, fileContent, insertAfter, task }: {
 	capture: CapturePlacementResult;
 	targetString: string;
@@ -26,11 +67,7 @@ export function insertOrderedCapture({ capture, targetString, fileContent, inser
 	// Reused verbatim so the created block is byte-identical to next-run's search
 	// target (the #742 round-trip invariant that keeps creation idempotent).
 	const payload = surroundCapture(capture, `${targetString}\n`);
-	const atBodyStart = () => {
-		const result = insertAtNoteBodyStartWithResult(fileContent, payload.content, { separateBlockquotes: true });
-		return placeCapture(payload, result.content, result.insertedStartOffset === null || payload.cursor.kind === "none"
-			? null : result.insertedStartOffset + payload.cursor.value);
-	};
+	const atBodyStart = () => placeAtNoteBodyStart(payload, fileContent, true);
 
 	// Non-heading anchor: ordered placement is meaningless → graceful TOP degrade.
 	if (level === 0) {
@@ -62,28 +99,17 @@ export function insertOrderedCapture({ capture, targetString, fileContent, inser
 	);
 	if (existingHeadingLine !== -1) {
 		const position = insertAfter?.insertAtEnd
-			? positioning.findInsertAfterPositionAtSectionEnd(
-					maskedLines,
-					getEndOfSection(
-						maskedLines,
-						existingHeadingLine,
-						positioning.anchorAllowsSubsections(!!insertAfter?.considerSubsections,
-							maskedLines,
-							existingHeadingLine,
-						),
-					) ?? maskedLines.length - 1,
-					fileContent,
-					formatted,
-				)
+			? sectionEndPosition({
+				lines: maskedLines, anchorLine: existingHeadingLine,
+				considerSubsections: !!insertAfter?.considerSubsections, fileContent, text: formatted,
+			})
 			: positioning.findInsertAfterPositionWithBlankLines(
 					maskedLines,
 					existingHeadingLine,
 					fileContent,
 					insertAfter?.blankLineAfterMatchMode ?? "auto",
 				);
-		const result = positioning.insertTextAfterPositionInBody(formatted, fileContent, position, task,
-			capture.cursor.kind === "offset" ? capture.cursor.value : undefined);
-		return placeCapture(capture, result.content, result.insertedEndOffset);
+		return placeAfterLine(capture, fileContent, position, task);
 	}
 
 	const moment =

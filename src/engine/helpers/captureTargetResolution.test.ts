@@ -21,13 +21,6 @@ function deps(
 			return opts.fileExists ? (new TFile() as unknown as TAbstractFile) : null;
 		},
 		isFolder: () => !!opts.isFolder,
-		// Faithful to QuickAddEngine.normalizeMarkdownFilePath for the ""+folderPath call.
-		normalizeMarkdownFilePath: (folderPath, fileName) => {
-			const safe = folderPath.replace(/^\/+/, "");
-			const prefix = safe ? `${safe}/` : "";
-			const name = fileName.replace(/^\/+/, "").replace(/\.md$/i, "");
-			return `${prefix}${name}.md`;
-		},
 	};
 }
 

@@ -17,7 +17,7 @@ export type DeferralReason =
 	| "afterOpaqueStep"
 	| "runsUserCode";
 
-export type StepCollect =
+type StepCollect =
 	| { kind: "scanChoice"; choice: ITemplateChoice | ICaptureChoice }
 	| { kind: "scriptInputs"; command: IUserScript }
 	| { kind: "none" };

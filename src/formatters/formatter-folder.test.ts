@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 class StubFormatter extends FormatterStub {
 
   public process(input: string): string {
-    return this.replaceTargetFolderInString(input);
+    return this.replaceCurrentFileTokensInString(input, { folder: true });
   }
 }
 

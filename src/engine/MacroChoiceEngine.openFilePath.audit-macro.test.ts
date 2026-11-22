@@ -75,6 +75,7 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { QuickAddApi } from "../quickAddApi";
 import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
+import { promptCancelled } from "../errors/UserCancelError";
 
 const getApiMock = QuickAddApi.GetApi as unknown as ReturnType<typeof vi.fn>;
 
@@ -84,7 +85,7 @@ function makeFile(path: string): TFile {
 	return file;
 }
 
-function createEngine(filePath: string, existingPaths: Record<string, TFile>) {
+function createEngine(filePath: string | string[], existingPaths: Record<string, TFile>) {
 	const app = {
 		vault: {
 			getAbstractFileByPath: vi.fn(
@@ -98,12 +99,10 @@ function createEngine(filePath: string, existingPaths: Record<string, TFile>) {
 		getChoiceByName: vi.fn(),
 	} as unknown as any;
 
-	const command = new OpenFileCommand(filePath);
-
 	const macro: IMacro = {
 		name: "Test macro",
 		id: "macro-id",
-		commands: [command],
+		commands: [filePath].flat().map((path) => new OpenFileCommand(path)),
 	};
 
 	const choice: IMacroChoice = {
@@ -130,7 +129,7 @@ function createEngine(filePath: string, existingPaths: Record<string, TFile>) {
 		new Map<string, unknown>()
 	);
 
-	return { engine };
+	return { engine, choiceExecutor };
 }
 
 describe("MacroChoiceEngine executeOpenFile path validation", () => {
@@ -180,5 +179,27 @@ describe("MacroChoiceEngine executeOpenFile path validation", () => {
 		await engine.run();
 
 		expect(openFileMock).not.toHaveBeenCalled();
+	});
+});
+
+describe("MacroChoiceEngine executeOpenFile cancellation", () => {
+	beforeEach(() => {
+		getApiMock.mockReturnValue({});
+		formatFileNameMock.mockClear();
+		openFileMock.mockClear();
+	});
+
+	it("stops the macro when a prompt in the path is dismissed, instead of running the next step", async () => {
+		const { engine, choiceExecutor } = createEngine(["{{VALUE}}.md", "Next.md"], {
+			"Next.md": makeFile("Next.md"),
+		});
+		choiceExecutor.signalAbort = vi.fn();
+		formatFileNameMock.mockRejectedValueOnce(promptCancelled());
+
+		await engine.run();
+
+		expect(formatFileNameMock).toHaveBeenCalledTimes(1);
+		expect(openFileMock).not.toHaveBeenCalled();
+		expect(choiceExecutor.signalAbort).toHaveBeenCalledTimes(1);
 	});
 });

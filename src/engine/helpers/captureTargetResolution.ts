@@ -9,6 +9,7 @@ import type { FieldFilter } from "../../utils/FieldSuggestionParser";
 import { parsePropertyTarget } from "../../utils/propertyTarget";
 import { parseCaptureFileFilterTarget } from "../../utils/captureFileFilterTarget";
 import { normalizeGeneratedFilePath } from "../../utils/generatedFilePath";
+import { markdownFilePathForFolderCandidate } from "./captureTargetScope";
 
 /**
  * The concrete capture destination decision derived from a (formatted) "Capture
@@ -31,8 +32,6 @@ export type CaptureTargetResolution =
 export interface CaptureTargetDeps {
 	getAbstractFileByPath(path: string): TAbstractFile | null;
 	isFolder(path: string): boolean;
-	/** Mirrors QuickAddEngine.normalizeMarkdownFilePath (the single source of truth). */
-	normalizeMarkdownFilePath(folderPath: string, fileName: string): string;
 }
 
 /**
@@ -117,7 +116,7 @@ export function resolveCaptureTarget(
 	// a folder that merely happens to be named `X.md` is NOT a note, so the bare
 	// name stays a folder scope (otherwise we would resolve to a file path that is
 	// itself a folder and fail the write).
-	const fileCandidatePath = deps.normalizeMarkdownFilePath("", folderPath);
+	const fileCandidatePath = markdownFilePathForFolderCandidate(folderPath);
 	const fileCandidate = deps.getAbstractFileByPath(fileCandidatePath);
 	const fileExists = fileCandidate instanceof TFile;
 
@@ -126,4 +125,29 @@ export function resolveCaptureTarget(
 	}
 
 	return { kind: "file", path: normalizedCaptureTo };
+}
+
+/**
+ * Whether a typed picker value names an existing note, read the way the
+ * capture writes it: by its path, with or without a `.md`/`.canvas` extension,
+ * when `pathExists` can look one up, or by a bare basename that `basenames`
+ * (lowercased) already has in any folder.
+ */
+export function namesExistingNote(
+	value: string,
+	basenames: ReadonlySet<string>,
+	pathExists?: (path: string) => boolean,
+): boolean {
+	const raw = value.trim();
+	if (!raw) return false;
+	let path: string;
+	try {
+		path = normalizeGeneratedFilePath(raw, "Capture target file path");
+	} catch {
+		return false;
+	}
+
+	const base = path.replace(/\.(md|canvas)$/i, "");
+	if (pathExists && [path, `${base}.md`, `${base}.canvas`].some(pathExists)) return true;
+	return basenames.has(base.slice(base.lastIndexOf("/") + 1).toLowerCase());
 }

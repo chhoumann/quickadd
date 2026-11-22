@@ -8,11 +8,9 @@ import { TemplatePropertyCollector } from "../../utils/TemplatePropertyCollector
  * Post-processing of newly written front matter for QuickAdd's template
  * property types feature.
  *
- * This was previously a cluster of protected methods on the {@link
- * import("../QuickAddEngine").QuickAddEngine} base class, which every engine
- * inherited whether or not it dealt with structured YAML. Extracting it into a
- * small collaborator keeps the engine base focused on file/folder creation and
- * makes the (pure-ish) validation logic unit-testable without an engine.
+ * A small collaborator rather than engine methods, so only the engines that
+ * write structured YAML use it and the validation logic is unit-testable
+ * without an engine.
  */
 
 /** Configuration for structured variable validation */

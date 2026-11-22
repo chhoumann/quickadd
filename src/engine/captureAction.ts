@@ -1,48 +1,32 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
-export type CaptureAction = "append" | "prepend" | "insertAfter" | "insertBefore" | "currentLine" | "newLineAbove" | "newLineBelow" | "activeFileTop";
+export type CaptureAction = "top" | "bottom" | "insertAfter" | "insertBefore" | "currentLine" | "newLineAbove" | "newLineBelow" | "activeFileTop";
 
 /**
- * Gets the capture action based on choice configuration.
- * Uses explicit if/else logic instead of nested ternary for clarity.
+ * Where a Capture writes. This is the one precedence every caller follows: the
+ * engine (editor insertion, notices, canvas checks), the formatter's placement,
+ * and the builder's Write position dropdown. It also decides flag combinations
+ * the builder never produces (a hand-edited or imported choice):
+ *
+ * - On the active file without a line target, the cursor-side settings win: a
+ *   new-line capture, then the active-file position, then legacy `prepend`
+ *   (which always meant the bottom).
+ * - Everywhere else a bottom write beats a line target, and insert-after beats
+ *   insert-before.
  */
 export function getCaptureAction(choice: ICaptureChoice): CaptureAction {
-	const lineTargetCaptureEnabled =
-		choice.insertAfter.enabled || !!choice.insertBefore?.enabled;
-
-	if (choice.captureToActiveFile && !lineTargetCaptureEnabled && choice.newLineCapture?.enabled) {
-		return choice.newLineCapture.direction === "above" ? "newLineAbove" : "newLineBelow";
-	}
-
-	if (choice.captureToActiveFile && !lineTargetCaptureEnabled) {
-		if (choice.activeFileWritePosition === "top") {
-			return "activeFileTop";
-		}
-
-		if (choice.activeFileWritePosition === "bottom") {
-			return "append";
-		}
-
-		if (choice.prepend) {
-			return "append";
-		}
-
+	const lineTarget = !!choice.insertAfter?.enabled || !!choice.insertBefore?.enabled;
+	if (choice.captureToActiveFile && !lineTarget) {
+		if (choice.newLineCapture?.enabled)
+			return choice.newLineCapture.direction === "above" ? "newLineAbove" : "newLineBelow";
+		if (choice.activeFileWritePosition === "top") return "activeFileTop";
+		if (choice.activeFileWritePosition === "bottom" || choice.prepend) return "bottom";
 		return "currentLine";
 	}
-
-	if (choice.insertAfter.enabled) {
-		return "insertAfter";
-	}
-
-	if (choice.insertBefore?.enabled) {
-		return "insertBefore";
-	}
-
-	if (choice.prepend) {
-		return "prepend";
-	}
-
-	return "append";
+	if (choice.prepend || (choice.captureToActiveFile && choice.activeFileWritePosition === "bottom")) return "bottom";
+	if (choice.insertAfter?.enabled) return "insertAfter";
+	if (choice.insertBefore?.enabled) return "insertBefore";
+	return "top";
 }
 
 type WritePosition =
@@ -55,29 +39,25 @@ type WritePosition =
 	| "bottom"
 	| "top";
 
+const WRITE_POSITION: Record<CaptureAction, WritePosition> = {
+	top: "top",
+	bottom: "bottom",
+	insertAfter: "after",
+	insertBefore: "before",
+	currentLine: "top",
+	newLineAbove: "newLineAbove",
+	newLineBelow: "newLineBelow",
+	activeFileTop: "activeTop",
+};
+
 /**
  * Where a Capture writes, for the choice builder's Write position dropdown and
- * `quickadd:list`. This MUST mirror the runtime's precedence so both show what
- * actually runs, even for flag combinations the builder never produces (a
- * hand-edited or imported choice): the editor-side actions come from
- * `getCaptureAction`, everything else from `CaptureChoiceFormatter.insertCapture`,
- * which puts a bottom write ahead of a line target. `top` means the top of the
- * target file, or the cursor when capturing to the active file.
+ * `quickadd:list`. `top` means the top of the target file, or the cursor when
+ * capturing to the active file.
  */
 export function getWritePosition(choice: ICaptureChoice): WritePosition {
 	if (choice.propertyCapture) return "property";
-	const lineTarget = !!choice.insertAfter?.enabled || !!choice.insertBefore?.enabled;
-	if (choice.captureToActiveFile && !lineTarget) {
-		if (choice.newLineCapture?.enabled)
-			return choice.newLineCapture.direction === "above" ? "newLineAbove" : "newLineBelow";
-		if (choice.activeFileWritePosition === "top") return "activeTop";
-		if (choice.activeFileWritePosition === "bottom" || choice.prepend) return "bottom";
-		return "top";
-	}
-	if (choice.prepend || (choice.captureToActiveFile && choice.activeFileWritePosition === "bottom")) return "bottom";
-	if (choice.insertAfter?.enabled) return "after";
-	if (choice.insertBefore?.enabled) return "before";
-	return "top";
+	return WRITE_POSITION[getCaptureAction(choice)];
 }
 
 /** Actions that write through the current note's editor at its cursor. */
@@ -98,4 +78,14 @@ export function withoutCursorPosition(choice: ICaptureChoice): ICaptureChoice {
 			choice.prepend || choice.activeFileWritePosition === "bottom" ? "bottom" : "top",
 		newLineCapture: { ...choice.newLineCapture, enabled: false },
 	};
+}
+
+/** Whether a Capture's selected text answers its {{VALUE}}: its own setting, else the global one, on by default. */
+export function usesSelectionAsCaptureValue(
+	choice: Pick<ICaptureChoice, "useSelectionAsCaptureValue">,
+	settings: { useSelectionAsCaptureValue?: boolean },
+): boolean {
+	return typeof choice.useSelectionAsCaptureValue === "boolean"
+		? choice.useSelectionAsCaptureValue
+		: settings.useSelectionAsCaptureValue ?? true;
 }

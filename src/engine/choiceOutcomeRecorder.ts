@@ -1,6 +1,8 @@
 import type { TFile } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
+import { log } from "../logger/logManager";
 
 /**
  * Records what a choice run actually did, for the callers that must report it back to
@@ -65,6 +67,19 @@ export class ChoiceOutcomeRecorder {
 	failure(reason: string): void {
 		if (this.closed) return;
 		this.executor.recordExecutionResult?.({ status: "error", reason });
+	}
+
+	/**
+	 * A failure exit that is not a throw: keep the run's prompt drafts, log the message
+	 * for the desktop, and record the same message as the outcome. `"none"` is for a
+	 * failure a lower layer has ALREADY reported: logging again would put a second notice
+	 * on screen for one failure (#1601).
+	 */
+	fail(message: string, level: "error" | "warning" | "none" = "error"): void {
+		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+		if (level === "warning") log.logWarning(message);
+		else if (level === "error") log.logError(message);
+		this.failure(message);
 	}
 }
 

@@ -25,7 +25,7 @@ class TestFormatter extends StubFormatter {
     }
 
     public testReplaceLinebreakInString(input: string): string {
-        return this.replaceLinebreakInString(input);
+        return this.expandLinebreakEscapesOutsideTokens(input);
     }
 
     public setVariable(name: string, value: unknown) {
@@ -160,7 +160,7 @@ describe('Formatter - Variable Handling', () => {
     });
 });
 
-describe('Formatter - replaceLinebreakInString', () => {
+describe('Formatter - expandLinebreakEscapesOutsideTokens', () => {
     let formatter: TestFormatter;
 
     beforeEach(() => {

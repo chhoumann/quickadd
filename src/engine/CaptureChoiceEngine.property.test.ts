@@ -46,6 +46,7 @@ vi.mock("./SingleTemplateEngine", () => ({
 		setDestinationPath() {}
 		setPromptRunContext() {}
 		setLinkToCurrentFileBehavior() {}
+		setKeepUserTextProtected() {}
 		getAndClearTemplatePropertyVars() { return new Map(); }
 		run() { return mocks.template(); }
 	},

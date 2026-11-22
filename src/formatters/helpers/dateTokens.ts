@@ -2,12 +2,14 @@ import { DATE_REGEX, DATE_REGEX_FORMATTED, TIME_REGEX, TIME_REGEX_FORMATTED, DAT
 import { getDate } from "../../utils/dates";
 import type { RunClocks } from "../../types/dateOrigin";
 import type { IDateParser } from "../../parsers/IDateParser";
-import type { PromptContext } from "../formatter";
+import type { PromptContext } from "../valueFormatter";
 import { settingsStore } from "../../settingsStore";
 import { normalizeDateInput } from "../../utils/dateAliases";
 import { applyDateSnap, type DateSnap, parseDateSnapSegment } from "../../utils/dateModifiers";
 import { parseVDateOptions } from "../../utils/vdateSyntax";
 import { formatUnknownValue } from "../../utils/conditionalHelpers";
+import { decodeDateToken, defaultDateVariableFormat, encodeDateToken, isDateToken } from "../../utils/dateTokenCodec";
+import { uniqueKeyIgnoringCase } from "./keyIgnoringCase";
 
 type ApplyCase = (value: string, style: string | undefined, token: string) => string;
 interface DateTokenContext {
@@ -24,17 +26,13 @@ function replaceLiteral(input: string, pattern: RegExp, value: string): string {
 	return input.replace(pattern, () => value);
 }
 
-export function defaultDateVariableFormat(withTime: boolean): string {
-	return withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD";
-}
-
 type DateVariableFormats = Map<string, { answer: unknown; dateFormat: string }>;
 
 // The {{VDATE}} format a {{VALUE:<name>}} reuse prints the stored @date:ISO in:
 // the first VDATE that rendered the answer. Run-scoped like the answer itself,
 // so it is keyed by the run's variables map, which included templates and
 // macro steps share. Code that clears or restores a variables map for reuse
-// must carry these along (quickAddApi.ts, MacroChoiceEngine's params.variables).
+// must carry these along (quickAddApi.ts, a script's params.variables in engine/scriptParameters.ts).
 const dateVariableFormats = new WeakMap<Map<string, unknown>, DateVariableFormats>();
 
 /** `freshAnswer`: this VDATE just produced the answer, so its format wins. */
@@ -74,15 +72,8 @@ export function findDateVariableFormat(
 	variables: Map<string, unknown>,
 	name: string,
 ): string | undefined {
-	const exact = getDateVariableFormat(variables, name);
-	if (exact !== undefined) return exact;
-	const lower = name.toLowerCase();
-	const matches = [...(dateVariableFormats.get(variables)?.keys() ?? [])].filter(
-		(key) => key.toLowerCase() === lower,
-	);
-	return matches.length === 1
-		? getDateVariableFormat(variables, matches[0])
-		: undefined;
+	const key = uniqueKeyIgnoringCase(dateVariableFormats.get(variables)?.keys() ?? [], name);
+	return key === undefined ? undefined : getDateVariableFormat(variables, key);
 }
 
 export function snapshotDateVariableFormats(
@@ -113,27 +104,27 @@ export function renderStoredDateVariable(
 	// parameter, or a `quickadd:run value-x=` flag) is coerced into the internal
 	// @date:ISO form so formatting works. Only when it parses: an unparseable
 	// string keeps the verbatim branch below, for back-compat.
-	if (typeof value === "string" && value && !value.startsWith("@date:")) {
+	if (typeof value === "string" && value && !isDateToken(value)) {
 	if (dateParser) {
 		const aliasMap = settingsStore.getState().dateAliases;
 		const parseAttempt = dateParser.parseDate(
 			normalizeDateInput(value, aliasMap),
 		);
 		if (parseAttempt) {
-			normalized = `@date:${parseAttempt.moment.toISOString()}`;
+			normalized = encodeDateToken(parseAttempt.moment.toISOString());
 			value = normalized;
 		}
 	}
 	} else if (value instanceof Date) {
 	// Some callers pass actual Date objects through the JS API.
 	if (!Number.isNaN(value.getTime())) {
-		normalized = `@date:${value.toISOString()}`;
+		normalized = encodeDateToken(value.toISOString());
 		value = normalized;
 	}
 }
 
-	if (typeof value === "string" && value.startsWith("@date:")) {
-		const isoString = value.substring(6);
+	const isoString = decodeDateToken(value);
+	if (isoString !== null) {
 		if (dateParser && window.moment) {
 			const moment = window.moment(isoString);
 			if (moment?.isValid()) {
@@ -255,7 +246,7 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 			if (optional && !dateInput?.trim()) {
 				// Optional date left blank or skipped: answered-empty.
 				context.variables.set(variableName, "");
-			} else if (dateInput?.startsWith("@date:")) {
+			} else if (isDateToken(dateInput)) {
 				context.variables.set(variableName, dateInput);
 			} else {
 				if (!context.dateParser)
@@ -272,7 +263,7 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 					// Store the ISO string with a special prefix
 					context.variables.set(
 						variableName,
-						`@date:${parseAttempt.moment.toISOString()}`,
+						encodeDateToken(parseAttempt.moment.toISOString()),
 					);
 				} else {
 					throw new Error(

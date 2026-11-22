@@ -1,15 +1,15 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import type { InputPromptOptions } from "../../types/inputPrompt";
-import type { PromptContext } from "../formatter";
+import type { PromptContext } from "../valueFormatter";
 import { buildPromptContextLine, scopeShowsDestination, type PromptScopeKind, type PromptRunContext } from "../promptScope";
 import InputPrompt from "../../gui/InputPrompt";
 import InputSuggester from "../../gui/InputSuggester/inputSuggester";
 import GenericSuggester from "../../gui/GenericSuggester/genericSuggester";
 import MultiSuggester from "../../gui/MultiSuggester/multiSuggester";
 import VDateInputPrompt from "../../gui/VDateInputPrompt/VDateInputPrompt";
-import { UserCancelError } from "../../errors/UserCancelError";
-import { isCancellationError } from "../../utils/errorUtils";
+import { promptOrCancel } from "./promptOrCancel";
+import { defaultDateVariableFormat } from "../../utils/dateTokenCodec";
 
 export interface PromptRuntime {
 	app: App;
@@ -30,7 +30,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 				context.label ?? header ?? "Enter date",
 				{
 					defaultValue: context.defaultValue,
-					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
+					dateFormat: context.dateFormat ?? defaultDateVariableFormat(!!context.withTime),
 					// Carry |time/|datetime so the remote client renders a time
 					// picker; otherwise the picked time is silently dropped.
 					withTime: context.withTime,
@@ -56,7 +56,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 	runtime.assertInteractivePrompt(
 		header ? `{{VALUE:${header}}}` : "a template variable",
 	);
-	try {
+	return await promptOrCancel(async () => {
 		// A |label: names the prompt; otherwise the variable name does. The name
 		// stays the variable's key either way. The context line adds which choice
 		// is asking and where the answer lands (issue #1546).
@@ -82,7 +82,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 					? "Enter a date & time (e.g., 'tomorrow at 3pm', '2025-12-25 14:30')"
 					: "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 				context.defaultValue,
-				context.dateFormat ?? "YYYY-MM-DD",
+				context.dateFormat ?? defaultDateVariableFormat(!!context.withTime),
 				{
 					optional: context.optional,
 					contextLine: namedContextLine,
@@ -122,12 +122,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 				namedContextLineFull,
 			),
 		);
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }
 
 export async function suggestForValue(runtime: PromptRuntime, suggestedValues: string[],
@@ -157,7 +152,7 @@ export async function suggestForValue(runtime: PromptRuntime, suggestedValues: s
 	runtime.assertInteractivePrompt(
 		context?.variableKey ? `{{VALUE:${context.variableKey}}}` : "a value choice",
 	);
-	try {
+	return await promptOrCancel(async () => {
 		const displayValues = context?.displayValues ?? suggestedValues;
 		if (allowCustomInput) {
 			return await InputSuggester.Suggest(
@@ -180,12 +175,7 @@ export async function suggestForValue(runtime: PromptRuntime, suggestedValues: s
 			undefined,
 			context?.optional ? { skippable: true } : undefined,
 		);
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }
 
 export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValues: string[],
@@ -210,7 +200,7 @@ export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValu
 			? `{{VALUE:${context.variableKey}}}`
 			: "a multi-select value",
 	);
-	try {
+	return await promptOrCancel(async () => {
 		return await MultiSuggester.Suggest(
 			runtime.app,
 			displayValues,
@@ -223,10 +213,5 @@ export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValu
 				...(context?.optional ? { skippable: true } : {}),
 			},
 		);
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }

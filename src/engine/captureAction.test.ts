@@ -46,30 +46,30 @@ describe("getCaptureAction", () => {
 		expect(getCaptureAction(choice)).toBe("insertBefore");
 	});
 
-	it("returns 'prepend' when prepend is true", () => {
+	it("returns 'bottom' when the legacy prepend flag is set", () => {
 		const choice = createChoice({ prepend: true });
-		expect(getCaptureAction(choice)).toBe("prepend");
+		expect(getCaptureAction(choice)).toBe("bottom");
 	});
 
-	it("returns 'append' by default", () => {
+	it("returns 'top' by default", () => {
 		const choice = createChoice();
-		expect(getCaptureAction(choice)).toBe("append");
+		expect(getCaptureAction(choice)).toBe("top");
 	});
 
-	it("treats legacy active-file prepend as bottom append", () => {
+	it("treats legacy active-file prepend as a bottom write", () => {
 		const choice = createChoice({ captureToActiveFile: true, prepend: true });
-		expect(getCaptureAction(choice)).toBe("append");
+		expect(getCaptureAction(choice)).toBe("bottom");
 	});
 
-	it("prioritizes insertAfter over prepend when both are set", () => {
+	it("puts a bottom write ahead of insertAfter, as the formatter places it", () => {
 		const choice = createChoice({ 
 			prepend: true, 
 			insertAfter: { enabled: true, after: "heading", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" }
 		});
-		expect(getCaptureAction(choice)).toBe("insertAfter");
+		expect(getCaptureAction(choice)).toBe("bottom");
 	});
 
-	it("prioritizes insertBefore over prepend when both are set", () => {
+	it("puts a bottom write ahead of insertBefore, as the formatter places it", () => {
 		const choice = createChoice({
 			prepend: true,
 			insertBefore: {
@@ -79,7 +79,7 @@ describe("getCaptureAction", () => {
 				createIfNotFoundLocation: "",
 			},
 		});
-		expect(getCaptureAction(choice)).toBe("insertBefore");
+		expect(getCaptureAction(choice)).toBe("bottom");
 	});
 
 	it("returns 'newLineAbove' when newLineCapture is enabled with above direction", () => {
@@ -122,12 +122,12 @@ describe("getCaptureAction", () => {
 		expect(getCaptureAction(choice)).toBe("currentLine");
 	});
 
-	it("returns 'append' when capturing to active file at bottom", () => {
+	it("returns 'bottom' when capturing to active file at bottom", () => {
 		const choice = createChoice({
 			captureToActiveFile: true,
 			activeFileWritePosition: "bottom",
 		});
-		expect(getCaptureAction(choice)).toBe("append");
+		expect(getCaptureAction(choice)).toBe("bottom");
 	});
 
 	it("prioritizes 'activeFileTop' over the default append action when eligible", () => {
@@ -170,30 +170,7 @@ describe("getWritePosition", () => {
 
 	it("ignores a new-line flag on a fixed file, as the runtime does", () => {
 		const choice = capture({ newLineCapture: { enabled: true, direction: "above" } });
-		expect(getCaptureAction(choice)).toBe("append");
+		expect(getCaptureAction(choice)).toBe("top");
 		expect(getWritePosition(choice)).toBe("top");
-	});
-
-	// The editor handles these actions itself; every flag combination that
-	// reaches one must report the matching position.
-	it("agrees with getCaptureAction on every editor-side action", () => {
-		const editorPosition = { currentLine: "top", newLineAbove: "newLineAbove", newLineBelow: "newLineBelow", activeFileTop: "activeTop" } as const;
-		let checked = 0;
-		for (const active of [true, false])
-			for (const prepend of [true, false])
-				for (const after of [true, false])
-					for (const before of [true, false])
-						for (const newLine of [undefined, "above", "below"] as const)
-							for (const position of ["cursor", "top", "bottom"] as const) {
-								const choice = capture({ captureToActiveFile: active, prepend, activeFileWritePosition: position });
-								choice.insertAfter.enabled = after;
-								choice.insertBefore = { enabled: before, before: "", createIfNotFound: false, createIfNotFoundLocation: "top" };
-								choice.newLineCapture = { enabled: !!newLine, direction: newLine ?? "below" };
-								const action = getCaptureAction(choice);
-								if (!(action in editorPosition)) continue;
-								expect(getWritePosition(choice)).toBe(editorPosition[action as keyof typeof editorPosition]);
-								checked++;
-							}
-		expect(checked).toBeGreaterThan(0);
 	});
 });

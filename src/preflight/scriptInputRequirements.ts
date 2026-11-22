@@ -1,5 +1,7 @@
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
-import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntaxTypes";
+import type { NumericInputConfig, ParsedOptions, SliderConfig } from "src/utils/valueSyntaxTypes";
+import { resolveNumericInput } from "src/utils/valueNumeric";
+import { SILENT_WARN } from "src/utils/warnSink";
 
 const VALID_FIELD_TYPES: FieldType[] = [
 	"text",
@@ -53,53 +55,31 @@ export function toFieldRequirement(input: unknown): FieldRequirement | null {
 	};
 }
 
+/**
+ * A script's numeric settings as the raw options a {{VALUE}} token carries, so
+ * both are validated by one rule. A value that is not a number is not a valid
+ * one, except a missing slider step, which defaults to 1.
+ */
+function numericOptions(value: unknown): ParsedOptions {
+	const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+	const asRaw = (entry: unknown) => typeof entry === "number" ? String(entry) : undefined;
+	return {
+		defaultValue: "",
+		allowCustomInput: false,
+		usesOptions: false,
+		minRaw: asRaw(raw.min),
+		maxRaw: asRaw(raw.max),
+		stepRaw: raw.step === undefined ? undefined : asRaw(raw.step) ?? "",
+	};
+}
+
 function parseNumericConfig(value: unknown): NumericInputConfig | undefined {
-	if (!value || typeof value !== "object") return undefined;
-	const raw = value as Record<string, unknown>;
-	const min = typeof raw.min === "number" && Number.isFinite(raw.min)
-		? raw.min
-		: undefined;
-	const max = typeof raw.max === "number" && Number.isFinite(raw.max)
-		? raw.max
-		: undefined;
-	const step = typeof raw.step === "number" && Number.isFinite(raw.step) && raw.step > 0
-		? raw.step
-		: undefined;
-	if (min !== undefined && max !== undefined && max < min) {
-		return step === undefined ? undefined : { step };
-	}
-	const config: NumericInputConfig = {};
-	if (min !== undefined) config.min = min;
-	if (max !== undefined) config.max = max;
-	if (step !== undefined) config.step = step;
-	return Object.keys(config).length > 0 ? config : undefined;
+	return resolveNumericInput(numericOptions(value), "", "number", SILENT_WARN).numericConfig;
 }
 
 function parseSliderConfig(value: unknown): SliderConfig | undefined {
-	if (!value || typeof value !== "object") return undefined;
-	const raw = value as Record<string, unknown>;
-	const min = typeof raw.min === "number" ? raw.min : undefined;
-	const max = typeof raw.max === "number" ? raw.max : undefined;
-	const step = raw.step === undefined
-		? 1
-		: typeof raw.step === "number"
-			? raw.step
-			: undefined;
-	if (
-		min === undefined ||
-		max === undefined ||
-		step === undefined ||
-		!Number.isFinite(min) ||
-		!Number.isFinite(max) ||
-		!Number.isFinite(step) ||
-		max <= min ||
-		step <= 0
-	) {
-		return undefined;
-	}
-	return { min, max, step };
+	return resolveNumericInput(numericOptions(value), "", "slider", SILENT_WARN).sliderConfig;
 }
-
 
 export function getQuickAddScriptInputs(value: unknown): unknown[] {
 	if (!value || (typeof value !== "object" && typeof value !== "function")) return [];
