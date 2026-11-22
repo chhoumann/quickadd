@@ -43,29 +43,11 @@ let {
 // CommandSequenceEditor normalizes the list first, so this only drops holes.
 const renderable = $derived(keyedItems<ICommand>(commands));
 
-// A drop-zone type unique to THIS list, so no two command lists are ever drop
-// targets for each other (#1613).
-//
-// They used to share `type: "command"`. The conditional-branch editor opens ON
-// TOP of the still-open macro builder, and svelte-dnd-action hit-tests every
-// registered zone of a type GEOMETRICALLY — a modal backdrop shields nothing — so
-// dragging a command a little too far down inside the branch editor dropped it
-// into the builder underneath, and both editors then rendered a list that
-// disagreed with the stored macro.
-//
-// The id comes from Svelte's own `$props.id()` (a runtime-wide uid counter,
-// already used by LabeledField), so no bespoke counter is needed.
-//
-// A unique type rather than `dropFromOthersDisabled`, which was tried first and
-// is worse: the target does refuse, but the library then runs its
-// "left for a zone that refuses" path, which re-dispatches the origin's items
-// twice — once with its shadow placeholder and once without — and our
-// stripShadow (#1244/#883) drops the placeholder the library goes on to measure,
-// so the drag ends in an uncaught TypeError with the command gone from the
-// source list. With a unique type the other zone is not a candidate at all, so
-// leaving this one is an ordinary "outside of any zone" drag: the command
-// springs back, which is the correct behaviour for a gesture QuickAdd does not
-// offer.
+// A drop-zone type unique to this list: svelte-dnd-action hit-tests every zone of
+// a type geometrically, through modal backdrops, so the branch editor would drop
+// into the builder underneath. Not `dropFromOthersDisabled`: its refuse path
+// re-dispatches the items with and without the placeholder, which stripShadow
+// breaks.
 const zoneId = $props.id();
 const zoneType = `command:${zoneId}`;
 
@@ -104,8 +86,7 @@ function persist() {
 }
 
 // Recovers the dragged command when a drop lands in the placeholder window
-// (mobile long-press with little or no movement), which would otherwise commit the
-// list without it (#1692, same window as ChoiceList's).
+// (mobile long-press with little or no movement).
 const dropRecovery = createDropRecovery<ICommand>();
 
 // A drag is underway: from its first consider until finalize (pointer) or a
@@ -118,8 +99,8 @@ function handleConsider(e: CustomEvent<DndEvent>) {
 	dragging = e.detail.info.trigger !== TRIGGERS.DRAG_STOPPED;
 	const event = e as CustomEvent<DndEvent<ICommand>>;
 	showDragPillOnStart(event, getCommandDisplayName);
-	// Strip svelte-dnd-action's shadow placeholder so a command can't linger in
-	// state and vanish on reorder (ghost gap) - see [[svelte-dnd-action-shadow-placeholder]].
+	// Strip the shadow placeholder so a command cannot linger in state and leave
+	// a ghost gap.
 	commands = dropRecovery.consider(event);
 }
 

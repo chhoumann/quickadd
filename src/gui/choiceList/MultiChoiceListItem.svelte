@@ -41,12 +41,10 @@
         onMoveDown?: () => void;
     } = $props();
 
-    // Read the children ONCE, through the accessor: a folder in data.json can
-    // have no `choices` key at all, or a non-array value, and dereferencing it
-    // here threw during mount and took the entire settings tab with it (#1566).
-    // $derived, not a bare call: Svelte props are lazy getters, so calling the
-    // accessor per template read would hand ChoiceList a fresh [] every time and
-    // churn the dnd zone.
+    // Read the children once, through the accessor: a folder in data.json can
+    // have no `choices` key or a non-array value. $derived, not a bare call:
+    // props are lazy getters, so a per-read call would hand ChoiceList a fresh []
+    // every time and churn the dnd zone.
     const children = $derived(childChoicesOf(choice));
     // The one shape that can still be HOLDING choices we cannot read. Such a
     // folder must not claim to be empty, and must not offer any affordance that
@@ -236,16 +234,14 @@
         box-shadow: none;
         padding: 0;
         /* Obsidian's base button rule sets height: var(--input-height) (30px),
-           which would make folder rows 4px taller than leaf rows — the exact
-           rhythm break this redesign removes. */
+           which would make folder rows 4px taller than leaf rows. */
         height: auto;
         min-height: 0;
         font: inherit;
         color: inherit;
         text-align: left;
         cursor: pointer;
-        /* Suppress double-tap-zoom + its click delay on touch — proper touch hygiene
-           for a tap target, and reduces the ghost-click the dedupe above also guards. */
+        /* Suppress double-tap-zoom and its click delay on touch. */
         touch-action: manipulation;
     }
 

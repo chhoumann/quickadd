@@ -7,7 +7,7 @@ import { MarkdownView } from "obsidian";
  * Some plugins (e.g. Thino) patch `Workspace.getActiveViewOfType` to answer
  * Markdown lookups with their own Markdown-masquerading view whose `editor`
  * is null. Every editor-dependent code path must treat such a view exactly
- * like "no active Markdown view" (#1536).
+ * like "no active Markdown view".
  */
 export function getActiveMarkdownEditorView(app: App): MarkdownView | null {
 	const view = app.workspace.getActiveViewOfType(MarkdownView);

@@ -29,15 +29,9 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 	protected abstract choiceExecutor: IChoiceExecutor;
 
 	/**
-		* Gets a formatted file path to capture content to, either the active file or a specified location.
-		* If capturing to a folder, suggests a file within the folder to capture the content to.
-		*
-		* @param {boolean} shouldCaptureToActiveFile - Determines if the content should be captured to the active file.
-		* @returns {Promise<string>} A promise that resolves to the formatted file path where the content should be captured.
-		*
-		* @throws {Error} Throws an error if there's no active file when trying to capture to active file,
-		*                 if the capture path is invalid, or if the target folder is empty.
-		*/
+	 * The path to capture to: the active file, or the formatted "Capture to",
+	 * asking for a file when it names a folder or scope.
+	 */
 	protected async getFormattedPathToCaptureTo(
 		shouldCaptureToActiveFile: boolean,
 	): Promise<string> {
@@ -48,14 +42,9 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 			return activeFile.path;
 		}
 
-		// A preselected capture target (the trusted one-page preflight pick, or a
-		// non-interactive CLI `value-__qa.captureTargetFilePath`) is honoured ONLY
-		// when the configured "Capture to" actually needs a runtime file pick — the
-		// same scopes the requirement collector emits the pick for — AND the value is
-		// confined to that scope. For a definite-file target the configured path is
-		// authoritative, so a reserved variable injected across a trust boundary (an
-		// obsidian:// URI, the CLI, or a {{VALUE:__qa.…}} token in a synced/imported
-		// choice) cannot redirect the capture to an arbitrary note.
+		// A preselected target is honoured only for a runtime-picker scope and is
+		// confined to it, so a reserved variable injected across a trust boundary
+		// cannot redirect a definite-file capture.
 		const preselected = this.getPreselectedCaptureTargetPath();
 		if (preselected !== undefined) {
 			const scope = classifyCaptureTargetScope(
@@ -109,12 +98,8 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * The capture-target file path supplied out-of-band for this run, read from the
-	 * reserved internal variable: set by trusted preflight plumbing (the one-page
-	 * input modal) or by a non-interactive CLI `value-__qa.captureTargetFilePath`.
-	 * Returns `undefined` when absent or blank. The caller honours it only for a
-	 * runtime-picker scope and confines it to that scope, so a reserved key injected
-	 * across a trust boundary cannot hijack a definite-file capture target.
+	 * The capture-target path supplied out-of-band through the reserved variable
+	 * (one-page preflight or CLI), or undefined when absent or blank.
 	 */
 	protected getPreselectedCaptureTargetPath(): string | undefined {
 		return readPreselectedCaptureTarget(
@@ -124,19 +109,10 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Confines a preselected capture target to the SAME destination set the matching
-	 * interactive picker would accept, so the value can never escape the configured
-	 * "Capture to" scope:
-	 *  - folder: re-prefixed into the folder, mirroring {@link selectFileInFolder}
-	 *    (an empty folderPathSlash is the whole-vault scope, so no confinement).
-	 *  - filter/property/tag: a note the scope already matches is always allowed.
-	 *    With creation OFF nothing else is (the picker only offers matched notes);
-	 *    with creation ON a NEW name is allowed too, but an EXISTING note the scope
-	 *    does not match is rejected - the picker suppresses it (InputSuggester
-	 *    getSuggestions, valueExists), and honouring it would let an injected value
-	 *    append to an arbitrary existing note.
-	 * Returns `null` when the value is outside the scope; the caller then falls back
-	 * to the normal picker/resolution instead of honouring it.
+	 * Confines a preselected target to what the matching interactive picker would
+	 * accept: re-prefixed into a folder scope; for a filter, property or tag
+	 * scope, a matched note, or with creation on a new name, but never an
+	 * existing unmatched note. Null when outside the scope.
 	 */
 	protected confinePreselectedToScope(
 		scope: CaptureTargetScope,
@@ -162,13 +138,8 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 			return null;
 		}
 
-		// Creation is on: the picker offers a NEW name but suppresses any existing
-		// note (by normalized path OR basename anywhere - selectFileFromSet +
-		// captureTargetAlreadyExists). Mirror it exactly so an injected value cannot
-		// append to an arbitrary existing note or spawn a duplicate-basename note.
-		// captureTargetAlreadyExists normalizes the value the same way the eventual
-		// write does (trailing space/dot stripped), so a `Note.md ` variant of an
-		// existing note is still caught.
+		// With creation on, mirror the picker: a new name is allowed, an existing
+		// note (by normalized path or by basename anywhere) is not.
 		const vaultBasenames = new Set(
 			this.app.vault.getMarkdownFiles().map((f) => f.basename.toLowerCase()),
 		);
@@ -183,10 +154,8 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Adapter: classifies the formatted "Capture to" string into a concrete
-	 * destination via the pure {@link resolveCaptureTargetFromString}, binding the
-	 * live vault probes. Kept as a method so the existing call site and tests stay
-	 * unchanged.
+	 * Classifies the formatted "Capture to" via
+	 * {@link resolveCaptureTargetFromString}, binding the live vault probes.
 	 */
 	protected resolveCaptureTarget(
 		formattedCaptureTo: string,
@@ -289,13 +258,9 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Whether a typed picker value already resolves to an existing note — by exact
-	 * path (root or a typed sub-path, with/without a .md/.canvas extension) OR by a
-	 * bare basename matching a note in ANY folder. `vaultBasenames` is the set of
-	 * existing note basenames (lowercased), built once per picker so this is O(1)
-	 * per keystroke. Suppresses the "Create new note" affordance for any name that
-	 * already exists, so a vault-wide picker never mislabels an existing note as
-	 * creatable, captures into it, or spawns a duplicate-basename note.
+	 * Whether a typed value names an existing note, by exact path (with or without
+	 * an extension) or by bare basename in any folder. `vaultBasenames`
+	 * (lowercased) is built once per picker.
 	 */
 	protected captureTargetAlreadyExists(
 		value: string,
@@ -305,12 +270,8 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Shared picker for the "anywhere in the vault" capture scopes (tag, property):
-	 * the matched notes can live in any folder, so the picker shows full paths. The
-	 * "Create new note" affordance is suppressed for any name that already exists
-	 * in the vault (by path or basename, in any folder), so typing an existing —
-	 * possibly non-matching — note never mislabels as "create", never silently
-	 * captures into that file, and never spawns a duplicate-basename note.
+	 * Picker for the vault-wide scopes (tag, property), showing full paths.
+	 * "Create new note" is suppressed for any name that already exists.
 	 */
 	protected async selectFileFromSet(
 		files: TFile[],
@@ -422,12 +383,9 @@ export abstract class CaptureTargetEngine extends QuickAddEngine {
 			);
 		}
 
-		// Contain the assembled target at assembly — BEFORE the run() existence probe
-		// (the vault `exists` check) that precedes the create sink. normalizeGeneratedFilePath
-		// intentionally leaves absolute/drive/UNC paths for the boundary check, so without
-		// this a 'Capture to' formatting to e.g. "C:/secret.md" would reach adapter.exists
-		// out-of-vault on Windows before createFileWithInput could reject it. Mirrors the
-		// Template path's normalizeTemplateFilePath guard.
+		// Contain the target before run()'s existence probe: normalizeGeneratedFilePath
+		// leaves absolute/drive/UNC paths for this check, and `C:/secret.md` would
+		// otherwise reach adapter.exists outside the vault on Windows.
 		if (escapesVaultBoundary(finalPath)) {
 			throw new ChoiceAbortError(
 				`Refusing to capture to a file outside the vault: "${finalPath}".`,

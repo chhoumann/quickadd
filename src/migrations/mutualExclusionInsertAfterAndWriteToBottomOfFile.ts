@@ -17,11 +17,8 @@ const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 	migrate: async (plugin): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
 
-		// Never rewrite a corrupt root with [] (#1566), and stay PENDING when the
-		// walk could not see everything, so a vault repaired by hand is still
-		// migrated. The walk is `walkChoicesInSettings`, so the guard is its own
-		// (#1610): a choice hidden behind an unreadable container is one this
-		// visitor would have migrated.
+		// Never rewrite a corrupt root with [], and stay pending while the walk
+		// cannot see every choice, so a vault repaired by hand still migrates.
 		const treeReadable = !settingsTreeHasUnreadableData(settings);
 		if (Array.isArray(plugin.settings.choices)) {
 			plugin.settings.choices = deepClone(plugin.settings.choices);

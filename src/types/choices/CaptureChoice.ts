@@ -71,8 +71,8 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		};
 		this.format = { enabled: false, format: "" };
 		// Only read once "After line…" is picked. Most After-line captures append
-		// to the section and create a missing heading, so new ones start that way
-		// (#2007). Saved choices keep theirs.
+		// to the section and create a missing heading, so new ones start that way.
+		// Saved choices keep theirs.
 		this.insertAfter = {
 			enabled: false,
 			after: "",

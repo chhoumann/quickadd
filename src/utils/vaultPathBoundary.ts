@@ -1,58 +1,31 @@
 /**
- * Pure lexical vault-boundary checks for untrusted package paths.
- *
- * An imported QuickAdd package is untrusted data; its asset `originalPath` and
- * referenced template/script paths are attacker-controlled strings. The write
- * path confines them with {@link validateAssetDestination} (which throws), but
- * the preview/analysis phase only needs a cheap boolean: "would probing this
- * path's existence escape the vault?". {@link escapesVaultBoundary} answers that
- * without throwing and without touching the filesystem, so callers can skip the
- * `adapter.exists` probe (treating an out-of-vault path as not-present) instead
- * of issuing an `fs.stat` outside the vault boundary.
- *
- * CRITICAL ordering invariant: the absolute-path check runs on the raw string
- * (after backslash→'/') BEFORE any call to Obsidian's `normalizePath`, which
- * strips leading slashes and would silently turn "/etc/passwd" into the in-vault
- * "etc/passwd". This mirrors `sanitizeVaultPath`/`validateAssetDestination`.
- *
- * Unlike the write validator, this does NOT reject in-vault dot/config dirs:
- * probing `.obsidian/x` is in-bounds and harmless, and a legitimate package may
- * reference an existing config-dir file — rejecting it would mislabel a present
- * reference as "missing". The only concern here is escaping the vault.
+ * Lexical vault-boundary checks for untrusted package paths. escapesVaultBoundary
+ * lets the preview skip an `adapter.exists` probe outside the vault without
+ * throwing or touching the filesystem. The absolute-path check must run before
+ * Obsidian's `normalizePath`, which strips leading slashes ("/etc/passwd" would
+ * become the in-vault "etc/passwd"). Unlike the write validator, in-vault config
+ * dirs are allowed here: probing them is harmless.
  */
 
-// These primitives are intentionally NOT exported: each is only safe in the
-// fixed order escapesVaultBoundary applies them (e.g. hasTraversalSegment must
-// run on a backslash-normalized string). Exporting them invites a caller to use
-// one in isolation and silently reopen a bypass. Export only the composed checks.
+// Not exported: each primitive is only safe in the fixed order
+// escapesVaultBoundary applies it.
 
-/** Trim and convert backslashes to '/'. Does NOT resolve '.'/'..' or strip
- * slashes, so absolute/traversal markers survive for the checks below. */
+/** Trims and converts backslashes, keeping absolute and traversal markers for the checks below. */
 function toSlashedPath(rawPath: string): string {
 	return (rawPath ?? "").trim().replace(/\\/g, "/");
 }
 
-/** True for POSIX-absolute ("/x", and backslash-normalized UNC "//host/share"),
- * Windows drive ("C:\\x" → "C:/x") and drive-relative ("C:x") paths. Expects a
- * backslash-normalized string (see {@link toSlashedPath}). */
+/** POSIX-absolute (including UNC "//host/share"), drive ("C:/x") and drive-relative ("C:x") paths. */
 function isAbsoluteVaultPath(slashedPath: string): boolean {
 	return slashedPath.startsWith("/") || /^[a-zA-Z]:/.test(slashedPath);
 }
 
-/** True if any '/'-separated segment is a parent-traversal "..", INCLUDING the
- * Windows trailing-dot/space collapse: the Win32 filesystem strips trailing spaces
- * and dots from each path component before opening it, so a segment like ".. " or
- * "..." resolves to the parent ".." at file-open even though it is not literally "..".
- * A lexical "=== '..'" check (and Node's own path math) would miss those, so match
- * any segment that is ".." followed only by spaces/dots. ("..%2fevil.md" is a single
- * literal segment, NOT "..", and "..evil" / "evil.." are ordinary names.)
- *
- * This deliberately also rejects exotic pure-dot names like "..." / "...." even on
- * POSIX (where they are valid distinct directory names) — fail CLOSED toward
- * Windows safety. The cost is nil in practice: QuickAdd's own folder validator
- * already rejects any segment ending in a period/space (INVALID_FOLDER_TRAILING_CHARS),
- * so such names are not creatable in-vault through the UI anyway. Do NOT narrow this
- * to "spaces only" — that would reopen the Win32 trailing-dot collapse. */
+/**
+ * True if any segment is ".." followed only by dots or spaces: Win32 strips
+ * trailing dots and spaces from each component, so ".. " and "..." open the
+ * parent. Fails closed on POSIX pure-dot names too; do not narrow this to
+ * spaces only.
+ */
 function hasTraversalSegment(slashedPath: string): boolean {
 	return slashedPath
 		.split("/")

@@ -55,7 +55,7 @@ export function resolveCaptureTarget(
 		return { kind: "vault" };
 	}
 
-	// `property:<field>[=<value>]` pre-filters by a frontmatter field (issue #466).
+	// `property:<field>[=<value>]` pre-filters by a frontmatter field.
 	// Checked before the `.base`/extension/folder branches so a property value
 	// containing `.md`/`/` (or a trailing `/`) can never misroute to a file/folder.
 	const propertyTarget = parsePropertyTarget(rawCaptureTo);

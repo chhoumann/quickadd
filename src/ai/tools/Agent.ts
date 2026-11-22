@@ -1,11 +1,7 @@
 /**
- * The AI Agent (#714) — the Obsidian-bound glue around the pure tool loop.
- *
- * Constructed by `quickAddApi.ai.agent(config)`. Holds model/system/tools/budget
- * config; `generate({ prompt })` runs the bounded multi-step tool loop and
- * `generate({ prompt, schema })` adds JSON-schema-constrained structured output.
- * Stateless across calls (reuse = reuse the config); a per-run guard prevents
- * overlapping calls from racing the shared variables map / cursor.
+ * The AI agent: Obsidian-bound glue around the pure tool loop, built by
+ * `quickAddApi.ai.agent(config)`. Stateless across calls; a per-run guard keeps
+ * overlapping calls from racing the shared variables map and cursor.
  */
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
@@ -156,7 +152,6 @@ export class Agent {
 		);
 		const apiKey = await resolveProviderApiKey(this.app, modelProvider);
 
-		// Build the seed request: [system?, user(formatted prompt)].
 		const messages = await this.buildSeedMessages(options);
 		const tools = this.buildToolDefinitions();
 		const registry = this.buildRegistry();
@@ -181,9 +176,8 @@ export class Agent {
 			Math.min(this.config.maxSteps ?? DEFAULT_MAX_STEPS, MAX_STEPS_CEILING),
 		);
 
-		// Mirror the legacy ai.prompt status surface (makeNoticeHandler): a single
-		// persistent Notice updated through the multi-step run, only when the
-		// "Show assistant messages" setting is on. No-op handler otherwise.
+		// One persistent Notice updated through the run, only with "Show assistant
+		// messages" on.
 		const notice = makeNoticeHandler(pluginSettings.ai.showAssistant);
 		notice.setMessage("starting", "QuickAdd is running the AI agent.");
 
@@ -253,7 +247,7 @@ export class Agent {
 		}
 	}
 
-	/** Emit a per-step progress Notice mirroring the legacy ai.prompt status surface. */
+	/** Emits a per-step progress Notice. */
 	private reportStep(
 		notice: Pick<NoticeHandler, "setMessage">,
 		step: LoopStep,
@@ -371,11 +365,8 @@ export class Agent {
 		if (!needs) return true;
 		if (this.approveAllThisRun && !perToolFloor) return true;
 
-		// Non-interactive run (CLI without `ui`): nobody can approve this, and the
-		// modal would park forever - a plain `quickadd:run` of a Macro whose script
-		// calls `quickAddApi.ai.agent` with a non-readOnly tool simply never returned
-		// (`needsGlobalConfirmation` defaults to "destructive", so most tools ask).
-		// Refuse with the text that says how to make the choice runnable headlessly.
+		// Non-interactive run: nobody can approve, and the modal would park forever
+		// (most tools ask by default).
 		if (this.choiceExecutor.interactive === false) {
 			throw new ChoiceAbortError(
 				`'${call.name}' needs approval before it runs, but this run is non-interactive. ` +
@@ -414,10 +405,9 @@ export class Agent {
 	}
 
 	private needsGlobalConfirmation(tool: ToolEntry): boolean {
-		// Default to "destructive" when the persisted value is missing: main.ts
-		// shallow-merges loadedData, so an existing user's pre-`confirmToolCalls`
-		// `ai` object replaces DEFAULT_SETTINGS.ai wholesale and leaves this
-		// undefined. Without this floor a destructive author tool would auto-run.
+		// Default to "destructive" when missing: a shallow merge of an older saved
+		// `ai` object leaves this undefined, and a destructive tool would otherwise
+		// auto-run.
 		const global = settingsStore.getState().ai.confirmToolCalls ?? "destructive";
 		if (global === "always") return true;
 		if (global === "destructive") return tool.readOnly !== true;

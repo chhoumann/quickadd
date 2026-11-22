@@ -53,7 +53,7 @@ export async function createFileWithInput(
 	// path (e.g. "..\\..\\..\\evil.md" or "C:/evil.md") would make `vault.create`
 	// AND the folder pre-creation below resolve OUTSIDE the vault root. Reject it
 	// here, before any filesystem touch, so the sink can never escape even if an
-	// upstream normalizer is bypassed. Mirrors the package-import write guard (#1434).
+	// upstream normalizer is bypassed. Mirrors the package-import write guard.
 	if (escapesVaultBoundary(filePath)) {
 		throw new Error(`Refusing to create a file outside the vault: "${filePath}".`);
 	}

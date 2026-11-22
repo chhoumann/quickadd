@@ -104,13 +104,10 @@ export class CommandSequenceEditor {
 	constructor(options: CommandSequenceEditorOptions) {
 		this.app = options.app;
 		this.plugin = options.plugin;
-		// data.json is untrusted, so the value arrives raw and is made editable
-		// here — the one seam every host that shows a command list goes through
-		// (MacroBuilder, ConditionalBranchEditorPage). Normalizing keeps a
-		// duplicate-id or id-less command under a fresh uuid instead of letting
-		// the keyed {#each} throw and cost the user the whole editor (#1593).
-		// Nothing is persisted by this: the repair reaches disk only with the
-		// user's first ordinary edit, so opening and closing changes nothing.
+		// data.json is untrusted, so the value arrives raw and is normalized here,
+		// the one seam every command-list host goes through: a duplicate-id or
+		// id-less command gets a fresh uuid instead of crashing the keyed {#each}.
+		// Nothing is persisted until the user's first ordinary edit.
 		this.unreadable = isUnreadableCommandList(options.commands);
 		this.commandsRef = normalizeCommandList(options.commands).commands;
 		this.choices = options.choices;
@@ -132,21 +129,16 @@ export class CommandSequenceEditor {
 		containerEl.empty();
 		containerEl.addClass("quickAddCommandEditor");
 
-		// A list we could not read must not be edited blind. Every control below
-		// appends to `commandsRef` and persists through onCommandsChange, so an
-		// editor offered over a value we could not read would overwrite it with the
-		// `[]` we read it as — destroying the only copy the user has. Say so
-		// instead, and offer nothing that writes. The macro's name, "run on
-		// startup" and icon stay editable around it.
+		// A list we could not read must not be edited blind: every control below
+		// would overwrite it with the [] we read it as, so offer nothing that
+		// writes. The macro's name, run-on-startup and icon stay editable.
 		if (this.unreadable) {
 			this.renderUnreadableCard(containerEl);
 			return false;
 		}
 
-		// Belt and braces: the list is a readable array and every entry has been
-		// given a unique id, so a mount failure here is a genuine bug rather than
-		// bad data. Same reasoning as above though — with the list invisible the
-		// user would be adding commands they cannot see, reorder or delete.
+		// A mount failure here is a genuine bug, but with the list invisible the
+		// user would add commands they cannot see, so stop here too.
 		if (!this.renderCommandList(containerEl)) return false;
 
 		this.renderCommandBar(containerEl);
@@ -569,8 +561,7 @@ export class CommandSequenceEditor {
 	}
 
 	private emitCommandsChanged() {
-		// Push the new array into the mounted component via its reactive $state props
-		// bag (replaces the old exported updateCommandList() bridge).
+		// Push the new array into the mounted component via its reactive $state props.
 		if (this.commandListProps) {
 			this.commandListProps.commands = [...this.commandsRef];
 		}

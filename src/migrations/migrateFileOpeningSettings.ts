@@ -26,7 +26,6 @@ const migrateFileOpeningSettings: Migration = {
 
 		let migratedCount = 0;
 
-		// Migration visitor function
 		const migrateFileOpening = (choice: IChoice) => {
 			if (choice.type !== "Template" && choice.type !== "Capture") return;
 
@@ -43,7 +42,6 @@ const migrateFileOpeningSettings: Migration = {
 			}
 		};
 
-		// Apply migration to all choices recursively
 		walkChoicesInSettings(plugin.settings, migrateFileOpening);
 
 		log.logMessage(`Migration complete. Migrated ${migratedCount} choices.`);

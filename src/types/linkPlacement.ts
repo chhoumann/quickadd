@@ -1,6 +1,3 @@
-/**
- * Defines where a link should be placed when appending to content.
- */
 export type LinkPlacement = 
 	| "replaceSelection"  // Replace the current selection with the link
 	| "afterSelection"    // Insert the link after the current selection
@@ -30,14 +27,9 @@ export type FrontmatterHandling =
 export const DEFAULT_FRONTMATTER_HANDLING: FrontmatterHandling = "alwaysAppend";
 
 /**
- * Active-note Markdown body placements that insert into the editor and can
- * therefore carry an embed (`![[...]]`). "inFrontmatter" is excluded because a
- * frontmatter property value is link-only. Specified-note destinations stay
- * link-only via their own guards (sanitizeLinkType requires an activeFile
- * destination, and appendFileLinkToDestinationFile hardcodes "link"), so they
- * are unaffected by this set even when a body placement is selected.
- *
- * A new placement is NOT embed-capable until it is deliberately added here.
+ * Active-note body placements that can carry an embed; a frontmatter value is
+ * link-only, and specified-note destinations stay link-only through their own
+ * guards. A new placement is not embed-capable until added here.
  */
 const EMBED_CAPABLE_PLACEMENTS: ReadonlySet<LinkPlacement> = new Set([
 	"replaceSelection",
@@ -120,14 +112,8 @@ function normalizeAppendLinkDestination(
 	return { type: "activeFile" };
 }
 
-/**
- * Configuration options for appending links to content.
- * Provides granular control over link placement behavior.
- */
 export interface AppendLinkOptions {
-	/** Whether link appending is enabled */
 	enabled: boolean;
-	/** Where to place the appended link */
 	placement: LinkPlacement;
 	/**
 	 * When true, throw an error if no active file is available for link insertion.
@@ -166,11 +152,6 @@ export interface AppendLinkOptions {
 	frontmatterHandling?: FrontmatterHandling;
 }
 
-/**
- * Type guard to check if appendLink value is the new options format.
- * @param appendLink - The appendLink value to check
- * @returns True if the value is AppendLinkOptions, false if it's a boolean
- */
 export function isAppendLinkOptions(appendLink: boolean | AppendLinkOptions): appendLink is AppendLinkOptions {
 	return (
 		typeof appendLink === "object" &&
@@ -180,13 +161,7 @@ export function isAppendLinkOptions(appendLink: boolean | AppendLinkOptions): ap
 	);
 }
 
-/**
- * Normalizes appendLink value from legacy boolean format to new options format.
- * Maintains backward compatibility by converting true/false to equivalent options.
- * 
- * @param appendLink - Legacy boolean or new options format
- * @returns Normalized AppendLinkOptions
- */
+/** Converts the legacy boolean form to options and sanitizes cross-field combinations. */
 export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions & { linkType: LinkType; destination: AppendLinkDestination; displayText: LinkDisplayText } {
 	if (isAppendLinkOptions(appendLink)) {
 		const placement = appendLink.placement ?? "replaceSelection";
@@ -213,7 +188,6 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 		};
 	}
 
-	// Convert legacy boolean format to new options format
 	return {
 		enabled: appendLink,
 		placement: "replaceSelection", // Default placement for backward compatibility
@@ -224,11 +198,5 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 	};
 }
 
-// TODO: Consider adding a formal migration in a future major version to:
-// 1. Convert all boolean appendLink values to AppendLinkOptions objects in saved settings
-// 2. Remove the boolean union type from ICaptureChoice and ITemplateChoice interfaces  
-// 3. Remove normalizeAppendLinkOptions() runtime conversion helper
-// This would clean up the schema but requires traversing choices, MultiChoice trees,
-// and macro-embedded choices. Runtime conversion is currently preferred due to lower
-// risk and the fact that migration wouldn't eliminate the need for normalization
-// (imported settings, 3rd-party scripts, etc.). See issue #166 implementation discussion.
+// Boolean appendLink stays supported through runtime conversion rather than a
+// migration: imported settings and third-party scripts can still supply it.

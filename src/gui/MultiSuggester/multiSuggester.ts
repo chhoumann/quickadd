@@ -15,11 +15,9 @@ interface MultiSuggesterOptions {
 	/** Optional token: a "Skip" affordance resolves an empty selection. */
 	skippable?: boolean;
 	/**
-	 * Values pre-checked when the picker opens (issue #1429). Values present in
-	 * the option list are toggled on; values not in the list are added as
-	 * pre-checked custom rows (so e.g. a list-valued active-note property whose
-	 * members aren't all in the vault still preselects them). The user can deselect
-	 * any of them. Empty/undefined preselects nothing.
+	 * Values pre-checked when the picker opens. Values in the option list are
+	 * toggled on; others are added as pre-checked custom rows. The user can
+	 * deselect any of them.
 	 */
 	preselected?: string[];
 	/** Other names each item can be found by, by index (a note's aliases). */

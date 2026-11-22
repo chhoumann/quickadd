@@ -46,20 +46,15 @@ export function normalizeLoadedSettings(loadedData: unknown): QuickAddSettings {
 		settings.announceUpdates = settings.announceUpdates ? "all" : "none";
 	}
 
-	// Heal duplicate choice ids (#1451): a repeated id makes the settings tab's
-	// keyed {#each} throw each_key_duplicate and render blank (commands keep
-	// working, so it looks like "corrupted data"). Cheap and idempotent, so it
-	// runs every load; the next ordinary save rewrites data.json cleaned. No
-	// data is lost - see dedupeChoicesById. Only touch a real array: a missing
-	// `choices` already defaults to [] via the merge above, and a null/corrupt
-	// value is left exactly as-is rather than being silently replaced with []
-	// (which a later save would persist, destroying recoverable data).
+	// Heal duplicate choice ids, which blank the settings tab's keyed {#each}.
+	// Only touch a real array: a corrupt value stays as-is rather than becoming
+	// a [] that a later save would persist.
 	if (Array.isArray(settings.choices)) {
 		settings.choices = dedupeChoicesById(settings.choices);
 	}
 
 	// Runs every load, not as a one-time migration: QuickAdd 2.29 still saves
-	// this shape, so a downgrade and a later upgrade can bring it back (#2047).
+	// this shape, so a downgrade and a later upgrade can bring it back.
 	walkChoicesInSettings(settings, clearEmptyFormatFlag);
 
 	return settings;
@@ -73,9 +68,9 @@ export function normalizeLoadedSettings(loadedData: unknown): QuickAddSettings {
  */
 export class SettingsPersistence {
 	/**
-	 * Snapshot of settings as of the last successful load/save. Used as the
-	 * 3-way-merge base so a whole-file write cannot clobber newer on-disk fields
-	 * that this instance never edited (see #1749 / background model sync).
+	 * Settings as of the last successful load/save: the 3-way-merge base, so a
+	 * whole-file write cannot clobber newer on-disk fields this instance never
+	 * edited.
 	 */
 	private lastPersistedSettings: QuickAddSettings | null = null;
 	/**
@@ -90,19 +85,11 @@ export class SettingsPersistence {
 	 * wait for.
 	 */
 	private persistChain: Promise<void> | null = null;
-	// Debounced disk write for the store subscriber. saveNow() stays immediate
-	// (migrations await it) and cancels this; unload flushes it.
-	//
-	// The async IIFE is load-bearing, not style: floating `saveData()` straight from a
-	// non-async arrow leaves NO QuickAdd frame on the rejection's stack (it is
-	// constructed inside Obsidian's own FS plumbing, after an await), so a failed
-	// settings write would be invisible to the unhandled-rejection reporter - which is
-	// the one failure here the user most needs to hear about, since their settings
-	// silently did not persist. Awaiting inside a QuickAdd frame puts us on the stack.
-	//
-	// Not Obsidian's debounce: that schedules on whichever window is active when it is
-	// called, so a change made in the Settings popout would be written on the popout's
-	// timer, which closing the popout drops. `window` is the main window.
+	// Debounced disk write for the store subscriber; saveNow() stays immediate and
+	// cancels it. The async IIFE keeps a QuickAdd frame on a failed write's stack,
+	// so the unhandled-rejection reporter sees it. `window` rather than Obsidian's
+	// debounce, which schedules on the active window: closing a popout drops its
+	// timer.
 	private pendingSave: number | null = null;
 	readonly requestSave = Object.assign(
 		() => {
@@ -174,7 +161,7 @@ export class SettingsPersistence {
 	 * Whole-file settings write with a disk-aware merge. If `data.json` changed
 	 * since `lastPersistedSettings` (another device/sync, hand edit, …), local
 	 * mutations are three-way-merged onto the on-disk value instead of replacing
-	 * the file with a stale in-memory snapshot (#1749).
+	 * the file with a stale in-memory snapshot.
 	 *
 	 * Obsidian's `loadData` / `saveData` expose no compare-and-swap, file lock, or
 	 * version token, so a TOCTOU window remains between the final re-read below
@@ -195,7 +182,7 @@ export class SettingsPersistence {
 			const buildPlan = (diskSnapshot: QuickAddSettings | null) => {
 				// Capture local AFTER the disk read so updates that landed while
 				// loadData() was in flight are included, then fold any further
-				// live-store drift onto that plan (Codex P1 / CodeRabbit on #1750).
+				// live-store drift onto that plan.
 				const local = deepClone(this.host.getSettings());
 				return reconcileSettingsPersistPlan({
 					base,
@@ -255,9 +242,8 @@ export class SettingsPersistence {
 				);
 			}
 
-			// Keep the live store aligned with what we persist. Otherwise disk-only
-			// fields preserved in toWrite stay missing from the live settings, and the
-			// next save treats that gap as a local deletion (CodeRabbit on #1750).
+			// Keep the live store aligned with what we persist, or disk-only fields
+			// missing from it would read as a local deletion on the next save.
 			if (
 				shouldApplyPersistedWriteToStore(
 					toWrite,
@@ -280,7 +266,7 @@ export class SettingsPersistence {
 	 * Sync or another sync tool delivered it, another instance on the same
 	 * vault wrote it, or someone edited it by hand. Apply it now instead of at
 	 * the next reload. Edits made here and not yet saved (the debounced save)
-	 * are three-way merged on top, the same way a save merges (#1749). Queued
+	 * are three-way merged on top, the same way a save merges. Queued
 	 * with the saves so the two never interleave.
 	 */
 	async onExternalSettingsChange(): Promise<void> {

@@ -82,7 +82,7 @@ export class TemplatePropertyCollector {
 
     // An empty multi-select pick means "no value". Skip collection so the
     // inline fallback (`[].join(",")` -> "") leaves the property empty
-    // (`topics:`) instead of writing an explicit empty list (issue #1656).
+    // (`topics:`) instead of writing an explicit empty list.
     if (Array.isArray(structuredValue) && structuredValue.length === 0) {
       return undefined;
     }

@@ -11,7 +11,7 @@
  *
  * The point: an interactive control (icon button, folder toggle) is an ACTION, never a
  * drag start. Without this, on touch the library treats the tap as a maybe-drag and, on
- * touchend, REPLAYS a synthetic click (handleFalseAlarm, dist/index.js:1840) on top of
+ * touchend, REPLAYS a synthetic click (the library's handleFalseAlarm) on top of
  * the native click — firing the control TWICE (Duplicate makes two copies, a folder
  * toggle opens-then-shuts). The drag handle is a SEPARATE button without this action, so
  * dragging is unaffected. Inert outside a dndzone (no library listener to stop).

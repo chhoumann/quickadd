@@ -11,7 +11,7 @@ export type ParsedVDateOptions = {
 	optional: boolean;
 	/** Token requested a date AND time picker via |time / |datetime / |type:datetime. */
 	withTime: boolean;
-	/** Snap the resolved date to a period boundary via |startof:/|endof: (issue #511). */
+	/** Snap the resolved date to a period boundary via |startof:/|endof:. */
 	snap?: DateSnap;
 	/** Apply the shared per-token case transform after formatting the date. */
 	caseStyle?: string;
@@ -71,8 +71,8 @@ export function parseVDateOptions(
 			continue;
 		}
 		if (keyed?.key === "startof" || keyed?.key === "endof") {
-			// |startof:<unit> / |endof:<unit> snap the resolved date (issue #511).
-			// First wins; a bad unit throws. Never part of the default value.
+			// |startof:<unit> / |endof:<unit> snap the resolved date. First wins; a
+			// bad unit throws. Never part of the default value.
 			if (!snap) {
 				snap = {
 					boundary: keyed.key === "startof" ? "start" : "end",
@@ -105,23 +105,11 @@ export function parseVDateOptions(
 }
 
 /**
- * {@link parseVDateOptions} for a PREVIEW, which evaluates INCOMPLETE input on
- * every keystroke.
- *
- * `|startof:<unit>` throws out of `normalizeDateUnit` for a unit that does not
- * resolve, and half of a unit usually does not (`we`, `mont`) - so in the run
- * that throw is the right answer, and in a preview it would blank the row
- * between two keystrokes, which is the noise #1558 removed. Note that some
- * short forms ARE valid aliases (`w`, `d`, `M`), so "unfinished" is not a
- * property of the string.
- *
- * The two channels are therefore split. The OPTIONS come back usable either
- * way, so the preview TEXT stays stable while you type; the ERROR comes back
- * separately for the caller to put on the diagnostics channel, which the
- * builder holds back until the field has been still for 500ms
- * (`DIAGNOSTICS_IDLE_MS`). Swallowing it outright would have deleted a
- * diagnostic the body preview already shipped - and left a format the run
- * cannot execute previewing as a finished date.
+ * {@link parseVDateOptions} for a preview, which sees incomplete input on every
+ * keystroke. A half-typed `|startof:` unit throws, which is right for the run but
+ * would blank the preview between keystrokes. So the options come back usable
+ * and the error separately, for the diagnostics channel the builder shows once
+ * the field is idle.
  */
 export function parseVDateOptionsForPreview(rawOptions: string | undefined | null): {
 	options: ParsedVDateOptions;

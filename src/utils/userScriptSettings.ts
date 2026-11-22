@@ -3,16 +3,7 @@ import {
 	type UserScriptOptionDefinition,
 } from "./userScriptSecrets";
 
-/**
- * Initializes default values for user script settings.
- *
- * This function populates the command's settings object with default values
- * from the user script's settings configuration for any settings that are
- * currently undefined.
- *
- * @param commandSettings - The command's settings object to populate
- * @param userScriptSettings - The user script's settings configuration
- */
+/** Fills the command's settings with the user script's defaults for any that are undefined. */
 export function initializeUserScriptSettings(
 	commandSettings: { [key: string]: unknown },
 	userScriptSettings: {

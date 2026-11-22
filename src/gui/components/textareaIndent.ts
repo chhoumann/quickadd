@@ -1,21 +1,9 @@
 /**
- * Tab-to-indent for multi-line text fields (issue #764).
- *
- * A plain textarea lets the browser move focus on Tab, so users can't indent to
- * build markdown sublists. {@link attachTextareaIndent} captures Tab and inserts
- * a tab character instead. The transform is split into a pure, unit-testable
- * {@link computeIndentEdit} (no DOM) and a thin DOM applier so the host textarea
- * keeps native undo and fires a real `input` event (so onChange/draft/validation
- * stay in sync).
- *
- * Scope is deliberately minimal: only Tab is captured. Shift+Tab is left alone so
- * it still moves focus, which keeps every surface free of any keyboard trap.
- *
- * In a form (the choice builder's Capture format, say), Tab is also how keyboard
- * users move between controls. There, `passThroughUntilUsed` lets a Tab pressed
- * straight after focusing the field move on as usual, so tabbing through the
- * form never edits the field or stops at it. Once the user types, pastes, moves
- * the caret, or clicks in the field, Tab indents.
+ * Tab-to-indent for multi-line text fields. The pure {@link computeIndentEdit}
+ * is applied so native undo and a real `input` event survive. Only Tab is
+ * captured; Shift+Tab still moves focus, so there is no keyboard trap. With
+ * `passThroughUntilUsed`, a Tab right after focusing moves on until the user
+ * types, pastes, moves the caret or clicks in the field.
  */
 
 const DEFAULT_TAB = "\t";

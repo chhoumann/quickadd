@@ -176,9 +176,8 @@ function getCategoryForMode(
 	return getFileExistsMode(modeId).category;
 }
 
-// The prompt's Do nothing item used to open the note, so its slot now reads Open
-// existing file with the same behavior. Leaving the note alone from the prompt is
-// what Escape already does.
+// The prompt offers Open existing file in place of Do nothing; leaving the note
+// alone from the prompt is what Escape does.
 export function getPromptModes(): FileExistsModeDefinition[] {
 	return fileExistsModes.filter((mode) => mode.id !== "leaveUnchanged");
 }
@@ -208,13 +207,8 @@ export function mapLegacyFileExistsModeToId(
 		return null;
 	}
 
-	// `legacyFileExistsModeMap` is a plain object, so a bare `[mode]` lookup
-	// would resolve inherited members for magic keys (`__proto__` ->
-	// Object.prototype, `constructor` -> the Object function, `toString`/
-	// `valueOf` -> functions). All are truthy, silently defeating the `?? null`
-	// fallback and returning a non-`FileExistsModeId`. Restrict to own keys so
-	// any unknown input - including a hand-edited or imported `fileExistsMode` -
-	// falls back cleanly.
+	// Own keys only: a magic key like `__proto__` from hand-edited or imported
+	// data would resolve an inherited member and defeat the `?? null` fallback.
 	if (!Object.prototype.hasOwnProperty.call(legacyFileExistsModeMap, mode)) {
 		return null;
 	}
@@ -234,13 +228,8 @@ export async function resolveIncrementedCollisionPath(
 	filePath: string,
 	exists: ExistsFn,
 ): Promise<string> {
-	// Iterate (never recurse) and bump the trailing number with BigInt so the
-	// candidate always advances by exactly one - even past 2^53, where the old
-	// `parseInt(n, 10) + 1` became a no-op (the computed "next" path equalled the
-	// current one, `exists` stayed true, and the recursion spun forever). The
-	// numeric part strictly increases, so no name repeats and a finite vault
-	// guarantees `exists` eventually returns false. BigInt swaps in for parseInt
-	// with no other change, so this is byte-for-byte identical below 2^53.
+	// Iterate and bump the trailing number with BigInt so the candidate always
+	// advances, even past 2^53 where parseInt + 1 stops changing the value.
 	let candidate = filePath;
 	while (await exists(candidate)) {
 		const { basename, extension } = splitCollisionFileName(candidate);

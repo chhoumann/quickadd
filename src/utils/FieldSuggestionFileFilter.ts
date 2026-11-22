@@ -16,9 +16,6 @@ export function hasFileFilter(filter: FieldFilter): boolean {
 }
 
 export class FieldSuggestionFileFilter {
-	/**
-	 * Enhanced file filtering with inclusion and exclusion support
-	 */
 	static filterFiles(
 		files: TFile[],
 		filters: FieldFilter,
@@ -106,7 +103,6 @@ export class FieldSuggestionFileFilter {
 	}
 
 	private static matchesFile(file: TFile, targetFile: string): boolean {
-		// Match by exact name or path
 		return file.name === targetFile || file.path === targetFile;
 	}
 }

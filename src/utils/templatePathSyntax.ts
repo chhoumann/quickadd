@@ -1,6 +1,6 @@
 /**
  * Whether a template path contains QuickAdd format syntax, e.g.
- * "Templates/{{value:type}} Template.md" (issue #620). Such a path can only be
+ * "Templates/{{value:type}} Template.md". Such a path can only be
  * resolved at run time, so edit-time validators and preflight scanning treat it
  * specially: the choice-builder shows a neutral "resolved at run time" hint
  * instead of a false "not found", and preflight collects the path's own tokens

@@ -31,16 +31,10 @@ function walkChoice(
 	visited: Set<IChoice>,
 ): void {
 	if (!choice || typeof choice !== "object") return;
-	// An ARRAY entry is a NESTED LIST, which the editor seam splices into the tree
-	// (`normalizeChoiceList`) - so it can be CARRYING choices, and `typeof [] ===
-	// "object"` means the visitor would otherwise be handed the array itself and
-	// descend nothing.
-	//
-	// Reported unreadable rather than descended, even though this walk could
-	// descend it. Narrower traversals such as `flattenChoices` step straight past
-	// it. Descending here would make the guard say "I saw everything" on behalf
-	// of traversals that did not, which is exactly the failure #1610 is about. Staying pending costs one launch: the user opens the settings tab, the
-	// seam splices the entries into real choices, and the next launch is readable.
+	// A nested list (spliced in by the editor seam) can carry choices. It is
+	// reported unreadable rather than descended: narrower traversals such as
+	// flattenChoices step past it, and descending here would let the guard answer
+	// for them. The seam repairs it the next time the settings tab opens.
 	if (Array.isArray(choice)) {
 		visitors.onUnreadable?.();
 		return;
@@ -61,12 +55,8 @@ function walkChoice(
 	}
 
 	if (isMacroChoice(choice)) {
-		// `macroCommandsValueOf`, not `choice.macro?.commands`: an ARRAY-valued
-		// `macro` IS the command list (writing `.commands` onto an Array is dropped
-		// by JSON.stringify, so that is the only recoverable reading - see #1593).
-		// Reading `.commands` off it yields `undefined`, which walks nothing and
-		// reports readable, so a nested choice inside such a macro was invisible to
-		// every migration AND to the guard that is supposed to notice (#1610).
+		// An array-valued `macro` is the command list; reading `.commands` off it
+		// would walk nothing and report readable.
 		walkCommands(macroCommandsValueOf(choice.macro), visitors, visited);
 	}
 }
@@ -123,16 +113,9 @@ function walkSettings(
 ): void {
 	const visited = new Set<IChoice>();
 
-	// The ROOT `choices` is untrusted too: loadSettings deliberately leaves a
-	// non-array value in place rather than replacing it with [] (#1566).
-	//
-	// The root is judged STRICTLY - any non-array is unreadable - while every
-	// container below it uses the "could this be carrying data" rule. The
-	// asymmetry is not an oversight: `loadSettings` merges over DEFAULT_SETTINGS,
-	// so a MISSING `choices` key is already `[]` by the time anything sees it.
-	// A root that is not an array is therefore always corruption, never an honest
-	// empty - which is why ChoiceView refuses to render it at all rather than
-	// showing the "No choices yet" hero whose CTA would write over it.
+	// The root is judged strictly: settings merge over DEFAULT_SETTINGS, so a
+	// missing `choices` is already [] and any non-array root is corruption.
+	// Containers below it use the "could this carry data" rule.
 	if (Array.isArray(settings.choices)) {
 		for (const choice of settings.choices) {
 			walkChoice(choice, visitors, visited);
@@ -155,26 +138,12 @@ function walkSettings(
 }
 
 /**
- * Whether anything in `settings` is hidden from {@link walkChoicesInSettings} behind a
- * container it could not read.
- *
- * This is the question a migration that MOVES data has to ask. Migrations run
- * exactly once and are then flagged complete forever, so one that walked past a
- * subtree it could not see would leave that subtree un-migrated permanently -
- * even after the user repairs `data.json` by hand. Such a migration must return
- * `{ complete: false }` instead and retry on a later launch (see
- * `MigrationResult`).
- *
- * Derived from the traversal itself rather than reimplemented alongside it: an
- * independent predicate answered for `Multi.choices` only and never descended
- * `macro.commands`, so a `NestedChoice` inside `"commands": {"0": {...}}` was
- * invisible to both the walk and the guard, and the migrations reported complete
- * anyway (#1610).
- *
- * Ask this only if you migrate through `walkChoicesInSettings`. A migration with its own
- * narrower traversal must ask the narrower question - see
- * `treeHasUnreadableChildren` - or it blocks itself on data it was never going to
- * touch.
+ * Whether anything is hidden from {@link walkChoicesInSettings} behind a
+ * container it could not read. A migration that moves data must then return
+ * `{ complete: false }` and retry later, or the hidden subtree is never
+ * migrated. Derived from the walk itself, so it cannot answer for a subtree the
+ * walk handles differently. Ask it only when migrating through
+ * walkChoicesInSettings; narrower traversals ask `treeHasUnreadableChildren`.
  */
 export function settingsTreeHasUnreadableData(settings: {
 	choices: IChoice[];

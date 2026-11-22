@@ -1,13 +1,10 @@
 import { findYamlFrontMatterRange, getYamlContextForMatch } from "./yamlContext";
 
 /**
- * Pure helpers for issue #757 `|type:text` quoting.
- *
- * A value typed into a `{{VALUE:x|type:text}}` prompt is written raw-inline into
- * front matter, where Obsidian's YAML parser would otherwise retype or break it:
- * `0042` -> the number 42, `true` -> a boolean, `#todo` -> a comment (null),
- * `[a]` -> a list, `a: b` -> invalid YAML, and so on. Wrapping the value in a
- * double-quoted scalar guarantees it stays the exact string the user entered.
+ * `|type:text` quoting. A typed value written raw into front matter would be
+ * retyped or broken by Obsidian's YAML parser (`0042` -> 42, `true` -> boolean,
+ * `#todo` -> a comment, `a: b` -> invalid), so it is wrapped in a double-quoted
+ * scalar that keeps the exact string.
  */
 
 // C0 control characters and DEL, matched via a runtime-built class so the
@@ -64,13 +61,11 @@ export function isTokenExactlyQuotedYamlScalar(
 }
 
 /**
- * Escape a value that is being substituted INSIDE an author-quoted front matter
- * scalar (`key: "{{VALUE:x}}"` / `- '{{FIELD:y}}'`). Authors quote tokens so the
- * raw template stays valid YAML (Obsidian's parser warns on bare `{{...}}`,
- * issue #1655); without escaping, a value containing the surrounding quote
- * character corrupts the created note's front matter. Applies only when the
- * token exactly spans the quoted scalar at a sole-value position - everywhere
- * else the value passes through untouched.
+ * Escapes a value substituted inside an author-quoted front matter scalar
+ * (`key: "{{VALUE:x}}"`). Authors quote tokens to keep the raw template valid
+ * YAML, and an unescaped quote character in the value would corrupt the note's
+ * front matter. Applies only when the token exactly spans the quoted scalar at a
+ * sole-value position.
  */
 export function escapeValueInsideQuotedYamlScalar(
 	input: string,

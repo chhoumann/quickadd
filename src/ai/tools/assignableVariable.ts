@@ -5,7 +5,7 @@ import { isReservedVariableKey } from "../../utils/reservedVariableKeys";
 const FORMATTER_RESERVED_NAMES = new Set(["value", "title", "text", "meta"]);
 
 /**
- * Guard for the `assignToVariable` option shared by ai.agent and ai.prompt/chunkedPrompt (#714).
+ * Guard for the `assignToVariable` option shared by ai.agent and ai.prompt/chunkedPrompt.
  * Rejects names that the formatter treats specially (so they cannot be hijacked),
  * that are reserved for QuickAdd internal plumbing, or that are unreachable by the
  * {{VALUE:name}} grammar.

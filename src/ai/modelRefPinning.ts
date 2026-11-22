@@ -16,7 +16,7 @@ export function isAICommand(command: ICommand): command is AICommandish {
 }
 
 /**
- * The pre-#1495 resolution rule, verbatim: the FIRST provider (in settings
+ * The legacy first-match rule: the first provider (in settings
  * order) listing the model name. Takes the providers to search so migrations
  * can run it on their drafts rather than the live store.
  */
@@ -31,7 +31,7 @@ export function firstMatchProvider(
 
 /**
  * Pin every AI command in `choices` whose bare model name is not yet (validly)
- * pinned to the provider the pre-#1495 first-match rule resolves it to TODAY —
+ * pinned to the provider the legacy first-match rule resolves it to today,
  * behavior-preserving by construction. Used by the one-time pinAiModelRefs
  * migration AND by package import, which can introduce bare-name commands
  * long after the migration ran. A ref that no longer matches the legacy

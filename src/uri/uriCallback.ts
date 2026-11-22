@@ -1,16 +1,12 @@
 /**
- * Pure, Obsidian-free helpers for the `obsidian://quickadd` x-callback-url support.
- *
- * Keeping all decision logic here (target selection, scheme allow-listing, URL
- * building) makes the security-critical parts unit-testable under jsdom without a
- * real Obsidian environment. The impure layer (main.ts) only resolves the affected
- * file's URL and calls `window.open`.
+ * Obsidian-free decision logic for `obsidian://quickadd` x-callback-url support:
+ * target selection, scheme allow-listing and URL building.
  */
 
-/** Schemes a callback URL is allowed to use. Narrow on purpose: covers the issue's
- * Apple Shortcuts use case (`shortcuts:`) and `obsidian://` round-trips. `http(s)`
- * web callbacks are intentionally excluded for now — they would send vault-relative
- * paths to an incoming-URI-controlled destination. */
+/**
+ * Schemes a callback URL may use. `http(s)` is excluded: it would send
+ * vault-relative paths to a destination the incoming URI controls.
+ */
 const ALLOWED_CALLBACK_SCHEMES = new Set(["shortcuts:", "obsidian:"]);
 
 export interface CallbackTargets {
@@ -68,10 +64,9 @@ export function callbackUrls(targets: CallbackTargets): string[] {
 }
 
 /**
- * True if `url` parses and uses an allow-listed scheme. Scheme extraction goes
- * through `new URL().protocol` (which normalises leading whitespace/control chars
- * per the URL Standard), so allow-listing — not naive string matching — is what
- * keeps `file:`/`javascript:`/`sms:`/etc. out. Unparseable URLs are rejected.
+ * True if `url` parses and uses an allow-listed scheme. `new URL().protocol`
+ * normalises leading whitespace and control characters, so the allow-list keeps
+ * `file:`, `javascript:` and the like out.
  */
 export function isCallbackUrlAllowed(url: string): boolean {
 	try {

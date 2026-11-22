@@ -37,13 +37,8 @@ type FolderChoiceOptions = {
 	/** The active file's folder, offered first as a "Current folder" shortcut. */
 	currentFolder?: string;
 	/**
-	 * Where the folder chooser goes: to a connected interactive client, to an abort
-	 * (a non-interactive CLI run has no one to answer it), or to the Obsidian modal.
-	 *
-	 * Required, not optional. It replaced a bare `interactive?: boolean` that could
-	 * only ever say "do not open the modal" - which is why an INTERACTIVE run, where
-	 * the flag is `true`, opened the chooser on a desktop nobody was watching (#1614).
-	 * A single configured folder never prompts, so it is unaffected either way.
+	 * Where the folder chooser goes: a connected client, an abort (nobody can
+	 * answer a non-interactive run), or the Obsidian modal.
 	 */
 	executor: PromptRoutingContext;
 };
@@ -89,11 +84,9 @@ export async function chooseFolder(
 	folders: string[],
 	options: FolderChoiceOptions,
 ): Promise<string> {
-	// Decide from configured destinations only when any exist. The current
-	// folder is a shortcut on an already-open chooser, so counting it turned one
-	// specified folder into a prompt whenever the active file lived in a
-	// descendant (#1705). With no destinations, that same row is the
-	// documented active-file fallback and must stay in the decision.
+	// Decide from configured destinations only when any exist: the current
+	// folder is a shortcut on an already-open chooser. With no destinations, it
+	// is the documented active-file fallback and stays in the decision.
 	const destinations = buildFolderSelectionContext(folders, {
 		...options,
 		currentFolder: folders.length > 0 ? undefined : options.currentFolder,
@@ -161,8 +154,6 @@ async function promptForFolder(
 					allowCustomInput: context.allowCreate,
 					what: "the folder chooser",
 				}),
-			// Non-interactive run (CLI without `ui`): no one can answer, so opening
-			// it would hang. Abort with an actionable error.
 			headless: () => {
 				throw new ChoiceAbortError(
 					"This choice needs to ask which folder to create the note in, but this run is non-interactive. " +
@@ -238,7 +229,6 @@ async function promptUntilAllowed(
 	// send the client looking in the wrong place.
 	let lastRejection: string | null = null;
 
-	// Keep prompting until the user provides an allowed selection or cancels.
 	for (;;) {
 		if (executor.promptProvider && remoteAttempts-- <= 0) {
 			throw new ChoiceAbortError(
@@ -341,11 +331,8 @@ function validateFolderSegment(segment: string): void {
 		);
 	}
 
-	// No trailing-dot/space trim is needed here: the guard above already
-	// threw for any segment ending in '.' or ' ', so the historical
-	// `.replace(/[. ]+$/u, "")` was a guaranteed no-op - while still costing
-	// quadratic backtracking on a long interior dot/space run in a
-	// format-resolved folder name (same shape as sanitizeVaultPath's).
+	// The guard above already rejects a trailing '.' or ' ', so no trim is needed
+	// (one would backtrack quadratically on long dot/space runs).
 	const base = segment.split(".")[0] ?? "";
 	if (base && isReservedWindowsDeviceName(base)) {
 		throw new InvalidFolderPathError(

@@ -51,9 +51,8 @@ export function usesMarkdownLinks(app: App): boolean {
  *   the alias is dropped and the link stays plain.
  */
 function prepareLinkAlias(app: App, rawAlias: string): string | undefined {
-	// Single \s+ pass: a lookaround-free single quantifier cannot backtrack
-	// quadratically on long horizontal-whitespace runs (the opener-flood ReDoS
-	// shape from #1444/#1455/#1462). Only runs containing a newline collapse.
+	// A single \s+ pass cannot backtrack quadratically on long whitespace runs.
+	// Only runs containing a newline collapse.
 	const alias = rawAlias
 		.replace(/\s+/g, (run) => (/[\r\n]/.test(run) ? " " : run))
 		.trim();

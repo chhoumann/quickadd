@@ -205,7 +205,6 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			if (value.startsWith("}}", cursorPosition)) replaceEnd += 2;
 		}
 
-		// Replace the partial syntax with the complete syntax
 		replaceInputRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
 			fromCompletion: true,
 		});

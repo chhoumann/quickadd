@@ -7,8 +7,8 @@ import { escapesVaultBoundary } from "./vaultPathBoundary";
 /**
  * Clipboard image MIME types QuickAdd accepts, mapped to the file extension the
  * saved attachment gets. Shared by the Capture `{{CLIPBOARD}}` image fallback
- * (PR #1393) and direct image paste into prompt inputs (issue #1484) so both
- * surfaces accept exactly the same formats.
+ * and direct image paste into prompt inputs so both surfaces accept exactly the
+ * same formats.
  */
 export const IMAGE_CLIPBOARD_MIME_EXTENSIONS: Record<string, string> =
 	Object.assign(Object.create(null) as Record<string, string>, {

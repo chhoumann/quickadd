@@ -108,8 +108,7 @@ function buildChoiceCatalog(
 		parentPath: string[],
 	) => {
 		for (const choice of choices) {
-			// A hole in the list (null, a stray primitive) is not a choice; step over
-			// it rather than dereferencing it (#1566).
+			// A hole in the list (null, a stray primitive) is not a choice; step over it.
 			if (!isChoiceLike(choice)) continue;
 			const path = [...parentPath, choice.name];
 			catalog.set(choice.id, {

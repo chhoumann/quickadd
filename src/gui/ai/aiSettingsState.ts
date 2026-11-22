@@ -19,7 +19,7 @@ export function storedProviders(
 
 /**
  * Write helpers for the AI settings pages. Settings pages save as you edit,
- * so every change goes straight through the store (main.ts persists it).
+ * so every change goes straight through the store, which persists it.
  * Providers are addressed by their stable id, never by object identity: a
  * background sync or another edit may have replaced the object since a page
  * rendered it.

@@ -20,10 +20,8 @@ import {
 import { normalizeAppendLinkDestinationPath } from "../../../utils/fileLinks";
 
 /**
- * Shared append-link configuration — collapses the near-identical
- * addAppendLinkSetting from captureChoiceBuilder and templateChoiceBuilder.
- * Conditional placement / link-type rows are reactive `{#if}` blocks; the old
- * `reload()` calls are gone (whole-value reassignment drives re-render).
+ * Append-link configuration shared by the Template and Capture builders.
+ * Conditional placement and link-type rows are reactive `{#if}` blocks.
  */
 let {
 	appendLink = $bindable(),

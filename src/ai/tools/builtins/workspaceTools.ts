@@ -1,5 +1,5 @@
 /**
- * Built-in `workspace` tools (#714): read-only views of the active note + selection.
+ * Built-in `workspace` tools: read-only views of the active note and selection.
  */
 import { type App, MarkdownView, TFile } from "obsidian";
 import { isWithinAllowedRoots } from "../allowedRoots";
@@ -11,16 +11,10 @@ export function createWorkspaceTools(
 ): ToolSetMap {
 	const roots = options.allowedRoots;
 
-	// get_active_note/get_selection expose AMBIENT editor state and take NO path
-	// argument, so a model can't TARGET a file — it only ever gets whatever the user
-	// currently has open/selected. But a script author who confined the group with
-	// allowedRoots (the same option the `vault` group honors on every read) expects
-	// notes OUTSIDE those folders to stay invisible to the agent. Without this gate, a
-	// model steered by injection planted in in-scope content could pull the user's
-	// currently-open out-of-root note into the transcript sent to the LLM provider,
-	// silently defeating the configured fence. Absent allowedRoots ⇒ vault-wide
-	// (byte-identical to before). Every ambient read goes through these two confining
-	// accessors so a future workspace tool can't forget the fence.
+	// These tools take no path, but a script that confined the group with
+	// allowedRoots expects out-of-root notes to stay invisible, or injected
+	// instructions could pull the open note into the transcript sent to the
+	// provider. Every ambient read goes through the two confining accessors below.
 
 	/** The active markdown note, but only when it is inside the configured fence. */
 	const confinedActiveMarkdownFile = (): TFile | null => {

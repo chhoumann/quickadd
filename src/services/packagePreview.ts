@@ -22,17 +22,9 @@ import { flagSeverity } from "./packagePreviewFlags";
 import { walkPackage } from "./packagePreviewWalk";
 
 /**
- * Pure, App-free analysis of a QuickAdd package for the import preview.
- *
- * Everything in this module is computed from the package payload + a set of
- * already-existing vault paths (and the importer's existing choices). It never
- * touches the Obsidian App, so it is unit-testable under jsdom and is the exact
- * model the import modal renders and the `quickadd:package-preview` CLI handler
- * returns.
- *
- * Key safety invariant: a file's "executable" status is decided from the
- * COMMAND GRAPH (is it referenced by a UserScript / script-mode Conditional?),
- * never from the package-declared `asset.kind`, which is an untrusted hint.
+ * App-free analysis of a QuickAdd package for the import preview. A file's
+ * executable status comes from the command graph, never from the untrusted
+ * `asset.kind`.
  */
 
 function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
@@ -73,12 +65,9 @@ function bundledRunnableCode(originalPath: string, content: string): string | nu
 	return blocks.length > 0 ? blocks.join("\n") : null;
 }
 
-// #714: a bundled script that wires up QuickAdd's AI tool-calling lets an AI MODEL
-// read and write the vault with model-chosen arguments — a distinct risk class from
-// "this script runs". Detect the common surface forms: `quickAddApi.ai.tools/.agent/
-// .tool(...)`, the destructured `ai.tools/agent/tool(...)`, and the built-in groups
-// (`tools.vault/workspace/system(...)`). A heuristic for DISCLOSURE only — the
-// security floor (any script ⇒ "full vault + network access, gated") already holds.
+// A bundled script that wires up AI tool-calling lets a model read and write the
+// vault with model-chosen arguments, a distinct risk from "this script runs".
+// A disclosure heuristic only: any script is already gated.
 const AI_TOOLS_USE_REGEX =
 	/\bai\s*\.\s*(?:tools|agent|tool)\b|\btools\s*\.\s*(?:vault|workspace|system)\s*\(/;
 function scriptUsesAiTools(code: string): boolean {
@@ -224,13 +213,7 @@ function flagComparator(a: PreviewFlag, b: PreviewFlag): number {
 	return SEVERITY_ORDER[flagSeverity(a)] - SEVERITY_ORDER[flagSeverity(b)];
 }
 
-/**
- * Build the full preview model.
- *
- * @param existingChoices the importer's current choices (for id-collision detection)
- * @param pkg the parsed package
- * @param existsByPath paths (bundled or referenced) that already exist in the vault
- */
+/** `existsByPath` holds the referenced or bundled paths already in the vault. */
 export function buildPackagePreview(
 	existingChoices: IChoice[],
 	pkg: QuickAddPackage,
@@ -241,7 +224,6 @@ export function buildPackagePreview(
 		flattenChoices(existingChoices).map((choice) => choice.id),
 	);
 
-	// Usage sites by referenced path (command graph + template includes).
 	const usagesByPath = collectPackageUsages(pkg, choiceWalks);
 	const referencedAsScript = new Set<string>();
 	for (const [path, usages] of usagesByPath) {
@@ -259,7 +241,6 @@ export function buildPackagePreview(
 		]),
 	);
 
-	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
 		const keys = assetKeys(asset);
 		// Only an asset import will write can cover a usage or overwrite a file;
@@ -284,7 +265,6 @@ export function buildPackagePreview(
 		};
 	});
 
-	// Choices.
 	const choices: PreviewChoice[] = choiceWalks.map((walk) => {
 		const exists = existingById.has(walk.choiceId);
 		const flags = Array.from(walk.flags);
@@ -356,9 +336,8 @@ export function buildPackagePreview(
 		});
 	}
 
-	// AI-tools disclosure (#714): scan each reviewable bundled script for AI
-	// tool-calling and surface a distinct critical row. Scans the SAME decoded code
-	// QuickAdd runs, so a note that hides a js fence is covered too.
+	// AI-tools disclosure: scans the same decoded code QuickAdd runs, so a note
+	// that hides a js fence is covered too.
 	for (const file of files) {
 		const code = runnableCodeByPath.get(file.originalPath);
 		if (!code || !scriptUsesAiTools(code)) continue;

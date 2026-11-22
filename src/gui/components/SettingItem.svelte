@@ -7,7 +7,7 @@ import type { Snippet } from "svelte";
  * full modal teardown/rebuild (`reload()`). Emits the same class structure
  * Obsidian core CSS themes (`.setting-item` > `.setting-item-info` >
  * `.setting-item-name` + `.setting-item-description`, `.setting-item-control`),
- * so theming applies with zero plugin CSS. See issue #1130.
+ * so theming applies with zero plugin CSS.
  */
 let {
 	name = undefined,

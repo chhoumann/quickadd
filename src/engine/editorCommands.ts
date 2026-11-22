@@ -95,12 +95,10 @@ async function pasteWithFormat(app: App): Promise<void> {
 	let content = "";
 
 	try {
-		// Check if advanced clipboard API is available
 		if ("read" in navigator.clipboard && navigator.clipboard.read) {
 			const clipboardItems = await navigator.clipboard.read();
 			let foundHtml = false;
 
-			// Look for HTML content in clipboard
 			for (const item of clipboardItems) {
 				if (item.types.includes("text/html")) {
 					const htmlBlob = await item.getType("text/html");
@@ -111,7 +109,6 @@ async function pasteWithFormat(app: App): Promise<void> {
 				}
 			}
 
-			// If no HTML found, fall back to plain text
 			if (!foundHtml) {
 				content = await navigator.clipboard.readText();
 			}

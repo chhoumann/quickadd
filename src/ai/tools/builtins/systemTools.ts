@@ -1,5 +1,5 @@
 /**
- * Built-in `system` tools (#714): small, always-safe utilities. Read-only.
+ * Built-in `system` tools: small, always-safe utilities. Read-only.
  */
 import { getDate } from "../../../utils/dates";
 import { applyGroupOptions, defineTool, type BuiltinGroupOptions, type ToolSetMap } from "./shared";

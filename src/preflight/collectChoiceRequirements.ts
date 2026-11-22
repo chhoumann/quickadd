@@ -62,13 +62,9 @@ import { usesSelectionAsCaptureValue } from "src/engine/captureAction";
 interface CollectChoiceRequirementsOptions {
 	seedCaptureSelectionAsValue?: boolean;
 	/**
-	 * When provided, user-script modules loaded to read `quickadd.inputs` are
-	 * cached here (keyed via `getUserScriptPreloadKey`: `command.path ??
-	 * command.id` plus any `::` member-drill suffix) and reused across
-	 * collection passes. Loading a CommonJS user script EXECUTES its top-level
-	 * code, so without this cache a single trigger runs every script's module
-	 * body twice: once here for introspection and once in MacroChoiceEngine.
-	 * The engine consumes these entries instead of re-loading (delete-on-use).
+	 * Caches user-script modules loaded to read `quickadd.inputs`, keyed by
+	 * `getUserScriptPreloadKey`. Loading executes a script's top-level code, so
+	 * the engine consumes these instead of loading again.
 	 */
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
 	/**
@@ -106,16 +102,10 @@ async function scanContentWithTemplateIncludes(
 
 	for (const ref of nested) {
 		if (templateStack.has(ref)) continue;
-		// Skip a template already fully scanned at an equal-or-shallower depth:
-		// same content, and its children were explored at least as deep, so a
-		// re-scan can only repeat work (the per-path `templateStack` alone lets
-		// a dense DAG re-scan each template once per PATH - up to
-		// branching^depth invocations). A ref first seen NEAR the depth cap is
-		// re-scanned if met again shallower, so the memo never truncates a
-		// subtree the old walk would have explored.
-		// The memo is keyed per CONTEXT: a template first scanned from content
-		// must be re-scanned when later reached from a path string, or its
-		// variables would keep image paste despite feeding a path (#1484).
+		// Skip a template already fully scanned at an equal or shallower depth;
+		// without this a dense DAG re-scans each template once per path. Keyed per
+		// context: a template reached again from a path string must be re-scanned
+		// to mark its variables as path context.
 		const memoKey = `${pathContext ? "path" : "content"}:${ref}`;
 		const scannedDepth = collector.scannedTemplateRefDepths.get(memoKey);
 		if (scannedDepth !== undefined && scannedDepth <= depth) continue;
@@ -137,15 +127,10 @@ async function scanContentWithTemplateIncludes(
 }
 
 /**
- * Collects requirements from a template *source* path and (when resolvable) its
- * body. Shared by Template choices and Capture "create with template" so both
- * stay in sync (issue #620):
- *  - Always scans the path string itself, so tokens IN the path (e.g.
- *    `Templates/{{value:type}} Template.md`) are collected up front.
- *  - If the path uses format syntax, the body can't be pre-scanned (the path
- *    depends on the very answers we're collecting); those prompts surface at run
- *    time. Logged so it isn't a silent gap.
- *  - Otherwise walks the literal template body (and nested {{TEMPLATE:}}).
+ * Collects requirements from a template source path and, when resolvable, its
+ * body. Shared by Template choices and Capture "create with template". The path
+ * string is always scanned; a path that uses format syntax depends on the very
+ * answers being collected, so its body is left to run time (and logged).
  */
 async function scanTemplateSource(
 	app: App,
@@ -203,13 +188,9 @@ async function collectForTemplateChoice(
 		}
 	}
 
-	// Only the ENABLED format is scanned. The engine resolves a disabled one to
-	// VALUE_SYNTAX, so this under-collects the implicit note-name prompt - but
-	// collecting it would also make the non-interactive CLI guard reject runs the
-	// engine satisfies from the editor selection, and would show the one-page
-	// form an empty title field where the selection used to fill it in silently.
-	// Closing that needs the selection modelled here first (there is no Template
-	// counterpart to seedCaptureSelectionAsValue); tracked separately.
+	// Only the enabled format is scanned. Collecting the implicit note-name
+	// prompt of a disabled one would make the headless guard reject runs that the
+	// engine satisfies from the editor selection.
 	if (choice.fileNameFormat?.enabled) {
 		await scanContentWithTemplateIncludes(
 			app,
@@ -298,10 +279,8 @@ async function collectForCaptureChoice(
 		);
 	}
 
-	// Capture's "create file if it doesn't exist → with template" runs through
-	// SingleTemplateEngine, which resolves format tokens in the template path
-	// (issue #620). Mirror the Template-choice preflight so the one-page form /
-	// CLI collect the path's (and, for a literal path, the body's) inputs.
+	// "Create file with template" resolves format tokens in the template path, so
+	// mirror the Template-choice preflight.
 	const createWithTemplate = choice.createFileIfItDoesntExist;
 	if (
 		createWithTemplate?.enabled &&
@@ -311,10 +290,8 @@ async function collectForCaptureChoice(
 		await scanTemplateSource(app, collector, createWithTemplate.template);
 	}
 
-	// One classifier (shared with CaptureChoiceEngine) decides whether "Capture to"
-	// needs a runtime file pick and, if so, the scope. Keeping the engine and this
-	// collector on the same classification guarantees a preselected pick is honoured
-	// exactly when it was legitimately collected, never silently dropped or hijacked.
+	// One classifier, shared with CaptureChoiceEngine, so a preselected pick is
+	// honoured exactly when it was legitimately collected.
 	const captureScope = classifyCaptureTargetScope(
 		{
 			isFolder: (path) => isFolder(app, path),
@@ -406,11 +383,9 @@ async function collectUserScriptRequirements(
 ): Promise<FieldRequirement[]> {
 	const requirements: FieldRequirement[] = [];
 	try {
-		// Reuse an already-loaded module (loading executes the script's
-		// top-level code); cache what we load so the runtime engine consumes
-		// this execution instead of running the module body a second time.
-		// The key is member-aware (path + `::` drill) because the cached
-		// `script` is the drilled export.
+		// Reuse an already-loaded module and cache what we load, so the engine does
+		// not run the module body again. The key is member-aware because the
+		// cached `script` is the drilled export.
 		const cacheKey = getUserScriptPreloadKey(userScriptCommand);
 		let loaded =
 			cacheKey !== undefined

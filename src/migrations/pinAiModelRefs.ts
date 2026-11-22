@@ -6,8 +6,8 @@ import { log } from "src/logger/logManager";
 import type { Migration } from "./Migrations";
 
 /**
- * Pin every stored bare model name to the provider it resolves to TODAY
- * (#1495). Behavior-preserving by construction: each ref records exactly what
+ * Pin every stored bare model name to the provider it resolves to today.
+ * Behavior-preserving by construction: each ref records exactly what
  * the first-match rule currently picks, so no command changes endpoint or key
  * during the upgrade — the ref only protects it from being rerouted later
  * when another provider gains the same model name.

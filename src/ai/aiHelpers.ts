@@ -78,22 +78,17 @@ export function resetModelResolutionWarnings(): void {
 }
 
 /**
- * Resolve a model reference to the model AND the provider that serves it.
+ * Resolves a model reference to the model and the provider that serves it.
  *
- * Object refs (pinned commands, script object form) resolve by stable provider
- * id. A dangling ref — its provider deleted, or the model removed from it —
- * falls back to legacy bare-name first-match, LOUDLY when that lands on a
- * different provider: rerouting to another endpoint and API key must never be
- * silent.
+ * Object refs resolve by stable provider id. A dangling ref falls back to
+ * bare-name first-match, warning when that reroutes to a different provider and
+ * API key.
  *
- * Strings resolve bare-name-first: existing configs and scripts, including
- * models whose literal names contain slashes (OpenRouter's "openai/gpt-4o"),
- * keep resolving byte-identically to the pre-#1495 rule. Only when no model
- * matches the whole string is it read as qualified `provider/model`, split at
- * the FIRST slash; the prefix matches a provider id or display name
- * (case-insensitively). Provider ids never contain "/", so the split is
- * unambiguous. Scripts that need to override a literal slash-named model use
- * the object form `{ provider, name }`.
+ * Strings resolve bare-name first, so models whose literal names contain slashes
+ * (OpenRouter's "openai/gpt-4o") keep working. Only when nothing matches the
+ * whole string is it read as `provider/model`, split at the first slash;
+ * provider ids never contain "/". The object form `{ provider, name }` overrides
+ * a literal slash-named model.
  */
 export function resolveModel(
 	input: ModelInput,

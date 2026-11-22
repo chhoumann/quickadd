@@ -1,7 +1,6 @@
 import type { IndexedFile, SearchContext } from "./fileIndexTypes";
 import { normalizeForSearch } from "./normalizeForSearch";
 
-// Configurable search ranking weights
 export const SearchWeights = {
 	base: {
 		basenameExact: -1000,
@@ -39,19 +38,16 @@ export function calculateFileScore(
 ): number {
 	let score = baseScore;
 
-	// Same folder boost
 	if (context.currentFolder && file.folder === context.currentFolder) {
 		score += weights.boosts.sameFolder;
 	}
 
-	// Recent files boost - check openedAt directly from file index
 	if (file.openedAt) {
 		const recency = (Date.now() - file.openedAt) / (1000 * 60 * 60 * 24); // days
 		if (recency < weights.thresholds.recencyDays) score += weights.boosts.recency;
 	}
 
 
-	// Tag overlap boost
 	if (context.currentFile) {
 		if (currentFileIndexed) {
 			const commonTags = file.tags.filter(tag =>
@@ -62,14 +58,12 @@ export function calculateFileScore(
 		}
 	}
 
-	// Length penalty - calculate first as it's used by alias penalty
 	const queryNormalized = normalizeForSearch(query);
 	const aliasIndex = matchType === 'alias' && file.aliases.length > 0
 		? file.aliasesNormalized.findIndex(alias => alias.includes(queryNormalized))
 		: -1;
 	const titleLength = aliasIndex >= 0 ? file.aliases[aliasIndex].length : file.basename.length;
 
-	// Alias penalty - scale based on length to allow good short aliases to compete
 	if (matchType === 'alias') {
 		// Length-scaled penalty: minimum 0.05 for short aliases, up to +0.60 for very long aliases
 		// This ensures basename matches still have an edge even for short aliases
@@ -78,12 +72,10 @@ export function calculateFileScore(
 		score += aliasPenalty;
 	}
 
-	// Additional length penalty for all matches
 	if (titleLength > weights.penalties.titleLengthThreshold) {
 		score += (titleLength - weights.penalties.titleLengthThreshold) * weights.penalties.titleLengthMultiplier;
 	}
 
-	// Position bonus - earlier matches are better
 	const textToSearch = aliasIndex >= 0
 		? file.aliasesNormalized[aliasIndex] : file.basenameNormalized;
 

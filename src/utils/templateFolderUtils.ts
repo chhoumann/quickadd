@@ -28,8 +28,7 @@ export function hasTemplateExtension(path: string): boolean {
  * file up. Returns null when nothing resolves.
  *
  * Single source of truth shared by engine execution, choice-builder validation,
- * and preflight scanning so the three never drift (they previously each had
- * their own near-copy, and the preflight copy skipped the leading-slash strip).
+ * and preflight scanning.
  */
 export function getTemplateFile(app: App, templatePath: string): TFile | null {
 	const resolved = resolveTemplatePath(templatePath);

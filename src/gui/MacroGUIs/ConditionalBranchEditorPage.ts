@@ -60,7 +60,7 @@ export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> 
 	 * Only an edit is saved, so opening and leaving a branch writes nothing.
 	 * That also covers a branch holding a value we could not read: the editor
 	 * offers nothing that edits it, so the empty list we read it as never
-	 * replaces it (#1593).
+	 * replaces it.
 	 */
 	protected result(): ICommand[] | null {
 		return this.edited ? commandListOf(this.workingCommands) : null;

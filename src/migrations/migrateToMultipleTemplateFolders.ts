@@ -3,7 +3,7 @@ import { normalizeTemplateFolderPaths } from "src/utils/templateFolderUtils";
 
 /**
  * Fold the legacy single `templateFolderPath` string into the multi-folder
- * `templateFolderPaths` list (issue #1170). Stores the canonical (normalized)
+ * `templateFolderPaths` list. Stores the canonical (normalized)
  * form so the data model is clean at rest, not just at read time. Idempotent
  * and safe on fresh installs: a missing/blank legacy value just leaves an empty
  * list. The dead key is dropped afterwards so it does not linger in data.json.

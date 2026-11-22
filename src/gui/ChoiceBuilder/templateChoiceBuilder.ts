@@ -18,18 +18,14 @@ export class TemplateChoiceBuilder extends ChoiceBuilder<ITemplateChoice> {
 		this.normalizeChoice();
 	}
 
-	/**
-	 * Apply the defaults the imperative builder used to set lazily inside render
-	 * branches — once, before mount, so reads see a fully-shaped object.
-	 */
+	/** Fills in missing fields once, before mount, so reads see a fully-shaped object. */
 	private normalizeChoice() {
 		this.choice.fileExistsBehavior ??= { kind: "prompt" };
 		this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
-		// A hand-edited or imported choice can lack these configs entirely OR
+		// A hand-edited or imported choice can lack these configs entirely or
 		// carry partial objects (e.g. `folder: { enabled: true }` with no
-		// `folders` array) — without per-field backfills the builder throws
-		// during mount and the modal opens blank (#1497 class). Field-by-field,
-		// mirroring the shapes the TemplateChoice ctor creates.
+		// `folders` array), which would throw during mount. Backfill field by
+		// field, mirroring the shapes the TemplateChoice constructor creates.
 		this.choice.templatePath ??= "";
 		this.choice.fileNameFormat ??= { enabled: false, format: "" };
 		this.choice.fileNameFormat.enabled ??= false;
@@ -45,8 +41,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder<ITemplateChoice> {
 		this.choice.folder.folders ??= [];
 		this.choice.folder.chooseWhenCreatingNote ??= false;
 		this.choice.folder.createInSameFolderAsActiveFile ??= false;
-		// chooseFromSubfolders (2023) postdates the folder config itself, so
-		// choices saved before it existed legitimately lack it (#1497).
+		// chooseFromSubfolders postdates the folder config itself, so older
+		// choices legitimately lack it.
 		this.choice.folder.chooseFromSubfolders ??= false;
 	}
 }

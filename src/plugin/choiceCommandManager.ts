@@ -26,10 +26,9 @@ type ChoiceCommandPlugin = ChoiceRuntimePlugin & Pick<Plugin, "addCommand" | "re
  */
 export class ChoiceCommandManager {
 	/**
-	 * `isUnloaded`: work started before unload (a settings read, an import) can
-	 * finish after it. Obsidian keeps commands an unloaded plugin adds and never
-	 * removes them, and command ids are shared with the instance that loads
-	 * next, so an unloaded instance must not add or remove any (#2210).
+	 * `isUnloaded`: work started before unload can finish after it. Obsidian
+	 * keeps commands an unloaded plugin adds, and command ids are shared with the
+	 * next instance, so an unloaded instance must not add or remove any.
 	 */
 	constructor(
 		private readonly plugin: ChoiceCommandPlugin,
@@ -56,9 +55,11 @@ export class ChoiceCommandManager {
 		return choice;
 	}
 
-	/** Count how many choices anywhere in the tree carry `name` (names aren't unique).
-	 * Choices hidden inside an unreadable `choices` value are not counted - the
-	 * warning this feeds can only ever under-report, never mis-fire. */
+	/**
+	 * How many choices anywhere in the tree carry `name`. Choices hidden inside an
+	 * unreadable `choices` value are not counted, so the warning can only
+	 * under-report.
+	 */
 	private countChoicesByName(
 		name: string,
 		choices: IChoice[] = this.plugin.settings.choices,
@@ -74,8 +75,10 @@ export class ChoiceCommandManager {
 		return count;
 	}
 
-	/** Surface a Notice when a URI's `choice=<name>` is ambiguous, so an automation
-	 * that ran the wrong (first-matching) choice is at least diagnosable. */
+	/**
+	 * Warns when a URI's `choice=<name>` is ambiguous, so an automation that ran
+	 * the first matching choice is at least diagnosable.
+	 */
 	warnIfChoiceNameAmbiguous(name: string): void {
 		const matches = this.countChoicesByName(name);
 		if (matches > 1) {
@@ -91,11 +94,9 @@ export class ChoiceCommandManager {
 			// edit or a truncated write; it is not a choice, so there is no command
 			// to register for it.
 			if (!isChoiceLike(choice)) continue;
-			// Fault-isolate the loop. This runs from onload against untrusted
-			// data.json, and everything after it - migrations, the CLI handlers,
-			// startup macros - used to be lost to a single bad choice (#1566: a
-			// folder with no `choices` key took the whole plugin down with
-			// "Plugin failure: quickadd"). One defect should cost one command.
+			// Fault-isolate the loop: it runs from onload against untrusted
+			// data.json, and one defect should cost one command, not the
+			// migrations, CLI and startup macros that follow.
 			try {
 				this.addCommandForChoice(choice);
 			} catch (err) {
@@ -184,10 +185,8 @@ export class ChoiceCommandManager {
 			if (pickDay) executor.callerDay = "pick";
 			await executor.execute(current);
 		} catch (err) {
-			// The outermost handler: the last chance to say which choice failed.
-			// It reports only what nothing below it already reported (#1601), and
-			// stays silent when the user simply dismissed a prompt - Escape on the
-			// one-page input modal used to raise a 15-second ERROR notice here.
+			// The outermost handler: reports only what nothing below already
+			// reported, and stays silent when the user dismissed a prompt.
 			reportUnlessCancelled(
 				err,
 				`Could not run "${current?.name ?? fallbackName}"`,

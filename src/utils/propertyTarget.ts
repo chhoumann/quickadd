@@ -2,7 +2,7 @@ import { parseFilterSegments, type FieldFilter } from "./FieldSuggestionParser";
 import { splitPipeParts } from "./pipeSyntax";
 
 /**
- * A parsed "Capture to" frontmatter-property target (issue #466). Mirrors the
+ * A parsed "Capture to" frontmatter-property target. Mirrors the
  * `#tag` capture target, but pre-filters notes by a frontmatter field/value:
  *
  *   property:type=draft     → notes whose frontmatter `type` equals `draft`

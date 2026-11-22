@@ -9,18 +9,10 @@ const FUSE_OPTIONS = {
 };
 
 /**
- * Shared, vault-wide tag index. One instance per plugin load (mirrors the
- * {@link FileIndex} singleton): it builds the sorted tag list + Fuse index once
- * and registers the metadataCache `resolved` listener EXACTLY ONCE via
- * `plugin.registerEvent` - plugin-lifetime cleanup, which is correct for a
- * singleton that itself lives for the plugin's lifetime.
- *
- * Per-prompt `TagSuggester`s read from this singleton instead of each building
- * their own Fuse index and registering their own plugin-lifetime listener. The
- * old per-instance approach leaked one `TagSuggester` (and its full tag Fuse
- * index) for every opened input prompt - the listener closure pinned the
- * instance for the rest of the session - and amplified every `resolved` event
- * into one redundant rebuild per leaked instance.
+ * Shared vault-wide tag index, one per plugin load like {@link FileIndex}. It
+ * builds the sorted tag list and Fuse index once and registers its `resolved`
+ * listener once, so per-prompt TagSuggesters never each pin their own index for
+ * the rest of the session.
  */
 export class TagIndex {
 	private static instance: TagIndex | undefined;
@@ -55,10 +47,9 @@ export class TagIndex {
 	}
 
 	/**
-	 * Rebuilds the sorted tag list + Fuse index from the live metadata cache.
-	 * Called once on construction, on every `resolved` event, and on each prompt
-	 * open (so a newly-opened prompt always sees current tags, matching the old
-	 * per-instance behavior without the per-instance listener).
+	 * Rebuilds the sorted tag list and Fuse index from the live metadata cache:
+	 * on construction, on every `resolved` event, and on each prompt open, so a
+	 * newly opened prompt always sees current tags.
 	 */
 	refresh(): void {
 		const tags = Object.keys(getMetadataCacheTags(this.app) ?? {});

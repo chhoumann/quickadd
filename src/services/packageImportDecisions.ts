@@ -12,12 +12,9 @@ import type {
 } from "./packageImportService";
 
 /**
- * The per-file and per-choice import decision model, extracted from
- * ImportPackageModal so the (fiddly) write/overwrite reconciliation and the
- * optimistic-vs-authoritative existence checking are pure and unit-testable.
- *
- * Everything here operates on plain immutable Maps; the modal holds the
- * `$state`-backed references and reassigns them, preserving Svelte reactivity.
+ * The per-file and per-choice import decision model, pure so the overwrite
+ * reconciliation and existence checks are testable. Operates on immutable Maps;
+ * the modal reassigns its `$state` references to keep Svelte reactive.
  */
 
 interface AssetDecisionState {
@@ -36,8 +33,7 @@ export type ExistsProbe = (path: string) => boolean;
 
 /**
  * Skip is sticky; otherwise the write/overwrite mode tracks whether the
- * destination currently exists. This is the single home for a rule that was
- * previously inlined in three places.
+ * destination currently exists.
  */
 export function reconcileMode(
 	mode: AssetImportMode,

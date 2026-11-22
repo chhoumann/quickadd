@@ -6,7 +6,7 @@ type StartOf = NonNullable<Parameters<Moment["startOf"]>[0]>;
 
 /**
  * Shared "snap a date to the start/end of a period" support for {{DATE}} and
- * {{VDATE}} tokens (issue #511). A snap moves an instant to the boundary of the
+ * {{VDATE}} tokens. A snap moves an instant to the boundary of the
  * period it belongs to, so e.g. `{{DATE:gggg.MM.[Wk]w|startof:week}}` renders
  * the MONTH of the week's first day instead of today's calendar month.
  *

@@ -7,10 +7,6 @@ type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
 };
 
-/**
- * Utility functions for text manipulation in suggesters
- */
-
 export function normalizeDisplayItem(value: unknown): string {
 	if (typeof value === "string") return value;
 	if (value == null) return "";
@@ -72,22 +68,10 @@ export function installSkipAffordance(
 }
 
 /**
- * A one-shot warner for a render fallback, scoped to one modal instance.
- *
- * `renderSuggestion` runs once per visible row and re-runs on every keystroke, so a
- * caller-supplied `renderItem` that throws fails dozens of times for ONE defect.
- * `log.logWarning` raises a Notice, so reporting each failure buried the user - measured
- * live: three items over three renders put NINE stacked notices on screen (#1604). One
- * broken callback is one defect, and the fallback rendering it triggers is identical for
- * every row, so the first failure is the whole message.
- *
- * The trade accepted: a `renderItem` that throws a DIFFERENT error per row surfaces only
- * the first. Warning per distinct message instead would restore the storm for the shape
- * most likely to produce one (a message embedding the row's value).
- *
- * The context is passed to {@link toError}, which builds a fresh Error rather than
- * mutating the caller's - assigning to `err.message` compounded the prefix on every
- * render when a callback rethrew one cached Error (#1604).
+ * A one-shot warner for a render fallback, scoped to one modal. renderSuggestion
+ * re-runs per row per keystroke, so a throwing `renderItem` would raise a Notice
+ * per row per render; the first failure is the whole message. The context goes
+ * through {@link toError}, which never mutates the caller's Error.
  */
 export function createRenderFallbackWarner(
 	context: string,
@@ -122,7 +106,6 @@ export function replaceInputRange(
 	
 	const event = new Event("input", { bubbles: true });
 	if (options.fromCompletion) {
-		// Mark this as a programmatic completion change
 		(event as CompletionInputEvent).fromCompletion = true;
 	}
 	input.dispatchEvent(event);
@@ -138,17 +121,10 @@ export function renderExactHighlight(el: HTMLElement, text: string, query: strin
 		return;
 	}
 
-	// Lowercase `text` by code point, recording for every lowercased code unit
-	// the [start, end) span of the ORIGINAL character it came from. toLowerCase()
-	// can change UTF-16 length (e.g. U+0130 'İ' -> 'i' + combining dot), so an
-	// index found in the lowercased domain does not line up with `text`; mapping
-	// it back through these spans keeps the <mark> on the right characters.
-	// Iterating by code point (for..of) also lowercases astral cased characters
-	// correctly. A match can begin or end partway through one character's
-	// expansion (typing 'i' matches the 'i' inside 'İ'); using the start of the
-	// character that holds the FIRST matched unit and the end of the character
-	// that holds the LAST one makes the mark wrap those whole characters instead
-	// of collapsing to an empty span.
+	// Lowercase by code point, recording each lowered unit's span in the original:
+	// toLowerCase can change UTF-16 length ('İ' -> 'i' + combining dot), so lowered
+	// indices are mapped back through these spans. A match inside one character's
+	// expansion marks the whole character.
 	let lower = "";
 	const startInText: number[] = [];
 	const endInText: number[] = [];

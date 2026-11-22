@@ -14,9 +14,8 @@ declare const PLAIN: unique symbol;
  *
  * Why this exists: a `$state` proxy mutation does not write through to the original
  * object, so persisting the un-snapshotted source silently drops in-component edits.
- * That is exactly the conditional Then/Else-branch regression this guard prevents
- * from recurring. `Plain<T>` is assignable to `T`, so plain data flows onward freely;
- * only the inbound direction (raw proxy -> sink) is blocked.
+ * `Plain<T>` is assignable to `T`, so plain data flows onward freely; only the
+ * inbound direction (raw proxy -> sink) is blocked.
  */
 export type Plain<T> = T & { readonly [PLAIN]: true };
 

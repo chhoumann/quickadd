@@ -11,13 +11,7 @@ interface ParsedDate {
 	error?: string;
 }
 
-/**
- * Parse a natural language date string using built-in chrono-node parser
- * @param input - The date string to parse
- * @param format - Optional format string for the output (defaults to YYYY-MM-DD)
- * @param dateParser - Optional date parser to use (defaults to NLDParser)
- * @returns ParsedDate object with the result
- */
+/** Parses a natural-language date with chrono; `format` defaults to YYYY-MM-DD. */
 export function parseNaturalLanguageDate(
 	input: string,
 	format?: string,
@@ -61,12 +55,7 @@ export function parseNaturalLanguageDate(
 	}
 }
 
-/**
- * Format an ISO date string using moment.js
- * @param isoString - The ISO date string to format
- * @param format - The desired output format
- * @returns The formatted date string or null if invalid
- */
+/** Formats an ISO date string with moment, or null if it is invalid. */
 export function formatISODate(isoString: string, format: string): string | null {
 	if (!window.moment) {
 		return null;

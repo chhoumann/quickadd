@@ -13,10 +13,8 @@ interface ChoiceTypeMeta {
 }
 
 /**
- * The three "doer" choice types offered by the "New choice" menu. The fourth
- * type, `Multi`, is a folder/container and is offered as its own "New folder"
- * action rather than as a peer in this list — that separation is the whole point
- * of the redesign, so keep Multi OUT of here.
+ * The three "doer" choice types offered by the "New choice" menu. `Multi` is a
+ * folder, offered by its own "New folder" action, so keep it out of here.
  */
 export const DOER_CHOICE_TYPES: ChoiceTypeMeta[] = [
 	{
@@ -61,7 +59,7 @@ export function defaultChoiceName(type: ChoiceType): string {
  * Default name for a freshly added choice, disambiguated from existing siblings.
  * Every new choice starts from {@link defaultChoiceName}; when that label is
  * already taken anywhere in the tree, appends " 2", " 3", … so rows stay
- * distinguishable in the list and drag pill (fixes #1318).
+ * distinguishable in the list and drag pill.
  */
 export function uniqueDefaultChoiceName(
 	type: ChoiceType,

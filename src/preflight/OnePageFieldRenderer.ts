@@ -394,7 +394,6 @@ export class OnePageFieldRenderer {
 						setValue(req.id, storedValue);
 					}
 				});
-				// Attach suggester if options are provided
 				if (displayOptions.length > 0) {
 					try {
 						const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;

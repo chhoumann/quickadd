@@ -18,14 +18,8 @@ const consolidateFileExistsBehavior: Migration = {
 
 	migrate: async (plugin: MigrationContext): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
-		// Only re-clone a real array. Substituting [] for a corrupt root would
-		// persist that [] on the next save and destroy whatever is still in
-		// data.json, which is the opposite of what a migration should do (#1566).
-		// When it is unreadable the walk below covers nothing, so stay pending and
-		// re-run once the user has repaired the file.
-		// This migration walks with `walkChoicesInSettings`, so it must ask the WIDE
-		// question - a nested choice hidden behind an unreadable `macro.commands`
-		// is one this visitor would have normalized (#1610).
+		// Never rewrite a corrupt root with [], and stay pending while the walk
+		// cannot see every choice, so a vault repaired by hand still migrates.
 		const treeReadable = !settingsTreeHasUnreadableData(settings);
 		if (Array.isArray(plugin.settings.choices)) {
 			plugin.settings.choices = deepClone(plugin.settings.choices);

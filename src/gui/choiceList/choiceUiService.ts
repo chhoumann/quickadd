@@ -52,10 +52,8 @@ async function buildSecretOptionNamesByPath(
 
 	for (const path of paths) {
 		try {
-			// A Macro choice's userscript path comes from data.json, which is untrusted
-			// on a synced/shared/imported vault. Never stat or read an out-of-vault path
-			// (e.g. "../../../etc/passwd"); treat it as not-present, mirroring the package
-			// import probes (escapesVaultBoundary, #1434).
+			// The userscript path comes from data.json, untrusted on a synced or
+			// imported vault, so never stat an out-of-vault path.
 			if (escapesVaultBoundary(path)) continue;
 
 			const exists = await app.vault.adapter.exists(path);
@@ -113,9 +111,6 @@ export function getChoiceBuilder(
 	}
 }
 
-/**
- * Handle choice deletion with confirmation
- */
 export async function deleteChoiceWithConfirmation(
 	choice: IChoice,
 	app: App,
@@ -123,21 +118,12 @@ export async function deleteChoiceWithConfirmation(
 	const isMulti = choice.type === "Multi";
 	const isMacro = choice.type === "Macro";
 
-	// Count the FULL subtree — a recursive delete removes everything nested, so
-	// direct children would understate it. Folders and leaf choices are counted
-	// separately because a nested folder is not a "choice" in the UI's own
-	// vocabulary (#1552), and lumping them together is exactly the mislabel this
-	// dialog is being fixed for. Zero descendants gets no warning at all.
+	// Count the full subtree, folders and choices separately (a nested folder is
+	// not a "choice" in the UI's vocabulary). Zero descendants gets no warning.
 	const buildMultiWarning = (multi: IMultiChoice): string => {
-		// A malformed Multi (children missing, or not an array) is deliberately
-		// preserved on load rather than repaired - see dedupeChoicesById. It still
-		// has to be deletable, so it must not throw here: ChoiceView awaits this
-		// function from a click handler that discards the promise, so a throw
-		// would surface as an unhandled rejection and the corrupt folder would be
-		// undeletable. But when the value could still be HOLDING choices, saying
-		// nothing would let the user delete data the UI never showed them. Same
-		// predicate as the folder's own hint, so the two surfaces cannot
-		// disagree (#1566).
+		// A malformed Multi is preserved on load and must stay deletable without
+		// throwing. When it could still hold choices, warn, using the same
+		// predicate as the folder's own hint.
 		if (hasUnreadableChildren(multi)) {
 			return "QuickAdd couldn't read this folder's contents. Deleting it also deletes whatever is still stored under it in data.json.";
 		}
@@ -153,19 +139,9 @@ export async function deleteChoiceWithConfirmation(
 		return `Deleting this folder will also delete everything inside it: ${parts.join(" and ")}.`;
 	};
 
-	// Delete is the one irreversible action in the settings list, and until #1612
-	// the two container types were treated asymmetrically: a folder whose children
-	// could not be read said so, a macro whose commands could not be read said only
-	// the generic line - which is true, and silent about the case that matters.
-	//
-	// Since #1593 the macro builder tells the user about that state and refuses to
-	// overwrite it. This reads the SAME predicate through the SAME accessor the
-	// builder resolves its list with, so the screen that reports the state and the
-	// screen that destroys it cannot disagree. `macroCommandsValueOf` (not
-	// `macro?.commands`) is what makes the unreadable-`macro`-object case - a
-	// string, a number, an array-turned-object - resolve here exactly as it does
-	// there; a genuinely array-valued `macro` IS the command list, is readable, and
-	// correctly keeps the ordinary line.
+	// The same predicate and accessor the macro builder uses, so the screen that
+	// reports unreadable commands and the one that deletes them cannot disagree.
+	// An array-valued `macro` is the readable command list.
 	const buildMacroWarning = (macroChoice: IMacroChoice): string =>
 		isUnreadableCommandList(macroCommandsValueOf(macroChoice.macro))
 			? "QuickAdd couldn't read this macro's commands. Deleting it also deletes whatever is still stored under it in data.json."

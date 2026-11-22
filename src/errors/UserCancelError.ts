@@ -24,16 +24,9 @@ export class UserCancelError extends MacroAbortError {}
 export const PROMPT_CANCELLED_MESSAGE = "Input cancelled by user";
 
 /**
- * The cancellation a prompt throws when the user dismisses it (Escape / Cancel / close).
- *
- * Prompts used to reject with a bare English sentence, recognised by exact string
- * equality (see the legacy sentinel list in `errorUtils`) — so rewording one, or
- * adding a prompt with a slightly different
- * sentence, silently turned "the user cancelled" into "an error occurred" with no compiler
- * or test signal (#1577). This is the typed replacement, and it is deliberately the SAME
- * class the ~40 consumers already converted that string into, rather than a new one: a
- * dismissal now arrives already classified, so a consumer that forgets to convert it still
- * behaves correctly.
+ * The cancellation a prompt throws when the user dismisses it (Escape / Cancel /
+ * close). Typed, so a dismissal arrives already classified and a consumer that
+ * forgets to convert it still behaves correctly, unlike a bare-string sentinel.
  */
 export function promptCancelled(): UserCancelError {
 	return new UserCancelError(PROMPT_CANCELLED_MESSAGE);

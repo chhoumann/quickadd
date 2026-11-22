@@ -39,10 +39,9 @@ export function OpenAIRequest(
 	app: App,
 	apiKey: string,
 	model: Model,
-	// The provider the CALLER resolved (it already chose the API key from it).
-	// Passed through rather than re-derived from model.name — a first-match
-	// re-lookup here could route a provider-pinned model (#1495) to a different
-	// endpoint than the key belongs to.
+	// The provider the caller resolved, which chose the API key. A first-match
+	// re-lookup from model.name could route a provider-pinned model to a
+	// different endpoint than the key belongs to.
 	modelProvider: AIProvider,
 	systemPrompt: string,
 	modelParams: Partial<OpenAIModelParameters> = {},
@@ -233,12 +232,9 @@ async function sendLogged(
 		});
 		log.logMessage(`[${logPrefix}] Failed in ${durationMs}ms: ${errorMessage}`);
 
-		// Report the WRAPPER, not the bare provider error, and report it before
-		// throwing so the failure is surfaced even if a caller swallows it. The
-		// wrapper's message is a strict superset - it names the provider and
-		// carries the guidance - and since `reportError` reports a failure once
-		// (#1601), reporting the cause instead would leave the user with the
-		// least informative half of the pair.
+		// Report the wrapper, not the bare provider error, before throwing: its
+		// message names the provider and carries the guidance, and report-once
+		// would otherwise keep only the less informative half.
 		const failure = new Error(
 			`Error while making request to ${provider.name}: ${errorMessage}${request.guidance(error)}`,
 			{ cause: error },
@@ -284,8 +280,7 @@ async function withSamplingRetry<T>(
 
 // "Function tools with reasoning_effort are not supported for gpt-6-sol in
 // /v1/chat/completions. To use function tools, use /v1/responses or set
-// reasoning_effort to 'none'." (verified live 2026-09-26 for the gpt-6 and
-// gpt-5.6 families, which reason by default; gpt-5.5 and older default to none).
+// reasoning_effort to 'none'." Hit by model families that reason by default.
 const TOOLS_NEED_NO_REASONING_RE =
 	/function tools with reasoning_effort are not supported[\s\S]*reasoning_effort to 'none'/i;
 

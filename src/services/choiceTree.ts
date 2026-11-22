@@ -67,7 +67,6 @@ export function duplicateChoice(
 		return newMulti;
 	}
 
-	// copy simple props except id/name
 	Object.assign(newChoice, excludeKeys(choice, ["id", "name"]));
 
 	if (choice.type === "Macro") {
@@ -111,8 +110,7 @@ export function collectUserScriptPathsFromChoice(
 	if (!isRecord(choice)) return;
 
 	if (choice.type === "Macro") {
-		// Same reading as the macro builder and the secret sanitizer: an
-		// ARRAY-valued `macro` IS the command list (#1609).
+		// An array-valued `macro` is the command list, as the macro builder reads it.
 		const commands = macroCommandsValueOf(choice.macro);
 		if (Array.isArray(commands)) {
 			for (const command of commands) {
@@ -128,9 +126,6 @@ export function collectUserScriptPathsFromChoice(
 	}
 }
 
-/**
- * Toggle command registration for a choice
- */
 export function createToggleCommandChoice(choice: IChoice): IChoice {
 	return { ...choice, command: !choice.command };
 }
@@ -153,18 +148,15 @@ export function moveChoice(
 		return rootChoices;
 	}
 
-	// Prevent cycles: cannot move a Multi into itself or its descendants
 	if (movingChoice.type === "Multi") {
 		if (movingChoice.id === targetChoice.id) return rootChoices;
 		const descendantIds = collectDescendantIds(movingChoice as IMultiChoice);
 		if (descendantIds.has(targetChoice.id)) return rootChoices;
 	}
 
-	// Remove moving choice from its current location
 	const { updated: withoutMoving, removed } = removeChoiceById(rootChoices, movingId);
-	if (!removed) return rootChoices; // nothing removed
+	if (!removed) return rootChoices;
 
-	// Insert at end of the target multi
 	const inserted = insertIntoMulti(withoutMoving, targetMultiId, removed);
 	return inserted ?? rootChoices;
 }
@@ -181,7 +173,6 @@ export function moveChoiceToRoot(
 ): IChoice[] {
 	if (!movingId) return rootChoices;
 
-	// Already at root: nothing to do.
 	if (rootChoices.some((c) => isChoiceLike(c) && c.id === movingId))
 		return rootChoices;
 
@@ -203,9 +194,8 @@ export function moveChoiceToRoot(
  */
 export function findChoiceById(choices: IChoice[], id: string): IChoice | undefined {
 	for (const c of choices) {
-		// A list entry can be a hole (`null`, a primitive) left by a bad edit or a
-		// truncated write. Every walker below steps over one rather than throwing
-		// on it, so a single hole cannot break an unrelated edit (#1566).
+		// A list entry can be a hole (`null`, a primitive). Every walker here steps
+		// over one, so a single hole cannot break an unrelated edit.
 		if (!isChoiceLike(c)) continue;
 		if (c.id === id) return c;
 		const found = findChoiceById(childChoicesOf(c), id);
@@ -370,9 +360,8 @@ export function updateMultiById(
 		const mc = c as IMultiChoice;
 		if (mc.id === id) return patch(mc);
 		// A folder whose children are unreadable comes out byte-identical. This
-		// walker re-spreads EVERY folder it passes, and it is on the save path
-		// (collapse a folder, rename a leaf), so substituting the read accessor
-		// here would quietly persist [] over the preserved value (#1566).
+		// walker is on the save path, so substituting the read accessor would
+		// persist [] over the preserved value.
 		if (!hasChildChoices(mc)) return c;
 		return { ...mc, choices: updateMultiById(childChoicesOf(mc), id, patch) } as IChoice;
 	});

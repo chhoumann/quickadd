@@ -6,15 +6,9 @@ import { FileNameDisplayFormatter } from "../../../formatters/fileNameDisplayFor
 import type { PreviewDiagnostic } from "../../../formatters/previewDiagnostics";
 
 /**
- * Live "Preview: …" row for a format/filename field, plus any problems that pass
- * ran into. Renders BELOW the input it previews (issue #1543 — it used to sit
- * above, where it read as the field's label), and not at all while the field is
- * empty, so there is never a dangling "Preview:" with nothing after it.
- *
- * The preview TEXT is un-debounced, preserving the imperative builders'
- * per-keystroke behavior (Plan 010 debounce is deliberately out of scope for
- * #1130). A monotonic token drops stale async results so the latest value
- * always wins.
+ * Live "Preview: …" row for a format field, rendered below its input and not at
+ * all while the field is empty. Un-debounced; a monotonic token drops stale
+ * async results.
  */
 let {
 	value,
@@ -34,28 +28,15 @@ let {
 	app: App;
 	plugin: FormatterPluginContext;
 	/**
-	 * The choice's configured target folder, so {{FOLDER}} / {{FOLDER|name}}
-	 * preview meaningfully. When `undefined` we fall back to a "Folder/Name"
-	 * placeholder rather than an empty string (no caller wires the real path in
-	 * yet, but the placeholder keeps the FOLDER token from previewing blank).
-	 *
-	 * `null` means the host has no target folder CONCEPT at all — not "unknown"
-	 * — and {{FOLDER}} previews as the empty string the runtime produces
-	 * (`Formatter.replaceMacrosInString`: `this.targetFolderPath ?? ""`). The
-	 * user-script format option is such a host: nothing there ever creates a note
-	 * in a folder, so the placeholder would invent a path the script cannot get.
+	 * The choice's target folder for {{FOLDER}}; `undefined` previews a
+	 * "Folder/Name" placeholder. `null` means the host has no folder concept, and
+	 * {{FOLDER}} previews as the runtime's empty string.
 	 */
 	targetFolderPath?: string | null;
 	/**
-	 * Asked of the RESOLVED preview text: does this field's host consider the
-	 * result something other than the thing this row previews? When it answers
-	 * yes the row does not render at all.
-	 *
-	 * Exists for the capture target, whose value can be a path OR picker syntax
-	 * (`property:type=draft`), and which the run resolves BEFORE deciding which.
-	 * The host can gate on the raw field itself, but not on what a token expands
-	 * to - and previewing picker syntax as a path invents a fake path and, since
-	 * #1578, an illegal-character error for a capture that runs fine.
+	 * Asked of the resolved preview text; true hides the row. For the capture
+	 * target, which may resolve to picker syntax (`property:type=draft`) rather
+	 * than a path.
 	 */
 	hideWhen?: (resolvedPreview: string) => boolean;
 } = $props();
@@ -74,18 +55,9 @@ let previewToken = 0;
 // populated, and the announcement would be lost.
 const hasValue = $derived(value.trim().length > 0);
 
-// Gated on the RESOLVED text, so it can only be answered once the async pass
-// has produced one. Until then `preview` is "" and the row mounts empty, which
-// is what `aria-live` needs anyway.
-//
-// Never over an error about something OTHER than the path: a pass can fail and
-// still leave text that looks like picker syntax -
-// `{{GLOBAL_VAR:inbox}}{{TEMPLATE:missing.md}}` resolves to `property:type=draft`
-// followed by a not-found placeholder, and the run aborts on the missing
-// template. Hiding the row there would take the one message that explains it.
-// The `kind: "path"` problems are the ones this host is entitled to discard:
-// they say the result is not a usable path, which is exactly what it is not
-// trying to be.
+// Gated on the resolved text. Never hidden over a non-path error: a pass can
+// fail and still leave picker-looking text, and hiding would drop the message
+// that explains the failure.
 const hidden = $derived(
 	hideWhen
 		? hideWhen(preview) &&
@@ -93,65 +65,34 @@ const hidden = $derived(
 		: false,
 );
 
-// Two different things can be wrong, and one label for both sent readers
-// hunting for a broken token when every token had resolved (issue #1594).
-//
-// A field whose format could not be RESOLVED is not showing a preview of the
-// output — it is showing the raw text back. Say so, rather than letting
-// "Preview:" assert that this IS what you will get.
-//
-// The `kind: "path"` problems are the other class: the format resolved
-// perfectly, the vault just will not accept the result (a "."/".." or empty
-// segment, #1563; a character Obsidian refuses, #1578). That is the ordinary
-// case on a file-name field, and the row IS an accurate preview — of a name
-// that will never exist. Reusing the axis #1582 already added for `hideWhen`
-// keeps one classification instead of two that can disagree.
-//
-// Unresolved wins when both are present: if a template is missing AND the
-// result has an empty segment, the fundamental failure is that it did not
-// resolve.
-//
-// `diagnostics` deliberately SURVIVES a value change until the next pass
-// commits. A pass can outlast the 500ms gate (it may read up to 25 templates),
-// so the gate can open while the previous result is still shown - but `preview`
-// and `diagnostics` are written together under `previewToken`, so what is on
-// screen is always one pass's text under that same pass's label and complaint.
-// Stale, never mixed.
-//
-// Clearing `diagnostics` here instead would leave the previous, known-bad name
-// on screen under a plain "Preview:" label for the length of the pass, which is
-// precisely the assertion this row exists to withdraw. Pinned by "a slow pass
-// never mixes two values in one row" in the sibling test.
+// "Unresolved" when the format could not be resolved (the row shows the raw text
+// back); "Preview" otherwise, including for `kind: "path"` problems, where the
+// format resolved but the vault will not accept the result. Unresolved wins when
+// both apply. `diagnostics` survives a value change until the next pass commits,
+// so the row always shows one pass's text under that pass's label: stale, never
+// mixed.
 const errors = $derived(showDiagnostics ? diagnostics.filter((d) => d.severity === "error") : []);
 const isUnresolved = $derived(errors.some((d) => d.kind !== "path"));
 const isInvalid = $derived(!isUnresolved && errors.length > 0);
 
 $effect(() => {
 	const current = value;
-	// Clearing the field also clears the cached preview (and cancels any in-flight
-	// resolve), so re-typing never flashes the previous value's result in the
-	// freshly re-mounted row.
+	// Clearing the field also clears the cached preview and cancels any in-flight
+	// resolve, so re-typing never flashes the previous result.
 	if (!current.trim()) {
 		previewToken++;
 		preview = "";
 		diagnostics = [];
 		return;
 	}
-	// A formatter per pass, not one memoized for the field's lifetime. It carries
-	// per-pass state — this pass's diagnostics, and a `variables` map whose
-	// resolved keys short-circuit the next resolve — so reusing one instance made
-	// an edited option list preview the stale value and let a warn-once guard
-	// fire from a keystroke. Construction is trivial.
+	// A fresh formatter per pass: it carries per-pass diagnostics and a variables
+	// cache that would otherwise preview stale values.
 	const formatter =
 		formatterKind === "fileName"
 			? new FileNameDisplayFormatter(app, plugin)
 			: new FormatDisplayFormatter(app, plugin, undefined, {
 					resolveActiveFolder: formatterKind !== "lineTarget",
 				});
-	// Resolve {{FOLDER}} / {{FOLDER|name}} against the configured target folder,
-	// or a "Folder/Name" placeholder so the token never previews blank when no
-	// caller wires the real path in (issue: FOLDER preview always empty). An
-	// explicit null says this host has no folder at all, and previews "".
 	formatter.setTargetFolderPath(
 		targetFolderPath === null
 			? null
@@ -181,11 +122,8 @@ $effect(() => {
 	})();
 });
 
-// Problems are held back until the field has been still for a moment. Every one
-// of these messages quotes the partial token it is about, so shown live they
-// would rewrite themselves on every keystroke while you type an argument — the
-// quieter cousin of the Notice storm this replaced (issue #1558). Lint-on-idle
-// is the editor convention. The preview text itself stays live.
+// Problems wait until the field is still: each quotes the partial token it is
+// about, so shown live they would rewrite on every keystroke.
 $effect(() => {
 	void value;
 	showDiagnostics = false;
@@ -197,10 +135,7 @@ $effect(() => {
 </script>
 
 {#if hasValue && !hidden}
-	<!-- A file name is one line, and since #1563 this row can hold a whole
-	     included template - which would wrap to fifteen lines of muted text under
-	     a single-line input and push the rest of the builder down on every
-	     keystroke. Clamped like .qa-preview-issue, with the full text in `title`. -->
+	<!-- Clamped: this row can hold a whole included template. The full text is in `title`. -->
 	<div
 		class="qa-preview-row"
 		class:qa-preview-row--one-line={formatterKind === "fileName"}
@@ -224,11 +159,7 @@ $effect(() => {
 					class:qa-preview-issue--error={diagnostic.severity === "error"}
 					title={diagnostic.message}
 				>
-					<!-- Severity in TEXT, not colour alone (WCAG 1.4.1). Visually hidden
-					     rather than a printed "Warning:"/"Error:" prefix: the messages
-					     already clamp at three lines, and what a sighted user needs -
-					     "did this resolve at all" - is carried by the Preview/Unresolved
-					     label above. -->
+					<!-- Severity in text, not colour alone (WCAG 1.4.1). -->
 					<span class="qa-visually-hidden"
 						>{diagnostic.severity === "error" ? "Error: " : "Warning: "}</span
 					>{diagnostic.message}

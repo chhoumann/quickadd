@@ -5,35 +5,12 @@ import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { log } from "../logger/logManager";
 
 /**
- * Records what a choice run actually did, for the callers that must report it back to
- * someone who is not looking at the Obsidian window.
- *
- * The Template and Capture engines report a failure with `reportError` - a desktop
- * notice - and then return without recording anything. `executeWithOutcome` reads that
- * as `{status:"error"}` with no reason, and the CLI substitutes a fixed sentence, so a
- * remote run of a Template whose template file is missing told its client
- * `"Choice execution failed; no file was created."` while the actionable message
- * (`Template file not found at path "templates/x.md"`) went to a notice nobody was
- * looking at (#1603). The whole premise of that seam is that nobody is at the desktop.
- *
- * Two rules:
- *
- * - **Every failure exit carries its reason.** Not just the top-level catch: the engines
- *   have five other places that log and return, and each one used to produce the same
- *   reason-less outcome. Routing them all through {@link failure} is what makes the CLI's
- *   fixed sentence unreachable rather than merely less common.
- * - **The failure recorder is a no-op once the run has left a side effect.** Both engines
- *   record success at their commit point precisely so a later append-link or open-file
- *   failure cannot make an automation caller retry and duplicate the side effect. That has
- *   to be a property of the recorder, not of one method: Capture commits from two places
- *   (the note path and the canvas path), and the canvas path keeps going into link and
- *   open-file steps whose throws unwind into `run()`'s catch.
- *
- *   That holds for an `unchanged` run too, even though it wrote nothing to its TARGET.
- *   The run is not over at the commit point: it goes on to the append-link step, which
- *   writes to a DIFFERENT note, and to the copy-link-to-clipboard step. So "nothing was
- *   duplicable" is false, and letting a later failure overwrite the recorded success
- *   would put the caller right back to retrying a run that already had side effects.
+ * Records what a choice run actually did, for callers reporting to someone who
+ * is not looking at the Obsidian window. Every failure exit carries its reason,
+ * the same text as the desktop notice. The failure recorder is a no-op once the
+ * run has committed, so a later append-link or open-file failure cannot make
+ * automation retry and duplicate side effects. That holds for an `unchanged` run
+ * too, since its later steps still write elsewhere.
  */
 export class ChoiceOutcomeRecorder {
 	/**
@@ -48,12 +25,8 @@ export class ChoiceOutcomeRecorder {
 	) {}
 
 	/**
-	 * The run reached its commit point. Records success with what it did to the vault.
-	 *
-	 * `effect` is required rather than defaulted: every call site has to state its claim,
-	 * so a new one cannot inherit a positive "something landed" by omission. The four
-	 * existing sites split evenly — two of them (Template's Keep existing file modes and its
-	 * open-an-existing-note discovery path) commit nothing at all.
+	 * The run reached its commit point. `effect` is required rather than
+	 * defaulted, so every call site states its claim about the vault.
 	 */
 	success(file: TFile | undefined, effect: ChoiceEffect): void {
 		this.closed = true;
@@ -70,10 +43,9 @@ export class ChoiceOutcomeRecorder {
 	}
 
 	/**
-	 * A failure exit that is not a throw: keep the run's prompt drafts, log the message
-	 * for the desktop, and record the same message as the outcome. `"none"` is for a
-	 * failure a lower layer has ALREADY reported: logging again would put a second notice
-	 * on screen for one failure (#1601).
+	 * A failure exit that is not a throw: keep the run's prompt drafts, log the
+	 * message for the desktop, and record it as the outcome. `"none"` is for a
+	 * failure a lower layer already reported, so it is not shown twice.
 	 */
 	fail(message: string, level: "error" | "warning" | "none" = "error"): void {
 		InputPromptDraftStore.getInstance().markExecutionScopeFailed();

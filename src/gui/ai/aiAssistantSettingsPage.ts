@@ -44,10 +44,8 @@ export function aiPageSignature(providers: readonly AIProvider[]): string {
 }
 
 /**
- * Settings → QuickAdd → AI Assistant. Replaces the old modal stack (AI
- * Assistant settings → Edit providers → provider editor). Built from the
- * store's current state; the settings tab calls `update()` when
- * `aiPageSignature` changes, which rebuilds it.
+ * Settings → QuickAdd → AI Assistant, built from the store's current state. The
+ * settings tab calls `update()` when `aiPageSignature` changes, which rebuilds it.
  */
 export function createAIAssistantPage(app: App): SettingDefinitionPage<SettingsKey> {
 	return {

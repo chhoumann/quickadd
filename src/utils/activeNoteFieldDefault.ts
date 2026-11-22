@@ -2,7 +2,7 @@ import type { App, TFile } from "obsidian";
 
 /**
  * Resolves the default value for a `{{FIELD:<field>|default-from:active}}` prompt
- * from a frontmatter object (issue #1429). Pure and App-free so it is fully unit
+ * from a frontmatter object. Pure and App-free so it is fully unit
  * testable; {@link resolveActiveNoteFieldDefault} adds the metadata-cache lookup.
  *
  * Returns:
@@ -61,9 +61,7 @@ export function resolveActiveNoteFieldDefault(
 	activeFile: TFile | null | undefined,
 	fieldName: string,
 ): string | string[] | null {
-	// Only Markdown notes carry frontmatter properties; a non-md active file (or
-	// no active file) means "no active-derived default", matching the issue's
-	// "fall back to normal {{FIELD:project}} behavior" rule.
+	// Only Markdown notes carry frontmatter properties.
 	if (!activeFile || activeFile.extension !== "md") return null;
 
 	const frontmatter = app.metadataCache.getFileCache(activeFile)?.frontmatter;
@@ -84,6 +82,5 @@ function scalarToDefaultString(value: unknown): string | null {
 		const text = String(value).trim();
 		return text.length > 0 ? text : null;
 	}
-	// Objects, arrays, and other non-scalars are not valid defaults.
 	return null;
 }

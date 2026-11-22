@@ -45,8 +45,6 @@ export class RateLimiter {
 		}
 
 		const now = Date.now();
-		// Drop start timestamps older than the window so they no longer count
-		// against the per-interval cap.
 		this.startTimes = this.startTimes.filter(
 			(t) => now - t < this.intervalMs
 		);
@@ -206,13 +204,9 @@ function assertWithinChunkBudget(count: number): void {
 	}
 }
 
-// Split one chunk down to the estimated budget and append the pieces to `out`.
-// Uses a depth-first stack (push right then left so pieces emit left-to-right),
-// which keeps the working set bounded by recursion depth (~log2 of the chunk
-// length). The cap is enforced on the pieces produced *from this one chunk*, so a
-// pathological separator-poor input bails out immediately instead of materialising
-// hundreds of thousands of pieces — without penalising many small chunks that will
-// later merge (the final post-merge count is capped separately by the caller).
+// Depth-first split of one chunk down to the budget, emitting pieces left to
+// right. The cap applies to pieces from this one chunk, so a separator-poor input
+// bails out early; the post-merge count is capped by the caller.
 function appendSplitToBudget(
 	chunk: string,
 	budgetTokens: number,
@@ -250,23 +244,16 @@ function countRegExpGroups(re: RegExp): number {
 	).length - 1;
 }
 
-// An unescaped `\1`-`\9` in a group-FREE pattern is a legacy octal escape;
-// wrapping the source in a capture group would silently turn it into a
-// BACKREFERENCE and change what it matches. Such separators stay on the
-// historical (separator-discarding) path.
+// An unescaped `\1`-`\9` in a group-free pattern is a legacy octal escape;
+// wrapping the source in a capture group would turn it into a backreference.
+// Such separators stay on the separator-discarding path.
 const UNESCAPED_DIGIT_ESCAPE_RE = /(?:^|[^\\])(?:\\\\)*\\[1-9]/;
 
 /**
- * Split `text` like `text.split(separator)` while RETAINING each consumed
- * separator, so the merge path can re-insert the boundary it split on -
- * otherwise merged lines/paragraphs reach the model glued together
- * ("A\nB" → "AB"). Wrapping the pattern in one capturing group makes split()
- * interleave the matched separators without changing the chunk substrings.
- *
- * A separator regex that already has capturing groups keeps the historical
- * split behavior unchanged (its captures interleave into the chunk list, so
- * the captured text is preserved as chunks); `separators` is null there and
- * no boundary is re-inserted, exactly as before.
+ * Splits like `text.split(separator)` while retaining each separator, so merged
+ * chunks keep their boundaries instead of gluing lines together. A regex that
+ * already has capturing groups keeps plain split behaviour and gets
+ * `separators: null`.
  */
 function splitTextRetainingSeparators(
 	text: string,
@@ -300,8 +287,7 @@ function splitTextRetainingSeparators(
 
 interface PreparedChunk {
 	text: string;
-	/** The separator that preceded this chunk in the original text ("" for the
-	 * first chunk and for continuation pieces cut out of one oversized chunk). */
+	/** The separator before this chunk; "" for the first chunk and for pieces cut from an oversized one. */
 	joiner: string;
 }
 
@@ -335,11 +321,8 @@ function buildEstimatedPromptChunks(
 	let combinedChunkSize = 0;
 
 	for (const chunk of preparedChunks) {
-		// Budget the separator that is actually re-inserted, floored at the
-		// historical +1 so grouping is unchanged for the default "\n"
-		// (estimateTokenCount("\n") === 1) and for joiner-less pieces. Without
-		// this, a long custom separator (e.g. "\n\n===CHUNK===\n\n") would be
-		// re-inserted uncounted and push a merged request far over the budget.
+		// Budget the separator actually re-inserted, floored at +1, so a long custom
+		// separator cannot push a merged request over budget.
 		const strSize =
 			estimateTokenCount(chunk.text) +
 			Math.max(1, estimateTokenCount(chunk.joiner));
@@ -469,7 +452,6 @@ export async function ChunkedPrompt(
 			);
 		}
 
-		// Whether we should merge chunks that are smaller than the budget.
 		const shouldMerge = settings.shouldMerge ?? true;
 
 		const chunkedText = buildEstimatedPromptChunks(
@@ -599,7 +581,6 @@ export async function ChunkedPrompt(
 		return outputVariables(outputVariable, output);
 	} catch (error) {
 		notice.fail(error);
-		// No user input in this function - re-throw original error
 		throw error;
 	}
 }

@@ -18,8 +18,8 @@ interface ScriptExtractionResult {
 }
 
 // A fenced-code line: up to 3 leading spaces (CommonMark), then >=3 backticks,
-// then the info string. Spaces only — tabs/blockquote(`>`)/callout prefixes are
-// intentionally NOT treated as fences (documented as out of scope for v1).
+// then the info string. Tab, blockquote (`>`) and callout prefixes are not
+// treated as fences.
 const FENCE_LINE = /^ {0,3}(`{3,})(.*)$/;
 
 const NO_FENCE_ERROR =
@@ -29,7 +29,7 @@ const EMPTY_FENCE_ERROR = "The ```js code block is empty.";
 /**
  * Extract the script body from a markdown note for use as a QuickAdd user script.
  *
- * Selection rule (v1): run the FIRST ```js / ```javascript fenced block; prose and
+ * Selection rule: run the FIRST ```js / ```javascript fenced block; prose and
  * any other blocks are ignored ("one note = one script"). The info string is
  * matched on its first whitespace-delimited token (case-insensitive), so
  * ```js, ```javascript, and ```js extra all qualify while ```jsx / ```json do not.

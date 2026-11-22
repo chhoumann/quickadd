@@ -81,10 +81,9 @@ export function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice): ICho
 		return { ...oldChoice, ...newChoice };
 	}
 
-	// Only rebuild a folder whose children we could actually read. This runs
-	// over the WHOLE tree on every rename/configure/toggle and is followed by
-	// save(), so spreading a folder with an unreadable `choices` value would
-	// persist [] over it the first time the user renamed anything (#1566).
+	// Only rebuild a folder whose children we could read. This runs over the
+	// whole tree before save(), so spreading an unreadable `choices` value would
+	// persist [] over it.
 	if (hasChildChoices(oldChoice)) {
 		const updatedChoices = childChoicesOf(oldChoice).map((c) =>
 			updateChoiceHelper(c, newChoice),

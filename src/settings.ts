@@ -58,8 +58,7 @@ export interface QuickAddSettings {
 	 * (`x-success`/`x-error`/`x-cancel`) after a Template/Capture choice completes,
 	 * sending the outcome and the affected note's vault path + URL to that URL.
 	 * Default off because the callback URL is controlled by whoever crafts the
-	 * `obsidian://` link. (Opposite default polarity to `disableOnlineFeatures`,
-	 * which defaults true — both are the conservative, locked-down choice.)
+	 * `obsidian://` link.
 	 */
 	enableUriCallbacks: boolean;
 	enableRibbonIcon: boolean;
@@ -70,9 +69,7 @@ export interface QuickAddSettings {
 	/** Whether date fields show their calendar. The calendar button in each date field toggles it. */
 	showDateCalendar: boolean;
 	ai: {
-		// Either a configured model's name or the "Ask me" sentinel. Model["name"]
-		// is `string`, which already covers the sentinel — adding `| "Ask me"` would
-		// be a redundant union member that `string` subsumes.
+		// A configured model's name or the "Ask me" sentinel.
 		defaultModel: Model["name"];
 		/**
 		 * Provider-scoped identity of the default model. Preferred over
@@ -87,10 +84,10 @@ export interface QuickAddSettings {
 		/** Epoch ms of the last background model auto-sync (throttles to daily). */
 		lastModelAutoSyncAt?: number;
 		/**
-		 * When AI tool calling (#714) runs a script-defined or built-in tool, ask
-		 * before executing. 'destructive' (default) confirms any tool not marked
-		 * read-only; 'always' confirms every tool; 'never' defers to each tool's own
-		 * needsApproval. A tool that requires approval is always confirmed regardless.
+		 * When AI tool calling runs a script-defined or built-in tool, ask before
+		 * executing. 'destructive' (default) confirms any tool not marked read-only;
+		 * 'always' confirms every tool; 'never' defers to each tool's own
+		 * needsApproval. A tool that requires approval is always confirmed.
 		 */
 		confirmToolCalls: "never" | "destructive" | "always";
 	};

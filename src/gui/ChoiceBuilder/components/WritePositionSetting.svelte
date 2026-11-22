@@ -12,10 +12,8 @@ import PropertyCaptureFields from "./PropertyCaptureFields.svelte";
 import { getWritePosition } from "../../../engine/captureAction";
 
 /**
- * Reactive port of captureChoiceBuilder.addWritePositionSetting. The write-position
- * dropdown derives its value from the precedence ladder and, on change, zeroes all
- * mutually-exclusive position flags before setting the chosen one — exactly as the
- * imperative onChange did, but the dependent fields render via {#if} (no reload()).
+ * Write-position dropdown. Changing it zeroes every mutually exclusive position
+ * flag before setting the chosen one; dependent fields render via {#if}.
  */
 let {
 	choice = $bindable(),
@@ -57,16 +55,11 @@ function onWritePositionChange(value: string) {
 		return;
 	}
 	delete choice.propertyCapture;
-	// Reset every mutually-exclusive position flag, then set the chosen one
-	// (verbatim order from the imperative builder, captureChoiceBuilder.ts:941-999).
 	choice.prepend = false;
 	choice.insertAfter.enabled = false;
-	// Leaving insert-after mode clears its sub-flags so the persisted config stays
-	// clean. promptHeading (the "Choose heading when capturing" toggle) and
-	// inline/replaceExisting are properties of "After line…"; re-selecting it starts
-	// from the plain typed-target default and the user opts back into heading mode via
-	// the toggle. Existing heading-mode choices load as "After line…" with the toggle on
-	// (this handler only runs on an explicit dropdown change, not on load).
+	// Leaving insert-after mode clears its sub-flags (heading picker, inline,
+	// replace) so the persisted config stays clean. Runs only on an explicit
+	// change, never on load.
 	choice.insertAfter.promptHeading = false;
 	choice.insertAfter.inline = false;
 	choice.insertAfter.replaceExisting = false;

@@ -1,17 +1,9 @@
 import { NAME_VALUE_REGEX } from "../constants";
 
 /**
- * What the string currently being formatted will BECOME once the user answers.
- *
- * A runtime prompt is a question with no question text: the modal shows the
- * choice's name and an empty box, so a Template's title prompt and a Capture's
- * text prompt are indistinguishable (issue #1546). The scope is what lets a
- * prompt say what it is asking for.
- *
- * The scope is DECLARED by the caller, never inferred from which `format*`
- * method ran: `formatFileContent` is shared by template bodies, capture bodies,
- * `quickAddApi.format` and the AI agent, so a capture-specific label derived
- * from the method would be a lie in three of those four cases.
+ * What the string being formatted becomes once the user answers, so a prompt
+ * can say what it asks for. Declared by the caller, never inferred from the
+ * `format*` method, which several unrelated callers share.
  */
 export type PromptScopeKind =
 	| "noteTitle"
@@ -34,12 +26,9 @@ export type PromptScopeKind =
 export interface PromptRunContext {
 	choiceName?: string;
 	/**
-	 * Identity of the PROMPT SITE for input-draft keys. Usually the choice id,
-	 * but an included `{{TEMPLATE:...}}` renders through its own formatter and
-	 * raises its own `{{VALUE}}` prompt, so it must not share the parent's key -
-	 * otherwise the second prompt of one run opens pre-filled with the first's
-	 * answer. Must be stable ACROSS runs (draft recovery after a cancel depends
-	 * on it), so it can never be a per-run value such as a fresh uuid.
+	 * Prompt-site identity for input-draft keys. An included `{{TEMPLATE:...}}`
+	 * needs its own, or its prompt opens pre-filled with the parent's answer.
+	 * Must be stable across runs, since draft recovery after a cancel uses it.
 	 */
 	draftScopeId?: string;
 	destination?: string;
@@ -63,15 +52,9 @@ interface ScopeCopy {
 }
 
 /**
- * Scopes whose surrounding literal text is CONTENT FORMATTING rather than part
- * of the answer. A capture format is a one-line template: `- [ ] {{VALUE}}`
- * still asks for exactly "the text to capture", because the checkbox prefix is
- * decoration nobody types.
- *
- * Everything else uses the strict rule. A PATH's literals are part of the
- * answer (`Daily/{{VALUE}}.md`), and so, in practice, are a template BODY's:
- * a body of "---\nclient: {{VALUE}}\n---\n# Onboarding" has exactly one token
- * but is asking for a client name, not for the note's content.
+ * Scopes whose literal text is decoration: `- [ ] {{VALUE}}` still asks for the
+ * text to capture. Paths and template bodies use the strict rule, since their
+ * literals are part of the answer.
  */
 const FORMATTING_LITERAL_SCOPES: ReadonlySet<PromptScopeKind> = new Set([
 	"captureText",
@@ -136,9 +119,7 @@ const SCOPE_COPY: Record<Exclude<PromptScopeKind, "generic">, ScopeCopy> = {
 	},
 };
 
-// Anchored copy of NAME_VALUE_REGEX: `{{VALUE}}` / `{{NAME}}` with optional
-// `|options`, and nothing else. Built from the shared source so the two can
-// never drift.
+// Anchored copy of NAME_VALUE_REGEX, built from its source so the two cannot drift.
 const SOLE_VALUE_TOKEN_REGEX = new RegExp(
 	`^(?:${NAME_VALUE_REGEX.source})$`,
 	"i",
@@ -182,11 +163,6 @@ export function valueAnswersWholeScope(
 		: isSoleValueToken(input);
 }
 
-/**
- * Whether a scope names a PATH. The preflight collector still needs the plain
- * path/content boolean (it gates image paste and the template-scan memo key),
- * so the two stay derived from one place.
- */
 export function isPathScope(scope: PromptScopeKind): boolean {
 	return (
 		scope === "noteTitle" ||
@@ -248,8 +224,6 @@ export function elideMiddlePath(path: string, maxLength = 44): string {
 	if (segments.length === 1) return path;
 
 	const last = segments[segments.length - 1];
-	// One folder: dropping it is the only elision available, and the file name is
-	// the half worth keeping.
 	if (segments.length === 2) {
 		const elided = `${ELIDE_MARKER}/${last}`;
 		return elided.length < path.length ? elided : path;
@@ -257,9 +231,8 @@ export function elideMiddlePath(path: string, maxLength = 44): string {
 
 	const first = segments[0];
 	const elided = `${first}/${ELIDE_MARKER}/${last}`;
-	// Dropping every middle folder is the shortest form this can take; if even
-	// that overflows, the CSS ellipsis handles the rest rather than mangling the
-	// name into something that looks like a different file.
+	// If even this overflows, the CSS ellipsis handles the rest rather than
+	// mangling the name into what looks like a different file.
 	return elided.length < path.length ? elided : path;
 }
 
@@ -277,7 +250,6 @@ export function buildPromptContextLine(
 
 	const parts: string[] = [];
 	const name = context.choiceName?.trim();
-	// Omitted when it is already the title, so the name is never printed twice.
 	if (name && name !== title?.trim()) parts.push(name);
 
 	const destination =

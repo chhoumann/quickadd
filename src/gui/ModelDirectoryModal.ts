@@ -53,7 +53,6 @@ export class ModelDirectoryModal extends Modal {
       cls: "qa-modal-title",
     });
 
-    // Search/filter
     new Setting(this.contentEl)
       .setName("Search")
       .addText((text) => {
@@ -80,7 +79,6 @@ export class ModelDirectoryModal extends Modal {
         });
       });
 
-    // Mode toggle
     new Setting(this.contentEl)
       .setName("Import mode")
       .setDesc("Add will append new models. Replace will overwrite existing models with the selected list.")
@@ -94,7 +92,6 @@ export class ModelDirectoryModal extends Modal {
         b.setButtonText("Import selected").setCta().onClick(() => this.importSelected());
       });
 
-    // List container
     this.contentEl.createDiv({ cls: "qa-model-directory" });
 
     this.renderList();

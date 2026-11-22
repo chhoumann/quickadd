@@ -14,14 +14,9 @@ function isControlOrLineSeparator(code: number): boolean {
 	);
 }
 
-// Linear replacement for the historical global regex
-// ` *[<control>]+ *` -> " ": each run of control/line-separator characters,
-// together with the spaces directly around it, collapses to a single space.
-// The regex backtracked quadratically on a long interior space run with no
-// control character after it (each start position re-scanned the run), and
-// these names embed untrusted format output ({{VALUE}}/clipboard). When the
-// space run is not followed by a control character the regex left it
-// untouched, so the scanner copies it verbatim and jumps past it.
+// Linear: each run of control or line-separator characters, with the spaces
+// around it, becomes one space. A regex backtracked quadratically on long space
+// runs, and these names embed untrusted format output.
 function collapseControlRunsWithSpaces(value: string): string {
 	let out = "";
 	let i = 0;
@@ -53,9 +48,8 @@ function collapseControlRunsWithSpaces(value: string): string {
 }
 
 /**
- * Linear trailing-trim for a small character set. The historical
- * `/ +$/u` / `/[. ]+$/u` replaces backtracked quadratically on a long
- * interior run of the trimmed characters ("a" + ".".repeat(n) + "b").
+ * Linear trailing trim; the equivalent regexes backtrack quadratically on long
+ * interior runs of the trimmed characters.
  */
 function trimTrailingCharsLinear(value: string, chars: string): string {
 	let end = value.length;
@@ -64,23 +58,10 @@ function trimTrailingCharsLinear(value: string, chars: string): string {
 }
 
 /**
- * Characters Obsidian itself refuses inside a path segment.
- *
- * MEASURED against `vault.create` / `vault.createFolder` on Obsidian 1.13.0
- * (macOS), one candidate character per name:
- *
- * - `:` throws Obsidian's own guard, "File name cannot contain any of the
- *   following characters: \ / :", for BOTH files and folder segments.
- * - `\` and `/` never reach a segment: Obsidian's `normalizePath` treats them as
- *   separators, and {@link normalizeGeneratedFilePathCore} converts `\` to `/`
- *   before this check for exactly that reason. QuickAdd then creates the parent
- *   folder (createFileWithInput), so they are legal here.
- * - `* ? " < > | ^ [ ] #` and tab all CREATE SUCCESSFULLY on macOS/Linux, so
- *   copying the stricter set from `TemplateEngine.validateFolderSegment` would
- *   reject names that Obsidian makes without complaint. (On Windows the
- *   filesystem rejects `* ? " < > |`; a platform-gated portability warning is
- *   deliberately not attempted from an untestable platform.)
- * - Control characters and NUL are already collapsed away by the normalizer.
+ * Characters Obsidian itself refuses in a path segment, measured against
+ * `vault.create`/`createFolder` on Obsidian 1.13.0: only `:`. `\` and `/` are
+ * separators, and `* ? " < > | ^ [ ] #` create fine on macOS/Linux, so they are
+ * not rejected. Control characters are already collapsed by the normalizer.
  */
 const OBSIDIAN_ILLEGAL_PATH_CHARS = [":"] as const;
 
@@ -96,32 +77,17 @@ export function findIllegalFilePathChars(path: string): string[] {
 }
 
 /**
- * The sentence a preview shows for {@link findIllegalFilePathChars}' result.
- *
- * One sentence, naming BOTH places the character can come from. Splitting it on
- * "is the character in the format string" reads like a good idea and is not:
- * every argument-bearing token has a colon in its own syntax, so
- * `{{DATE:YYYY-MM-DD}} {{TIME}}` - the shape where the hint is most needed -
- * would be told the author can see it, and only a format whose tokens take no
- * argument at all would get the hint. Deciding it properly needs a token mask,
- * and a mask is blind to the unmatched-token case this check exists for
- * (`{{TEMPLATE:Naming}}` is not a token; the literal text goes to the vault).
- *
- * The rule comes FIRST, so the three-line clamp on the inline diagnostic
- * (styles.css `.qa-preview-issue`) can never cut off the part that says what is
- * wrong (same reason as `describeUnknownFieldFilter`, #1564).
+ * One sentence naming both sources of the character: every argument-bearing
+ * token has a colon in its own syntax, so the format string cannot reliably be
+ * blamed. The rule comes first so the preview's three-line clamp never cuts it.
  */
 export function describeIllegalFilePathChars(chars: readonly string[]): string {
 	return `A file or folder name cannot contain ${quoteChars(chars)}, so this choice would fail at run time. ${CHECK_YOUR_TOKENS}`;
 }
 
 /**
- * The same finding, at RUN time (#1591).
- *
- * Different tense and a concrete path, because by now it is not a warning about
- * a hypothetical - the choice is stopping, and the name is known. The character
- * set and the `{{TIME}}` hint are shared with the preview's sentence above so
- * the two surfaces cannot describe the same rule differently.
+ * The same finding at run time, with the concrete path. Shares the character
+ * set and hint with the preview's sentence.
  */
 export function describeIllegalFilePathCharsForRun(
 	chars: readonly string[],
@@ -154,25 +120,16 @@ export function normalizeGeneratedFilePath(
 		path,
 		label,
 	);
-	// Problems are collected left to right, so the first one is the one the
-	// historical throw-on-sight implementation would have raised.
+	// Problems are collected left to right; the first is the one to raise.
 	if (problems.length > 0) throw new Error(problems[0]);
 	return normalized;
 }
 
 /**
- * What {@link normalizeGeneratedFilePath} would make of this path, without
- * throwing - for the file-name PREVIEW, which is a speculative evaluation of
- * incomplete input and must never throw its way out of a keystroke (#1558).
- *
- * The preview needs this because the run applies the normalizer to every
- * generated name (TemplateChoiceEngine, TemplateInsertEngine,
- * templateNoteDiscovery, and the capture target via captureTargetResolution),
- * so it is the last thing standing between the formatted string and the file
- * that appears in the vault. Without it a preview showing `Daily/Note.` or a
- * multi-line `{{TEMPLATE:}}` body claims a name the run will never create
- * (#1563). The rejections come back as `problems` instead of an exception, so
- * the preview can show the best-effort name AND say that the run would abort.
+ * What {@link normalizeGeneratedFilePath} would make of the path, without
+ * throwing, for the file-name preview. The run normalizes every generated name,
+ * so a preview that skipped it would claim names the run never creates.
+ * Rejections come back as `problems`.
  */
 export function previewGeneratedFilePath(
 	path: string,
@@ -186,16 +143,10 @@ function normalizeGeneratedFilePathCore(
 	label: string,
 ): GeneratedFilePathPreview {
 	const problems: string[] = [];
-	// Treat a backslash as a path separator BEFORE the per-segment "." / ".."
-	// rejection below. Obsidian's own `normalizePath` converts "\\" -> "/" before
-	// any path is touched on disk, so a formatted name like "..\\..\\..\\evil"
-	// would otherwise survive this guard as ONE non-".." segment yet still be
-	// written by `vault.create` as the traversal "../../../evil" — an out-of-vault
-	// write. Converting here makes the guard see the real segments (so "..\\" is
-	// rejected) and keeps this normalizer's view of the path identical to what
-	// Obsidian writes. The vault-containment assertion at the create sink
-	// (createFileWithInput -> escapesVaultBoundary) is the authoritative boundary
-	// for absolute / drive / UNC paths.
+	// Backslash is a separator before the "."/".." check: Obsidian's normalizePath
+	// converts it, so "..\\..\\evil" would otherwise pass as one segment yet be
+	// written as a traversal. escapesVaultBoundary at the create sink is the
+	// authoritative boundary for absolute paths.
 	const segments = path.replace(/\\/g, "/").split("/");
 	const normalized = segments.map((segment, index) => {
 		if (

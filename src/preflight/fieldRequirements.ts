@@ -23,7 +23,6 @@ export interface FieldRequirement {
 	options?: string[]; // for dropdowns and suggesters
 	displayOptions?: string[]; // visible labels for mapped VALUE lists
 	optionAliases?: string[][]; // file-picker: each option's note aliases, also matched
-	// Additional metadata
 	dateFormat?: string; // for VDATE
 	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
 	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]

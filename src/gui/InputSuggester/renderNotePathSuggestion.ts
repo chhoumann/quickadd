@@ -5,9 +5,9 @@ import { stripMdExtensionForDisplay } from "../suggesters/utils";
 /**
  * Renders a vault file path as a Quick-Switcher-style row: the note name on the
  * title line, its location as a muted note line beneath it (the full path when the
- * file is in the vault, else the parent folder). Used by the capture picker so it shows
- * note names instead of raw `Some/Deep/Folder/Note.md` paths (issue #745), and by
- * the macro script picker so same-named scripts can be told apart (issue #942).
+ * file is in the vault, else the parent folder). Used by the capture picker so it
+ * shows note names instead of raw paths, and by the macro script picker so
+ * same-named scripts can be told apart.
  *
  * `highlight` bolds the query's matches, as the quick switcher does. Its
  * `matches` are over a search text that starts with the title and has the

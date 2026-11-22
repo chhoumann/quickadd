@@ -30,19 +30,12 @@
         // instead of an ancestor Multi's override (which would reinterpret the root
         // array as its own children — data loss at depth >= 2). Undefined at the top.
         rootReorder?: (choices: IChoice[]) => void;
-        // PERSISTED emptiness of the folder this list belongs to (passed by the parent
-        // MultiChoiceListItem). Sizes the empty-drop band independently of the live
-        // `choices` length: previewing a dragged item into the zone momentarily fills
-        // `choices` (toggling qa-empty), but the band must NOT resize then — that
-        // show/hide was the violent jumping. False/absent at the root level. Stays
-        // drag-STABLE because MultiChoiceListItem mounts this list ONE-WAY
-        // (`choices={choice.choices}`, not bind:), so the consider-time preview never
-        // writes back to choice.choices mid-drag.
+        // Persisted emptiness of this list's folder. Sizes the empty-drop band
+        // independently of the live `choices`, which a drag preview fills
+        // momentarily; stable because the parent mounts this list one-way.
         isEmptyFolder?: boolean;
-        // Whether this is a folder's inner list (explicit; previously inferred from
-        // `rootReorder !== undefined`). Marks ONLY nested zones as drop-into-folder
-        // targets and gets the qa-nested ring/band styling — the root list never lights
-        // up. False/absent at the root level.
+        // Whether this is a folder's inner list. Only nested zones are
+        // drop-into-folder targets with the qa-nested ring/band styling.
         nested?: boolean;
     } = $props();
 
@@ -61,10 +54,9 @@
     const dragDisabled = $derived(drag.disabled);
     let listEl: HTMLDivElement | undefined = $state();
 
-    // Recovers the dragged choice when a drop lands in the placeholder window, which
-    // would otherwise commit (and persist) the list without it (#1692). Mouse drags
-    // always move enough to close the window; mobile long-press drags start
-    // stationary and routinely drop inside it.
+    // Recovers the dragged choice when a drop lands in the placeholder window,
+    // which would otherwise persist the list without it. Mobile long-press drags
+    // start stationary and routinely drop inside it.
     const dropRecovery = createDropRecovery<IChoice>();
 
     function handleConsider(e: CustomEvent<DndEvent>) {
@@ -73,8 +65,7 @@
         const event = e as CustomEvent<DndEvent<IChoice>>;
         showDragPillOnStart(event);
         collapseId = e.detail.info.id;
-        // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
-        // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
+        // Strip the dnd shadow placeholder so it cannot linger and leave ghost gaps.
         choices = dropRecovery.consider(event);
     }
 
@@ -216,12 +207,9 @@
     border-color: var(--interactive-accent);
 }
 
-/* Empty folder: a GENEROUS, STABLE drop target. The band is sized by the folder's
-   PERSISTED emptiness (qa-folder-empty), NOT the live `choices` length — so when a
-   dragged item is previewed into the zone (filling `choices`, toggling qa-empty off)
-   the band keeps its height instead of collapsing/expanding under the cursor (the
-   "jumps all over the place"). Only persisted-empty folders get it, so populated
-   folders never heave at drag start. */
+/* Empty folder: a generous, stable drop target, sized by the folder's persisted
+   emptiness (qa-folder-empty) rather than the live `choices` length, so a
+   previewed drag item does not collapse or expand the band under the cursor. */
 .choiceList.qa-nested.qa-folder-empty {
     min-height: 3rem;
     display: flex;
