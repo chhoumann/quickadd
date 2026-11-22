@@ -1,3 +1,4 @@
+import { ASK_ME_MODEL } from "src/constants";
 import type IChoice from "src/types/choices/IChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { ICommand } from "src/types/macros/ICommand";
@@ -61,7 +62,7 @@ export function pinAiCommandModelRefs(
 				return;
 			}
 		}
-		if (!command.model || command.model === "Ask me") return;
+		if (!command.model || command.model === ASK_ME_MODEL) return;
 
 		const provider = firstMatchProvider(providers, command.model);
 		if (!provider?.id) return;

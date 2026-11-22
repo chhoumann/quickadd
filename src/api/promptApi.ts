@@ -12,6 +12,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError, PROMPT_CANCELLED_MESSAGE } from "../errors/UserCancelError";
 import { isCancellationError } from "../utils/errorUtils";
 import { formatISODate } from "../utils/dateParser";
+import { decodeDateToken } from "../utils/dateTokenCodec";
 import type { InputPromptOptions } from "../types/inputPrompt";
 
 export class PromptApi {
@@ -57,14 +58,12 @@ export class PromptApi {
 				options?.defaultValue,
 				options?.dateFormat,
 			);
-			if (value && value.startsWith("@date:")) {
-				const iso = value.slice(6);
-				const formatted = options?.dateFormat
-					? formatISODate(iso, options.dateFormat)
-					: null;
-				return formatted ?? iso;
-			}
-			return value;
+			const iso = decodeDateToken(value);
+			if (iso === null) return value;
+			const formatted = options?.dateFormat
+				? formatISODate(iso, options.dateFormat)
+				: null;
+			return formatted ?? iso;
 		} catch (error) {
 			rethrowPromptError(error);
 		}

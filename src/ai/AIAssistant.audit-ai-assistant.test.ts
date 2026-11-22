@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RateLimiter } from "./AIAssistant";
+import { RateLimiter } from "./chunkedPrompt";
 
 // Finding: ai-assistant-api-chunked-prompt — the "RateLimiter" used by
 // ChunkedPrompt was a concurrency limiter (cap on in-flight requests), NOT a

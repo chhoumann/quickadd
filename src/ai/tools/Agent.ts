@@ -10,8 +10,10 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { settingsStore } from "../../settingsStore";
-import { makeNoticeHandler } from "../makeNoticeHandler";
-import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
+import { makeNoticeHandler, type NoticeHandler } from "../makeNoticeHandler";
+import { assertOnlineFeaturesEnabled } from "../onlineFeatures";
+import { outputVariables } from "../promptProgress";
+import { ChoiceAbortError } from "../../errors/ChoiceAbortError";
 import { MacroAbortError } from "../../errors/MacroAbortError";
 import { resolveModelInputOrThrow } from "../aiHelpers";
 import type { AIProvider, Model } from "../Provider";
@@ -57,6 +59,8 @@ const MAX_STEPS_CEILING = 100;
 // (they would race the shared variables map). Read-only runs are unaffected.
 const statefulRunsInFlight = new WeakSet<object>();
 
+// MacroAbortError is the base of ChoiceAbortError and UserCancelError, so a
+// headless refusal or a dismissed prompt inside a tool kills the run too.
 function isAbortError(e: unknown): boolean {
 	return e instanceof MacroAbortError;
 }
@@ -115,7 +119,7 @@ export class Agent {
 			typeof options.assignToVariable === "string" &&
 			options.assignToVariable.length > 0;
 		if (usesVariables) {
-			this.assertAssignableName(options.assignToVariable as string);
+			assertAssignableVariableName(options.assignToVariable as string);
 			if (statefulRunsInFlight.has(this.choiceExecutor)) {
 				throw new Error(
 					"Another AI run with assignToVariable is already in flight in this context — they would race the shared variables. Run them sequentially.",
@@ -146,12 +150,8 @@ export class Agent {
 		// Per-run state — "approve all this run" must NOT leak into a later generate()
 		// on a reused agent.
 		this.approveAllThisRun = false;
+		assertOnlineFeaturesEnabled();
 		const pluginSettings = settingsStore.getState();
-		if (pluginSettings.disableOnlineFeatures) {
-			throw new Error(
-				"Rejecting AI request: Online features are disabled in settings.",
-			);
-		}
 
 		const { model, provider: modelProvider } = resolveModelInputOrThrow(
 			this.config.model,
@@ -244,11 +244,9 @@ export class Agent {
 				this.assignVariable(options.assignToVariable, result.text);
 			}
 
-			notice.setMessage(
-				"finished",
+			notice.finish(
 				`Ran ${result.steps.length} step${result.steps.length === 1 ? "" : "s"}.`,
 			);
-			window.setTimeout(() => notice.hide(), 5000);
 
 			return result;
 		} catch (error) {
@@ -259,7 +257,7 @@ export class Agent {
 
 	/** Emit a per-step progress Notice mirroring the legacy ai.prompt status surface. */
 	private reportStep(
-		notice: { setMessage: (status: string, msg: string) => void },
+		notice: Pick<NoticeHandler, "setMessage">,
 		step: LoopStep,
 	): void {
 		const toolNames = step.toolCalls.map((c) => c.name);
@@ -479,12 +477,15 @@ export class Agent {
 			responseFormat: { schema, name: "response", strict: true },
 		};
 		try {
+			// The failure is swallowed below (the result just has no object), so it
+			// must not be reported as a failed run either.
 			const cr = await chatRequest(
 				apiKey,
 				model,
 				modelProvider,
 				repairReq,
 				restoreCursor,
+				false,
 			);
 			const second = parseStructured(cr.content, schema);
 			return second.ok ? second.value : undefined;
@@ -521,17 +522,12 @@ export class Agent {
 	// --- variable bridge --------------------------------------------------
 
 	private assignVariable(name: string, text: string): void {
-		// Write the trimmed key: assertAssignableName validates the trimmed form,
+		// Write the trimmed key: assertAssignableVariableName validates the trimmed form,
 		// and the formatter trims `{{VALUE:...}}` token names — an untrimmed key
 		// (" summary ") would never resolve.
-		const key = name.trim();
-		const quoted = ("> " + text).replace(/\n/g, "\n> ");
-		this.choiceExecutor.variables.set(key, text);
-		this.choiceExecutor.variables.set(`${key}-quoted`, quoted);
-	}
-
-	private assertAssignableName(name: string): void {
-		assertAssignableVariableName(name);
+		for (const [key, value] of Object.entries(outputVariables(name.trim(), text))) {
+			this.choiceExecutor.variables.set(key, value);
+		}
 	}
 }
 

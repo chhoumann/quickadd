@@ -41,9 +41,9 @@ vi.mock("./gui/VDateInputPrompt/VDateInputPrompt", () => ({
 vi.mock("./preflight/OnePageInputModal", () => ({
 	OnePageInputModal: class {},
 }));
-vi.mock("./ai/AIAssistant", () => ({
-	Prompt: vi.fn(),
-	ChunkedPrompt: vi.fn(),
+vi.mock("./ai/AIAssistant", () => ({ Prompt: vi.fn() }));
+vi.mock("./ai/chunkedPrompt", () => ({ ChunkedPrompt: vi.fn() }));
+vi.mock("./ai/requestLog", () => ({
 	getAIRequestLogEntries: vi.fn(),
 	getAIRequestLogEntryById: vi.fn(),
 	getLastAIRequestLogEntry: vi.fn(),

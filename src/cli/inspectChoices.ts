@@ -11,7 +11,8 @@ import { flattenChoicesWithPath } from "../utils/choiceUtils";
 import { collectChoiceRequirements, getUnresolvedRequirements, listDeferredMacroSteps } from "../preflight/collectChoiceRequirements";
 import { analysePackagePreview, readQuickAddPackage } from "../services/packageImportService";
 import { decodeAssetPreview, type AssetPreviewContent, type PackagePreview } from "../services/packagePreview";
-import { describeChoice, extractVariables, isTruthy, resolveChoiceFromParams, resolveCurrentNote, RESERVED_CHECK_PARAMS, setExecutorVariables, toDetailedFieldSummary, toMissingFieldSummary } from "./params";
+import { applyInvocationDate } from "../utils/resolveDateOrigin";
+import { describeChoice, extractVariables, isTruthy, missingFlagFor, resolveChoiceFromParams, resolveCurrentNote, RESERVED_CHECK_PARAMS, setExecutorVariables, toDetailedFieldSummary, toMissingFieldSummary } from "./params";
 import { describeCurrentNoteUse, type CurrentNoteUse } from "./currentNoteUse";
 
 interface CliChoiceSummary {
@@ -129,6 +130,15 @@ export async function checkChoiceHandler(
 	const current = resolveCurrentNote(plugin.app, params);
 	if (current !== undefined) choiceExecutor.setCurrentFile(current);
 	setExecutorVariables(choiceExecutor, variables);
+	// The day `quickadd:run date=` would use, so a "Which day" ask it answers
+	// is not reported missing.
+	if (!applyInvocationDate(choiceExecutor, params.date)) {
+		return {
+			ok: false,
+			error: `Could not parse date origin '${params.date}'.`,
+			choice: await describeChoice(plugin, choice),
+		};
+	}
 
 	const requirements = await collectChoiceRequirements(
 		plugin.app,
@@ -151,9 +161,7 @@ export async function checkChoiceHandler(
 		requiredInputCount: requirements.length,
 		missingInputCount: unresolved.length,
 		missing: unresolved.map(summarize),
-		missingFlags: unresolved.map(
-			(requirement) => `value-${requirement.id}=<value>`,
-		),
+		missingFlags: unresolved.map(missingFlagFor),
 		...(choice.type === "Macro"
 			? { deferred: listDeferredMacroSteps(plugin, choice as IMacroChoice, choiceExecutor.variables.get("value")) }
 			: {}),

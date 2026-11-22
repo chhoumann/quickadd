@@ -71,6 +71,27 @@ describe("vault tools — classification + schemas", () => {
 	});
 });
 
+describe("get_property_values", () => {
+	// A YAML list item with no value (`- ` on its own line) reaches the cache as
+	// undefined or null; neither is a value the property takes.
+	it("lists only the real values of a list property", async () => {
+		const note = fileLike("Notes/a.md");
+		const app = makeApp({
+			vault: { getMarkdownFiles: () => [note] },
+			metadataCache: {
+				getFileCache: () => ({ frontmatter: { tags: [undefined, " work ", null, { nested: 1 }, "", 3] } }),
+			},
+		});
+
+		const res = (await createVaultTools(app).get_property_values.execute(
+			{ field: "tags" },
+			{ toolCallId: "c", toolName: "get_property_values" },
+		)) as { values: string[] };
+
+		expect(res.values).toEqual(["3", "work"]);
+	});
+});
+
 describe("vault write tools — safety", () => {
 	it("create_note rejects an unsafe (config-dir) path before touching the vault", async () => {
 		const app = makeApp();

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RateLimiter } from "./AIAssistant";
+import { RateLimiter } from "./chunkedPrompt";
 
 describe("RateLimiter async rejection handling", () => {
 	afterEach(() => {

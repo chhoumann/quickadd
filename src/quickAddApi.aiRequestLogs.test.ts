@@ -5,7 +5,7 @@ import {
 	beginAIRequestLogEntry,
 	clearAIRequestLogEntries,
 	finishAIRequestLogEntry,
-} from "./ai/AIAssistant";
+} from "./ai/requestLog";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import { QuickAddApi } from "./quickAddApi";

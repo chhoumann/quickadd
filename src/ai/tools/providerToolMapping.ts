@@ -24,8 +24,6 @@ import type {
 } from "./NormalizedTools";
 import type { ChatWire } from "../Provider";
 
-export type ProviderKind = "openai" | "anthropic" | "gemini";
-
 export interface ParsedChatResult {
 	content: string;
 	toolCalls: NormalizedToolCall[];

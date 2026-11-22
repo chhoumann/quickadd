@@ -1,10 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TFile } from "obsidian";
 import type QuickAdd from "../main";
-import {
-	SAVE_CLIPBOARD_IMAGE_COMMAND,
-	saveClipboardImageHandler,
-} from "./saveClipboardImageCli";
+import { saveClipboardImageHandler } from "./saveClipboardImageCli";
 
 vi.mock("../utils/clipboardImageAttachments", () => ({
 	saveClipboardImageToVault: vi.fn(),
@@ -22,22 +19,21 @@ function pluginWithSetting(nameAfterNoteTitle: boolean): QuickAdd {
 }
 
 describe("saveClipboardImageHandler", () => {
+	beforeEach(() => saveMock.mockReset());
+
 	it("saves a png named after the destination when the flag is true", async () => {
 		saveMock.mockResolvedValue({
 			path: "attachments/Meeting notes.png",
 			name: "Meeting notes.png",
 		} as TFile);
 
-		const payload = JSON.parse(
-			await saveClipboardImageHandler(pluginWithSetting(false), {
-				sourcePath: "Meetings/Meeting notes.md",
-				nameAfterNoteTitle: "true",
-			}),
-		);
+		const payload = await saveClipboardImageHandler(pluginWithSetting(false), {
+			sourcePath: "Meetings/Meeting notes.md",
+			nameAfterNoteTitle: "true",
+		});
 
-		expect(payload).toMatchObject({
+		expect(payload).toEqual({
 			ok: true,
-			command: SAVE_CLIPBOARD_IMAGE_COMMAND,
 			path: "attachments/Meeting notes.png",
 			name: "Meeting notes.png",
 			sourcePath: "Meetings/Meeting notes.md",
@@ -58,11 +54,9 @@ describe("saveClipboardImageHandler", () => {
 			name: "Clipboard image 2026-08-29 21.40.00.png",
 		} as TFile);
 
-		const payload = JSON.parse(
-			await saveClipboardImageHandler(pluginWithSetting(false), {
-				sourcePath: "Meetings/Meeting notes.md",
-			}),
-		);
+		const payload = await saveClipboardImageHandler(pluginWithSetting(false), {
+			sourcePath: "Meetings/Meeting notes.md",
+		});
 
 		expect(payload.ok).toBe(true);
 		expect(payload.nameAfterNoteTitle).toBe(false);
@@ -76,13 +70,11 @@ describe("saveClipboardImageHandler", () => {
 	});
 
 	it("rejects an invalid nameAfterNoteTitle value", async () => {
-		const payload = JSON.parse(
-			await saveClipboardImageHandler(pluginWithSetting(false), {
+		await expect(
+			saveClipboardImageHandler(pluginWithSetting(false), {
 				nameAfterNoteTitle: "maybe",
 			}),
-		);
-
-		expect(payload.ok).toBe(false);
-		expect(payload.error).toMatch(/Invalid nameAfterNoteTitle/);
+		).rejects.toThrow("Invalid nameAfterNoteTitle: maybe. Use true or false.");
+		expect(saveMock).not.toHaveBeenCalled();
 	});
 });

@@ -120,7 +120,7 @@ export function registerQuickAddCliHandlers(plugin: ChoiceRuntimePlugin): boolea
 		AI_TEST_CONNECTION_FLAGS,
 		(params: CliData) => aiTestConnectionHandler(plugin, params),
 	);
-	cliTarget.registerCliHandler.call(cliTarget,
+	register(
 		CLI_COMMANDS.saveClipboardImage,
 		"Save a 1x1 PNG as a vault attachment using QuickAdd clipboard-image naming",
 		SAVE_CLIPBOARD_IMAGE_FLAGS,

@@ -74,20 +74,21 @@ export async function routePrompt<T>(
 }
 
 /**
- * Script-facing prompts (`quickAddApi.suggester`, `inputPrompt`, `requestInputs`, ...)
- * have no headless answer: in a non-interactive run the modal would open on a desktop
- * nobody is watching and the CLI call would never return. Abort instead, naming the
- * prompt so the caller knows which value to preset.
+ * The headless branch for a script-facing prompt (`quickAddApi.suggester`,
+ * `inputPrompt`, `requestInputs`, ...). These have no headless answer: in a
+ * non-interactive run the modal would open on a desktop nobody is watching and
+ * the CLI call would never return. Abort instead, naming the prompt so the
+ * caller knows which value to preset.
  */
-export function abortIfHeadless(
-	executor: PromptRoutingContext | undefined,
+export function scriptPromptHeadless(
 	prompt: string,
 	label?: string,
 	remedy = "Re-run with the ui flag.",
-): void {
-	if (!executor || executor.promptProvider || executor.interactive !== false) return;
-	const named = label ? `${prompt} "${label}"` : prompt;
-	throw new ChoiceAbortError(
-		`A script opened ${named}, but this run is non-interactive. ${remedy}`,
-	);
+): () => Promise<never> {
+	return async () => {
+		const named = label ? `${prompt} "${label}"` : prompt;
+		throw new ChoiceAbortError(
+			`A script opened ${named}, but this run is non-interactive. ${remedy}`,
+		);
+	};
 }

@@ -24,7 +24,7 @@ export interface ChoiceSummary {
 }
 
 /** What importPackage added and what it left alone because the vault already had it. */
-export interface PackageImportSummary {
+interface PackageImportSummary {
 	addedChoiceIds: string[];
 	skippedChoiceIds: string[];
 	writtenAssets: string[];

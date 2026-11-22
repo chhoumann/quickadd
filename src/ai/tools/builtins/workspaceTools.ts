@@ -3,9 +3,7 @@
  */
 import { type App, MarkdownView, TFile } from "obsidian";
 import { isWithinAllowedRoots } from "../allowedRoots";
-import { applyGroupOptions, defineTool, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
-
-const MAX_ACTIVE_CHARS = 16_000;
+import { applyGroupOptions, defineTool, truncateNoteText, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
 
 export function createWorkspaceTools(
 	app: App,
@@ -60,10 +58,7 @@ export function createWorkspaceTools(
 					active: {
 						path: file.path,
 						basename: file.basename,
-						content:
-							content.length > MAX_ACTIVE_CHARS
-								? content.slice(0, MAX_ACTIVE_CHARS) + "\n…[truncated]"
-								: content,
+						content: truncateNoteText(content),
 					},
 				};
 			},

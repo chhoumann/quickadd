@@ -19,10 +19,9 @@ import { isWithinAllowedRoots } from "../allowedRoots";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
 import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
 import type { JSONSchema } from "../NormalizedTools";
-import type { QATool } from "../aiToolTypes";
-import { applyGroupOptions, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
+import { addPropertyValues } from "../../../api/propertyValues";
+import { applyGroupOptions, defineTool, truncateNoteText, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
 
-const MAX_READ_CHARS = 16_000;
 const DEFAULT_LIST = 100;
 const MAX_LIST = 200;
 const DEFAULT_SEARCH = 25;
@@ -43,7 +42,7 @@ export function createVaultTools(
 	// and structural validation are correct. Absent/all-blank roots ⇒ vault-wide.
 
 	const tools: ToolSetMap = {
-		read_note: tool({
+		read_note: defineTool({
 			description: "Read a note's full markdown content by vault path.",
 			inputSchema: obj({ path: str("Vault path to the note, e.g. Notes/Foo.md") }, ["path"]),
 			readOnly: true,
@@ -52,18 +51,11 @@ export function createVaultTools(
 				const file = app.vault.getAbstractFileByPath(norm);
 				if (!(file instanceof TFile)) return { found: false, path: norm };
 				const content = await app.vault.cachedRead(file);
-				return {
-					found: true,
-					path: norm,
-					content:
-						content.length > MAX_READ_CHARS
-							? content.slice(0, MAX_READ_CHARS) + "\n…[truncated]"
-							: content,
-				};
+				return { found: true, path: norm, content: truncateNoteText(content) };
 			},
 		}),
 
-		list_notes: tool({
+		list_notes: defineTool({
 			description: "List markdown notes, optionally within a folder.",
 			inputSchema: obj(
 				{
@@ -86,7 +78,7 @@ export function createVaultTools(
 			},
 		}),
 
-		search_notes: tool({
+		search_notes: defineTool({
 			description:
 				"Search notes by name and/or content. Returns matching paths with a short snippet.",
 			inputSchema: obj(
@@ -141,7 +133,7 @@ export function createVaultTools(
 			},
 		}),
 
-		get_property_values: tool({
+		get_property_values: defineTool({
 			description:
 				"List the distinct values a frontmatter property takes across the vault (e.g. existing tags or statuses).",
 			inputSchema: obj(
@@ -156,21 +148,13 @@ export function createVaultTools(
 				).filter((f) => isWithinAllowedRoots(f.path, roots));
 				const values = new Set<string>();
 				for (const f of files) {
-					const fm = app.metadataCache.getFileCache(f)?.frontmatter;
-					const v = fm?.[String(field)];
-					if (v == null) continue;
-					for (const item of Array.isArray(v) ? v : [v]) {
-						if (typeof item !== "object") {
-							const s = String(item).trim();
-							if (s) values.add(s);
-						}
-					}
+					addPropertyValues(values, app.metadataCache.getFileCache(f)?.frontmatter?.[String(field)]);
 				}
 				return { field: String(field), values: [...values].sort().slice(0, 200) };
 			},
 		}),
 
-		create_note: tool({
+		create_note: defineTool({
 			description: "Create a new markdown note. Fails if the path already exists.",
 			inputSchema: obj(
 				{ path: str("Vault path for the new note."), content: str("Initial markdown content.") },
@@ -186,7 +170,7 @@ export function createVaultTools(
 			},
 		}),
 
-		append_to_note: tool({
+		append_to_note: defineTool({
 			description: "Append text to an existing note (frontmatter-aware for top inserts).",
 			inputSchema: obj(
 				{
@@ -211,7 +195,7 @@ export function createVaultTools(
 			},
 		}),
 
-		insert_under_heading: tool({
+		insert_under_heading: defineTool({
 			description:
 				"Insert markdown under an existing heading (matched exactly). Errors if the heading is not found.",
 			inputSchema: obj(
@@ -255,9 +239,6 @@ export function createVaultTools(
 
 // --- helpers ----------------------------------------------------------------
 
-function tool(def: Omit<QATool, "__qaTool">): QATool {
-	return { ...def, __qaTool: true };
-}
 function obj(properties: Record<string, JSONSchema>, required: string[]): JSONSchema {
 	return { type: "object", properties, required };
 }

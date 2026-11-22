@@ -31,7 +31,6 @@ const mocks = vi.hoisted(() => ({
 	makeRequest: vi.fn(),
 	openAIRequest: vi.fn(),
 	isLikelyContextLimitError: vi.fn(() => false),
-	getModelMaxTokens: vi.fn(() => 100000),
 	getMarkdownFilesInFolder: vi.fn((): unknown[] => []),
 }));
 
@@ -50,15 +49,12 @@ vi.mock("./providerErrors", () => ({
 	isLikelyContextLimitError: mocks.isLikelyContextLimitError,
 }));
 
-vi.mock("./aiHelpers", () => ({
-	getModelMaxTokens: mocks.getModelMaxTokens,
-}));
-
 vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: mocks.getMarkdownFilesInFolder,
 }));
 
-const { runAIAssistant, Prompt, ChunkedPrompt } = await import("./AIAssistant");
+const { runAIAssistant, Prompt } = await import("./AIAssistant");
+const { ChunkedPrompt } = await import("./chunkedPrompt");
 
 /** Contains every token shape the removed preview used to resolve on screen. */
 const SYSTEM_PROMPT =
@@ -111,11 +107,8 @@ function systemPromptSentToProvider(): unknown {
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	// Obsidian's global sleep(), which the progress notice polls with.
-	vi.stubGlobal("sleep", async () => {});
 	storeState.disableOnlineFeatures = false;
 	mocks.openAIRequest.mockReturnValue(mocks.makeRequest);
-	mocks.getModelMaxTokens.mockReturnValue(100000);
 	mocks.makeRequest.mockImplementation(async (prompt: string) =>
 		response(`response:${prompt}`),
 	);

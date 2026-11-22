@@ -1,12 +1,12 @@
 /** Wire shapes and reply validation shared by the server and remote provider. */
-export interface SuggesterItem {
+interface SuggesterItem {
 	/** Text shown to the user. */
 	title: string;
 	/** The value handed back to the script when this item is chosen. */
 	value: string;
 }
 
-export interface CheckboxItem {
+interface CheckboxItem {
 	title: string;
 	value: string;
 	checked: boolean;

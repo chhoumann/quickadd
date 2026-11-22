@@ -1,6 +1,9 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { ChunkedPrompt, Prompt, clearAIRequestLogEntries, getAIRequestLogEntryById, getAIRequestLogEntries, getLastAIRequestLogEntry } from "../ai/AIAssistant";
+import { Prompt } from "../ai/AIAssistant";
+import { ChunkedPrompt } from "../ai/chunkedPrompt";
+import { clearAIRequestLogEntries, getAIRequestLogEntryById, getAIRequestLogEntries, getLastAIRequestLogEntry } from "../ai/requestLog";
+import { assertOnlineFeaturesEnabled } from "../ai/onlineFeatures";
 import { getModelNames, resolveModelInputOrThrow, type ScriptModelInput } from "../ai/aiHelpers";
 import type { OpenAIModelParameters } from "../ai/OpenAIModelParameters";
 import type { Model } from "../ai/Provider";
@@ -12,7 +15,7 @@ import { assertAssignableVariableName } from "../ai/tools/assignableVariable";
 import { createVaultTools } from "../ai/tools/builtins/vaultTools";
 import { createWorkspaceTools } from "../ai/tools/builtins/workspaceTools";
 import { createSystemTools } from "../ai/tools/builtins/systemTools";
-import type { BuiltinGroupOptions } from "../ai/tools/builtins/shared";
+import { defineTool, type BuiltinGroupOptions } from "../ai/tools/builtins/shared";
 import { settingsStore } from "../settingsStore";
 import { log } from "../logger/logManager";
 
@@ -29,10 +32,8 @@ let warnedCountTokensDeprecated = false;
 
 export function createAiApi(app: App, choiceExecutor: IChoiceExecutor, format: Format) {
 	async function promptOptions(model: ScriptModelInput, settings?: PromptSettings) {
-		const pluginSettings = settingsStore.getState();
-		if (pluginSettings.disableOnlineFeatures) {
-			throw new Error("Rejecting request to `prompt` via API AI module. Online features are disabled in settings.");
-		}
+		// Before resolving the model, so a disabled run never reports a missing model.
+		assertOnlineFeaturesEnabled();
 		const { model: resolvedModel, provider } = resolveModelInputOrThrow(model);
 		const apiKey = await resolveProviderApiKey(app, provider);
 		if (settings?.assignToVariable) assertAssignableVariableName(settings.assignToVariable);
@@ -43,7 +44,7 @@ export function createAiApi(app: App, choiceExecutor: IChoiceExecutor, format: F
 			modelOptions: settings?.modelOptions ?? {},
 			outputVariableName: settings?.assignToVariable || settings?.variableName || "output",
 			showAssistantMessages: settings?.showAssistantMessages ?? true,
-			systemPrompt: settings?.systemPrompt ?? pluginSettings.ai.defaultSystemPrompt,
+			systemPrompt: settings?.systemPrompt ?? settingsStore.getState().ai.defaultSystemPrompt,
 		};
 	}
 
@@ -125,10 +126,7 @@ export function createAiApi(app: App, choiceExecutor: IChoiceExecutor, format: F
 		agent: (config: AgentConfig): Agent =>
 			new Agent(app, choiceExecutor, config, (input) => format(input, undefined, false)),
 		/** Declare a tool for an Agent's `tools` map. Pairs a JSON-Schema with a JS handler. */
-		tool: (def: ToolDefinitionInput): QATool => ({
-			...def,
-			__qaTool: true,
-		}),
+		tool: (def: ToolDefinitionInput): QATool => defineTool(def),
 		/** Stop condition: end the loop once it has taken `n` steps. */
 		stepCountIs:
 			(n: number): StopCondition =>
