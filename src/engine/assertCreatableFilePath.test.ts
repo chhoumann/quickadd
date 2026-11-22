@@ -28,7 +28,7 @@ describe("assertCreatableFilePath", () => {
 	});
 
 	it("fires on a colon in a FOLDER segment, which Obsidian refuses too", () => {
-		// QuickAddEngine.createFileWithInput creates the parent folder before
+		// createFileWithInput creates the parent folder before
 		// vault.create, so this is the first thing that would have failed.
 		expect(() => assertCreatableFilePath("Meetings: 2026/Note.md")).toThrow(
 			ChoiceAbortError,

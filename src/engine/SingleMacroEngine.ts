@@ -49,22 +49,23 @@ type MemberAccessSelection = {
 // and its result is awaited at the call site either way.
 type UserScriptCallable = () => unknown;
 
+/**
+ * The text a macro's result puts in the note. An Error gives its message, and
+ * an object that JSON cannot hold (a circular one) gives its type tag rather
+ * than failing the run.
+ */
 function formatMacroOutput(value: unknown): string {
 	if (value === null || value === undefined) return "";
 	if (typeof value === "string") return value;
-	if (typeof value === "number" || typeof value === "boolean") {
-		return String(value);
-	}
-	if (typeof value === "bigint" || typeof value === "symbol") {
-		return value.toString();
-	}
 	if (value instanceof Error) return value.message;
-
-	try {
-		return JSON.stringify(value);
-	} catch {
-		return Object.prototype.toString.call(value);
+	if (typeof value === "object") {
+		try {
+			return JSON.stringify(value) ?? "";
+		} catch {
+			return Object.prototype.toString.call(value);
+		}
 	}
+	return String(value);
 }
 
 export class SingleMacroEngine {
@@ -169,7 +170,7 @@ export class SingleMacroEngine {
 			this.ensureNotAborted();
 
 			if (exportAttempt.executed) {
-				return this.formatResult(exportAttempt.result);
+				return formatMacroOutput(exportAttempt.result);
 			}
 		}
 
@@ -196,11 +197,9 @@ export class SingleMacroEngine {
 			result = lookup.value;
 		}
 
-		// Handle functions and objects properly
+		// A macro that returns a function gives that function's result.
 		if (typeof result === "function") {
 			result = await (result as UserScriptCallable)();
-		} else if (result && typeof result === "object") {
-			result = JSON.stringify(result);
 		}
 
 		return formatMacroOutput(result);
@@ -346,7 +345,6 @@ export class SingleMacroEngine {
 			this.ensureNotAborted();
 
 			engine.setOutput(result);
-			this.syncVariablesFromParams(engine);
 
 			if (postCommands.length) {
 				await engine.runSubset(postCommands);
@@ -564,43 +562,6 @@ export class SingleMacroEngine {
 			index: matchingScripts[0].index,
 			memberAccess: memberAccess.slice(1),
 		};
-	}
-
-	private syncVariablesFromParams(engine: MacroChoiceEngine) {
-		Object.keys(engine.params.variables).forEach((key) => {
-			this.choiceExecutor.variables.set(
-				key,
-				engine.params.variables[key],
-			);
-		});
-	}
-
-	private formatResult(result: unknown): string {
-		if (result === undefined || result === null) {
-			return "";
-		}
-
-		if (typeof result === "string") {
-			return result;
-		}
-
-		if (
-			typeof result === "number" ||
-			typeof result === "boolean" ||
-			typeof result === "bigint"
-		) {
-			return result.toString();
-		}
-
-		if (typeof result === "object") {
-			try {
-				return JSON.stringify(result);
-			} catch {
-				return Object.prototype.toString.call(result);
-			}
-		}
-
-		return String(result);
 	}
 
 	private ensureNotAborted() {

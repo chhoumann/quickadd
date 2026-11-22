@@ -19,6 +19,7 @@ import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegrati
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { MacroAbortError } from "../errors/MacroAbortError";
 import { readNote } from "../utils/noteContent";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import {
@@ -253,7 +254,7 @@ export async function applyTemplateToNote(
 			{ ancestry: params.chain, triggerContext: { activeFile: file } },
 		);
 	} catch (err) {
-		if (isCancellationError(err) || isAbortError(err)) {
+		if (isCancellationError(err) || err instanceof MacroAbortError) {
 			return null;
 		}
 		reportError(err, "Error applying template to note");
@@ -288,14 +289,6 @@ function appliedTemplateChoice(source: TemplatePickerItem): ITemplateChoice {
 		fileNameFormat:
 			folder === null ? { enabled: false, format: "" } : choice.fileNameFormat,
 	};
-}
-
-function isAbortError(error: unknown): boolean {
-	return (
-		Boolean(error) &&
-		typeof error === "object" &&
-		(error as { name?: string }).name === "MacroAbortError"
-	);
 }
 
 async function pickTemplate(
@@ -388,7 +381,7 @@ async function maybeReconcileNoteLocation(
 
 		await app.fileManager.renameFile(file, targetPath);
 	} catch (error) {
-		if (isCancellationError(error) || isAbortError(error)) return;
+		if (isCancellationError(error) || error instanceof MacroAbortError) return;
 		log.logWarning(`Could not move note to match choice settings: ${error}`);
 	}
 }

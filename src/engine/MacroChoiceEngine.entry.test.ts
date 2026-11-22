@@ -744,15 +744,15 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 
 describe("MacroChoiceEngine choice command cancellation", () => {
 	const app = {} as App;
-	let plugin: QuickAdd & { getChoiceById: ReturnType<typeof vi.fn> };
+	let plugin: QuickAdd & { findChoiceById: ReturnType<typeof vi.fn> };
 	let choiceExecutor: IChoiceExecutor;
 	let variables: Map<string, unknown>;
 	let macroChoice: IMacroChoice;
 
 	beforeEach(() => {
 		plugin = {
-			getChoiceById: vi.fn(),
-		} as unknown as QuickAdd & { getChoiceById: ReturnType<typeof vi.fn> };
+			findChoiceById: vi.fn(),
+		} as unknown as QuickAdd & { findChoiceById: ReturnType<typeof vi.fn> };
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
 			...createChoiceExecutor(),
@@ -793,7 +793,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			type: "Macro",
 			command: false,
 		};
-		(plugin.getChoiceById as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+		(plugin.findChoiceById as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
 			choice,
 		);
 		const command: IChoiceCommand = {

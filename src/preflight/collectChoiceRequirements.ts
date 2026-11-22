@@ -1,5 +1,6 @@
 import { captureCandidates, captureScopeFiles } from "src/engine/helpers/captureCandidates";
 import { getQuickAddScriptInputs, toFieldRequirement } from "./scriptInputRequirements";
+import { mergeRepeatedRequirement } from "./fieldRequirements";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { currentSelection } from "src/utils/currentFile";
@@ -55,6 +56,8 @@ import {
 	buildFormRoster,
 	type DeferredStep,
 } from "./macroFormRoster";
+import { defaultDateVariableFormat } from "../utils/dateTokenCodec";
+import { usesSelectionAsCaptureValue } from "src/engine/captureAction";
 
 interface CollectChoiceRequirementsOptions {
 	seedCaptureSelectionAsValue?: boolean;
@@ -382,14 +385,7 @@ async function collectForCaptureChoice(
 	}
 
 	if (seedCaptureSelectionAsValue) {
-		const selectionOverride = choice.useSelectionAsCaptureValue;
-		const globalSelectionAsValue =
-			plugin.settings.useSelectionAsCaptureValue ?? true;
-		const useSelectionAsCaptureValue =
-			typeof selectionOverride === "boolean"
-				? selectionOverride
-				: globalSelectionAsValue;
-		if (useSelectionAsCaptureValue) {
+		if (usesSelectionAsCaptureValue(choice, plugin.settings)) {
 			const existingValue = choiceExecutor.variables.get("value");
 			if (existingValue === undefined || existingValue === null) {
 				const selectedText = currentSelection(app, choiceExecutor);
@@ -498,12 +494,7 @@ async function collectForMacroChoice(
 		for (const requirement of collected) {
 			const existing = merged.get(requirement.id);
 			if (existing) {
-				existing.optional =
-					(existing.optional ?? false) && (requirement.optional ?? false);
-				if (requirement.pathContext) existing.pathContext = true;
-				if (requirement.runtimeOnly) existing.runtimeOnly = true;
-				// A text area also takes one line, so a field several steps share gets the wider input.
-				if (existing.type === "text" && requirement.type === "textarea") existing.type = "textarea";
+				mergeRepeatedRequirement(existing, requirement);
 				continue;
 			}
 			merged.set(requirement.id, { ...requirement, group: entry.group });
@@ -543,7 +534,7 @@ function dateOriginRequirement(
 		id: QA_INTERNAL_DATE_ORIGIN,
 		label: `Date for ${choice.name}`,
 		type: "date",
-		dateFormat: "YYYY-MM-DD",
+		dateFormat: defaultDateVariableFormat(false),
 		defaultValue: dateOrigin.defaultValue,
 		source: "collected",
 	};

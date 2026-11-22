@@ -1,10 +1,6 @@
 import type { App } from "obsidian";
-import { TFile, TFolder } from "obsidian";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
-import { log } from "../logger/logManager";
-import { withTemplaterFileCreationSuppressed } from "../utils/templaterIntegration";
-import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 
+/** What every engine shares: the app it runs in and a `run()` entry point. */
 export abstract class QuickAddEngine {
 	public app: App;
 
@@ -13,92 +9,4 @@ export abstract class QuickAddEngine {
 	}
 
 	public abstract run(): void | Promise<unknown>;
-
-	protected async createFolder(folder: string): Promise<void> {
-		const folderExists = await this.app.vault.adapter.exists(folder);
-
-		if (!folderExists) {
-			await this.app.vault.createFolder(folder);
-		}
-	}
-
-	protected stripLeadingSlash(path: string): string {
-		return path.replace(/^\/+/, "");
-	}
-
-	protected normalizeMarkdownFilePath(
-		folderPath: string,
-		fileName: string
-	): string {
-		const safeFolderPath = this.stripLeadingSlash(folderPath);
-		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
-		const formattedFileName: string = this.stripLeadingSlash(fileName).replace(
-			MARKDOWN_FILE_EXTENSION_REGEX,
-			""
-		);
-		return `${actualFolderPath}${formattedFileName}.md`;
-	}
-
-	protected async fileExists(filePath: string): Promise<boolean> {
-		return await this.app.vault.adapter.exists(filePath);
-	}
-
-	protected getFileByPath(filePath: string): TFile {
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-
-		if (!file) {
-			log.logError(`${filePath} not found`);
-			throw new Error(`${filePath} not found`);
-		}
-
-		if (file instanceof TFolder) {
-			log.logError(`${filePath} found but it's a folder`);
-			throw new Error(`${filePath} found but it's a folder`);
-		}
-
-		if (!(file instanceof TFile))
-			throw new Error(`${filePath} is not a file`);
-
-		return file;
-	}
-
-	protected async createFileWithInput(
-		filePath: string,
-		fileContent: string,
-		opts: { suppressTemplaterOnCreate?: boolean } = {},
-	): Promise<TFile> {
-		// Authoritative vault-containment boundary for every new-file write (Template
-		// and Capture both funnel through here). `filePath` is assembled from formatted
-		// names that can be seeded by untrusted input — an obsidian:// URI, the CLI, or
-		// `{{VALUE}}` resolved from synced note content. A traversal/absolute/drive/UNC
-		// path (e.g. "..\\..\\..\\evil.md" or "C:/evil.md") would make `vault.create`
-		// AND the folder pre-creation below resolve OUTSIDE the vault root. Reject it
-		// here, before any filesystem touch, so the sink can never escape even if an
-		// upstream normalizer is bypassed. Mirrors the package-import write guard (#1434).
-		if (escapesVaultBoundary(filePath)) {
-			throw new Error(
-				`Refusing to create a file outside the vault: "${filePath}".`,
-			);
-		}
-
-		const dirMatch = filePath.match(/(.*)[/\\]/);
-		let dirName = "";
-		if (dirMatch) dirName = dirMatch[1];
-
-		const dir = this.app.vault.getAbstractFileByPath(dirName);
-
-		if (!dir || !(dir instanceof TFolder)) {
-			await this.createFolder(dirName);
-
-			}
-
-			const createFile = () => this.app.vault.create(filePath, fileContent);
-			const shouldSuppress =
-				opts.suppressTemplaterOnCreate &&
-				filePath.toLowerCase().endsWith(".md");
-
-			return shouldSuppress
-				? await withTemplaterFileCreationSuppressed(this.app, filePath, createFile)
-				: await createFile();
-		}
 }

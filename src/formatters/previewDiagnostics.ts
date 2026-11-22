@@ -1,7 +1,7 @@
 import { withoutBrandPrefix } from "../logger/quickAddLogger";
 import { isCancellationError } from "../utils/errorUtils";
 
-export type PreviewDiagnosticSeverity = "warning" | "error";
+type PreviewDiagnosticSeverity = "warning" | "error";
 
 /**
  * `"path"` marks a problem with the resulting PATH rather than with resolving
@@ -14,7 +14,7 @@ export type PreviewDiagnosticSeverity = "warning" | "error";
  * discard exactly these while keeping every other diagnostic. See #1594 for the
  * "Unresolved:" label, which wants the same split.
  */
-export type PreviewDiagnosticKind = "path";
+type PreviewDiagnosticKind = "path";
 
 export type PreviewDiagnostic = {
 	severity: PreviewDiagnosticSeverity;

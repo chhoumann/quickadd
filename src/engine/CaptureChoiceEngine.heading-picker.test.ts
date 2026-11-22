@@ -60,6 +60,9 @@ vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 vi.mock("./SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {
 		setLinkToCurrentFileBehavior() {}
+		setDestinationPath() {}
+		setPromptRunContext() {}
+		setKeepUserTextProtected() {}
 		async run() {
 			return "";
 		}

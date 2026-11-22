@@ -22,6 +22,7 @@ import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { isSetLikeObsidianProperty } from "../utils/obsidianPropertyTypes";
 import { restoreUserTextAt } from "../formatters/helpers/userText";
+import { deriveFolderMode } from "../utils/folderMode";
 
 export const templateInsertModes = [
 	{
@@ -65,16 +66,19 @@ export function moveOfferFolder(
 	choice: ITemplateChoice,
 ): { format: string } | "note" | null {
 	const folder = choice.folder;
-	if (!folder?.enabled) return "note";
-	if (folder.chooseWhenCreatingNote) return null;
-	if (folder.createInSameFolderAsActiveFile) return "note";
-	// chooseFromSubfolders only drives a runtime picker in "specified" mode (the
-	// engine gates its branch on
-	// !(chooseWhenCreatingNote || createInSameFolderAsActiveFile)). A stale flag
-	// left on an active-file-mode choice is inert there and must not suppress
-	// the move offer.
-	if (folder.chooseFromSubfolders || folder.folders.length !== 1) return null;
-	return { format: folder.folders[0] };
+	if (!folder) return "note";
+	switch (deriveFolderMode(folder)) {
+		case "obsidian-default":
+		case "active-file":
+			return "note";
+		case "prompt":
+			return null;
+		case "specified":
+			// chooseFromSubfolders drives a runtime picker only in this mode, so a
+			// stale flag on an active-file choice does not suppress the move offer.
+			if (folder.chooseFromSubfolders || folder.folders.length !== 1) return null;
+			return { format: folder.folders[0] };
+	}
 }
 
 /**

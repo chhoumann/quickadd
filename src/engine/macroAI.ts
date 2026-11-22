@@ -15,11 +15,12 @@ import { isCancellationError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import { ASK_ME_MODEL } from "../constants";
 
 export async function executeMacroAI(
 	app: App, plugin: FormatterPluginContext, runtime: FormatterExecutionRuntime,
 	choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
-	command: IAIAssistantCommand, chooseModel: () => Promise<ResolvedModel>,
+	command: IAIAssistantCommand,
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
@@ -30,8 +31,8 @@ export async function executeMacroAI(
 	const aiSettings = settingsStore.getState().ai;
 
 	let resolved: ResolvedModel | undefined;
-	if (command.model === "Ask me") {
-		resolved = await chooseModel();
+	if (command.model === ASK_ME_MODEL) {
+		resolved = await pickMacroModel(app, executor);
 	} else {
 		// Prefer the pinned provider-scoped ref — but only while it matches
 		// the legacy string (a stale ref from a downgrade edit must not
@@ -93,7 +94,7 @@ export async function executeMacroAI(
  * serving the same model name are distinguishable — picking from a flat
  * name list would silently first-match, defeating the point of asking.
  */
-export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promise<ResolvedModel> {
+async function pickMacroModel(app: App, executor: IChoiceExecutor): Promise<ResolvedModel> {
 	const providers = settingsStore.getState().ai.providers;
 	const entries: { label: string; qualified: string; resolved: ResolvedModel }[] =
 		providers.flatMap((provider) =>

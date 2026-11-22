@@ -1,19 +1,17 @@
-import { executeMacroAI, pickMacroModel } from "./macroAI";
+import { executeMacroAI } from "./macroAI";
 import { withDispatch, type ChoiceChain } from "./choiceChain";
 import { templaterRerunAfter, warnDeprecatedOnce } from "src/utils/templaterRerunDeprecation";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App, WorkspaceLeaf } from "obsidian";
-import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
-import { QuickAddApi } from "../quickAddApi";
-import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
 import type { ICommand } from "../types/macros/ICommand";
 import type { LoadedUserScript } from "../utils/userScript";
 import { executeUserScript, type ScriptParameters } from "./userScriptExecution";
+import { createScriptParameters } from "./scriptParameters";
 import { QuickAddEngine } from "./QuickAddEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -29,7 +27,6 @@ import { executeEditorCommand } from "./editorCommands";
 import { waitFor } from "src/utils/waitFor";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
-import type { ResolvedModel } from "src/ai/aiHelpers";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { openFile } from "../utils/fileOpening";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
@@ -42,7 +39,6 @@ import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { namedCurrentNote } from "../utils/currentFile";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
-import { createVariablesProxy } from "../utils/variablesProxy";
 import {
 	commandListOf,
 	hasCommandList,
@@ -116,72 +112,6 @@ export class MacroChoiceEngine extends QuickAddEngine {
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 	private readonly preloadedUserScripts: Map<string, LoadedUserScript>;
 	private readonly promptLabel?: string;
-	private buildParams(
-		app: App,
-		choiceExecutor: IChoiceExecutor,
-		sharedVariables: Map<string, unknown>
-	) {
-		const variablesProxy = createVariablesProxy(sharedVariables);
-
-		const params = {
-			app,
-			quickAddApi: QuickAddApi.GetApi(app, this.plugin, choiceExecutor, this.runtime, this.chain),
-			obsidian,
-			abort: (message?: string) => {
-				throw new MacroAbortError(message);
-			},
-		} as unknown as typeof this.params;
-
-		// Backward compatibility: some scripts assign `QuickAdd.variables = {...}`
-		// or `params.variables = {...}`.
-		// Treat that as replacing the backing Map so templates can consume them.
-		Object.defineProperty(params, "variables", {
-			get: () => variablesProxy,
-			set: (next: unknown) => {
-				if (next === sharedVariables || next === variablesProxy) return;
-
-				const entries =
-					next instanceof Map
-						? Array.from(next.entries()).filter(([key]) => typeof key === "string")
-						: next && typeof next === "object"
-							? Object.entries(next as Record<string, unknown>)
-							: null;
-
-				// Invalid assignments are ignored to avoid wiping the backing store.
-				if (!entries) return;
-
-				sharedVariables.clear();
-				restoreDateVariableFormats(sharedVariables, new Map());
-
-				entries?.forEach(([key, value]) => sharedVariables.set(key, value));
-			},
-			enumerable: true,
-			configurable: false,
-		});
-
-		return params;
-	}
-
-	private initSharedVariables(
-		choiceExecutor: IChoiceExecutor,
-		providedVariables?: Map<string, unknown>
-	): Map<string, unknown> {
-		const existingVariables = choiceExecutor.variables;
-
-		if (providedVariables) {
-			if (existingVariables && providedVariables !== existingVariables) {
-				existingVariables.forEach((value, key) => {
-					if (!providedVariables.has(key)) {
-						providedVariables.set(key, value);
-					}
-				});
-			}
-			return providedVariables;
-		}
-
-		return existingVariables ?? new Map<string, unknown>();
-	}
-
 	constructor(
 		app: App,
 		plugin: ChoiceRuntimePlugin,
@@ -203,12 +133,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
 		this.promptLabel = promptLabel;
-		const sharedVariables = this.initSharedVariables(
-			choiceExecutor,
-			variables
-		);
-		this.choiceExecutor.variables = sharedVariables;
-		this.params = this.buildParams(app, choiceExecutor, sharedVariables);
+		this.params = createScriptParameters({ app, plugin, runtime, choiceExecutor, variables, chain });
 	}
 
 	async run(): Promise<void> {
@@ -408,20 +333,11 @@ export class MacroChoiceEngine extends QuickAddEngine {
 	}
 
 	protected async executeChoice(command: IChoiceCommand) {
-		let targetChoice: IChoice;
-		try {
-			targetChoice = this.plugin.getChoiceById(command.choiceId);
-		} catch (error) {
-			// getChoiceById throws ONLY a "Choice <id> not found" error when the
-			// referenced choice was deleted; surface a friendly message naming the
-			// stored command and skip instead of aborting the whole macro. Rethrow
-			// anything else so a genuine fault isn't silently swallowed (which would
-			// let the macro continue in a corrupted state).
-			const message = error instanceof Error ? error.message : String(error);
-			if (!/not found/i.test(message)) throw error;
-			log.logError(
-				`choice '${command.name}' could not be found.`
-			);
+		// A deleted choice is skipped with a message naming the stored command,
+		// rather than aborting the whole macro.
+		const targetChoice = this.plugin.findChoiceById(command.choiceId);
+		if (!targetChoice) {
+			log.logError(`choice '${command.name}' could not be found.`);
 			return;
 		}
 
@@ -460,12 +376,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 	}
 
 	private async executeAIAssistant(command: IAIAssistantCommand) {
-		return executeMacroAI(this.app, this.plugin, this.runtime, this.choice, this.choiceExecutor, this.chain, command,
-			() => this.pickModelInteractively());
-	}
-
-	private async pickModelInteractively(): Promise<ResolvedModel> {
-		return pickMacroModel(this.app, this.choiceExecutor);
+		return executeMacroAI(this.app, this.plugin, this.runtime, this.choice, this.choiceExecutor, this.chain, command);
 	}
 
 	private async executeConditional(command: IConditionalCommand) {
@@ -641,6 +552,8 @@ export class MacroChoiceEngine extends QuickAddEngine {
 				originLeaf: this.originLeaf,
 			});
 		} catch (error) {
+			// A dismissed prompt in the path, or an abort, stops the macro like any other step.
+			if (error instanceof MacroAbortError) throw error;
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
 		}
 	}

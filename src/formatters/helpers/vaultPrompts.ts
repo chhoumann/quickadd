@@ -9,10 +9,9 @@ import { collectFieldValuesProcessedDetailed } from "../../utils/FieldValueColle
 import { FieldValueProcessor } from "../../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../../utils/activeNoteFieldDefault";
 import { buildFileDisplayInfos, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, itemWithAlias, type ParsedFileToken } from "../../utils/fileSyntax";
-import { UserCancelError } from "../../errors/UserCancelError";
-import { isCancellationError } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
 import { getFileTokenFiles } from "../../utils/vaultQueries";
+import { promptOrCancel } from "./promptOrCancel";
 
 interface VaultPromptContext {
 	app: App;
@@ -25,7 +24,7 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 	// Route the final picker to a remote interactive session (Raycast) when one
 	// is driving; the vault-side value collection below still runs unchanged.
 	const provider = executor?.promptProvider;
-	try {
+	return await promptOrCancel(async () => {
 		// Parse the field input to extract field name and filters. Do NOT warn
 		// here: the field replacer in formatter.ts already parses the same token
 		// with its warn sink before calling this, so warning again would emit a
@@ -173,12 +172,7 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		return await InputSuggester.Suggest(app, values, values, {
 			placeholder,
 		});
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }
 
 export async function suggestForFile({ app, executor, getSourcePath }: VaultPromptContext, parsed: ParsedFileToken): Promise<string | string[]> {
@@ -186,7 +180,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 	// Route the final picker to a remote interactive session (Raycast) when one
 	// is driving; the vault-side file filtering below still runs unchanged.
 	const provider = executor?.promptProvider;
-	try {
+	return await promptOrCancel(async () => {
 		const files = getFileTokenFiles(app, parsed);
 
 		const placeholder =
@@ -295,10 +289,5 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 			{ aliases, ...(parsed.optional ? { skippable: true } : {}) },
 		);
 		return result ?? "";
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }

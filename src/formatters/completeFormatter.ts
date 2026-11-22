@@ -2,7 +2,6 @@ import { stripCursorMarkers } from "../utils/capturePlacement";
 import { protectUserText, restoreUserText } from "./helpers/userText";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
-import { expandGlobalVariables } from "./helpers/globalVariables";
 import { unescapePipesInTokens } from "../utils/pipeEscapes";
 import { findNextInlineScript, inlineScriptRescanFrom } from "../utils/inlineScriptSpans";
 import type { App, TFile } from "obsidian";
@@ -36,9 +35,8 @@ import {
 	extractHeadingsFromLines,
 	sanitizeHeadingForSubpath,
 } from "../utils/sectionLink";
-import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { isCancellationError } from "../utils/errorUtils";
+import { promptOrCancel } from "./helpers/promptOrCancel";
 
 export class CompleteFormatter extends Formatter {
 	/**
@@ -60,7 +58,7 @@ export class CompleteFormatter extends Formatter {
 	 */
 	constructor(
 		protected app: App,
-		private plugin: FormatterPluginContext,
+		protected plugin: FormatterPluginContext,
 		protected choiceExecutor?: IChoiceExecutor,
 		private readonly runtime?: FormatterExecutionRuntime,
 		dateParser?: IDateParser,
@@ -140,10 +138,6 @@ export class CompleteFormatter extends Formatter {
 		return this.promptScope === "captureText" ||
 			(this.promptScope === "noteBody" && this.preserveTemplateCursorMarkers)
 			? output : stripCursorMarkers(output);
-	}
-
-	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 
 	/**
@@ -572,24 +566,19 @@ export class CompleteFormatter extends Formatter {
 					);
 					return this.value;
 				}
-				try {
+				return await promptOrCancel(async () => {
 					this.value = await GenericSuggester.Suggest(
 						this.app,
 						["true", "false"],
 						["true", "false"],
 						this.describeAnonymousValuePrompt().title,
 						undefined,
-						this.valuePromptContext.optional
+						this.valuePromptContext?.optional
 							? { skippable: true }
 							: undefined,
 					);
 					return this.value;
-				} catch (error) {
-					if (isCancellationError(error)) {
-						throw new UserCancelError("Input cancelled by user");
-					}
-					throw error;
-				}
+				});
 			}
 			const prompt = this.describeAnonymousValuePrompt();
 			// Remote prompts lack a context-line channel, so include context in their header.
@@ -604,7 +593,7 @@ export class CompleteFormatter extends Formatter {
 				);
 				return this.value;
 			}
-			try {
+			await promptOrCancel(async () => {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
 					this.valuePromptContext?.inputTypeOverride ?? this.defaultValueInputType,
@@ -625,12 +614,7 @@ export class CompleteFormatter extends Formatter {
 					undefined,
 					{ ...promptOptions, linkSourcePath: linkSourcePath || undefined },
 				);
-			} catch (error) {
-				if (isCancellationError(error)) {
-					throw new UserCancelError("Input cancelled by user");
-				}
-				throw error;
-			}
+			});
 		}
 
 		return this.value;
@@ -712,14 +696,7 @@ export class CompleteFormatter extends Formatter {
 		// named a token QuickAdd has never had, in the one message whose whole
 		// job is to tell a non-interactive caller which flag to pass (#1587).
 		this.assertInteractivePrompt("a {{MVALUE}} math expression");
-		try {
-			return await MathModal.Prompt();
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		return await promptOrCancel(() => MathModal.Prompt());
 	}
 	protected async suggestForValue(suggestedValues: string[],
 	allowCustomInput = false,

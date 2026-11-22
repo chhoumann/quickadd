@@ -1,4 +1,3 @@
-import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
 import { unescapePipesInTokens } from "src/utils/pipeEscapes";
 import { normalizeVaultPath } from "../utils/pathUtils";
 import type { App } from "obsidian";
@@ -39,6 +38,8 @@ import { getFileTokenFiles } from "src/utils/vaultQueries";
 
 export type { FieldRequirement, FieldGroup } from "./fieldRequirements";
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
+import { defaultDateVariableFormat, encodeDateToken } from "../utils/dateTokenCodec";
+import { uniqueKeyIgnoringCase } from "../formatters/helpers/keyIgnoringCase";
 
 const OPTION_LIST_LABEL_MAX = 30;
 
@@ -76,7 +77,7 @@ export class RequirementCollector extends Formatter {
 
 	constructor(
 		protected app: App,
-		private plugin: SettingsProvider,
+		protected plugin: SettingsProvider,
 		protected choiceExecutor?: IChoiceExecutor,
 	) {
 		super(app);
@@ -258,10 +259,6 @@ export class RequirementCollector extends Formatter {
 		return output;
 	}
 
-	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
-	}
-
 	// Additional scanning for defaults/options in {{VALUE:...}} tokens
 	private scanVariableTokens(input: string) {
 		const re = new RegExp(VARIABLE_REGEX.source, "gi");
@@ -373,15 +370,9 @@ export class RequirementCollector extends Formatter {
 		key: string,
 		type: FieldType,
 	): FieldRequirement | undefined {
-		const exact = this.requirements.get(key);
-		if (exact) return exact.type === type ? exact : undefined;
-		const lower = key.toLowerCase();
-		const matches = [...this.requirements.values()].filter(
-			(req) => req.id.toLowerCase() === lower,
-		);
-		return matches.length === 1 && matches[0].type === type
-			? matches[0]
-			: undefined;
+		const id = uniqueKeyIgnoringCase(this.requirements.keys(), key);
+		const requirement = id === undefined ? undefined : this.requirements.get(id);
+		return requirement?.type === type ? requirement : undefined;
 	}
 
 	private inputFieldType(context?: Pick<PromptContext, "inputTypeOverride">): FieldType {
@@ -455,7 +446,7 @@ export class RequirementCollector extends Formatter {
 				match[3],
 			);
 			const dateFormat =
-				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
+				match[2]?.trim() || defaultDateVariableFormat(withTime);
 
 			// A VDATE finds an earlier answer by its exact name at run time.
 			const existing = this.requirements.get(variableName);
@@ -551,7 +542,7 @@ export class RequirementCollector extends Formatter {
 		// variable and would record first-occurrence flags without the AND
 		// rule). Just return an inert value to keep scanning.
 		if (context?.type === "VDATE") {
-			return context.defaultValue ?? "@date:1970-01-01T00:00:00.000Z";
+			return context.defaultValue ?? encodeDateToken("1970-01-01T00:00:00.000Z");
 		}
 
 		// Generic named variables

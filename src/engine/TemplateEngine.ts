@@ -4,7 +4,8 @@ import { stripCursorMarkers } from "../utils/capturePlacement";
 import { getBodyStartOffset } from "../utils/noteContentInsertion";
 import { getMarkdownEditorViewForFile, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
 import { processNote } from "../utils/noteContent";
-import { FolderSelectionEngine } from "./FolderSelectionEngine";
+import { QuickAddEngine } from "./QuickAddEngine";
+import { createFileWithInput, stripLeadingSlash } from "./vaultFiles";
 import {
 	postProcessFrontMatter,
 	shouldPostProcessFrontMatter,
@@ -37,17 +38,7 @@ import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { restoreUserTextAt } from "../formatters/helpers/userText";
 
-function isMacroAbortError(error: unknown): error is MacroAbortError {
-	return (
-		error instanceof MacroAbortError ||
-		(Boolean(error) &&
-			typeof error === "object" &&
-			"name" in (error as Record<string, unknown>) &&
-			(error as { name?: string }).name === "MacroAbortError")
-	);
-}
-
-export abstract class TemplateEngine extends FolderSelectionEngine {
+export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
 	protected cursorPlacement: EditorCursorPlacement | null = null;
 	protected templaterCursorHandled = false;
@@ -67,6 +58,27 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		});
 		this.cursorPlacement = prepared;
 		if (this.cursorPlacement?.offsets.length === 0) this.cursorPlacement = null;
+	}
+
+	/**
+	 * Finishes a note the template body was just written to: typed front matter,
+	 * then Templater, then the cursor markers. The markers are cleaned even when
+	 * an earlier step fails, without hiding that step's error.
+	 */
+	private async renderWrittenTemplate(file: TFile, templateVars: Map<string, unknown>): Promise<void> {
+		let rendered = false;
+		try {
+			if (shouldPostProcessFrontMatter(file, templateVars)) {
+				await postProcessFrontMatter(this.app, file, templateVars);
+			}
+			this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, file);
+			rendered = true;
+		} finally {
+			await this.finishTemplateContent(file).catch(error => {
+				if (rendered) throw error;
+				log.logWarning(`Unable to clean cursor markers in '${file.path}': ${String(error)}`);
+			});
+		}
 	}
 
 	public getCursorPlacement(): EditorCursorPlacement | null {
@@ -126,8 +138,8 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		fileName: string,
 		folderPath: string,
 	): { fileName: string; strippedPrefix: boolean } {
-		const normalizedFolder = this.stripLeadingSlash(folderPath);
-		const normalizedFileName = this.stripLeadingSlash(fileName);
+		const normalizedFolder = stripLeadingSlash(folderPath);
+		const normalizedFileName = stripLeadingSlash(fileName);
 
 		if (!normalizedFolder) {
 			return { fileName: normalizedFileName, strippedPrefix: false };
@@ -161,7 +173,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 		if (normalizedFileName.startsWith("/")) return true;
 
-		const [firstSegment] = this.stripLeadingSlash(normalizedFileName).split("/");
+		const [firstSegment] = stripLeadingSlash(normalizedFileName).split("/");
 		if (!firstSegment) return false;
 
 		const rootEntry = this.app.vault.getAbstractFileByPath(firstSegment);
@@ -184,11 +196,11 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		fileName: string,
 		templatePath: string
 	): string {
-		const safeFolderPath = this.stripLeadingSlash(folderPath);
+		const safeFolderPath = stripLeadingSlash(folderPath);
 		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
 		const normalizedFileName = normalizeGeneratedFilePath(
-			this.stripLeadingSlash(fileName),
+			stripLeadingSlash(fileName),
 			"File name",
 		);
 		const formattedFileName: string = normalizeGeneratedFilePath(
@@ -290,7 +302,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		// paths where nothing is at `filePath` yet, so a name Obsidian refuses can
 		// only end in a failed `vault.create`. Letting it get that far means the
 		// user answers the whole prompt chain and their inline scripts run first,
-		// and QuickAddEngine.createFileWithInput leaves the target folder behind.
+		// and createFileWithInput leaves the target folder behind.
 		//
 		// It THROWS rather than recording into lastTemplateFileFailure: that field
 		// is for helpers that report-and-return-null, while this aborts the choice
@@ -309,29 +321,17 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 			const suppressTemplaterOnCreate = filePath
 				.toLowerCase()
 				.endsWith(".md");
-			const createdFile: TFile = await this.createFileWithInput(
+			const createdFile: TFile = await createFileWithInput(
+				this.app,
 				filePath,
 				formattedTemplateContent,
 				{ suppressTemplaterOnCreate },
 			);
 
-			let rendered = false;
-			try {
-				if (shouldPostProcessFrontMatter(createdFile, templateVars)) {
-					await postProcessFrontMatter(this.app, createdFile, templateVars);
-				}
-				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, createdFile);
-				rendered = true;
-			} finally {
-				await this.finishTemplateContent(createdFile).catch(error => {
-					if (rendered) throw error;
-					log.logWarning(`Unable to clean cursor markers in '${createdFile.path}': ${String(error)}`);
-				});
-			}
-
+			await this.renderWrittenTemplate(createdFile, templateVars);
 			return createdFile;
 		} catch (err) {
-			if (isMacroAbortError(err)) {
+			if (err instanceof MacroAbortError) {
 				throw err;
 			}
 			this.noteTemplateFileFailure(
@@ -406,23 +406,10 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 			await processNote(this.app, file, () => formattedTemplateContent);
 
-			let rendered = false;
-			try {
-				if (shouldPostProcessFrontMatter(file, templateVars)) {
-					await postProcessFrontMatter(this.app, file, templateVars);
-				}
-				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, file);
-				rendered = true;
-			} finally {
-				await this.finishTemplateContent(file).catch(error => {
-					if (rendered) throw error;
-					log.logWarning(`Unable to clean cursor markers in '${file.path}': ${String(error)}`);
-				});
-			}
-
+			await this.renderWrittenTemplate(file, templateVars);
 			return file;
 		} catch (err) {
-			if (isMacroAbortError(err)) {
+			if (err instanceof MacroAbortError) {
 				throw err;
 			}
 			this.noteTemplateFileFailure(err, "Could not overwrite file with template");

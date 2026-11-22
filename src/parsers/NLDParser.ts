@@ -1,5 +1,6 @@
 import * as chrono from "chrono-node";
 import type { IDateParser, ParsedMoment } from "./IDateParser";
+import { log } from "../logger/logManager";
 
 /**
  * Words that pin a phrase to the past: "last friday", "friday last week",
@@ -39,14 +40,14 @@ class NLDParserImpl implements IDateParser {
 
 			// Check if moment is available at runtime
 			if (!window.moment) {
-				console.warn("Moment.js is not available");
+				log.logWarning("Moment.js is not available");
 				return null;
 			}
 
 			const moment = window.moment(date);
 			return { moment };
 		} catch (error) {
-			console.warn("Failed to parse date:", input, error);
+			log.logWarning(`Failed to parse date "${input}": ${String(error)}`);
 			return null;
 		}
 	}

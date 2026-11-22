@@ -23,6 +23,7 @@ import type { RunClocks } from "src/types/dateOrigin";
 import { dateOriginInput, planDateOrigin } from "src/utils/resolveDateOrigin";
 import { buildDiscoveryFormPlan, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
 import { hasActivePreparedChoiceInputs } from "./preparedChoiceInputs";
+import { optionValuesByLabel } from "./suggesterValueMapping";
 
 /**
  * The clocks the run will format `{{DATE}}` with, resolved from the choice's
@@ -193,10 +194,7 @@ export async function runOnePagePreflight(
 						formatter.setTargetFolderPath(
 							likelyTargetFolderPath(tmpl.folder) ?? "Folder/Name",
 						);
-						// Seed variables map-like into formatter
-						for (const [k, v] of Object.entries(values)) {
-							formatter["variables"].set(k, v);
-						}
+						formatter.seedAnswers(values);
 						out.push({
 							label: "File name",
 							text: await formatter.format(tmpl.fileNameFormat.format),
@@ -265,15 +263,9 @@ export async function runOnePagePreflight(
 		for (const req of modal?.activeRequirements ?? modalRequirements) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
 				const options = req.options ?? [];
-				const displayOptions = req.displayOptions ?? options;
 				fileInfoByKey.set(req.id, {
 					options,
-					displayToValue: new Map(
-						options.map((value, index) => [
-							(displayOptions[index] ?? value).trim(),
-							value,
-						]),
-					),
+					displayToValue: optionValuesByLabel(options, req.displayOptions, { trimLabels: true }),
 					allowCustom: req.suggesterConfig?.allowCustomInput ?? false,
 					multiSelect: req.suggesterConfig?.multiSelect ?? false,
 				});
@@ -282,16 +274,10 @@ export async function runOnePagePreflight(
 				req.suggesterConfig?.multiSelect &&
 				!req.id.startsWith(FILE_VARIABLE_PREFIX)
 			) {
-				const options = req.options ?? [];
-				const displayOptions = req.displayOptions ?? options;
-				const displayToValue = new Map<string, string>();
-				options.forEach((value, i) => {
-					displayToValue.set((displayOptions[i] ?? value).trim(), value);
-				});
 				multiInfoByKey.set(req.id, {
 					emit: req.multiEmit ?? "text",
 					allowCustom: req.suggesterConfig.allowCustomInput ?? false,
-					displayToValue,
+					displayToValue: optionValuesByLabel(req.options ?? [], req.displayOptions, { trimLabels: true }),
 				});
 			}
 		}

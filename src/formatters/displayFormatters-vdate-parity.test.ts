@@ -88,19 +88,14 @@ describe("where the two previews differ", () => {
 		).resolves.toBe("[YYYY]");
 	});
 
-	it("reports a bad snap unit on a nameless token only in the body", async () => {
-		const body = formatters.body();
-		await expect(body.format("{{VDATE:,YYYY|startof:we}}")).resolves.toBe(
+	// The run leaves a nameless token literal without reading its options, so
+	// a bad unit in one never aborts it and neither preview reports it.
+	it.each(["body", "fileName"] as const)("leaves a nameless token with a bad snap unit alone in the %s", async (kind) => {
+		const formatter = formatters[kind]();
+		await expect(formatter.format("{{VDATE:,YYYY|startof:we}}")).resolves.toBe(
 			"{{VDATE:,YYYY|startof:we}}",
 		);
-		const unitMessages = (formatter: { diagnostics: { list(): readonly { message: string }[] } }) =>
-			formatter.diagnostics.list().filter((d) => d.message.includes('Unknown date unit "we"'));
-		expect(unitMessages(body)).toHaveLength(1);
-
-		const fileName = formatters.fileName();
-		await expect(fileName.format("{{VDATE:,YYYY|startof:we}}")).resolves.toBe(
-			"{{VDATE:,YYYY|startof:we}}",
-		);
-		expect(unitMessages(fileName)).toEqual([]);
+		const unitMessages = formatter.diagnostics.list().filter((d) => d.message.includes('Unknown date unit "we"'));
+		expect(unitMessages).toEqual([]);
 	});
 });

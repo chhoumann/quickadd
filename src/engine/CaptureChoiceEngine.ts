@@ -72,7 +72,9 @@ import {
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
-import { getCaptureAction, isEditorAction, withoutCursorPosition, type CaptureAction } from "./captureAction";
+import { getCaptureAction, isEditorAction, usesSelectionAsCaptureValue, withoutCursorPosition, type CaptureAction } from "./captureAction";
+import { createFileWithInput, getFileByPath } from "./vaultFiles";
+import { hasCursorMarker, isCaptureContentEmpty, isCursorMarkerOnly } from "../formatters/helpers/captureContent";
 import { currentEditorView, currentFile, namesCurrentNote } from "../utils/currentFile";
 import {
 	getCanvasTextCaptureContent,
@@ -93,15 +95,6 @@ import {
 } from "../utils/periodicNotes";
 
 const DEFAULT_NOTICE_DURATION = 4000;
-
-// Mirrors CaptureChoiceFormatter's "nothing to capture" definition: only ASCII
-// whitespace counts as empty (Unicode spaces like U+00A0 are intentional content,
-// see #760). Kept local so the engine's no-op detection does not depend on the
-// formatter module's mocked shape in tests.
-const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
-function isCaptureContentEmpty(content: string): boolean {
-	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
-}
 
 const MULTI_SELECT_TOKEN_REGEX =
 	/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi\s*(?=[:}|]|$)[^}]*\}\}/gi;
@@ -203,11 +196,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			return;
 		}
 
-		const shouldAppendToBottom =
-			this.choice.prepend ||
-			(this.choice.captureToActiveFile &&
-				this.choice.activeFileWritePosition === "bottom");
-
 		let msg = "";
 		switch (action) {
 			case "currentLine":
@@ -220,13 +208,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				msg = `Captured on a new line below cursor in ${fileName}`;
 				break;
 			case "activeFileTop":
+			case "top":
 				msg = `Captured to top of ${fileName}`;
 				break;
-			case "prepend":
-			case "append":
-				msg = shouldAppendToBottom
-					? `Captured to bottom of ${fileName}`
-					: `Captured to top of ${fileName}`;
+			case "bottom":
+				msg = `Captured to bottom of ${fileName}`;
 				break;
 			case "insertAfter": {
 				const heading =
@@ -328,29 +314,13 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		await copyChoiceFileLink(file);
 	}
 
-	private validateAppendLinkDestination(
-		linkOptions: NormalizedAppendLinkOptions,
-	): boolean {
-		const error = appendLinkDestinationError(this.app, linkOptions);
-		if (!error) return true;
-		this.failRun(error);
-		return false;
-	}
-
 	private configureFormatter(linkOptions: NormalizedAppendLinkOptions): void {
 		this.formatter.setLinkToCurrentFileBehavior(
 			linkOptions.enabled && !linkOptions.requireActiveFile
 				? "optional"
 				: "required",
 		);
-		const selectionOverride = this.choice.useSelectionAsCaptureValue;
-		const globalSelectionAsValue =
-			this.plugin.settings.useSelectionAsCaptureValue ?? true;
-		const useSelectionAsCaptureValue =
-			typeof selectionOverride === "boolean"
-				? selectionOverride
-				: globalSelectionAsValue;
-		this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
+		this.formatter.setUseSelectionAsCaptureValue(usesSelectionAsCaptureValue(this.choice, this.plugin.settings));
 	}
 
 	/**
@@ -493,7 +463,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			this.capturePropertyVars.clear();
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			this.configureFormatter(linkOptions);
-			if (!this.validateAppendLinkDestination(linkOptions)) return;
+			const linkDestinationError = appendLinkDestinationError(this.app, linkOptions);
+			if (linkDestinationError) {
+				this.outcome.fail(linkDestinationError);
+				return;
+			}
 
 			const propertyCapture = this.choice.propertyCapture === undefined
 				? undefined
@@ -501,7 +475,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			if (!propertyCapture && isEditorAction(getCaptureAction(this.choice)) && this.namedNoteHasNoEditor()) {
 				this.choice = withoutCursorPosition(this.choice);
 			}
-			const action = propertyCapture ? "append" : getCaptureAction(this.choice);
+			const action = propertyCapture ? "bottom" : getCaptureAction(this.choice);
 			const target = await this.resolveWriteTarget(action, !!propertyCapture);
 			if (target.kind === "canvasText") {
 				await this.handleCanvasTextCapture(
@@ -518,7 +492,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 			const content = this.getCaptureContent();
 
-			const fileAlreadyExists = await this.fileExists(filePath);
+			const fileAlreadyExists = await this.app.vault.adapter.exists(filePath);
 
 			// Refuse an impossible target here rather than at vault.create (#1591).
 			// Gated character-for-character on the dispatch condition below, so a
@@ -682,7 +656,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (isEditorAction(action)) {
 			const parsed = captureIsNoOp ? captureContent : await templaterParseTemplate(this.app, captureContent, file);
 			const payload = restoreUserTextInCapture(prepareCapture(parsed));
-			if (payload.cursor.kind === "none" && /{{CURSOR}}/i.test(parsed)) {
+			if (payload.cursor.kind === "none" && hasCursorMarker(parsed)) {
 				if (this.plugin.settings.showCaptureNotification) {
 					this.showNothingToCaptureNotice(file, { wasNewFile: !options.fileAlreadyExists });
 				}
@@ -699,7 +673,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 					: insert(payload.content, this.app, file);
 				if (!inserted) {
 					await this.cleanupCreatedClipboardAttachments();
-					this.failRun(`Capture "${this.choice.name}": no active Markdown editor to insert into.`);
+					this.outcome.fail(`Capture "${this.choice.name}": no active Markdown editor to insert into.`);
 					return null;
 				}
 			}
@@ -742,7 +716,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (!fileAlreadyExists && !this.choice.createFileIfItDoesntExist.enabled) {
 			throw new ChoiceAbortError(`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`);
 		}
-		let file = fileAlreadyExists ? this.getFileByPath(filePath) : undefined;
+		let file = fileAlreadyExists ? getFileByPath(this.app, filePath) : undefined;
 		this.formatter.setTitle(basenameWithoutMdOrCanvas(filePath));
 		this.formatter.setTargetFolderPath(parentFolderPath(filePath));
 		this.formatter.setDestinationSourcePath(filePath);
@@ -757,17 +731,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			: createWithTemplate ? "" : await this.periodicNoteContent(filePath) ?? "";
 		let templateVars = new Map<string, unknown>();
 		if (createWithTemplate) {
-			const template = new SingleTemplateEngine(this.app, this.plugin, this.runtime,
-				this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
-			template.setDestinationPath(filePath);
-			template.setPromptRunContext({
-				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
-				choiceName: this.choice.name, destination: filePath, destinationKind: "file",
-			});
-			template.choiceChain = this.chain;
-			if (linkOptions.enabled && !linkOptions.requireActiveFile) template.setLinkToCurrentFileBehavior("optional");
-			initialContent = await template.run();
-			templateVars = template.getAndClearTemplatePropertyVars();
+			({ content: initialContent, templateVars } = await this.renderCreateTemplate(filePath, linkOptions, false));
 		}
 		const frontmatter = readCaptureFrontmatter(initialContent);
 		for (const [key, value] of templateVars) {
@@ -813,7 +777,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				});
 			} else {
 				frontmatter[key] = prepared;
-				const create = () => this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
+				const create = () => createFileWithInput(this.app, filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
 					suppressTemplaterOnCreate: createWithTemplate,
 				});
 				file = createWithTemplate ? await create() : await createNoteAfterTemplaterTrigger(this.app, filePath, create);
@@ -861,17 +825,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				valueExists: (key) => keys.some((existing) => existing.trim().toLowerCase() === key.trim().toLowerCase()),
 			}),
 		});
-	}
-
-	/**
-	 * A failure exit that is not a throw: log it for the desktop, and record the same
-	 * message as the run's outcome so a caller who cannot see notices learns the cause
-	 * instead of the CLI's fixed "Choice execution failed" sentence (#1603).
-	 */
-	private failRun(message: string): void {
-		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-		log.logError(message);
-		this.outcome.failure(message);
 	}
 
 	private async cleanupCreatedClipboardAttachments(): Promise<void> {
@@ -1108,7 +1061,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		content: string,
 		editorInsertion = false,
 	): Promise<CaptureWriteResult> {
-		const file: TFile = this.getFileByPath(filePath);
+		const file: TFile = getFileByPath(this.app, filePath);
 		if (!file) throw new Error("File not found");
 
 		// Set the title to the existing file's basename
@@ -1124,7 +1077,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		const fileContent = await readNote(this.app, file);
-		if (/{{CURSOR}}/i.test(formatted) && prepareCapture(formatted).cursor.kind === "none") {
+		if (isCursorMarkerOnly(formatted)) {
 			return { file, newFileContent: fileContent, captureContent: "", priorContent: fileContent, cursor: { kind: "none" }, markerOnly: true };
 		}
 		if (editorInsertion) {
@@ -1181,6 +1134,32 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			window.moment(clocks?.date ?? clocks?.now), window.moment(clocks?.now));
 	}
 
+	/**
+	 * Renders the "Create file with template" body of a note this capture creates.
+	 * The template engine has its own formatter, so it is given the destination
+	 * ({{FOLDER}} in the body) and the run context (its prompts name the choice and
+	 * target). Its draft scope is the template's own: its {{VALUE}} prompt must not
+	 * share the capture body prompt's draft key.
+	 */
+	private async renderCreateTemplate(
+		filePath: string,
+		linkOptions: { enabled: boolean; requireActiveFile?: boolean } | undefined,
+		keepUserTextProtected: boolean,
+	): Promise<{ content: string; templateVars: Map<string, unknown> }> {
+		const templatePath = this.choice.createFileIfItDoesntExist.template;
+		const engine = new SingleTemplateEngine(this.app, this.plugin, this.runtime, templatePath, this.choiceExecutor);
+		if (linkOptions?.enabled && !linkOptions.requireActiveFile) engine.setLinkToCurrentFileBehavior("optional");
+		engine.setDestinationPath(filePath);
+		engine.setPromptRunContext({
+			draftScopeId: `${this.choice.id}#${templatePath}`,
+			choiceName: this.choice.name, destination: filePath, destinationKind: "file",
+		});
+		engine.choiceChain = this.chain;
+		engine.setKeepUserTextProtected(keepUserTextProtected);
+		const content = await engine.run();
+		return { content, templateVars: engine.getAndClearTemplatePropertyVars() };
+	}
+
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
@@ -1207,7 +1186,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				this.formatter.formatContentOnly(captureContent, { eachLine: this.choice.eachLine }),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
-		if (/{{CURSOR}}/i.test(formattedCaptureContent) && prepareCapture(formattedCaptureContent).cursor.kind === "none") {
+		if (isCursorMarkerOnly(formattedCaptureContent)) {
 			return null;
 		}
 
@@ -1216,40 +1195,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (!this.choice.createFileIfItDoesntExist.createWithTemplate) {
 			fileContent = await this.periodicNoteContent(filePath) ?? "";
 		} else {
-			const singleTemplateEngine: SingleTemplateEngine =
-				new SingleTemplateEngine(
-					this.app,
-					this.plugin,
-					this.runtime,
-					this.choice.createFileIfItDoesntExist.template,
-					this.choiceExecutor,
-				);
-
-			if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
-				singleTemplateEngine.setLinkToCurrentFileBehavior("optional");
-			}
-
-			// The SingleTemplateEngine has its own formatter; give it the
-			// destination folder so {{FOLDER}} resolves in the template body, and
-			// the run context so its prompts still name the choice and target.
-			singleTemplateEngine.setTargetFolderPath(parentFolderPath(filePath));
-			singleTemplateEngine.setPromptRunContext({
-				// Scoped to the template: the engine has its own formatter and raises
-				// its own {{VALUE}} prompt, which must not share the capture body
-				// prompt's draft key.
-				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
-				choiceName: this.choice.name,
-				destination: filePath,
-				destinationKind: "file",
-			});
-			singleTemplateEngine.choiceChain = this.chain;
-
 			// Answers to the template's prompts stay marked until Templater has run.
-			singleTemplateEngine.setKeepUserTextProtected(true);
-			fileContent = await singleTemplateEngine.run();
-
-			// Get template variables from the template engine's formatter
-			const templateVars = singleTemplateEngine.getAndClearTemplatePropertyVars();
+			const { content, templateVars } = await this.renderCreateTemplate(filePath, linkOptions, true);
+			fileContent = content;
 
 			log.logMessage(`CaptureChoiceEngine: Collected ${templateVars.size} template property variables`);
 			if (templateVars.size > 0) {
@@ -1265,7 +1213,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		// template is rendered below; without one, the trigger may fill the note
 		// first, so the capture is placed once it is done.
 		const createWithTemplate = this.choice.createFileIfItDoesntExist.createWithTemplate;
-		const create = () => this.createFileWithInput(filePath, fileContent, {
+		const create = () => createFileWithInput(this.app, filePath, fileContent, {
 			suppressTemplaterOnCreate: createWithTemplate,
 		});
 		const file: TFile = createWithTemplate

@@ -515,10 +515,6 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		} finally {
 			this.macroOnePageInput = previousOverride;
 		}
-
-		Object.entries(macroEngine.params.variables).forEach(([key, value]) => {
-			this.variables.set(key, value);
-		});
 	}
 
 	private async onChooseMultiType(
