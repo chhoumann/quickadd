@@ -27,6 +27,8 @@ export interface FormField {
 		| "field-suggest";
 	placeholder?: string;
 	defaultValue?: string;
+	/** A multi-select `suggester`'s starting picks, as entries of `options` or custom text. */
+	defaultValues?: string[];
 	description?: string;
 	options?: string[];
 	displayOptions?: string[];

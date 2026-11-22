@@ -75,7 +75,7 @@ export interface OnePageInputModalOptions extends OnePageFormHeader {
 
 function controlDefinition(requirement: FieldRequirement): string {
 	return JSON.stringify(Object.entries(requirement)
-		.filter(([key, value]) => value !== undefined && !["id", "group", "optional", "pathContext", "runtimeOnly"].includes(key))
+		.filter(([key, value]) => value !== undefined && !["id", "group", "optional", "pathContext", "runtimeOnly", "renderOption"].includes(key))
 		.sort(([a], [b]) => a.localeCompare(b)));
 }
 
@@ -83,15 +83,7 @@ export class OnePageInputModal extends Modal {
 	private readonly requirements: FieldRequirement[];
 	private readonly initialValues: Map<string, string>;
 	private readonly result = new Map<string, string>();
-	// Unambiguous ordered selections per multi-select field, recorded per-pick from
-	// the suggester (see SuggesterInputSuggest.onSelect). The ", "-joined input
-	// text alone can't distinguish picking "a" then "b" from picking a single
-	// option named "a, b"; consumers prefer this array when it still matches the
-	// final text (pure click flow), falling back to text parsing after manual edits.
 	public readonly multiSelections = new Map<string, string[]>();
-	// FILE selections stay structured and path-backed even though the public
-	// requestInputs result remains string-based. runOnePagePreflight consumes this
-	// map before the formatter renders name/link/path output.
 	public readonly fileSelections = new Map<string, string[]>();
 	public readonly discoverySelections = new Map<string, TemplateNoteSelection>();
 	private readonly discoverySuggesters: NoteDiscoveryInputSuggest[] = [];
@@ -249,17 +241,18 @@ export class OnePageInputModal extends Modal {
 	}
 
 	// Obsidian focuses the modal's first focusable element after onOpen. When the
-	// first field is a file picker holding a provided note, that is the note's
-	// remove button: typing goes nowhere and Enter drops the note. Start at the
-	// first field without a picked note instead, usually the capture text. An
+	// first field is a picker holding a provided pick, that is the pick's
+	// remove button: typing goes nowhere and Enter drops the pick. Start at the
+	// first field without a pick instead, usually the capture text. An
 	// empty picker is that field itself.
 	open() {
 		super.open();
-		if (!this.modalEl.ownerDocument.activeElement?.matches(".qa-onepage-file-picker__remove")) return;
+		if (!this.modalEl.ownerDocument.activeElement?.matches(".qa-onepage-file-picker__remove, .qa-onepage-multi-suggester__remove")) return;
 		const controls = Array.from(this.contentEl.querySelectorAll<HTMLElement>("input, textarea, select"))
 			.filter((control) => !control.closest("[hidden]") && !control.matches(":disabled"));
 		const unpicked = controls.find((control) =>
-			!control.closest(".qa-onepage-file-picker")?.querySelector(".qa-onepage-file-picker__chip"));
+			!control.closest(".qa-onepage-file-picker, .qa-onepage-multi-suggester")
+				?.querySelector(".qa-onepage-file-picker__chip, .qa-onepage-multi-suggester__chip"));
 		(unpicked ?? controls[0])?.focus();
 	}
 
@@ -568,6 +561,9 @@ export class OnePageInputModal extends Modal {
 				return;
 			}
 		}
+		const activeControls = Array.from(this.fieldControls.values()).filter((control) =>
+			this.requirements.includes(control.requirement) && this.isFieldVisible(control.requirement.id));
+		for (const control of activeControls) control.commitDraft?.();
 		// A required single-file picker starts empty, so Submit waits for a pick.
 		// Multi-file pickers may stay empty, as the run's multi-select allows.
 		const needsPick = (req: FieldRequirement) =>
@@ -583,6 +579,13 @@ export class OnePageInputModal extends Modal {
 		if (unpicked) {
 			new Notice(`QuickAdd: Choose a file for "${unpicked.label}".`);
 			this.focusField(unpicked.id);
+			return;
+		}
+		for (const control of activeControls) {
+			const problem = control.validate?.();
+			if (!problem) continue;
+			new Notice(problem);
+			this.focusField(control.requirement.id);
 			return;
 		}
 		// A pasted image may still be saving in one of the fields; defer so
@@ -613,15 +616,6 @@ export class OnePageInputModal extends Modal {
 			);
 			this.focusField(erroredDate.id);
 			return;
-		}
-
-		// Reconcile the per-pick multi-select arrays against the final text: if the
-		// user manually edited the field after picking (so the recorded picks no
-		// longer reproduce the text), drop the array and let the consumer fall back
-		// to text parsing. Otherwise the unambiguous picked order is authoritative.
-		for (const [id, picks] of this.multiSelections) {
-			const text = (this.result.get(id) ?? "").replace(/,\s*$/, "").trim();
-			if (picks.join(", ") !== text) this.multiSelections.delete(id);
 		}
 
 		Object.assign(out, this.collectAnswers());
@@ -689,6 +683,9 @@ export class OnePageInputModal extends Modal {
 			out[id] = requirementsById.get(id)?.suggesterConfig?.multiSelect
 				? [...picks]
 				: (picks[0] ?? "");
+		}
+		for (const [id, picks] of this.multiSelections) {
+			if (this.isFieldVisible(id)) out[id] = [...picks];
 		}
 		return out;
 	}

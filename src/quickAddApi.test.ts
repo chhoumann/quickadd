@@ -74,6 +74,7 @@ vi.mock("./gui/VDateInputPrompt/VDateInputPrompt", () => ({
 vi.mock("./preflight/OnePageInputModal", () => ({
 	OnePageInputModal: class {
 		waitForClose: Promise<Record<string, string>>;
+		multiSelections = new Map<string, string[]>();
 		constructor(app: unknown, missing: unknown, variables: unknown, options?: unknown) {
 			onePageModalCalls.push({ app, missing, variables, options });
 			this.waitForClose = mocks.onePageModalWaitForClose();

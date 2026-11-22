@@ -16,9 +16,10 @@ import { findChoice, importPackage, pickChoice, summarizeChoice } from "./api/ch
 import { PromptApi } from "./api/promptApi";
 import {
 	requestInputs,
-	type RequestInputSpec,
+	type RequestInputs,
 	type RequestInputsOptions,
 } from "./api/requestInputs";
+import type { RequestInputSpec } from "./api/requestInputOptions";
 import { abortIfHeadless } from "./interactive/routePrompt";
 import { createAiApi } from "./api/aiApi";
 import { createFieldSuggestionsApi } from "./api/fieldSuggestionsApi";
@@ -141,8 +142,8 @@ export class QuickAddApi {
 			}
 		};
 		return {
-			requestInputs: (inputs: RequestInputSpec[], options?: RequestInputsOptions) =>
-				requestInputs(app, choiceExecutor, inputs, options),
+			requestInputs: ((inputs: readonly RequestInputSpec<any>[], options?: RequestInputsOptions) =>
+				requestInputs(app, choiceExecutor, inputs, options)) as RequestInputs,
 			inputPrompt: async (
 				header: string,
 				placeholder?: string,

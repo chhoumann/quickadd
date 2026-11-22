@@ -111,7 +111,7 @@ field if you have not focused one.
 
 - `{{FIELD:...}}` inputs suggest the values the property already has in your notes' frontmatter (plus inline `key:: value` fields with `|inline:true`).
 - The field is named after the property, or after its [`|label:`](/docs/FormatSyntax/#field-label) when it has one.
-- `{{FIELD:...|multi}}` is not shown inline in the form, because vault field values can contain commas. QuickAdd collects the rest of the form first, then opens the regular multi-select for that field.
+- `{{FIELD:...|multi}}` is not shown inline in the form yet. QuickAdd collects the rest of the form first, then opens the regular multi-select for that field.
 
 ### How FILE inputs behave {#file-ux}
 
@@ -213,14 +213,15 @@ Supported input fields:
 - `label` (string)
 - `type` ("text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider")
 - `placeholder` (string)
-- `defaultValue` (string)
-- `options` (string[] for dropdown and suggester)
+- `defaultValue` (string, or string[] for a multi-select suggester)
+- `options` (string[] for dropdown and suggester). An input whose `options` hold other values is left out of the form, and its script's `requestInputs` call asks for it.
+- `displayOptions` (string[], or a function `(value, index, options) => string`, for dropdown and suggester)
 - `numericConfig` (object for number: `{ min?: number, max?: number, step?: number }`)
 - `sliderConfig` (object for slider: `{ min: number, max: number, step?: number }`; `min` and `max` are required, `step` defaults to `1`)
 - `dateFormat` (string for date)
 - `description` (string)
 - `optional` (boolean - field may be left empty; shows an "(optional)" badge)
-- `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean, multiSelect?: boolean }`)
+- `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean, multiSelect?: boolean, returnArray?: boolean, separator?: string, renderItem?: (value, el) => void }`). See [requestInputs](/docs/QuickAddAPI/#requestinputs) for what each one does.
 
 Field type details:
 
@@ -234,7 +235,7 @@ Field type details:
 - `suggester`: searchable autocomplete with custom options (allows typing custom values)
   - Matches are ranked the way Obsidian's quick switcher ranks them: an exact match first, then options that start with what you typed, then options with a word that starts with it, then options that contain it anywhere, and finally fuzzy matches. Within a group, shorter options come first. With `caseSensitive`, only options that contain the typed text in the same case are listed. Ranking needs QuickAdd 2.28.0 or later; earlier versions list matches in the order of `options`.
   - Supports multi-select mode via `suggesterConfig.multiSelect: true`
-  - Multi-select: select multiple items, separated by commas. Suggestions stay open after each selection. The text after the last comma is what gets ranked.
+  - Multi-select: each pick shows as a chip above the search box, so an option or typed entry with a comma in it stays one pick. Enter adds the highlighted row. When nothing matches, that row is **Add “text”**. Backspace in an empty search box removes the last chip, and a chip's **×** button removes that chip. Text left in the search box when you submit is added as a pick. Suggestions stay open after each pick, without the options already picked.
 
 ## Scripts: request inputs at runtime (API) {#scripts-request-inputs-at-runtime-api}
 
@@ -326,11 +327,28 @@ export default async function entry({ quickAddApi }) {
 
   // Result: values.tags = "#work, #project, #urgent"
   const { tags } = values;
-
-  // Split into array if needed
-  const tagArray = tags.split(', ').filter(Boolean);
 }
 ```
+
+To get the picks as an array, set `returnArray: true`. Splitting the joined string would break a pick that has a comma in it:
+
+```js
+export default async function entry({ quickAddApi }) {
+  const values = await quickAddApi.requestInputs([
+    {
+      id: "topics",
+      label: "Topics",
+      type: "suggester",
+      options: ["A string, with stuff after a comma", "Another string"],
+      suggesterConfig: { multiSelect: true, returnArray: true },
+    },
+  ]);
+
+  // Result: values.topics = ["A string, with stuff after a comma", "Another string"]
+}
+```
+
+The variable holds the same array, so a later `topics: {{VALUE:topics}}` in a template's frontmatter writes a YAML list. To get one joined string with other text between picks instead of an array, remove `returnArray` (or set `returnArray: false`) and set `separator`, for example `separator: "; "`.
 
 Behavior:
 

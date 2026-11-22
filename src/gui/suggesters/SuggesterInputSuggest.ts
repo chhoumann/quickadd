@@ -1,121 +1,148 @@
-import type { App, SearchMatches } from "obsidian";
+import { setIcon, type App, type SearchMatches } from "obsidian";
 import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
 import {
+	createRenderFallbackWarner,
 	dispatchCompletion,
-	normalizeDisplayItem,
+	normalizeForSearch,
 	normalizeQuery,
 	renderHighlightRanges,
 } from "./utils";
 
 const MAX_RESULTS = 200;
 
-export class SuggesterInputSuggest extends TextInputSuggest<string> {
-	private options: string[];
-	private caseSensitive: boolean;
-	private multiSelect: boolean;
-	// Match ranges of the last suggestions, for highlighting.
-	private matchesByItem = new Map<string, SearchMatches>();
-	// Fires with the exact item picked on each multi-select selection. The
-	// resulting ", "-joined input text is ambiguous when an option's label equals
-	// the join of two other option labels (e.g. "a", "b", and "a, b"); the
-	// per-pick event lets callers record an unambiguous ordered selection.
-	private onSelect?: (item: string) => void;
+export interface SuggesterOption {
+	key: string;
+	value: string;
+	label: string;
+	isCustom?: boolean;
+}
+
+export interface SuggesterInputSuggestConfig {
+	getOptions: () => readonly SuggesterOption[];
+	onSelect: (option: SuggesterOption) => void;
+	caseSensitive?: boolean;
+	multiSelect?: boolean;
+	allowCustomInput?: boolean;
+	isSelected?: (option: SuggesterOption) => boolean;
+	renderOption?: (value: string, el: HTMLElement, matches: SearchMatches) => void;
+}
+
+export function labelsMatch(a: string, b: string, caseSensitive: boolean): boolean {
+	return caseSensitive ? a === b : normalizeForSearch(a) === normalizeForSearch(b);
+}
+
+export function customSuggesterOption(text: string): SuggesterOption {
+	return { key: `custom:${text}`, value: text, label: text, isCustom: true };
+}
+
+export class SuggesterInputSuggest extends TextInputSuggest<SuggesterOption> {
+	private readonly caseSensitive: boolean;
+	private matchesByOption = new Map<SuggesterOption, SearchMatches>();
+	private readonly warnRenderFailure = createRenderFallbackWarner(
+		"Custom renderItem threw an error; falling back to default rendering",
+	);
+	private readonly keydownListener?: (event: KeyboardEvent) => void;
 
 	constructor(
 		app: App,
 		inputEl: HTMLInputElement,
-		options: string[],
-		caseSensitive = false,
-		multiSelect = false,
-		onSelect?: (item: string) => void,
+		private readonly config: SuggesterInputSuggestConfig,
 	) {
 		super(app, inputEl);
-		this.options = options.map((option) => normalizeDisplayItem(option));
-		this.caseSensitive = caseSensitive;
-		this.multiSelect = multiSelect;
-		this.onSelect = onSelect;
-
-		// Add accessibility attribute for multi-select mode
-		if (this.multiSelect) {
-			this.inputEl.setAttribute("aria-multiselectable", "true");
+		this.caseSensitive = config.caseSensitive ?? false;
+		if (config.multiSelect) {
+			inputEl.setAttribute("aria-multiselectable", "true");
+			this.keydownListener = (event: KeyboardEvent) => {
+				if (
+					event.isComposing ||
+					event.key !== "Enter" ||
+					event.metaKey ||
+					event.ctrlKey ||
+					event.altKey ||
+					event.shiftKey ||
+					this.isPopupOpen()
+				) return;
+				const [first] = this.inputEl.value.trim() ? this.getSuggestions(this.inputEl.value) : [];
+				if (!first) return;
+				event.preventDefault();
+				this.selectSuggestion(first);
+			};
+			inputEl.addEventListener("keydown", this.keydownListener);
 		}
 	}
 
-	private parseMultiSelectInput(input: string): {
-		alreadySelected: string[];
-		activeTerm: string;
-	} {
-		if (!this.multiSelect) {
-			return { alreadySelected: [], activeTerm: input };
+	override destroy(): void {
+		if (this.keydownListener) {
+			this.inputEl.removeEventListener("keydown", this.keydownListener);
 		}
-
-		const parts = input.split(",").map((s) => s.trim());
-		return {
-			alreadySelected: parts.slice(0, -1).filter(Boolean),
-			activeTerm: parts[parts.length - 1] || "",
-		};
+		super.destroy();
 	}
 
-	private getRemainingOptions(alreadySelected: string[]): string[] {
-		return this.options.filter((opt) => !alreadySelected.includes(opt));
+	private isSelected(option: SuggesterOption): boolean {
+		return this.config.isSelected?.(option) ?? false;
 	}
 
-	getSuggestions(query: string): string[] {
-		const safeQuery = normalizeQuery(query);
-		const { alreadySelected, activeTerm } = this.parseMultiSelectInput(safeQuery);
-		const available = this.getRemainingOptions(alreadySelected);
-
-		const ranked = rankMatches(activeTerm, available, (option) => option, {
+	getSuggestions(query: string): SuggesterOption[] {
+		const text = normalizeQuery(query);
+		const options = this.config.getOptions();
+		const available = this.config.multiSelect
+			? options.filter((option) => !this.isSelected(option))
+			: [...options];
+		const ranked = rankMatches(text, available, (option) => option.label, {
 			limit: MAX_RESULTS,
 			caseSensitive: this.caseSensitive,
 		});
-		this.matchesByItem = new Map(ranked.map(({ item, matches }) => [item, matches]));
-		return ranked.map(({ item }) => item);
+		this.matchesByOption = new Map(ranked.map(({ item, matches }) => [item, matches]));
+		const matches = ranked.map(({ item }) => item);
+		const custom = this.customOption(text.trim(), options);
+		return custom ? [...matches, custom] : matches;
 	}
 
-	renderSuggestion(item: string, el: HTMLElement): void {
-		renderHighlightRanges(el, item, this.matchesByItem.get(item) ?? []);
+	private customOption(text: string, options: readonly SuggesterOption[]): SuggesterOption | undefined {
+		if (!text || !this.config.multiSelect || this.config.allowCustomInput === false) return undefined;
+		if (options.some((option) => labelsMatch(option.label, text, this.caseSensitive))) return undefined;
+		const custom = customSuggesterOption(text);
+		return this.isSelected(custom) ? undefined : custom;
 	}
 
-	selectSuggestion(item: string): void {
-		if (this.multiSelect) {
-			this.selectMultipleItem(item);
-		} else {
-			this.selectSingleItem(item);
+	renderSuggestion(option: SuggesterOption, el: HTMLElement): void {
+		if (option.isCustom) {
+			el.addClass("mod-complex");
+			el.createDiv({ cls: "suggestion-content", text: `Add “${option.label}”` });
+			setIcon(el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" }), "plus");
+			return;
 		}
+		const matches = this.matchesByOption.get(option) ?? [];
+		if (this.config.renderOption) {
+			try {
+				this.config.renderOption(option.value, el, matches);
+				return;
+			} catch (error) {
+				this.warnRenderFailure(error);
+				el.replaceChildren();
+			}
+		}
+		renderHighlightRanges(el, option.label, matches);
 	}
 
-	private selectSingleItem(item: string): void {
-		this.inputEl.value = item;
-		dispatchCompletion(this.inputEl);
-		this.close();
-	}
+	selectSuggestion(option: SuggesterOption): void {
+		if (!this.config.multiSelect) {
+			this.inputEl.value = option.label;
+			this.config.onSelect(option);
+			dispatchCompletion(this.inputEl);
+			this.close();
+			return;
+		}
 
-	private selectMultipleItem(item: string): void {
-		const { alreadySelected } = this.parseMultiSelectInput(this.inputEl.value);
-		alreadySelected.push(item);
-
-		// Report the exact picked item so callers can keep an unambiguous ordered
-		// selection (the joined text alone can't distinguish picking "a" then "b"
-		// from picking a single option literally named "a, b").
-		this.onSelect?.(item);
-
-		const hasMoreItems = this.getRemainingOptions(alreadySelected).length > 0;
-
-		// Set value with trailing comma and space only if more items available
-		this.inputEl.value = hasMoreItems
-			? alreadySelected.join(", ") + ", "
-			: alreadySelected.join(", ");
-
-		// Move cursor to end
-		this.inputEl.setSelectionRange(
-			this.inputEl.value.length,
-			this.inputEl.value.length,
-		);
-
-		dispatchCompletion(this.inputEl, hasMoreItems);
-		if (hasMoreItems) this.inputEl.focus();
-		else this.close();
+		this.config.onSelect(option);
+		this.inputEl.value = "";
+		if (this.config.getOptions().some((candidate) => !this.isSelected(candidate))) {
+			this.inputEl.focus();
+			dispatchCompletion(this.inputEl, true);
+		} else {
+			this.close();
+			this.inputEl.focus();
+		}
 	}
 }

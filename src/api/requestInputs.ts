@@ -7,6 +7,18 @@ import { formatISODate } from "../utils/dateParser";
 import { rethrowPromptError } from "./promptApi";
 import { abortIfHeadless } from "../interactive/routePrompt";
 import { type OnePageFormHeader, sanitizeOnePageFormHeader } from "../preflight/formHeader";
+import type { FormAnswer } from "../interactive/promptProvider";
+import {
+	encodeRequestInputOptions,
+	isMultiSelectSuggester,
+	multiSelectSeparator,
+	resolveExistingVariableValue,
+	shouldReturnArray,
+	type EncodedRequestInputOptions,
+	type RequestInputSpec,
+	type RequestSliderConfig,
+	type StringRequestInputSpec,
+} from "./requestInputOptions";
 
 function sanitizeNumericConfig(
 	value: NumericInputConfig | undefined,
@@ -37,12 +49,6 @@ function sanitizeNumericConfig(
 	return Object.keys(config).length > 0 ? config : undefined;
 }
 
-type RequestSliderConfig = {
-	min: number;
-	max: number;
-	step?: number;
-};
-
 function sanitizeSliderConfig(
 	value: RequestSliderConfig | undefined,
 ): SliderConfig | undefined {
@@ -64,77 +70,92 @@ function sanitizeSliderConfig(
 	return { min, max, step };
 }
 
-export interface RequestInputSpec {
-	id: string;
-	label?: string;
-	type:
-	| "text"
-	| "number"
-	| "textarea"
-	| "dropdown"
-	| "date"
-	| "field-suggest"
-	| "suggester"
-	| "slider";
-	placeholder?: string;
-	defaultValue?: string;
-	numericConfig?: NumericInputConfig;
-	sliderConfig?: RequestSliderConfig;
-	options?: string[];
-	dateFormat?: string;
-	description?: string;
-	optional?: boolean;
-	suggesterConfig?: {
-		allowCustomInput?: boolean;
-		caseSensitive?: boolean;
-		multiSelect?: boolean;
+export type { RequestInputSpec };
+export type RequestInputsOptions = OnePageFormHeader;
+
+export interface RequestInputs {
+	(inputs: readonly StringRequestInputSpec[], options?: RequestInputsOptions): Promise<Record<string, string>>;
+	(inputs: readonly RequestInputSpec<any>[], options?: RequestInputsOptions): Promise<Record<string, unknown>>;
+}
+
+function toRequirement(spec: RequestInputSpec<unknown>, codec: EncodedRequestInputOptions): FieldRequirement {
+	const sliderConfig = sanitizeSliderConfig(spec.sliderConfig);
+	const config = spec.suggesterConfig;
+	return {
+		id: spec.id,
+		label: spec.label ?? spec.id,
+		type: spec.type === "slider" && !sliderConfig ? "number" : spec.type,
+		placeholder: spec.placeholder,
+		defaultValue: codec.defaultValue,
+		defaultValues: codec.defaultValues,
+		numericConfig: sliderConfig ?? sanitizeNumericConfig(spec.numericConfig),
+		sliderConfig,
+		options: codec.options,
+		displayOptions: codec.displayOptions,
+		renderOption: codec.renderOption,
+		dateFormat: spec.dateFormat,
+		description: spec.description,
+		optional: spec.optional,
+		suggesterConfig: config && {
+			allowCustomInput: config.allowCustomInput,
+			caseSensitive: config.caseSensitive,
+			multiSelect: config.multiSelect,
+			returnArray: config.returnArray,
+			separator: config.separator,
+		},
+		source: "script",
 	};
 }
 
-export type RequestInputsOptions = OnePageFormHeader;
+function decodeAnswer(
+	spec: RequestInputSpec<unknown>,
+	codec: EncodedRequestInputOptions,
+	answer: FormAnswer | undefined,
+): unknown {
+	if (isMultiSelectSuggester(spec)) {
+		const picks = typeof answer === "string" ? (answer ? [answer] : []) : (answer ?? []);
+		return shouldReturnArray(spec)
+			? picks.map(codec.decode)
+			: picks.map(codec.text).join(multiSelectSeparator(spec));
+	}
+	if (answer === undefined) return "";
+	if (Array.isArray(answer)) return answer.join(", ");
+	return spec.type === "suggester" || spec.type === "dropdown" ? codec.decode(answer) : answer;
+}
 
+export function requestInputs(
+	app: App,
+	choiceExecutor: IChoiceExecutor,
+	inputs: readonly StringRequestInputSpec[],
+	options?: RequestInputsOptions,
+): Promise<Record<string, string>>;
+export function requestInputs(
+	app: App,
+	choiceExecutor: IChoiceExecutor,
+	inputs: readonly RequestInputSpec<any>[],
+	options?: RequestInputsOptions,
+): Promise<Record<string, unknown>>;
 export async function requestInputs(
 	app: App,
 	choiceExecutor: IChoiceExecutor,
-	inputs: RequestInputSpec[],
+	inputs: readonly RequestInputSpec<unknown>[],
 	options?: RequestInputsOptions,
-): Promise<Record<string, string>> {
-	// If all inputs already have values, return them immediately
-	const existing: Record<string, string> = {};
+): Promise<Record<string, unknown>> {
+	const rawResult: Record<string, unknown> = {};
+	const codecs = new Map<string, EncodedRequestInputOptions>();
 	const missing: FieldRequirement[] = [];
 	for (const spec of inputs) {
-		const val = choiceExecutor.variables.get(spec.id) as
-			| string
-			| undefined;
-		// Empty string is considered intentional and should not be re-asked
+		const val = choiceExecutor.variables.get(spec.id);
 		if (val !== undefined && val !== null) {
-			existing[spec.id] = String(val);
+			rawResult[spec.id] = resolveExistingVariableValue(spec, val);
 			continue;
 		}
-		const sliderConfig = sanitizeSliderConfig(spec.sliderConfig);
-		const numericConfig =
-			sliderConfig ?? sanitizeNumericConfig(spec.numericConfig);
-		const type =
-			spec.type === "slider" && !sliderConfig ? "number" : spec.type;
-
-		missing.push({
-			id: spec.id,
-			label: spec.label ?? spec.id,
-			type,
-			placeholder: spec.placeholder,
-			defaultValue: spec.defaultValue,
-			numericConfig,
-			sliderConfig,
-			options: spec.options,
-			dateFormat: spec.dateFormat,
-			description: spec.description,
-			optional: spec.optional,
-			suggesterConfig: spec.suggesterConfig,
-			source: "script",
-		});
+		const codec = encodeRequestInputOptions(spec);
+		codecs.set(spec.id, codec);
+		missing.push(toRequirement(spec, codec));
 	}
 
-	let collected: Record<string, string> = {};
+	let collected: Record<string, FormAnswer> = {};
 	if (missing.length > 0) {
 		const formHeader = sanitizeOnePageFormHeader(options);
 		abortIfHeadless(
@@ -148,13 +169,7 @@ export async function requestInputs(
 		const provider = choiceExecutor?.promptProvider;
 		if (provider) {
 			try {
-				const providerAnswers = await provider.requestInputs(missing, formHeader);
-				collected = Object.fromEntries(
-					Object.entries(providerAnswers).map(([key, value]) => [
-						key,
-						Array.isArray(value) ? value.join(", ") : value,
-					]),
-				);
+				collected = await provider.requestInputs(missing, formHeader);
 			} catch (error) {
 				rethrowPromptError(error);
 			}
@@ -170,26 +185,13 @@ export async function requestInputs(
 			} catch (error) {
 				rethrowPromptError(error);
 			}
+			for (const [id, picks] of modal.multiSelections) collected[id] = picks;
 		}
 	}
 
-	// A multi-select field leaves ", " after the last pick, ready for the next
-	// one. That separator is not part of the answer.
 	for (const spec of inputs) {
-		const value = collected[spec.id];
-		if (spec.type === "suggester" && spec.suggesterConfig?.multiSelect && typeof value === "string") {
-			collected[spec.id] = value.replace(/,\s*$/, "");
-		}
-	}
-
-	const rawResult = { ...existing, ...collected };
-
-	// The modal omits blank/unparseable date keys so the preflight
-	// flow can re-prompt sequentially. Scripts have no such
-	// fallback - keep the requestInputs contract that every
-	// requested id resolves (empty answer = "").
-	for (const spec of inputs) {
-		if (rawResult[spec.id] === undefined) rawResult[spec.id] = "";
+		const codec = codecs.get(spec.id);
+		if (codec) rawResult[spec.id] = decodeAnswer(spec, codec, collected[spec.id]);
 	}
 
 	// Store raw values (including @date:ISO) for downstream processors
@@ -198,11 +200,9 @@ export async function requestInputs(
 	);
 
 	// Return user-friendly values that honor dateFormat when provided
-	const formattedResult: Record<string, string> = {};
+	const formattedResult: Record<string, unknown> = {};
 	for (const spec of inputs) {
 		const value = rawResult[spec.id];
-		if (value === undefined) continue;
-
 		let output = value;
 		if (
 			spec.type === "date" &&
@@ -210,11 +210,9 @@ export async function requestInputs(
 			typeof value === "string" &&
 			value.startsWith("@date:")
 		) {
-			const iso = value.slice(6);
-			const formatted = formatISODate(iso, spec.dateFormat);
+			const formatted = formatISODate(value.slice(6), spec.dateFormat);
 			if (formatted) output = formatted;
 		}
-
 		formattedResult[spec.id] = output;
 	}
 

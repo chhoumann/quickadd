@@ -23,6 +23,7 @@ import type { RunClocks } from "src/types/dateOrigin";
 import { dateOriginInput, planDateOrigin } from "src/utils/resolveDateOrigin";
 import { buildDiscoveryFormPlan, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
 import { hasActivePreparedChoiceInputs } from "./preparedChoiceInputs";
+import { multiSelectSeparator, shouldReturnArray } from "src/api/requestInputOptions";
 
 /**
  * The clocks the run will format `{{DATE}}` with, resolved from the choice's
@@ -194,8 +195,18 @@ export async function runOnePagePreflight(
 							likelyTargetFolderPath(tmpl.folder) ?? "Folder/Name",
 						);
 						// Seed variables map-like into formatter
+						const linklistKeys = new Set(
+							modalRequirements
+								.filter((req) => req.multiEmit === "linklist")
+								.map((req) => req.id),
+						);
 						for (const [k, v] of Object.entries(values)) {
-							formatter["variables"].set(k, v);
+							formatter["variables"].set(
+								k,
+								linklistKeys.has(k) && Array.isArray(v)
+									? v.map((item) => toWikiLink(String(item)))
+									: v,
+							);
 						}
 						out.push({
 							label: "File name",
@@ -248,17 +259,14 @@ export async function runOnePagePreflight(
 				multiSelect: boolean;
 			}
 		>();
-		// |multi requirements: the suggester stores a ", "-joined string of the
-		// DISPLAY labels; split it, map each label back to its option value (so
-		// |text: mappings round-trip), and store a real array so the formatter
-		// writes a YAML list — matching the runtime |multi path, with linklist
-		// wrapping when requested.
 		const multiInfoByKey = new Map<
 			string,
 			{
 				emit: "text" | "linklist";
 				allowCustom: boolean;
+				values: Set<string>;
 				displayToValue: Map<string, string>;
+				joinWith?: string;
 			}
 		>();
 		for (const req of modal?.activeRequirements ?? modalRequirements) {
@@ -289,8 +297,16 @@ export async function runOnePagePreflight(
 				});
 				multiInfoByKey.set(req.id, {
 					emit: req.multiEmit ?? "text",
-					allowCustom: req.suggesterConfig.allowCustomInput ?? false,
+					allowCustom: req.suggesterConfig.allowCustomInput ?? (req.source === "script"),
+					values: new Set(options),
 					displayToValue,
+					joinWith: req.source === "script" && !shouldReturnArray({
+						type: "suggester",
+						options: req.options,
+						suggesterConfig: req.suggesterConfig,
+					})
+						? multiSelectSeparator(req)
+						: undefined,
 				});
 			}
 		}
@@ -323,26 +339,19 @@ export async function runOnePagePreflight(
 			}
 			const multiInfo = multiInfoByKey.get(k);
 			if (multiInfo !== undefined) {
-				// Prefer the modal's unambiguous per-pick selection (survives the
-				// "a"+"b" vs literal "a, b" collision); fall back to parsing the
-				// ", "-joined text when the user manually edited the field.
-				const pickedLabels = modal?.multiSelections.get(k);
-				const items = (
-					pickedLabels ??
-					splitMultiSelectLabels(String(v), multiInfo.displayToValue)
-				)
-					// Drop typed entries that aren't options unless the token opted
-					// into custom input, matching the runtime MultiSuggester.
-					.filter(
-						(label) =>
-							multiInfo.allowCustom || multiInfo.displayToValue.has(label),
-					)
-					// Map the display label back to its value; a typed custom value
-					// (no mapping) passes through unchanged.
-					.map((label) => multiInfo.displayToValue.get(label) ?? label);
+				const toValue = (label: string) =>
+					multiInfo.values.has(label) ? label : (multiInfo.displayToValue.get(label.trim()) ?? label);
+				const picks = modal?.multiSelections.get(k) ??
+					(Array.isArray(v)
+						? v.map(String)
+						: splitMultiSelectLabels(String(v), multiInfo.displayToValue)
+					).map(toValue);
+				const items = picks.filter((item) => multiInfo.allowCustom || multiInfo.values.has(item));
 				answerVariables.set(
 					k,
-					multiInfo.emit === "linklist" ? items.map(toWikiLink) : items,
+					multiInfo.joinWith !== undefined
+						? items.join(multiInfo.joinWith)
+						: multiInfo.emit === "linklist" ? items.map(toWikiLink) : items,
 				);
 				return;
 			}
