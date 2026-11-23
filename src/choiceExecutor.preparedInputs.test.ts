@@ -35,13 +35,13 @@ const runTemplate = vi.fn<(executor: IChoiceExecutor, choice: IChoice) => Promis
 const runCapture = vi.fn<(executor: IChoiceExecutor, choice: IChoice) => Promise<void>>();
 vi.mock("./engine/TemplateChoiceEngine", () => ({
 	TemplateChoiceEngine: class {
-		constructor(_app: unknown, _plugin: unknown, private choice: IChoice, private executor: IChoiceExecutor) {}
+		constructor(_app: unknown, _plugin: unknown, _runtime: unknown, private choice: IChoice, private executor: IChoiceExecutor) {}
 		async run() { await runTemplate(this.executor, this.choice); }
 	},
 }));
 vi.mock("./engine/CaptureChoiceEngine", () => ({
 	CaptureChoiceEngine: class {
-		constructor(_app: unknown, _plugin: unknown, private choice: IChoice, private executor: IChoiceExecutor) {}
+		constructor(_app: unknown, _plugin: unknown, _runtime: unknown, private choice: IChoice, private executor: IChoiceExecutor) {}
 		async run() { await runCapture(this.executor, this.choice); }
 	},
 }));

@@ -14,7 +14,7 @@
         onMoveDown,
     }: {
         command: IWaitCommand;
-        startDrag: () => void;
+        startDrag: (event: PointerEvent) => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onUpdateCommand: (command: IWaitCommand) => void;
@@ -22,9 +22,9 @@
         onMoveDown?: () => void;
     } = $props();
 
-    // Local mirror of command.time so the input is component-owned. We can't mutate
-    // the host-owned command object through the props bag, so persistence is explicit
-    // via onUpdateCommand (mirrors the old bind:value={command.time} on every change).
+    // Local mirror of command.time so the input is component-owned. The
+    // host-owned command cannot be mutated through the props bag, so
+    // persistence is explicit via onUpdateCommand.
     let inputEl = $state<HTMLInputElement>();
     // Intentionally seed once from the prop; the input is component-owned thereafter.
     let time = $state(untrack(() => command.time));

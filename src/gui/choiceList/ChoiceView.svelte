@@ -4,8 +4,7 @@
 	import { settingsStore } from "src/settingsStore";
 	import { log } from "src/logger/logManager";
 	import { untrack } from "svelte";
-	import type QuickAdd from "../../main";
-	import { CommandRegistry } from "../../services/choiceService";
+	import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "../../types/pluginContext";
 	import type IChoice from "../../types/choices/IChoice";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { DOCS_URLS } from "../../docs";
@@ -25,7 +24,7 @@
 		openAISettings,
 	}: {
 		app: App;
-		plugin: QuickAdd;
+		plugin: ChoiceBuilderPlugin & ChoiceCommandRegistrar;
 		choices?: IChoice[];
 		// Accepts only Plain<IChoice[]> (from snapshot()) — see persist.svelte.ts.
 		saveChoices: (choices: Plain<IChoice[]>) => void;
@@ -36,12 +35,9 @@
 
 	let filterQuery = $state(""); // not persisted
 
-	// The ROOT `choices` is untrusted too: loadSettings deliberately leaves a
-	// non-array value in place rather than replacing it with [] (which the next
-	// save would persist). Coercing it to [] here would show the "No choices yet"
-	// hero, whose one CTA writes a fresh list straight over it - so refuse to
-	// render the list at all instead, which also means nothing in this view can
-	// call save() while the tree is unreadable (#1566).
+	// The root `choices` is untrusted: loadSettings leaves a non-array in place.
+	// Coercing it to [] would show the empty-state CTA that writes over it, so
+	// nothing in this view renders or saves while the tree is unreadable.
 	const rootUnreadable = $derived(!Array.isArray(choices));
 	const rootUnreadableDetail = $derived(
 		`The "choices" value in data.json is ${
@@ -52,26 +48,24 @@
 	// On mobile the bottom-bar controls fill the width instead of cramming right.
 	const isMobile = Platform.isMobile;
 
-	// Reactive mirror of the AI/online gate so the "AI Assistant" button below
-	// reflects toggles of `disableOnlineFeatures` made in the (now declarative)
-	// settings tab live — the old imperative tab re-rendered on every change, the
-	// declarative tab does not re-mount this view.
+	// Reactive mirror of the online gate: the declarative settings tab does not
+	// re-mount this view when `disableOnlineFeatures` changes.
 	let disableOnlineFeatures = $state(
 		settingsStore.getState().disableOnlineFeatures,
 	);
 
-	// Command registry for managing Obsidian commands (plugin is constant for the
+	// Keeps the command palette in step with the list (plugin is constant for the
 	// component's life; untrack avoids a spurious state_referenced_locally warning).
-	const commandRegistry = new CommandRegistry(untrack(() => plugin));
+	const commands: ChoiceCommandRegistrar = untrack(() => plugin);
 
-	choices = seedChoices(choices, commandRegistry);
+	choices = seedChoices(choices, commands);
 
 	// Keep choices in sync with external store changes. The subscribe callback runs
 	// only on store changes (not during this effect's synchronous setup), so the
 	// effect registers no reactive deps and subscribes exactly once.
 	$effect(() => {
 		const unsubSettingsStore = settingsStore.subscribe((settings) => {
-			choices = seedChoices(settings.choices, commandRegistry);
+			choices = seedChoices(settings.choices, commands);
 			disableOnlineFeatures = settings.disableOnlineFeatures;
 		});
 		return () => unsubSettingsStore();
@@ -84,7 +78,7 @@
 		set choices(value) { choices = value; },
 		get filterQuery() { return filterQuery; },
 		set filterQuery(value) { filterQuery = value; },
-		commandRegistry,
+		commands,
 		saveChoices: (value) => saveChoices(value),
 	});
 
@@ -97,11 +91,8 @@
 	     and the add controls would write a new one over it. -->
 	<ChoicesUnavailable detail={rootUnreadableDetail} />
 	{:else}
-	<!-- A throw anywhere below used to escape mount() and abort the whole
-	     declarative settings tab, so ONE bad choice cost every QuickAdd setting
-	     (#1451, #1566). The boundary keeps that damage inside this view; the
-	     try/catch in quickAddSettingsTab.renderChoicesView covers the setup this
-	     boundary sits inside. -->
+	<!-- A throw below would escape mount() and abort the whole settings tab; the
+	     boundary keeps the damage inside this view. -->
 	<svelte:boundary onerror={(error: unknown) => log.logError(
 		`QuickAdd could not render the choice list: ${error instanceof Error ? error.message : String(error)}`,
 	)}>
@@ -115,7 +106,7 @@
 				A choice is an action QuickAdd can run: create a note, capture
 				text, or run a macro. Group them with folders.
 				<!-- The one place a brand-new user is guaranteed to look, so it
-				     carries the plugin's only prominent docs link (#1541). -->
+				     carries the plugin's only prominent docs link. -->
 				<a
 					class="quickadd-docs-link"
 					href={DOCS_URLS.gettingStarted}
@@ -197,9 +188,6 @@
 
 		<div class="choiceViewBottomBar">
 			{#if !disableOnlineFeatures}
-				<!-- AI Assistant is a quiet configure-AI utility — an icon button
-				     matching the per-row action icons — leading the right cluster so
-				     the bar's width barely changes when AI/online features toggle. -->
 				<button
 					type="button"
 					class="qaAIAssistantBtn clickable-icon"

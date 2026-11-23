@@ -56,6 +56,7 @@ import { NestedChoiceCommand } from "../types/macros/QuickCommands/NestedChoiceC
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { TEMPLATER_REPLACE_COMMAND_ID, warnDeprecatedOnce } from "../utils/templaterRerunDeprecation";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const createConditionalCommand = (
 	condition: ConditionalCommand["condition"],
@@ -118,6 +119,7 @@ const createEngine = (
 	const engine = new MacroChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		choice,
 		choiceExecutor,
 		variablesMap

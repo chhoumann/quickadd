@@ -28,7 +28,7 @@ vi.mock("./engine/runTemplateFromFolder", () => ({
 }));
 vi.mock("./engine/TemplateChoiceEngine", () => ({
 	TemplateChoiceEngine: class {
-		constructor(_app: unknown, _plugin: unknown, private choice: IChoice) {}
+		constructor(_app: unknown, _plugin: unknown, _runtime: unknown, private choice: IChoice) {}
 		async run() { await runTemplate(this.choice); }
 	},
 }));

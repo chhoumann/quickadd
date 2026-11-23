@@ -5,23 +5,25 @@
 		what = "your choices",
 		detail = "",
 	}: {
-		/** Noun phrase naming what could not be displayed. Defaults to the only
-		 *  thing this card is ever about; it exists so the component satisfies
-		 *  mountComponent's MountFallbackComponent contract (see mountComponent.ts). */
+		/**
+		 * Noun phrase naming what could not be displayed. Defaults to the only
+		 * thing this card is ever about; it exists so the component satisfies
+		 * mountComponent's MountFallbackComponent contract.
+		 */
 		what?: string;
-		/** The underlying error message, when there is one. Shown verbatim: it is
-		 *  what makes a bug report actionable, and this view is otherwise a dead
-		 *  end for the user. */
+		/**
+		 * The underlying error message, when there is one. Shown verbatim: it is
+		 * what makes a bug report actionable.
+		 */
 		detail?: string;
 	} = $props();
 </script>
 
 <!--
   Shown when the choice list cannot be rendered at all: a corrupt `choices` value
-  in data.json, or an unexpected throw while mounting. The alternative - and what
-  actually shipped for #1451, #1507 and #1566 - is that the whole QuickAdd
-  settings tab comes up blank, which reads as "the plugin is broken" and gives
-  the user nothing to act on.
+  in data.json, or an unexpected throw while mounting. Otherwise the whole
+  QuickAdd settings tab would come up blank, which reads as "the plugin is
+  broken" and gives the user nothing to act on.
 
   Deliberately offers no button. A "retry" re-renders the same data and throws
   again, and anything that could rewrite data.json would destroy the very value

@@ -25,8 +25,8 @@ export interface PickerOrderingDeps {
  * Orders files for a capture note-picker to mirror the Quick Switcher:
  *  1. excluded ("Excluded files") sink to the bottom but stay selectable,
  *  2. most-recently-opened first (session recency, then cross-session recents),
- *  3. everything else alphabetically — a predictable tail that never re-surfaces
- *     the sync/import noise that motivated issue #745 (deliberately not mtime).
+ *  3. everything else alphabetically, a predictable tail (deliberately not
+ *     mtime, which sync and imports churn).
  *
  * Pure: all Obsidian access is injected via {@link PickerOrderingDeps}, so the
  * empty-deps case degrades to a stable alphabetical order.

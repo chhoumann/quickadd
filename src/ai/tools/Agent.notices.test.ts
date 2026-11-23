@@ -66,4 +66,41 @@ describe("Agent status notice", () => {
 		expect(result.finishReason).toBe("context-overflow");
 		expect(reportErrorSpy).toHaveBeenCalledWith(overflow);
 	});
+
+	it("shows start, per-step and finish status for a multi-step run", async () => {
+		chatRequestMock
+			.mockResolvedValueOnce(
+				turnResponse({ toolCalls: [{ id: "c1", name: "create_note", args: { path: "a.md" } }] }),
+			)
+			.mockResolvedValueOnce(turnResponse({ content: "done", normalizedStopReason: "stop" }));
+
+		await makeAgent({ tools: { create_note: tool() } }).generate({ prompt: "make a note" });
+
+		expect(notices).toHaveLength(1);
+		const { messages } = notices[0];
+		expect(messages[0]).toBe("Assistant is starting.");
+		expect(messages.at(-1)).toMatch(/^Assistant is finished\./);
+		// A step that ran a tool names the tool; the wrap-up step mentions a response.
+		const steps = messages.filter((m) => m.startsWith("Assistant is thinking."));
+		expect(steps.some((m) => m.includes("create_note"))).toBe(true);
+		expect(steps.some((m) => /generating a response/i.test(m))).toBe(true);
+	});
+
+	it("shows no notice when assistant messages are off", async () => {
+		agentState.settings.ai = { confirmToolCalls: "never", defaultSystemPrompt: "", showAssistant: false };
+		chatRequestMock.mockResolvedValueOnce(turnResponse({ content: "done", normalizedStopReason: "stop" }));
+
+		await makeAgent().generate({ prompt: "hi" });
+
+		expect(notices).toHaveLength(0);
+	});
+
+	it("shows the failure when the run throws", async () => {
+		chatRequestMock.mockRejectedValueOnce(new Error("provider exploded"));
+
+		await expect(makeAgent().generate({ prompt: "boom" })).rejects.toThrow(/provider exploded/);
+
+		expect(notices).toHaveLength(1);
+		expect(notices[0].messages.at(-1)).toBe("AI request failed.\n\nprovider exploded");
+	});
 });

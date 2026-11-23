@@ -1,11 +1,12 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import { getAllFolderPathsInVault } from "../../../utils/vaultQueries";
 import { sortFolderPathsByTree } from "../../../utils/folder-sorting";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
-import { isCanvasTargetPath, normalizeVaultPath } from "../canvasNodes";
+import { isCanvasTargetPath } from "../canvasNodes";
+import { normalizeVaultPath } from "../../../utils/pathUtils";
 import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
@@ -15,7 +16,6 @@ import FormatTokenHint from "./FormatTokenHint.svelte";
 import CanvasNodePicker from "./CanvasNodePicker.svelte";
 import { getCaptureTargetFeedback } from "./captureTargetFeedback";
 
-/** Reactive port of captureChoiceBuilder.addCapturedToSetting. */
 let {
 	choice = $bindable(),
 	app,
@@ -23,7 +23,7 @@ let {
 }: {
 	choice: ICaptureChoice;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 const captureTargetSuggestions = $derived.by(() => {
@@ -37,10 +37,8 @@ const captureTargetSuggestions = $derived.by(() => {
 		.getFiles()
 		.filter((file) => file.extension === "canvas")
 		.map((file) => file.path);
-	// Paths only. Format tokens used to be mixed in here too, which put a second
-	// suggester's undescribed, differently-cased copy of the token list on the
-	// same input as FormatSyntaxSuggester: two stacked popups for one language,
-	// and the generic one replaces the whole field on accept (#1542).
+	// Paths only: format tokens come from FormatSyntaxSuggester, and a second
+	// suggester on the same input would stack popups.
 	return Array.from(new Set([...folderPaths, ...markdownPaths, ...canvasPaths]));
 });
 
@@ -55,12 +53,9 @@ const captureTargetFeedback = $derived.by(() =>
 // Filter/property targets are not paths, so showing the file-name format preview
 // would render a misleading fake path.
 const usesPickerTargetSyntax = $derived(captureTargetFeedback !== null);
-// The same question, asked of the RESOLVED text. The gate above reads the raw
-// field, but the run resolves the target's format tokens BEFORE parsing it
-// (CaptureChoiceEngine formats captureTo, then resolveCaptureTarget), so a
-// target written as `{{GLOBAL_VAR:inbox}}` that expands to `property:type=draft`
-// passes the raw gate and then gets previewed as a path - complete with #1578's
-// "cannot contain a colon" error for a capture that runs perfectly well.
+// The same question asked of the resolved text: the run resolves format tokens
+// before parsing the target, so `{{GLOBAL_VAR:inbox}}` expanding to
+// `property:type=draft` must not be previewed as a path.
 const isPickerTargetSyntax = (resolved: string) =>
 	getCaptureTargetFeedback(resolved) !== null;
 // Exclude picker syntax from canvas detection so a contrived value like
@@ -105,8 +100,8 @@ function onCaptureToChange(value: string) {
 
 const DAILY_NOTE_TARGET = "{{DAILY}}";
 
-// Shortcut for the most common target (#2023): the daily note, created from
-// the daily notes template when it doesn't exist yet.
+// Shortcut for the most common target: the daily note, created from the daily
+// notes template when it doesn't exist yet.
 function useDailyNote() {
 	onCaptureToChange(DAILY_NOTE_TARGET);
 	choice.createFileIfItDoesntExist = {

@@ -1,13 +1,13 @@
 import type IChoice from "./IChoice";
 import type { AppendLinkOptions } from "../linkPlacement";
-import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { FileOpeningSettings } from "../fileOpening";
 import type { TemplateExistingNoteAction, TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
 
 /**
  * Destination configuration for a Template choice. These four booleans encode a
  * set of mutually-exclusive destination modes at runtime (see
  * TemplateChoiceEngine.getFolderPath); the choice builder surfaces them through a
- * single derived dropdown (see gui/ChoiceBuilder/folderMode.ts).
+ * single derived dropdown (see utils/folderMode.ts).
  */
 export type TemplateFolderConfig = {
 	enabled: boolean;
@@ -36,11 +36,6 @@ export default interface ITemplateChoice extends IChoice {
 	/** Copy a link to the created/resolved file after the template runs. */
 	copyLinkToClipboard?: boolean;
 	openFile: boolean;
-	fileOpening: {
-		location: OpenLocation;
-		direction: "vertical" | "horizontal";
-		mode: FileViewMode2;
-		focus: boolean;
-	};
+	fileOpening: FileOpeningSettings;
 	fileExistsBehavior: TemplateFileExistsBehavior;
 }

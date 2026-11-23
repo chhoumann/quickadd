@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { Menu, type App } from "obsidian";
+import { Menu } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
+import type { ChoiceListActions } from "./choiceListActions";
 import {
+	choiceRowMenu,
 	isChoiceNested,
 	MOVE_TO_ROOT_TARGET_ID,
-	showChoiceContextMenu,
 } from "./contextMenu";
 
 let nextId = 0;
@@ -20,16 +21,19 @@ const folder = (name: string, children: IChoice[] = []): IMultiChoice =>
 		choices: children,
 	}) as IMultiChoice;
 
-const fakeApp = {} as unknown as App;
-
 const noopActions = {
-	onRename: vi.fn(),
-	onToggle: vi.fn(),
-	onConfigure: vi.fn(),
-	onDuplicate: vi.fn(),
-	onDelete: vi.fn(),
-	onMove: vi.fn(),
-};
+	onRenameChoice: vi.fn(),
+	onToggleCommand: vi.fn(),
+	onConfigureChoice: vi.fn(),
+	onDuplicateChoice: vi.fn(),
+	onDeleteChoice: vi.fn(),
+	onMoveChoice: vi.fn(),
+} as unknown as ChoiceListActions;
+
+const openMenu = (choice: IChoice, roots: IChoice[], actions: ChoiceListActions) =>
+	choiceRowMenu(() => ({ choice, roots, actions })).onContextMenu({
+		preventDefault: vi.fn(),
+	} as unknown as MouseEvent);
 
 describe("contextMenu audit (commands-choicelist)", () => {
 	describe("isChoiceNested", () => {
@@ -67,13 +71,9 @@ describe("contextMenu audit (commands-choicelist)", () => {
 		it("is offered (wired to the root sentinel) for a nested choice", () => {
 			const child = leaf("Child");
 			const f = folder("F", [child]);
-			const evt = { preventDefault: vi.fn() } as unknown as MouseEvent;
-			const onMove = vi.fn();
+			const onMoveChoice = vi.fn();
 
-			showChoiceContextMenu(fakeApp, evt, child, [f], {
-				...noopActions,
-				onMove,
-			});
+			openMenu(child, [f], { ...noopActions, onMoveChoice });
 
 			const moveToRoot = lastShownItems().find(
 				(i) => i.title === "Move to: (root)",
@@ -81,16 +81,12 @@ describe("contextMenu audit (commands-choicelist)", () => {
 			expect(moveToRoot).toBeDefined();
 
 			moveToRoot?.clickHandler?.();
-			expect(onMove).toHaveBeenCalledWith(MOVE_TO_ROOT_TARGET_ID);
+			expect(onMoveChoice).toHaveBeenCalledWith(child, MOVE_TO_ROOT_TARGET_ID);
 		});
 
 		it("is NOT offered for a top-level choice", () => {
 			const a = leaf("A");
-			const evt = { preventDefault: vi.fn() } as unknown as MouseEvent;
-
-			showChoiceContextMenu(fakeApp, evt, a, [a, folder("F")], {
-				...noopActions,
-			});
+			openMenu(a, [a, folder("F")], noopActions);
 
 			const moveToRoot = lastShownItems().find(
 				(i) => i.title === "Move to: (root)",

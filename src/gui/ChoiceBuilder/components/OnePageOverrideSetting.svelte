@@ -2,7 +2,6 @@
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 
-/** Replaces ChoiceBuilder.addOnePageOverrideSetting. */
 let {
 	onePageInput = $bindable(),
 }: {

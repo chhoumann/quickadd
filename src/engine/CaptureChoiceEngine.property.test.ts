@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
 import type QuickAdd from "../main";
@@ -8,6 +7,7 @@ import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { UserCancelError } from "../errors/UserCancelError";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { readCaptureFrontmatter, serializeCaptureFrontmatter } from "./captureProperty";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const mocks = vi.hoisted(() => ({
 	value: vi.fn<() => Promise<unknown>>(),
@@ -45,6 +45,7 @@ vi.mock("./SingleTemplateEngine", () => ({
 		setDestinationPath() {}
 		setPromptRunContext() {}
 		setLinkToCurrentFileBehavior() {}
+		setKeepUserTextProtected() {}
 		getAndClearTemplatePropertyVars() { return new Map(); }
 		run() { return mocks.template(); }
 	},
@@ -99,7 +100,7 @@ function fixture(content?: string) {
 		read: () => stored,
 		overwrite: (content: string) => { stored = content; },
 		race: (content: string) => { beforeCallback = () => { stored = content; }; },
-		run: () => new CaptureChoiceEngine(app as unknown as App, plugin, choice, executor).run(),
+		run: () => new CaptureChoiceEngine(app as unknown as App, plugin, testFormatterRuntime(), choice, executor).run(),
 	};
 }
 

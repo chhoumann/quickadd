@@ -1,14 +1,21 @@
 import type { TFile, CachedMetadata } from "obsidian";
 import type { FieldFilter } from "./FieldSuggestionParser";
-import {
-	normalizeFrontmatterTagValues,
-	normalizeTag,
-} from "./tagNormalizer";
+import { isPathWithinFolder, normalizeVaultPathSeparators } from "./pathUtils";
+import { noteTags, normalizeTag } from "./tagNormalizer";
+
+/** Whether `filter` narrows which files qualify: a folder, tag or exclude-* filter. */
+export function hasFileFilter(filter: FieldFilter): boolean {
+	return Boolean(
+		filter.folder ||
+			filter.folders?.length ||
+			filter.tags?.length ||
+			filter.excludeFolders?.length ||
+			filter.excludeTags?.length ||
+			filter.excludeFiles?.length,
+	);
+}
 
 export class FieldSuggestionFileFilter {
-	/**
-	 * Enhanced file filtering with inclusion and exclusion support
-	 */
 	static filterFiles(
 		files: TFile[],
 		filters: FieldFilter,
@@ -28,7 +35,7 @@ export class FieldSuggestionFileFilter {
 		const folders = this.getIncludeFolders(filters);
 		if (folders.length > 0) {
 			includedFiles = includedFiles.filter(file =>
-				folders.some(folder => this.matchesFolder(file, folder))
+				folders.some(folder => isPathWithinFolder(file.path, folder))
 			);
 		}
 
@@ -46,8 +53,9 @@ export class FieldSuggestionFileFilter {
 		filters: FieldFilter,
 		metadataCache: (file: TFile) => CachedMetadata | null,
 	): TFile[] {
+		const excludeFolders = this.normalizedFolders(filters.excludeFolders ?? []);
 		return files.filter(file =>
-			!(filters.excludeFolders?.length && filters.excludeFolders.some(folder => this.matchesFolder(file, folder))) &&
+			!excludeFolders.some(folder => isPathWithinFolder(file.path, folder)) &&
 			!(filters.excludeTags?.length && this.matchesTags(file, filters.excludeTags, metadataCache, "any")) &&
 			!(filters.excludeFiles?.length && filters.excludeFiles.some(target => this.matchesFile(file, target)))
 		);
@@ -60,22 +68,12 @@ export class FieldSuggestionFileFilter {
 				? [filters.folder]
 				: [];
 
-		return [...new Set(folders.map(folder => this.normalizePath(folder)).filter(Boolean))];
+		return this.normalizedFolders(folders);
 	}
 
-	private static matchesFolder(file: TFile, folder: string): boolean {
-		// Normalize paths for comparison
-		const normalizedFolder = this.normalizePath(folder);
-		const normalizedFilePath = this.normalizePath(file.path);
-
-		// Check if file is in the specified folder or its subfolders
-		return (
-			normalizedFilePath.startsWith(normalizedFolder + "/") ||
-			normalizedFilePath.substring(
-				0,
-				normalizedFilePath.lastIndexOf("/"),
-			) === normalizedFolder
-		);
+	/** A blank folder (`|exclude-folder:` with no value yet) filters nothing. */
+	private static normalizedFolders(folders: string[]): string[] {
+		return [...new Set(folders.map(normalizeVaultPathSeparators).filter(Boolean))];
 	}
 
 	private static matchesTags(
@@ -89,8 +87,7 @@ export class FieldSuggestionFileFilter {
 			return false;
 		}
 
-		// Get all tags from the file (both frontmatter and inline)
-		const fileTags = this.getAllTags(metadata);
+		const fileTags = noteTags(metadata);
 		const normalizedRequiredTags = requiredTags
 			.map(normalizeTag)
 			.filter(Boolean);
@@ -106,32 +103,6 @@ export class FieldSuggestionFileFilter {
 	}
 
 	private static matchesFile(file: TFile, targetFile: string): boolean {
-		// Match by exact name or path
 		return file.name === targetFile || file.path === targetFile;
-	}
-
-	private static getAllTags(metadata: CachedMetadata): string[] {
-		const tags: string[] = [];
-
-		// Get tags from frontmatter
-		if (metadata.frontmatter?.tags) {
-			tags.push(...normalizeFrontmatterTagValues(metadata.frontmatter.tags));
-		}
-
-		if (metadata.frontmatter?.tag) {
-			tags.push(...normalizeFrontmatterTagValues(metadata.frontmatter.tag));
-		}
-
-		// Get inline tags
-		if (metadata.tags) {
-			tags.push(...metadata.tags.map(tag => normalizeTag(tag.tag)));
-		}
-
-		return tags.filter(Boolean);
-	}
-
-	private static normalizePath(path: string): string {
-		// Remove leading/trailing slashes and normalize
-		return path.replace(/^\/+|\/+$/g, "");
 	}
 }

@@ -1,5 +1,6 @@
 import { type App, Notice, SettingGroup, SettingPage } from "obsidian";
 import { openSettingPage, retitleSettingPage } from "../../utils/openPluginSettings";
+import { getOwnerWindow } from "../../utils/activeWindow";
 
 /**
  * A builder shown as a page of Settings → QuickAdd, pushed onto Obsidian's
@@ -17,6 +18,7 @@ import { openSettingPage, retitleSettingPage } from "../../utils/openPluginSetti
 export abstract class BuilderPage<T> extends SettingPage {
 	private rendered = false;
 	private opener: Opener | null = null;
+	private cancelOpenerFocus: (() => void) | null = null;
 
 	protected constructor(
 		protected readonly app: App,
@@ -32,6 +34,9 @@ export abstract class BuilderPage<T> extends SettingPage {
 
 	/** Open over the settings page that is showing. False if Obsidian can't. */
 	open(): boolean {
+		// Reopened before the last back's focus fired: that focus is stale now.
+		this.cancelOpenerFocus?.();
+		this.cancelOpenerFocus = null;
 		this.opener = openerOf(activeDocument.activeElement);
 		if (openSettingPage(this.app, this)) return true;
 		new Notice(`QuickAdd: Couldn't open the settings for “${this.title}”.`);
@@ -51,11 +56,11 @@ export abstract class BuilderPage<T> extends SettingPage {
 
 	hide(): void {
 		// Unmount first: a form commits what is still pending as it unmounts,
-		// such as a folder typed without Add (#1993).
+		// such as a folder typed without Add.
 		this.destroy();
 		super.hide();
 		this.onSave(this.result());
-		if (this.opener) focusOpenerAfterBack(this.opener);
+		if (this.opener) this.cancelOpenerFocus = focusOpenerAfterBack(this.opener);
 	}
 
 	/** Save what the page holds now, and stay open. */
@@ -121,10 +126,12 @@ function openerOf(el: Element | null): Opener | null {
  * where Obsidian put focus on back: closing settings, switching tabs and
  * search results leave it alone.
  */
-function focusOpenerAfterBack({ el, label, content, focusVisible }: Opener): void {
+function focusOpenerAfterBack({ el, label, content, focusVisible }: Opener): () => void {
 	// Obsidian focuses what is below after this page's hide() returns; with
-	// Escape, not before this task's microtasks have run, so wait a task.
-	window.setTimeout(() => {
+	// Escape, not before this task's microtasks have run, so wait a task. On the
+	// opener's own window, which is a popout's when settings opened there.
+	const win = getOwnerWindow(el);
+	const timer = win.setTimeout(() => {
 		// Adding the first choice swaps the empty list's New choice for the
 		// list's own, so look for the same control by its label.
 		const target = el.isConnected
@@ -138,6 +145,7 @@ function focusOpenerAfterBack({ el, label, content, focusVisible }: Opener): voi
 			(active === content || (active.matches(".setting-item") && !!target && active.contains(target)));
 		if (target && leftWithBack) target.focus({ focusVisible });
 	});
+	return () => win.clearTimeout(timer);
 }
 
 /** The name to save from a Name field: trimmed, or `fallback` when empty. */

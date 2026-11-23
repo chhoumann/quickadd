@@ -5,7 +5,7 @@ import { isTemplaterTriggerOnCreateEnabled, jumpToNextTemplaterCursorIfPossible,
 describe("isTemplaterTriggerOnCreateEnabled", () => {
 	it.each([true, false])("reads the current local setting: %s", (enabled) => {
 		const app = new App();
-		Object.assign(app.plugins.plugins, {
+		Object.assign((app as any).plugins.plugins, {
 			"templater-obsidian": {
 				settings: { data_version: 2, trigger_on_file_creation_mode: "folder" },
 			},
@@ -18,7 +18,7 @@ describe("isTemplaterTriggerOnCreateEnabled", () => {
 
 	it.each([true, false])("preserves the legacy setting over local storage: %s", (enabled) => {
 		const app = new App();
-		Object.assign(app.plugins.plugins, {
+		Object.assign((app as any).plugins.plugins, {
 			"templater-obsidian": { settings: { trigger_on_file_creation: enabled } },
 		});
 		app.loadLocalStorage = vi.fn(() => ({ trigger_on_file_creation: !enabled }));
@@ -31,7 +31,7 @@ describe("isTemplaterTriggerOnCreateEnabled", () => {
 		"ignores absent or malformed local settings: %j",
 		(localSettings) => {
 			const app = new App();
-			Object.assign(app.plugins.plugins, { "templater-obsidian": { settings: {} } });
+			Object.assign((app as any).plugins.plugins, { "templater-obsidian": { settings: {} } });
 			app.loadLocalStorage = () => localSettings;
 
 			expect(isTemplaterTriggerOnCreateEnabled(app)).toBe(false);

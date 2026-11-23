@@ -14,10 +14,12 @@ import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import { formatDateAliasInline, getOrderedDateAliases } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
 import { normalizeNumericValue, normalizeSliderValue } from "src/utils/valueSyntax";
-import { decodeFileValue, fileBasenameFromPath } from "src/utils/fileSyntax";
-import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
+import { decodeFileValue } from "src/utils/fileSyntax";
+import { basenameWithoutMdOrCanvas } from "src/utils/pathUtils";
 import type { FieldRequirement } from "./RequirementCollector";
 import { resolveDropdownInitialValue } from "./suggesterValueMapping";
+import { decodeDateToken, encodeDateToken } from "../utils/dateTokenCodec";
+import { namesExistingNote } from "src/engine/helpers/captureTargetResolution";
 
 type CompletionInputEvent = Event & { fromCompletion?: boolean };
 
@@ -47,6 +49,9 @@ function labelId(req: FieldRequirement): string {
 	// Encoded: an id with a space would read as two references in aria-labelledby.
 	return `qa-onepage-label-${encodeURIComponent(req.id)}`;
 }
+
+/** The option an optional dropdown offers for leaving its answer empty. */
+export const SKIP_EMPTY_LABEL = "Skip (leave empty)";
 
 export class OnePageFieldRenderer {
 	constructor(
@@ -184,7 +189,7 @@ export class OnePageFieldRenderer {
 					// first real option stays preselected: adding |optional must
 					// not silently change what an untouched submit yields.
 					if (req.optional) {
-						dropdown.addOption("", "Skip (leave empty)");
+						dropdown.addOption("", SKIP_EMPTY_LABEL);
 					}
 					options.forEach((opt, index) => {
 						const display = displayOptions[index] ?? opt;
@@ -218,8 +223,9 @@ export class OnePageFieldRenderer {
 
 				let selectedIso: string | undefined;
 				let displayValue = starting;
-				if (starting?.startsWith("@date:")) {
-					selectedIso = starting.slice(6);
+				const startingIso = decodeDateToken(starting);
+				if (startingIso !== null) {
+					selectedIso = startingIso;
 					const formatted = req.dateFormat
 						? formatISODate(selectedIso, req.dateFormat)
 						: undefined;
@@ -289,7 +295,7 @@ export class OnePageFieldRenderer {
 					control.dateParseError = false;
 					const display = formatIsoForDisplay(iso);
 					input.inputEl.value = display;
-					setValue(req.id, `@date:${iso}`);
+					setValue(req.id, encodeDateToken(iso));
 					renderPreview(display, false);
 					syncSelection(iso);
 				};
@@ -303,7 +309,7 @@ export class OnePageFieldRenderer {
 					const parsed = parseNaturalLanguageDate(value, req.dateFormat);
 					const iso = parsed.isValid ? parsed.isoString : undefined;
 					control.dateParseError = !iso;
-					setValue(req.id, iso ? `@date:${iso}` : "");
+					setValue(req.id, iso ? encodeDateToken(iso) : "");
 					syncSelection(iso);
 					renderPreview(
 						iso ? (parsed.formatted ?? formatIsoForDisplay(iso)) : (parsed.error || "Unable to parse date"),
@@ -325,8 +331,9 @@ export class OnePageFieldRenderer {
 						renderPreview(req.optional ? "Will be left empty" : "Preview will appear here", false);
 						return;
 					}
-					if (inputVal.startsWith("@date:")) {
-						const iso = inputVal.slice(6).trim();
+					const pickedIso = decodeDateToken(inputVal);
+					if (pickedIso !== null) {
+						const iso = pickedIso.trim();
 						if (iso) {
 							applyPickerSelection(iso);
 							return;
@@ -397,19 +404,11 @@ export class OnePageFieldRenderer {
 	 */
 	private noteNameExists(within: "scope" | "vault", paths: string[]): (value: string) => boolean {
 		const notePaths = within === "vault" ? this.app.vault.getMarkdownFiles().map((file) => file.path) : paths;
-		const names = new Set(notePaths.map((path) => fileBasenameFromPath(path).toLowerCase()));
-		return (value) => {
-			let path: string;
-			try {
-				path = normalizeGeneratedFilePath(value, "Capture target file path");
-			} catch {
-				return false;
-			}
-			const base = path.replace(/\.(md|canvas)$/i, "");
-			if (names.has(base.slice(base.lastIndexOf("/") + 1).toLowerCase())) return true;
-			return within === "vault" &&
-				[path, `${base}.md`, `${base}.canvas`].some((candidate) => !!this.app.vault.getAbstractFileByPath(candidate));
-		};
+		const names = new Set(notePaths.map((path) => basenameWithoutMdOrCanvas(path).toLowerCase()));
+		const pathExists = within === "vault"
+			? (path: string) => !!this.app.vault.getAbstractFileByPath(path)
+			: undefined;
+		return (value) => namesExistingNote(value, names, pathExists);
 	}
 
 	private renderSuggesterField(

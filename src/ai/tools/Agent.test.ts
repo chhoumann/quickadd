@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- Mock the Obsidian-coupled dependencies the Agent reaches for ---
 import { chatRequestMock, confirmMock, agentState, makeAgent, turnResponse, tool } from "../../../tests/helpers/ai/agentHarness";
+import { Agent } from "./Agent";
 
 beforeEach(() => {
 	chatRequestMock.mockReset();
@@ -109,6 +110,27 @@ describe("Agent.generate — tool loop", () => {
 	});
 });
 
+describe("Agent.generate — seed request", () => {
+	// #1565 / #1568: the system prompt reaches the model verbatim; only the
+	// prompt goes through the QuickAdd formatter.
+	it("sends the system prompt unformatted and formats the prompt", async () => {
+		chatRequestMock.mockResolvedValueOnce(turnResponse({ content: "ok" }));
+		const system = "Today is {{DATE}} and the note is {{VALUE:title}}.";
+		const format = async (input: string) => input.replace(/\{\{[^}]*\}\}/g, "RESOLVED");
+		const agent = new Agent({} as never, { variables: new Map() } as never, { model: "gpt-4o", system }, format);
+
+		await agent.generate({ prompt: "Summarise {{VALUE:body}}" });
+
+		const request = chatRequestMock.mock.calls[0].find(
+			(arg): arg is { messages: unknown[] } => typeof arg === "object" && arg !== null && "messages" in arg,
+		);
+		expect(request?.messages).toEqual([
+			{ role: "system", content: system },
+			{ role: "user", content: "Summarise RESOLVED" },
+		]);
+	});
+});
+
 describe("Agent.generate — structured output", () => {
 	it("parses + validates the final turn into result.object", async () => {
 		chatRequestMock.mockResolvedValueOnce(
@@ -133,6 +155,23 @@ describe("Agent.generate — structured output", () => {
 		});
 		expect(res.object).toEqual({ title: "Fixed" });
 		expect(chatRequestMock).toHaveBeenCalledTimes(2);
+	});
+
+	// The repair is a best-effort second ask whose failure only leaves `object`
+	// undefined, so it must not pop a failure notice for a run that succeeded.
+	it("asks for the repair without reporting its failure", async () => {
+		chatRequestMock
+			.mockResolvedValueOnce(turnResponse({ content: "not json at all", normalizedStopReason: "stop" }))
+			.mockRejectedValueOnce(new Error("provider down"));
+		const agent = makeAgent();
+		const res = await agent.generate({
+			prompt: "extract",
+			schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+		});
+		expect(res.object).toBeUndefined();
+		const repairCall = chatRequestMock.mock.calls[1];
+		// chatRequest(apiKey, model, provider, request, afterRequest, reportFailure)
+		expect(repairCall[5]).toBe(false);
 	});
 
 	it("does not spend a repair request on a refusal", async () => {
@@ -170,5 +209,47 @@ describe("Agent construction validation", () => {
 	it("rejects an unsupported schema keyword at registration", () => {
 		const t = tool({ inputSchema: { type: "string", pattern: "^x" } });
 		expect(() => makeAgent({ tools: { t } })).toThrow(/unsupported/i);
+	});
+});
+
+describe("Agent.generate — approve all this run", () => {
+	beforeEach(() => {
+		// Global 'never', so ONLY a per-tool needsApproval floor can trigger the modal.
+		agentState.settings.ai = { confirmToolCalls: "never", defaultSystemPrompt: "" };
+	});
+
+	it("re-confirms a needsApproval:true tool on every call even after 'Approve all this run'", async () => {
+		// First call: model invokes the writer; user clicks "Approve all this run".
+		// Second call: same needsApproval:true writer — must STILL be confirmed.
+		confirmMock.mockResolvedValueOnce("allow-all").mockResolvedValueOnce("allow");
+		const t = tool({ needsApproval: true, description: "writes a note", execute: vi.fn(async () => "ok") });
+		chatRequestMock
+			.mockResolvedValueOnce(turnResponse({ toolCalls: [{ id: "c1", name: "write", args: { path: "a.md" } }] }))
+			.mockResolvedValueOnce(turnResponse({ toolCalls: [{ id: "c2", name: "write", args: { path: "b.md" } }] }))
+			.mockResolvedValueOnce(turnResponse({ content: "done", normalizedStopReason: "stop" }));
+
+		const agent = makeAgent({ tools: { write: t } });
+		await agent.generate({ prompt: "write two notes" });
+
+		expect(confirmMock).toHaveBeenCalledTimes(2);
+		expect(t.execute).toHaveBeenCalledTimes(2);
+	});
+
+	it("approve-all DOES auto-run a tool whose approval came only from the global setting", async () => {
+		// 'destructive' global, non-readOnly tool with NO per-tool needsApproval.
+		agentState.settings.ai = { confirmToolCalls: "destructive", defaultSystemPrompt: "" };
+		confirmMock.mockResolvedValueOnce("allow-all");
+		const t = tool({ readOnly: false, description: "writes a note", execute: vi.fn(async () => "ok") });
+		chatRequestMock
+			.mockResolvedValueOnce(turnResponse({ toolCalls: [{ id: "c1", name: "write", args: { path: "a.md" } }] }))
+			.mockResolvedValueOnce(turnResponse({ toolCalls: [{ id: "c2", name: "write", args: { path: "b.md" } }] }))
+			.mockResolvedValueOnce(turnResponse({ content: "done", normalizedStopReason: "stop" }));
+
+		const agent = makeAgent({ tools: { write: t } });
+		await agent.generate({ prompt: "write two notes" });
+
+		// Only the first call prompts; allow-all then suppresses the global-only gate.
+		expect(confirmMock).toHaveBeenCalledTimes(1);
+		expect(t.execute).toHaveBeenCalledTimes(2);
 	});
 });

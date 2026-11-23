@@ -22,8 +22,8 @@ const MISSING_VALUE = "__qa-missing-model__";
 
 /**
  * Populate a model dropdown, grouped per provider so two providers serving the
- * same model name (#1495) are distinguishable, and keep BOTH persisted fields
- * (legacy name + provider-scoped ref) in sync on selection.
+ * same model name are distinguishable, and keep both persisted fields (legacy
+ * name + provider-scoped ref) in sync on selection.
  *
  * - "Ask me" stays the first, top-level option.
  * - A stored model that no longer exists is shown as a disabled "(missing)"

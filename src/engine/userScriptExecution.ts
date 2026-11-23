@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import type * as obsidian from "obsidian";
 import type { QuickAddApi } from "../quickAddApi";
-import type QuickAdd from "../main";
+import type { SettingsSaver } from "../types/pluginContext";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { getUserScriptMemberAccess, getUserScriptPreloadKey, type LoadedUserScript, loadUserScript } from "../utils/userScript";
@@ -15,6 +15,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
+import { isRecord } from "../utils/isRecord";
 
 export type ScriptParameters = {
 	app: App;
@@ -26,7 +27,7 @@ export type ScriptParameters = {
 
 type ScriptContext = {
 	app: App;
-	plugin: QuickAdd;
+	plugin: Partial<SettingsSaver>;
 	choiceName: string;
 	params: ScriptParameters;
 	executor: IChoiceExecutor;
@@ -36,10 +37,6 @@ type ScriptContext = {
 
 type ScriptResult = { output: unknown };
 type UserScriptFunction = (params: ScriptParameters, settings: Record<string, unknown>) => unknown;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object";
-}
 
 function isUserScriptFunction(value: unknown): value is UserScriptFunction {
 	return typeof value === "function";

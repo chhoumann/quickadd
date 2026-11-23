@@ -8,7 +8,7 @@ import type { QuickAddSettings } from "../../settings";
 import { createDocsLink, DOCS_URLS, openDocsUrl } from "../../docs";
 
 /** Declarative control keys for fields nested under `ai` (see the tab's store bridge). */
-export type AISettingsKey = `ai.${Extract<
+type AISettingsKey = `ai.${Extract<
 	keyof QuickAddSettings["ai"],
 	"showAssistant" | "confirmToolCalls" | "promptTemplatesFolderPath"
 >}`;
@@ -35,11 +35,8 @@ export function createSettingDefinitions(
 		{
 			type: "group",
 			heading: "Choices & packages",
-			// QuickAdd's power surface is syntax you have to learn ({{VALUE}},
-			// {{DATE}}, capture targets, ...) and until now the manual was reachable
-			// from exactly one place in the whole plugin (issue #1541). A help icon
-			// on the first heading is Obsidian's own idiom for this, and it costs the
-			// page no vertical space, so the choices list stays the focus.
+			// A help icon on the first heading is Obsidian's own idiom for reaching
+			// the manual, and it costs the page no vertical space.
 			extraButtons: [
 				(button) =>
 					button
@@ -72,8 +69,6 @@ export function createSettingDefinitions(
 				},
 				{
 					name: "One-page input for choices",
-					// The trailing sentence used to read "See One-page Inputs in the
-					// docs." as plain, unlinked prose (issue #1541).
 					desc: descWithDocsLink(
 						"Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs. Template and Capture choices can override this individually. ",
 						DOCS_URLS.onePageInputs,
@@ -154,7 +149,7 @@ export function createSettingDefinitions(
 }
 
 /**
- * Settings most vaults never change (#2017), kept one level down so the main
+ * Settings most vaults never change, kept one level down so the main
  * tab stays short. Settings search still finds them.
  */
 function advancedPage(render: SettingsRenderers): SettingDefinitionPage<SettingsKey> {

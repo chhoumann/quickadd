@@ -17,7 +17,7 @@ class StubFormatter extends FormatterStub {
   }
 
   public async process(input: string): Promise<string> {
-    return await this.replaceCurrentFileNameInString(input);
+    return this.replaceCurrentFileTokensInString(input, { fileName: true });
   }
 
   public setBehavior(behavior: Behavior) {

@@ -3,7 +3,6 @@ import type { FuzzySuggestModal, FuzzyMatch, App } from "obsidian";
 import {
 	createRenderFallbackWarner,
 	normalizeDisplayItem,
-	normalizeQuery,
 } from "../suggesters/utils";
 import { SuggesterModal } from "../GenericSuggester/SuggesterModal";
 import type { SuggestRender } from "../GenericSuggester/SuggesterModal";
@@ -19,10 +18,7 @@ type Options = {
 	renderItem: SuggestRender<string> | undefined;
 	/** Adds a "skip" affordance that resolves "" (for optional tokens). */
 	skippable: boolean;
-	/**
-	 * When false, the typed value is not offered as a custom ("create") suggestion.
-	 * Defaults to true to preserve the historical "type your own input" behaviour.
-	 */
+	/** When false, the typed value is not offered as a custom ("create") suggestion. Defaults to true. */
 	allowCustomValue: boolean;
 	/**
 	 * Renders the typed-but-unmatched custom row with a label, e.g.
@@ -118,7 +114,7 @@ export default class InputSuggester extends SuggesterModal<string> {
 
 		if (!this.allowCustomValue) return suggestions;
 
-		const customValue = normalizeQuery(this.inputEl.value);
+		const customValue = normalizeDisplayItem(this.inputEl.value);
 
 		if (!customValue) return suggestions;
 

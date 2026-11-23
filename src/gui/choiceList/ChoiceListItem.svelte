@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type IChoice from "../../types/choices/IChoice";
 	import RightButtons from "./ChoiceItemRightButtons.svelte";
-	import { Component, Platform, type App } from "obsidian";
-	import { choiceMenuActions, showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
-	import { renderChoiceName } from "./renderChoiceName";
+	import { Platform, type App } from "obsidian";
+	import { choiceRowMenu } from "./contextMenu";
+	import { choiceName } from "./renderChoiceName";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { resolveChoiceIcon } from "../../utils/choiceUtils";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
@@ -22,37 +22,13 @@
 		app: App;
 		roots: IChoice[];
 		dragDisabled: boolean;
-		startDrag: (e?: Event) => void;
+		startDrag: (event: PointerEvent) => void;
 		actions: ChoiceListActions;
 		onMoveUp?: () => void;
 		onMoveDown?: () => void;
 	} = $props();
 
-	let showConfigureButton = $state(true);
-	let nameElement = $state<HTMLSpanElement>();
-	const cmp = new Component();
-
-	// renderChoiceName writes to the DOM (it's a side effect) -> $effect, not $derived.
-	$effect(() => {
-		if (nameElement) {
-			void renderChoiceName(choice.name, nameElement, cmp, app);
-		}
-	});
-
-	// renderChoiceName passes cmp to MarkdownRenderer.render as the lifecycle owner;
-	// unload it on destroy so any registered child components are disposed (no deps
-	// here, so the teardown runs only when this row is destroyed).
-	$effect(() => {
-		return () => cmp.unload();
-	});
-
-	function onContextMenu(evt: MouseEvent) {
-		showChoiceContextMenu(app, evt, choice, roots, choiceMenuActions(choice, actions));
-	}
-
-	function openMenu(anchor: HTMLElement) {
-		showChoiceContextMenuAtElement(app, anchor, choice, roots, choiceMenuActions(choice, actions));
-	}
+	const menu = choiceRowMenu(() => ({ choice, roots, actions }));
 </script>
 
 <!-- Right-click opens the context menu for mouse users; double-click is a mouse
@@ -63,7 +39,7 @@
 <div
 	class="choiceListItem"
 	data-choice-id={choice.id}
-	oncontextmenu={onContextMenu}
+	oncontextmenu={menu.onContextMenu}
 	ondblclick={(evt) => {
 		// Desktop-only mouse shortcut: on mobile the bare row surface belongs to
 		// long-press drag, and svelte-dnd-action's touch false-alarm replays a
@@ -79,7 +55,7 @@
 	<span class="qaChoiceRowIcon" aria-hidden="true">
 		<ObsidianIcon iconId={resolveChoiceIcon(choice)} size={15} />
 	</span>
-	<span class="choiceListItemName" bind:this={nameElement}></span>
+	<span class="choiceListItemName" use:choiceName={{ name: choice.name, app }}></span>
 
 	<RightButtons
 		onDragHandleDown={startDrag}
@@ -87,15 +63,12 @@
 		onConfigureChoice={() => actions.onConfigureChoice(choice)}
 		onToggleCommand={() => actions.onToggleCommand(choice)}
 		onDuplicateChoice={() => actions.onDuplicateChoice(choice)}
-		onOpenMenu={openMenu}
+		onOpenMenu={menu.openAt}
 		{onMoveUp}
 		{onMoveDown}
 		choiceName={choice.name}
 		commandEnabled={choice.command}
-		{showConfigureButton}
 		{dragDisabled}
 		showDuplicateButton={true}
 	/>
 </div>
-
-<style></style>

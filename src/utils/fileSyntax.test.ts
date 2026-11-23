@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-	buildFileDisplayLabels,
+	buildFileDisplayInfos,
 	canonicalizeOnePageFileValue,
 	decodeFileValue,
-	fileBasenameFromPath,
 	FILE_CUSTOM_PREFIX,
 	FILE_PICK_PREFIX,
 	FILE_VARIABLE_PREFIX,
@@ -245,18 +244,12 @@ describe("canonicalizeOnePageFileValue", () => {
 	});
 });
 
-describe("fileBasenameFromPath", () => {
-	it("drops folders and a trailing markdown-family extension", () => {
-		expect(fileBasenameFromPath("People/Tom.md")).toBe("Tom");
-		expect(fileBasenameFromPath("a/b/My.Notes.md")).toBe("My.Notes");
-		expect(fileBasenameFromPath("Diagrams/x.canvas")).toBe("x");
-		expect(fileBasenameFromPath("Alice")).toBe("Alice");
-	});
-});
-
 type LabelRow = { path: string; title?: string; h1s: string[]; h2s?: string[]; label: string };
 
-describe("buildFileDisplayLabels", () => {
+describe("buildFileDisplayInfos labels", () => {
+	const buildFileDisplayLabels = (...args: Parameters<typeof buildFileDisplayInfos>) =>
+		buildFileDisplayInfos(...args).map((info) => info.label);
+
 	const makeFile = (path: string) => {
 		const segment = path.split("/").pop() ?? path;
 		const basename = segment.replace(/\.md$/, "");

@@ -1,6 +1,9 @@
 import { MarkdownView, normalizePath, type App, type EventRef, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "./errorUtils";
+import { waitFor } from "./waitFor";
+import { isRecord } from "./isRecord";
+import { executeObsidianCommand, getCommunityPlugin } from "./obsidianInternals";
 
 declare module "obsidian" {
 	interface Workspace {
@@ -118,11 +121,10 @@ function didTemplaterHandleCursor(
 }
 
 /**
- * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
- * This removes the need for an arbitrary debounce (e.g., 75 ms) and is resilient across
- * local SSDs, network shares, and different OSes.
+ * Waits until the filesystem reports a stable mtime for the file or the timeout
+ * elapses, rather than an arbitrary debounce.
  */
-export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
+async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
 	try {
 		const adapter = app.vault.adapter;
 		if (!("stat" in adapter) || typeof adapter.stat !== "function") return;
@@ -135,12 +137,11 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 		// Poll with exponential backoff until the mtime is stable or we hit the timeout.
 		let pollIntervalMs = 30;
 		while (Date.now() - start < timeoutMs) {
-			await sleep(pollIntervalMs);
+			await waitFor(pollIntervalMs);
 			const current = await adapter.stat(file.path);
 			if (!current) return; // stat failed; abort waiting.
 			if (current.mtime === previousMtime) return;
 			previousMtime = current.mtime;
-			// Double the interval if mtime keeps changing (exponential backoff)
 			pollIntervalMs = Math.min(pollIntervalMs * 2, 200);
 		}
 	} catch (err) {
@@ -149,14 +150,9 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 	}
 }
 
-export function getTemplater(app: App) {
-	return app.plugins.plugins["templater-obsidian"];
-}
-
-export function getTemplaterPlugin(app: App): TemplaterPluginLike | null {
-	const plugin = getTemplater(app);
-	if (!plugin) return null;
-	return plugin as unknown as TemplaterPluginLike;
+function getTemplaterPlugin(app: App): TemplaterPluginLike | null {
+	const plugin = getCommunityPlugin(app, "templater-obsidian");
+	return isRecord(plugin) ? plugin : null;
 }
 
 export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
@@ -174,10 +170,6 @@ export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
 		"trigger_on_file_creation" in localSettings &&
 		localSettings.trigger_on_file_creation === true
 	);
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 type TemplaterCreateHandler = (...args: unknown[]) => unknown;
@@ -282,7 +274,7 @@ export async function createNoteAfterTemplaterTrigger(
 	return file;
 }
 
-export async function waitForTemplaterTriggerOnCreateToComplete(
+async function waitForTemplaterTriggerOnCreateToComplete(
 	app: App,
 	file: TFile,
 	opts: { timeoutMs?: number; appearTimeoutMs?: number } = {},
@@ -306,12 +298,12 @@ export async function waitForTemplaterTriggerOnCreateToComplete(
 
 	while (Date.now() - start < appearTimeoutMs) {
 		if (pendingFiles.has(file.path)) break;
-		await sleep(50);
+		await waitFor(50);
 	}
 
 	while (Date.now() - start < timeoutMs) {
 		if (!pendingFiles.has(file.path)) break;
-		await sleep(50);
+		await waitFor(50);
 	}
 
 	await waitForFileSettle(app, file, 800);
@@ -414,7 +406,7 @@ export async function withTemplaterFileCreationSuppressed<T>(
 			if (!state.hadPathInitially) {
 				if (fnSucceeded) {
 					const minHoldMs = TEMPLATER_PENDING_CHECK_BUFFER_MS;
-					await sleep(minHoldMs);
+					await waitFor(minHoldMs);
 				}
 
 				pendingFiles.delete(filePath);
@@ -459,7 +451,7 @@ export async function waitForFileToStopChanging(
 
 		let pollIntervalMs = 50;
 		while (Date.now() - start < timeoutMs) {
-			await sleep(pollIntervalMs);
+			await waitFor(pollIntervalMs);
 			const current = await adapter.stat(file.path);
 			if (!current) return;
 
@@ -593,10 +585,8 @@ export async function templaterParseTemplate(
 	if (!plugin || !templater || typeof parseTemplate !== "function")
 		return templateContent;
 
-	// Use Templater's create_running_config if available for forward compatibility.
-	// This ensures we get a properly initialized config object with all required fields,
-	// even if Templater adds new required fields in future versions.
-	// Fallback to manual config for older Templater versions.
+	// Prefer Templater's create_running_config, which fills any fields newer
+	// versions require; fall back to a manual config for older versions.
 	const createConfig = templater.create_running_config;
 	const config =
 		typeof createConfig === "function"
@@ -639,11 +629,8 @@ export async function jumpToNextTemplaterCursorIfPossible(
 	}
 
 	try {
-		const commandRan = !!(
-			app.commands as unknown as {
-				executeCommandById?: (commandId: string) => boolean;
-			}
-		).executeCommandById?.(
+		const commandRan = executeObsidianCommand(
+			app,
 			"templater-obsidian:jump-to-next-cursor-location",
 		);
 		if (!commandRan) return false;

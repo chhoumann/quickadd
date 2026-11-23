@@ -1,7 +1,5 @@
-import {
-	FieldSuggestionParser,
-	type FieldFilter,
-} from "./FieldSuggestionParser";
+import { parseFilterSegments, type FieldFilter } from "./FieldSuggestionParser";
+import { hasFileFilter } from "./FieldSuggestionFileFilter";
 import { parsePipeKeyValue, splitPipeParts } from "./pipeSyntax";
 
 interface CaptureFileFilterTarget {
@@ -26,22 +24,11 @@ function mergeTags(first: string | undefined, rest: string[] | undefined): strin
 }
 
 function parsePipeFilters(input: string): CaptureFileFilterTarget {
-	const parsed = FieldSuggestionParser.parse(`__capture_scope|${input}`);
+	const parsed = parseFilterSegments(splitPipeParts(input), { token: input });
 	return {
 		filter: parsed.filters,
 		multiSelect: parsed.multiSelect ?? false,
 	};
-}
-
-function hasFileFilter(filter: FieldFilter): boolean {
-	return Boolean(
-		filter.folder ||
-			filter.folders?.length ||
-			filter.tags?.length ||
-			filter.excludeFolders?.length ||
-			filter.excludeTags?.length ||
-			filter.excludeFiles?.length,
-	);
 }
 
 /**

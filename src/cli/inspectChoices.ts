@@ -1,17 +1,18 @@
 import type { CliData } from "obsidian";
 import { ChoiceExecutor } from "../choiceExecutor";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { getWritePosition } from "../engine/captureAction";
-import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
-import { childChoicesOf, isChoiceLike, rootChoicesOf } from "../utils/choiceUtils";
+import { getWritePosition } from "../utils/captureAction";
+import { deriveFolderMode } from "../utils/folderMode";
+import { flattenChoicesWithPath } from "../utils/choiceUtils";
 import { collectChoiceRequirements, getUnresolvedRequirements, listDeferredMacroSteps } from "../preflight/collectChoiceRequirements";
 import { analysePackagePreview, readQuickAddPackage } from "../services/packageImportService";
 import { decodeAssetPreview, type AssetPreviewContent, type PackagePreview } from "../services/packagePreview";
-import { describeChoice, extractVariables, isTruthy, resolveChoiceFromParams, resolveCurrentNote, RESERVED_CHECK_PARAMS, setExecutorVariables, toDetailedFieldSummary, toMissingFieldSummary } from "./params";
+import { applyInvocationDate } from "../utils/resolveDateOrigin";
+import { describeChoice, extractVariables, isTruthy, missingFlagFor, resolveChoiceFromParams, resolveCurrentNote, RESERVED_CHECK_PARAMS, setExecutorVariables, toDetailedFieldSummary, toMissingFieldSummary } from "./params";
 import { describeCurrentNoteUse, type CurrentNoteUse } from "./currentNoteUse";
 
 interface CliChoiceSummary {
@@ -74,44 +75,33 @@ function describeWrites(choice: IChoice): CliChoiceSummary["writes"] {
 	return undefined;
 }
 
-async function flattenChoices(
-	plugin: QuickAdd,
+async function summarizeChoices(
+	plugin: ChoiceRuntimePlugin,
 	choices: IChoice[],
-	segments: string[] = [],
 ): Promise<CliChoiceSummary[]> {
-	const flattened: CliChoiceSummary[] = [];
-
-	for (const choice of rootChoicesOf(choices)) {
-		if (!isChoiceLike(choice)) continue;
-		const pathSegments = [...segments, choice.name];
-		const path = pathSegments.join(" / ");
-		const isMulti = choice.type === "Multi";
-		flattened.push({
+	const summaries: CliChoiceSummary[] = [];
+	for (const { choice, path } of flattenChoicesWithPath(choices)) {
+		summaries.push({
 			id: choice.id,
 			name: choice.name,
 			type: choice.type,
 			command: choice.command,
-			path,
-			runnable: !isMulti,
+			path: path.join(" / "),
+			runnable: choice.type !== "Multi",
 			currentNote: await describeCurrentNoteUse(plugin, choice),
 			writes: describeWrites(choice),
 		});
-
-		if (isMulti) {
-			flattened.push(...await flattenChoices(plugin, childChoicesOf(choice), pathSegments));
-		}
 	}
-
-	return flattened;
+	return summaries;
 }
 
-export async function listChoicesHandler(plugin: QuickAdd, params: CliData) {
+export async function listChoicesHandler(plugin: ChoiceRuntimePlugin, params: CliData) {
 	const rawType = typeof params.type === "string" ? params.type.trim() : "";
 	const type = rawType.toLowerCase();
 	if (type && !SUPPORTED_LIST_TYPES.has(type)) {
 		return { ok: false, error: `Invalid type filter '${rawType}'.` };
 	}
-	const choices = (await flattenChoices(plugin, plugin.settings.choices)).filter((choice) =>
+	const choices = (await summarizeChoices(plugin, plugin.settings.choices)).filter((choice) =>
 		(!type || choice.type.toLowerCase() === type) &&
 		(!isTruthy(params.commands) || choice.command),
 	);
@@ -119,7 +109,7 @@ export async function listChoicesHandler(plugin: QuickAdd, params: CliData) {
 }
 
 export async function checkChoiceHandler(
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
 	params: CliData,
 ) {
 	const choice = resolveChoiceFromParams(plugin, params);
@@ -140,6 +130,15 @@ export async function checkChoiceHandler(
 	const current = resolveCurrentNote(plugin.app, params);
 	if (current !== undefined) choiceExecutor.setCurrentFile(current);
 	setExecutorVariables(choiceExecutor, variables);
+	// The day `quickadd:run date=` would use, so a "Which day" ask it answers
+	// is not reported missing.
+	if (!applyInvocationDate(choiceExecutor, params.date)) {
+		return {
+			ok: false,
+			error: `Could not parse date origin '${params.date}'.`,
+			choice: await describeChoice(plugin, choice),
+		};
+	}
 
 	const requirements = await collectChoiceRequirements(
 		plugin.app,
@@ -162,9 +161,7 @@ export async function checkChoiceHandler(
 		requiredInputCount: requirements.length,
 		missingInputCount: unresolved.length,
 		missing: unresolved.map(summarize),
-		missingFlags: unresolved.map(
-			(requirement) => `value-${requirement.id}=<value>`,
-		),
+		missingFlags: unresolved.map(missingFlagFor),
 		...(choice.type === "Macro"
 			? { deferred: listDeferredMacroSteps(plugin, choice as IMacroChoice, choiceExecutor.variables.get("value")) }
 			: {}),
@@ -172,7 +169,7 @@ export async function checkChoiceHandler(
 }
 
 export async function previewPackageHandler(
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
 	params: CliData,
 ) {
 	const path =

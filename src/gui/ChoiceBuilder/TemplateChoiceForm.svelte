@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onDestroy } from "svelte";
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type {
 	FileExistsBehaviorCategoryId,
@@ -16,8 +16,7 @@ import {
 } from "../../template/fileExistsPolicy";
 import { log } from "../../logger/logManager";
 import { getAllFolderPathsInVault } from "../../utils/vaultQueries";
-import { getTemplateFile } from "../../utils/templateFolderUtils";
-import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
+import { validateTemplatePath } from "./validateTemplatePath";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -25,10 +24,9 @@ import FolderList from "./FolderList.svelte";
 import {
 	applyFolderMode,
 	deriveFolderMode,
-	folderModeDescriptions,
-	folderModeOptions,
 	type FolderMode,
-} from "./folderMode";
+} from "../../utils/folderMode";
+import { folderModeDescriptions, folderModeOptions } from "./folderModeOptions";
 import SettingItem from "../components/SettingItem.svelte";
 import SettingGroup from "../components/SettingGroup.svelte";
 import Toggle from "../components/Toggle.svelte";
@@ -38,7 +36,6 @@ import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
 import FormatTokenHint from "./components/FormatTokenHint.svelte";
 import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
-import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
@@ -50,9 +47,8 @@ import { usesDefaultTemplateTitlePrompt } from "../../utils/templateNoteDiscover
 import { likelyTargetFolderPath } from "../../utils/previewTargetFolder";
 
 /**
- * Reactive replacement for TemplateChoiceBuilder.display(). Conditional rows are
- * {#if} blocks over the $state-backed choice proxy, so toggling a control updates
- * in place — no contentEl.empty()/display() teardown, no lost scroll/caret (#1130).
+ * Conditional rows are {#if} blocks over the $state-backed choice proxy, so
+ * toggling a control updates in place without losing scroll or caret.
  */
 let {
 	choice = $bindable(),
@@ -62,33 +58,14 @@ let {
 }: {
 	choice: ITemplateChoice;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	/** Set by the form: adds a folder typed but not added (see ChoiceFormProps). */
 	commitPending?: () => void;
 } = $props();
 
-// Computed once from the stable app/plugin props ($derived satisfies the
-// reactive-reference rule; the vault snapshot matches the imperative builder,
-// which also read these once per render).
+// Computed once from the stable app/plugin props.
 const templatePaths = $derived(plugin.getTemplateFiles().map((f) => f.path));
 const allFolders = $derived(sortFolderPathsByTree(getAllFolderPathsInVault(app)));
-
-function validateTemplatePath(
-	raw: string,
-): boolean | string | { valid: boolean; message?: string } {
-	const value = raw.trim();
-	if (!value) return true;
-	// A path with format syntax (e.g. "Templates/{{value:type}} Template.md")
-	// can only be resolved when the choice runs, so don't flag it "not found";
-	// show a neutral hint instead (issue #620).
-	if (hasTemplatePathSyntax(value)) {
-		return { valid: true, message: "Contains format syntax — resolved at run time." };
-	}
-	// Resolve like the engine does at run time rather than requiring
-	// suggestion-list membership: a template outside the configured folders
-	// still runs fine and must not be flagged "not found" (master #1170/#1325).
-	return getTemplateFile(app, value) !== null || "Template not found";
-}
 
 // --- File name format ----------------------------------------------------
 // An empty field is the default note-title prompt; `enabled` just mirrors
@@ -129,25 +106,10 @@ function onFolderModeChange(value: string) {
 }
 
 let folderInputValue = $state("");
-let folderSuggester: ExclusiveSuggester | undefined;
 
 function attachFolderSuggester(el: HTMLInputElement | HTMLTextAreaElement) {
-	folderSuggester = new ExclusiveSuggester(
-		app,
-		el,
-		allFolders,
-		choice.folder.folders,
-	);
-	return folderSuggester;
+	return new ExclusiveSuggester(app, el, allFolders, () => choice.folder.folders);
 }
-
-// Keep the exclusion set in sync with the current folder list (replaces the
-// imperative updateCurrentItems() calls). Tolerates a destroyed suggester after
-// the input unmounts on a mode switch — updateCurrentItems is field-only and the
-// input is recreated (with a fresh suggester) when "specified" mode returns.
-$effect(() => {
-	folderSuggester?.updateCurrentItems(choice.folder.folders);
-});
 
 function addFolder() {
 	const input = folderInputValue.trim();
@@ -167,9 +129,9 @@ function onFolderInputKeypress(event: KeyboardEvent) {
 	if (event.key === "Enter") addFolder();
 }
 
-// A folder typed but never added is kept instead of dropped (#1993): when the
-// builder saves in place (the app going to the background), and when the page
-// is left, which destroys this form before the builder reads the choice.
+// A folder typed but never added is kept instead of dropped: when the builder
+// saves in place (the app going to the background), and when the page is left,
+// which destroys this form before the builder reads the choice.
 function addPendingFolder() {
 	if (folderMode === "specified") addFolder();
 }
@@ -210,7 +172,7 @@ function onModeChange(value: string) {
 				{app}
 				suggestions={templatePaths}
 				maxSuggestions={50}
-				validator={validateTemplatePath}
+				validator={(raw) => validateTemplatePath(app, raw)}
 				onChange={(value) => (choice.templatePath = value.trim())}
 			/>
 		{/snippet}
@@ -387,7 +349,11 @@ function onModeChange(value: string) {
 		</SettingItem>
 	{/if}
 
-	<OpenFileSetting bind:openFile={choice.openFile} description="Open the file." />
+	<SettingItem name="Open" desc="Open the file.">
+		{#snippet control()}
+			<Toggle bind:checked={choice.openFile} />
+		{/snippet}
+	</SettingItem>
 	{#if choice.openFile}
 		<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
 	{/if}

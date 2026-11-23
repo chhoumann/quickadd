@@ -8,7 +8,7 @@ import { flushSync, tick } from "svelte";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import CaptureChoiceForm from "./CaptureChoiceForm.svelte";
-import { createCaptureChoiceFormProps } from "./captureChoiceFormProps.svelte";
+import { createChoiceFormProps } from "./choiceFormProps.svelte";
 import { CaptureChoice } from "../../types/choices/CaptureChoice";
 
 function captureChoice(): ICaptureChoice {
@@ -74,7 +74,7 @@ function selectUnderSetting(
 
 
 function mountForm(choice: ICaptureChoice = captureChoice()) {
-	const props = createCaptureChoiceFormProps({
+	const props = createChoiceFormProps<ICaptureChoice>({
 		choice,
 		app: new App(),
 		plugin,
@@ -212,8 +212,8 @@ describe("CaptureChoiceForm", () => {
 		// createChoice() returns `new CaptureChoice()` — a class instance. Svelte's
 		// proxy() leaves class instances un-proxied, so the form props factory must
 		// plain-clone the choice or conditional rows won't react. This test fails if
-		// the structuredClone in createCaptureChoiceFormProps is removed.
-		const props = createCaptureChoiceFormProps({
+		// the structuredClone in createChoiceFormProps is removed.
+		const props = createChoiceFormProps<ICaptureChoice>({
 			choice: new CaptureChoice("New Capture"),
 			app: new App(),
 			plugin,

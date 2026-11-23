@@ -1,6 +1,6 @@
+import type { SettingsProvider } from "../types/pluginContext";
 import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GLOBAL_VAR_REGEX } from "../constants";
 import type { PromptContext } from "./formatter";
 import { RequirementCollector } from "src/preflight/RequirementCollector";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
@@ -117,6 +117,9 @@ function installMomentStub(): void {
 }
 
 class DocsExampleFormatter extends FormatterStub {
+	protected readonly plugin = {
+		settings: { globalVariables: { "Meeting Header": "## Meeting\n{{DATE:YYYY-MM-DD}}" } },
+	} as unknown as SettingsProvider;
 	public readonly suggestCalls: Array<{
 		suggestedValues: string[];
 		allowCustomInput?: boolean;
@@ -156,25 +159,13 @@ class DocsExampleFormatter extends FormatterStub {
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceMathValueInString(output);
-		output = await this.replaceLinkToCurrentFileInString(output);
-		output = this.replaceLinkToCurrentSectionInString(output);
-		output = await this.replaceCurrentFileNameInString(output);
-		output = this.replaceTargetFolderInString(output);
+		output = this.replaceCurrentFileTokensInString(output, { links: true, fileName: true, folder: true });
 		output = this.replaceCurrentFileTokensInString(output, {
 			activeFolder: "content",
 		});
 		output = this.replaceRandomInString(output);
-		output = this.replaceTitleInString(output);
+		output = this.replaceCurrentFileTokensInString(output, { title: true });
 		return output;
-	}
-
-	private async replaceGlobalVarInString(input: string): Promise<string> {
-		return input.replace(GLOBAL_VAR_REGEX, (_match, rawName) => {
-			const snippets: Record<string, string> = {
-				"Meeting Header": "## Meeting\n{{DATE:YYYY-MM-DD}}",
-			};
-			return snippets[String(rawName).trim()] ?? "";
-		});
 	}
 
 	protected promptForValue(): string {

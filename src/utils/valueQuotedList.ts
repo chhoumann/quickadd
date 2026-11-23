@@ -1,8 +1,6 @@
-// The "double-quote class" that opens/closes a quoted option: the straight
-// double quote plus the curly pair editors (and Obsidian) auto-substitute. The
-// reporter's own example in #239 pastes a curly close-quote (U+201D), so curly
-// quotes must work, not just `"`. Single quotes/apostrophes are intentionally
-// NOT special — they are ubiquitous in option text (Bob's, 'tis).
+// Straight and curly double quotes open and close a quoted option, since editors
+// (and Obsidian) auto-substitute curly ones. Single quotes are not special: they
+// are common in option text (Bob's, 'tis).
 const DOUBLE_QUOTE_CHARS = new Set(['"', "“", "”"]);
 
 function isDoubleQuote(ch: string | undefined): boolean {
@@ -15,22 +13,16 @@ function isDoubleQuote(ch: string | undefined): boolean {
 const HORIZONTAL_WS = /[^\S\r\n]/;
 
 /**
- * Split a comma-separated VALUE option list while honoring double-quoted fields,
- * so a comma inside `"..."` stays literal (#239). CSV-style rules:
- *   - A field is quoted only when it STARTS with a double-quote (after optional
+ * Splits a comma-separated VALUE option list while honoring double-quoted
+ * fields, so a comma inside `"..."` stays literal. CSV-style rules:
+ *   - A field is quoted only when it starts with a double quote (after optional
  *     leading whitespace); a quote anywhere else is literal.
  *   - Inside a quoted field, `""` is one literal quote and a comma is literal.
- *   - A closing quote is only honored when the next non-space char is a comma or
- *     end-of-input (STRICT close).
+ *   - A closing quote counts only when the next non-space char is a comma or
+ *     end of input.
  *
- * Any input that is not cleanly quote-balanced — an unterminated quote, or a
- * quote "closed" by other text (e.g. `"a"b`) — falls back to a plain comma
- * split. That guarantees every token WITHOUT a balanced double-quoted field
- * parses byte-identically to the pre-#239 behavior.
- *
- * Returns raw fields with the surrounding quotes stripped; callers apply the
- * usual `.map(trim).filter(Boolean)`. Whitespace inside quotes is therefore not
- * preserved — quoting protects commas, which survive the trim.
+ * Input that is not cleanly quote-balanced falls back to a plain comma split.
+ * Returns raw fields with the quotes stripped; callers trim and filter.
  */
 export function splitQuotedCommaList(input: string): string[] {
 	const fields: string[] = [];

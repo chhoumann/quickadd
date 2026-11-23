@@ -1,17 +1,10 @@
 import { providerSamplingParams } from "../samplingParams";
 /**
- * Pure per-provider build/parse for tool calling + structured output (#714).
- *
- * No Obsidian imports — fully unit-testable. The execute loop (runToolLoop) and the
- * chatRequest entrypoint use `buildChatBody` to turn a NormalizedChatRequest into a
- * provider request body, and `parseChatResponse` to turn the raw provider JSON into
- * a normalized result (content + toolCalls + stop reason + usage).
- *
- * The three providers diverge in three load-bearing ways (verified against the
- * fc-prototype + current docs): (1) where tool calls live, (2) how arguments are
- * encoded (OpenAI = JSON STRING → parse; Anthropic/Gemini = object), (3) how results
- * thread back (OpenAI flat tool message; Anthropic tool_result-first user turn;
- * Gemini functionResponse parts under a user turn — no "tool" role).
+ * Per-provider request building and response parsing for tool calling and
+ * structured output. The providers differ in where tool calls live, how
+ * arguments are encoded (OpenAI: JSON string; Anthropic/Gemini: object), and how
+ * results thread back (OpenAI: flat tool message; Anthropic: tool_result-first
+ * user turn; Gemini: functionResponse parts under a user turn, no "tool" role).
  */
 import type {
 	JSONSchema,
@@ -23,8 +16,6 @@ import type {
 	NormalizedToolDefinition,
 } from "./NormalizedTools";
 import type { ChatWire } from "../Provider";
-
-export type ProviderKind = "openai" | "anthropic" | "gemini";
 
 export interface ParsedChatResult {
 	content: string;
@@ -41,10 +32,9 @@ type Body = Record<string, unknown>;
 // ---------------------------------------------------------------------------
 // Strict-output schema injection (OpenAI structured output)
 // ---------------------------------------------------------------------------
-// OpenAI's `strict: true` requires additionalProperties:false AND every property
-// listed in `required`, at every object level. Output schemas are a SEPARATE path
-// from author tool-INPUT schemas (which the validator deliberately keeps free of
-// additionalProperties), so we inject these here at send time.
+// `strict: true` requires additionalProperties:false and every property required,
+// at every object level. Tool-input schemas stay free of additionalProperties, so
+// this is injected at send time.
 export function injectStrictObjectSchema(schema: JSONSchema): JSONSchema {
 	const out: JSONSchema = Array.isArray(schema)
 		? schema
@@ -127,11 +117,9 @@ function openaiToolChoice(choice: NormalizedToolChoice): unknown {
 	return { type: "function", function: { name: choice.name } };
 }
 
-// OpenAI reasoning models (o-series, and gpt-5 / newer) reject the classic
-// `max_tokens` — they require `max_completion_tokens`. Detect by NAME so the rename
-// applies only to OpenAI-proper's reasoning line: OpenAI-compatible endpoints
-// (Ollama / Groq / Together / …), whose model names don't match this shape, keep
-// `max_tokens`. Forward-looking: matches gpt-5..gpt-9 and gpt-10+ as well as o1..o9.
+// OpenAI reasoning models (o-series, gpt-5 and newer) require
+// `max_completion_tokens`. Matched by name so OpenAI-compatible endpoints keep
+// `max_tokens`.
 const OPENAI_REASONING_MODEL_RE = /^(?:o[1-9]|gpt-(?:[5-9]|\d\d))/i;
 
 function buildOpenAIBody(modelName: string, req: NormalizedChatRequest): Body {
@@ -237,7 +225,7 @@ function parseOpenAIToolCall(tc: OpenAIToolCallRaw): NormalizedToolCall {
 			id: tc.id,
 			name: tc.function.name,
 			args: null,
-			rawArgs: typeof raw === "string" ? raw : JSON.stringify(raw ?? {}),
+			rawArgs: JSON.stringify(raw ?? {}),
 			parseError: true,
 		};
 	}
@@ -245,15 +233,11 @@ function parseOpenAIToolCall(tc: OpenAIToolCallRaw): NormalizedToolCall {
 }
 
 // ===========================================================================
-// OpenAI Responses API (/v1/responses) — OpenAI's own endpoint only
+// OpenAI Responses API (/v1/responses), OpenAI's own endpoint only
 // ===========================================================================
-// Same normalized request as Chat Completions, different shape: tools are flat
-// ({type,name,...} with no `function` wrapper), tool calls and their results are
-// top-level input items linked by `call_id`, and structured output lives under
-// `text.format`. Requests are stateless (`store: false`), so reasoning items only
-// survive between turns as `encrypted_content`: we ask for it and echo the
-// previous turn's output items back verbatim (providerRaw), which verified live
-// keeps multi-turn tool loops working on reasoning models.
+// Flat tools, top-level tool-call/result items linked by `call_id`, structured
+// output under `text.format`. Requests are stateless (`store: false`), so reasoning
+// survives between turns only as `encrypted_content`, echoed back via providerRaw.
 function responsesInput(messages: NormalizedMessage[]): Body[] {
 	const out: Body[] = [];
 	for (const m of messages) {
@@ -441,8 +425,7 @@ function buildAnthropicBody(
 	if (systemParts.length > 0) body.system = systemParts.join("\n\n");
 	Object.assign(body, providerSamplingParams("anthropic", req.modelParams ?? {}));
 	if (req.tools && req.tools.length > 0) {
-		// NOTE: the Anthropic Messages API has no tool-level `strict` field (that is
-		// OpenAI-only) — sending one risks an unknown-field 400, so we never do.
+		// Anthropic has no tool-level `strict` field; sending one risks a 400.
 		body.tools = req.tools.map((t) => ({
 			name: t.name,
 			description: t.description,
@@ -455,10 +438,8 @@ function buildAnthropicBody(
 		}
 	}
 	if (req.responseFormat?.schema) {
-		// Native structured output (GA on Claude 4.x). Anthropic REQUIRES every object
-		// in the schema to set `additionalProperties: false` (verified live: a raw
-		// schema 400s with "additionalProperties must be explicitly set to false") — so
-		// inject it (and the all-required closure), exactly as the OpenAI strict path does.
+		// Anthropic requires `additionalProperties: false` on every object, so
+		// inject it as the OpenAI strict path does.
 		body.output_config = {
 			format: {
 				type: "json_schema",
@@ -520,7 +501,7 @@ function parseAnthropicResponse(json: Record<string, unknown>): ParsedChatResult
 // ===========================================================================
 // Gemini
 // ===========================================================================
-function buildGeminiBody(modelName: string, req: NormalizedChatRequest): Body {
+function buildGeminiBody(req: NormalizedChatRequest): Body {
 	const systemParts: string[] = [];
 	const contents: Body[] = [];
 	for (const m of req.messages) {
@@ -651,7 +632,7 @@ export function buildChatBody(
 		case "anthropic":
 			return buildAnthropicBody(modelName, req, anthropicDefaultMaxTokens);
 		case "gemini":
-			return buildGeminiBody(modelName, req);
+			return buildGeminiBody(req);
 		case "openai-responses":
 			return buildOpenAIResponsesBody(modelName, req);
 		default:
@@ -659,10 +640,47 @@ export function buildChatBody(
 	}
 }
 
+/** The array every successful reply carries on this wire. */
+function envelopeKey(wire: ChatWire): string {
+	switch (wire) {
+		case "anthropic":
+			return "content";
+		case "gemini":
+			return "candidates";
+		case "openai-responses":
+			return "output";
+		default:
+			return "choices";
+	}
+}
+
+/**
+ * Reject a 2xx reply that is not an answer: an error envelope (gateways such
+ * as OpenRouter report some failures with status 200) or a body without the
+ * wire's envelope. The Responses API sends `error: null` on success, so only a
+ * non-null error counts.
+ */
+function assertChatEnvelope(wire: ChatWire, json: Record<string, unknown>): void {
+	const error = json.error as { message?: unknown } | string | null | undefined;
+	if (error !== null && error !== undefined) {
+		const message = typeof error === "string" ? error : error.message;
+		throw new Error(typeof message === "string" ? message : JSON.stringify(error));
+	}
+	const key = envelopeKey(wire);
+	if (Array.isArray(json[key])) return;
+	const blockReason = (json.promptFeedback as { blockReason?: unknown } | undefined)?.blockReason;
+	throw new Error(
+		typeof blockReason === "string"
+			? `The prompt was blocked (${blockReason}).`
+			: `The response has no "${key}" array.`,
+	);
+}
+
 export function parseChatResponse(
 	wire: ChatWire,
 	json: Record<string, unknown>,
 ): ParsedChatResult {
+	assertChatEnvelope(wire, json);
 	switch (wire) {
 		case "anthropic":
 			return parseAnthropicResponse(json);

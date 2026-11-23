@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +27,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { settingsStore } from "../settingsStore";
 import type IChoice from "../types/choices/IChoice";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -48,7 +48,7 @@ class CancellationTestMacroChoiceEngine extends MacroChoiceEngine {
 		variables: Map<string, unknown>,
 		abortMessage: string
 	) {
-		super(app, plugin, choice, choiceExecutor, variables);
+		super(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor, variables);
 		this.abortMessage = abortMessage;
 	}
 
@@ -268,6 +268,7 @@ describe("MacroChoiceEngine nested choice propagation", () => {
 		const engine = new ObservationMacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			choice,
 			choiceExecutor,
 			new Map<string, unknown>(),

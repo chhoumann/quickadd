@@ -32,18 +32,10 @@ export function blockquoteSeparator(above: string, below: string): string {
 }
 
 /**
- * Offset at which the note body begins — immediately after the YAML frontmatter
- * block when present, otherwise 0.
- *
- * Uses Obsidian's own `getFrontMatterInfo`, so detection matches what Obsidian
- * shows the user exactly: empty frontmatter (`---\n---`) is recognised, a `---`
- * fence that is not at offset 0 is not, and `...`-style closes are rejected. This
- * is deliberately content-based (the metadata cache is not consulted) so a stale
- * or cold cache cannot place text in the wrong spot.
- *
- * This is the STRUCTURAL boundary, and it lands on the start of the blank line that
- * usually separates frontmatter from the body. It is therefore the wrong offset to
- * write at — see `getBodyInsertOffset` below, which is what the insertion uses.
+ * Offset where the body begins: after the frontmatter, else 0. Uses Obsidian's
+ * content-based `getFrontMatterInfo`, so it matches what Obsidian shows and a
+ * stale metadata cache cannot misplace text. This structural boundary sits at the
+ * start of the separator line; insertion uses getBodyInsertOffset.
  */
 export function getBodyStartOffset(content: string): number {
 	const info = getFrontMatterInfo(content);
@@ -51,35 +43,11 @@ export function getBodyStartOffset(content: string): number {
 }
 
 /**
- * Offset a top-of-body insertion actually lands on: the frontmatter boundary from
- * {@link getBodyStartOffset}, plus the blank line that separates the frontmatter
- * block from the body when the note has one.
- *
- * `getFrontMatterInfo().contentStart` points at the byte right after the closing
- * fence's newline — i.e. at the START of that separator line, not after it. Writing
- * there wedges the capture between the fence and the blank line, so the note reads
- * as if its frontmatter and body were never separated (issue #1538). The separator
- * line is document furniture belonging to the frontmatter block, so the body starts
- * below it.
- *
- * Deliberately narrow:
- *  - only when frontmatter exists. A note with no frontmatter that happens to start
- *    with a blank line still gets "top of file" taken literally, at offset 0.
- *  - only ONE line. A longer blank run is body spacing the user chose, and only the
- *    first line of it is the frontmatter separator.
- *  - only when `text` does not already open with a blank line of its own. Such a
- *    payload supplies its own separation, and skipping as well would stack two blank
- *    lines (the "don't double" rule the leading separator below also applies). The
- *    payload is judged by the SAME blank-line definition as the note, so a template
- *    whose separator carries trailing spaces is recognised too.
- *
- * A closing fence sitting at EOF (`---\n---`) has nothing after it, so there is no
- * separator to find and the offset stays on the fence — where the leading separator
- * below takes over and keeps the fence intact.
- *
- * Not exported: {@link getBodyStartOffset} stays the pure frontmatter boundary that
- * `insertionPositioning.getBodyStartLine` uses for heading masking and ordered
- * section placement, and that boundary must not move.
+ * Where a top-of-body insertion lands: the frontmatter boundary plus the one
+ * blank separator line below the closing fence, so a capture never wedges
+ * between fence and separator. Only when frontmatter exists, only one line, and
+ * only when `text` does not open with a blank line of its own. Not exported:
+ * getBodyStartOffset must stay the pure boundary that heading masking uses.
  */
 function getBodyInsertOffset(content: string, text: string): number {
 	const start = getBodyStartOffset(content);
@@ -92,38 +60,19 @@ function getBodyInsertOffset(content: string, text: string): number {
 }
 
 /**
- * Insert `text` at the start of the note body — below frontmatter and its separator
- * line when present — under one invariant: **the insertion adds whole lines. It never
- * merges with, and never deletes, an existing line.** Two separators enforce it:
- *
- *  - a leading newline when the preceding block (frontmatter, or nothing) does not
- *    already end with one. This protects frontmatter-only notes whose closing fence
- *    sits at EOF (`---\n---`), where the body offset lands on the fence itself.
- *  - a trailing newline whenever any body content follows, so the payload terminates
- *    its own line. This is unconditional on purpose: a `rest` that begins with a
- *    newline does NOT mean the payload is already separated — it means the first body
- *    line is EMPTY, and an unterminated payload would take that empty line's place,
- *    silently deleting a line from the note (issue #1538).
- *
- * The injected separator is a lone `\n` (matching the existing capture/template
- * insertion helpers, which splice on `\n` too); Obsidian tolerates the resulting
- * mixed EOL in a CRLF note.
- *
- * `TemplateInsertEngine.insertBodyIntoNoteContent` reuses this same primitive for its
- * "top" insert, but passes `body + "\n"` so an applied template block always ends on its
- * own line (leaving a blank-line separation when the body already ends in a newline).
- * Capture callers pass the payload as-is for tight single-snippet insertion.
- *
- * `separateBlockquotes` adds a {@link blockquoteSeparator} below the payload, for
- * a line Create line if not found adds above a blockquote.
+ * Inserts `text` at the start of the note body. It adds whole lines and never
+ * merges with or deletes an existing line: a leading newline when the preceding
+ * block lacks one (a closing fence at EOF), and a trailing newline whenever body
+ * content follows, since a `rest` starting with a newline is an empty first
+ * line, not separation. The separator is a lone `\n`; Obsidian tolerates mixed
+ * EOL in a CRLF note. `separateBlockquotes` adds a {@link blockquoteSeparator}
+ * below the payload.
  */
 export function insertAtNoteBodyStartWithResult(
 	content: string,
 	text: string,
 	{ separateBlockquotes = false } = {},
 ): NoteBodyInsertionResult {
-	// Inserting nothing leaves the note untouched (defensive: capture callers
-	// already drop empty payloads upstream, but keep the helper safe in isolation).
 	if (text.length === 0) {
 		return {
 			content,

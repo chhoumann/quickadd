@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
-import { settingsTreeHasUnreadableData } from "./helpers/choice-traversal";
+import { settingsTreeHasUnreadableData } from "../utils/choiceTraversal";
 import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
 import removeMacroIndirection from "./removeMacroIndirection";
 import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";

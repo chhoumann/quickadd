@@ -5,19 +5,15 @@ import type IChoice from "../types/choices/IChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceType } from "../types/choices/choiceType";
-
-function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-	// Null-tolerant: `data.json` can hand us a list with a null/primitive hole in
-	// it (see dedupeChoicesById), and every caller below is a total function.
-	return isChoiceLike(choice) && choice.type === "Multi";
-}
+import { isMultiChoice } from "../types/choices/choiceGuards";
 
 /**
- * Whether `value` is shaped enough like a choice to be walked: a non-null object.
- * `data.json` is untrusted, so a list entry can be `null`, a string, or a number.
+ * Whether `value` is shaped enough like a choice to be walked: a non-null,
+ * non-array object. `data.json` is untrusted, so a list entry can be `null`, a
+ * string, a number, or an array.
  */
 export function isChoiceLike(value: unknown): value is IChoice {
-	return typeof value === "object" && value !== null;
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -39,7 +35,7 @@ export function hasChildChoices(choice: IChoice): boolean {
 /**
  * Whether a folder-only traversal would skip recoverable data. Migrations that
  * move data must stay pending when this is true; completing them strands the
- * skipped subtree after the user repairs it. Migrations using walkAllChoices
+ * skipped subtree after the user repairs it. Migrations using walkChoicesInSettings
  * must instead use settingsTreeHasUnreadableData, which also checks commands.
  * The root must be an array; empty values below it contain nothing to migrate.
  */
@@ -47,12 +43,9 @@ export function treeHasUnreadableChildren(choices: unknown): boolean {
 	if (!Array.isArray(choices)) return true;
 	const walk = (list: IChoice[]): boolean =>
 		list.some((choice) => {
-			// A nested ARRAY can be carrying choices - the editor seam splices one
-			// into the tree - and `flattenChoices` pushes it as if it were a choice
-			// rather than descending it. So removeMacroIndirection would classify a
-			// macro referenced from inside one as orphaned, duplicate it at the root
-			// and delete `settings.macros`. Stay pending until the seam has repaired
-			// it (#1608/#1610).
+			// A nested array can carry choices (the editor seam splices one in)
+			// that flattenChoices would not descend, so a migration would
+			// misclassify them. Stay pending until the seam repairs it.
 			if (Array.isArray(choice)) return true;
 			if (!isChoiceLike(choice)) return false;
 			if (choice.type !== "Multi") return false;
@@ -103,16 +96,10 @@ export function defaultIconForChoiceType(type: ChoiceType): string {
 }
 
 /**
- * Resolve the icon id used when displaying a choice or registering its command.
- * A non-empty per-choice override wins; otherwise the per-type default. Defaults
- * are never written to `data.json`, so the settings payload stays clean and the
- * defaults can evolve freely. `choice.icon` is an optional override (absent for
- * every choice unless explicitly set).
- *
- * The `typeof` guard (not just `?.`) is deliberate: `data.json` is not
- * runtime-validated, so a hand-edited or imported choice could carry a
- * non-string `icon` (e.g. a number or object). Optional chaining alone would
- * let `.trim()` throw and abort command registration / plugin load.
+ * A non-empty per-choice override wins, else the per-type default; defaults are
+ * never written to data.json. The `typeof` guard matters: data.json is not
+ * validated, and a non-string `icon` would make `.trim()` abort command
+ * registration.
  */
 export function resolveChoiceIcon(choice: IChoice): string {
 	const override = typeof choice.icon === "string" ? choice.icon.trim() : "";
@@ -122,7 +109,7 @@ export function resolveChoiceIcon(choice: IChoice): string {
 /**
  * Recursively flattens the choice hierarchy into a single array. Total over a
  * malformed tree: unreadable children read as none, and a list hole (`null`, a
- * primitive) is skipped rather than handed on as if it were a choice.
+ * primitive, an array) is skipped rather than handed on as if it were a choice.
  */
 export function flattenChoices(choices: IChoice[]): IChoice[] {
 	const result: IChoice[] = [];
@@ -138,40 +125,20 @@ export function flattenChoices(choices: IChoice[]): IChoice[] {
 }
 
 /**
- * Returns the choice tree with every id made globally unique, without losing any
- * data. Walks pre-order; the first occurrence of an id is kept, and a later
- * choice whose id was already seen is either dropped (when byte-identical to the
- * first, so it is a true duplicate) or kept under a fresh id (when its content
- * differs, so a genuinely distinct choice that merely collided survives whole,
- * children and all).
- *
- * Why this exists: the settings tab renders choices in a keyed Svelte
- * `{#each ... (choice.id)}` (ChoiceList.svelte). Svelte 5 throws
- * `each_key_duplicate` on a repeated key, which aborts the settings-tab mount and
- * leaves it blank (#1451) - while the command palette keeps working because
- * commands register by plain recursion (so the symptom reads as "corrupted
- * data"). Choice ids are v4 UUIDs (Choice.ts), so global uniqueness is the real
- * invariant (the command registry is keyed on `choice:<id>` too); a repeat only
- * comes from external corruption - e.g. Obsidian Sync freezing a transient
- * duplicate and propagating it via whole-file last-write-wins (no JSON/array
- * merge) - never from a legitimately distinct choice.
- *
- * Called once where data enters the app (loadSettings): the cleaned tree renders
- * and registers commands correctly, and the next ordinary settings save rewrites
- * data.json cleaned. Pure - never mutates its input.
+ * Returns the choice tree with every id globally unique, losing no data. The
+ * first occurrence keeps its id; a later byte-identical duplicate is dropped and
+ * a differing one gets a fresh id. Svelte's keyed each throws on a repeated key,
+ * which blanks the settings tab. Repeats only come from external corruption,
+ * such as Obsidian Sync's whole-file last-write-wins. Pure.
  */
 export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
-	// id -> first kept choice with that id (the original object, for comparison).
 	const firstById = new Map<string, IChoice>();
 
 	const walk = (list: IChoice[]): IChoice[] => {
 		const out: IChoice[] = [];
 		for (const choice of list) {
-			// A list entry can be `null` or a primitive (a truncated write, a bad
-			// hand-edit). Keep it verbatim - preserving is this function's whole
-			// point - but never dereference it: this runs inside loadSettings, ~200
-			// lines before addSettingTab, so a throw here costs the settings tab
-			// itself and every command with it.
+			// Keep a `null` or primitive entry verbatim but never dereference it: a
+			// throw here, inside loadSettings, costs the settings tab and every command.
 			if (!isChoiceLike(choice)) {
 				out.push(choice);
 				continue;
@@ -179,9 +146,6 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 			let current = choice;
 			const prior = firstById.get(current.id);
 			if (prior) {
-				// Compare the whole choice (incl. nested children) to the first
-				// occurrence: equal => true duplicate, drop it; otherwise a real id
-				// collision, so keep it under a fresh id (nothing lost).
 				if (JSON.stringify(current) === JSON.stringify(prior)) {
 					continue;
 				}
@@ -206,12 +170,10 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 }
 
 /**
- * An empty Capture format or File name means the default: `{{VALUE}}` on its
- * own, or the note-title prompt (#2004). QuickAdd 2.29 and earlier saved
- * `enabled: true` with no text when that field's toggle was switched on and left
- * empty, which the builder now shows as the default but the run read as "write
- * nothing" (#2047). Clear the flag so the run agrees; the text is kept, as the
- * builder keeps it. The result is the shape 2.29 saves with the toggle off.
+ * An empty Capture format or File name means the default. QuickAdd 2.29 and
+ * earlier saved `enabled: true` with no text, which the run read as "write
+ * nothing"; clearing the flag makes the run agree with the builder. The text is
+ * kept.
  */
 export function clearEmptyFormatFlag(choice: IChoice): void {
 	const field: unknown =

@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { App } from "obsidian";
 import { Notice } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import type { SectionOrdering } from "../../../types/choices/ICaptureChoice";
 import {
@@ -22,7 +22,6 @@ import ValidatedInput from "./ValidatedInput.svelte";
 import LabeledField from "./LabeledField.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 
-/** Reactive port of captureChoiceBuilder.addInsertAfterFields. */
 let {
 	insertAfter = $bindable(),
 	app,
@@ -30,20 +29,17 @@ let {
 }: {
 	insertAfter: ICaptureChoice["insertAfter"];
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
-// Defaults the imperative builder set when this section rendered (insertAfter
-// enabled). Applied synchronously at init — before the template's bind:checked
-// reads them — and kept section-local, so the persisted shape only changes for
-// choices whose write position actually reaches "After line…" (parity with the
-// imperative addInsertAfterFields).
+// Defaults applied synchronously, before bind:checked reads them, and only for
+// choices whose write position reaches "After line…".
 if (insertAfter.inline === undefined) insertAfter.inline = false;
 if (insertAfter.replaceExisting === undefined)
 	insertAfter.replaceExisting = false;
 if (insertAfter.promptHeading === undefined) insertAfter.promptHeading = false;
-// insertAtEnd (2021) and considerSubsections (2023) postdate insertAfter itself,
-// so choices saved before then legitimately lack them (#1497).
+// insertAtEnd and considerSubsections postdate insertAfter, so older choices
+// legitimately lack them.
 if (insertAfter.insertAtEnd === undefined) insertAfter.insertAtEnd = false;
 if (insertAfter.considerSubsections === undefined)
 	insertAfter.considerSubsections = false;
@@ -124,13 +120,10 @@ const isOrdered = $derived(
 	insertAfter.createIfNotFound && orderedSelected,
 );
 
-// Inline same-line insertion can only match a single line, but the live preview
-// above expands `\n`, so a multi-line target looks valid while the capture
-// silently never lands. Warn when inline mode is on and the target RESOLVES to
-// more than one line (issue #468). We resolve with the same FormatDisplayFormatter
-// the preview/runtime use — not a raw regex — so an escaped `\\n` (stays a literal
-// backslash-n, single line) does not false-warn and a token/global-var that
-// expands to a real newline is not missed.
+// Inline insertion matches a single line, but the preview expands `\n`, so a
+// multi-line target looks valid while the capture never lands. Resolve with the
+// same formatter the runtime uses, so an escaped `\\n` does not false-warn and a
+// token expanding to a newline is not missed.
 const inlinePreviewFormatter = $derived(new FormatDisplayFormatter(app, plugin));
 let inlineTargetHasLinebreak = $state(false);
 $effect(() => {
@@ -173,7 +166,7 @@ const showInsertionFallbackWarning = $derived(
 
 // Single seeder (builder-owned): seed orderBy when "ordered" is first selected,
 // and while the user hasn't pinned a key, keep the date/insertion choice in sync
-// with the `after` text. Resolves the Load-vs-builder two-seeder divergence.
+// with the `after` text.
 $effect(() => {
 	// Only seed when ordered placement is actually active (location ordered AND
 	// creation on), so a merely-selected-but-inert ordered location never persists

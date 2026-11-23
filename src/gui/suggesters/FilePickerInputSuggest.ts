@@ -1,8 +1,9 @@
 import { setIcon, type App, type SearchMatches } from "obsidian";
 import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
+import { markAliasSuggestion } from "./aliasFlair";
 import { dispatchCompletion, renderHighlightRanges } from "./utils";
-import { fileBasenameFromPath } from "../../utils/fileSyntax";
+import { basenameWithoutMdOrCanvas } from "../../utils/pathUtils";
 
 export interface FilePickerOption {
 	value: string;
@@ -89,7 +90,7 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			names = [
 				option.label,
 				option.path,
-				...(option.isCustom ? [] : [fileBasenameFromPath(option.path)]),
+				...(option.isCustom ? [] : [basenameWithoutMdOrCanvas(option.path)]),
 				...(option.aliases ?? []),
 			].map((name) => name.toLocaleLowerCase());
 			this.namesByOption.set(option, names);
@@ -124,11 +125,7 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			// As in the quick switcher: the alias that matched, the note beneath.
 			renderHighlightRanges(primary, alias, matches);
 			path.setText(option.label);
-			el.addClass("mod-complex");
-			text.addClass("suggestion-content");
-			const flair = el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" });
-			flair.setAttribute("aria-label", "Alias");
-			setIcon(flair, "forward");
+			markAliasSuggestion(el, text);
 			return;
 		}
 		renderHighlightRanges(primary, option.label, matches);

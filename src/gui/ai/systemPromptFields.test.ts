@@ -59,7 +59,9 @@ vi.mock("src/ai/tokenEstimator", async (importOriginal) => ({
 	estimateTokenCount: vi.fn(() => 0),
 }));
 vi.mock("src/gui/suggesters/genericTextSuggester", () => ({
-	GenericTextSuggester: class {},
+	GenericTextSuggester: class {
+		destroy(): void {}
+	},
 }));
 vi.mock("src/formatters/formatDisplayFormatter", () => ({
 	FormatDisplayFormatter: class {

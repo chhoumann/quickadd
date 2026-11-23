@@ -1,7 +1,7 @@
 import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
-import { replaceRange } from "./utils";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
+import { replaceInputRange } from "./utils";
 import { flattenChoices } from "../../utils/choiceUtils";
 import type {
 	FormatSuggestContext,
@@ -36,7 +36,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 	constructor(
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
-		private plugin: QuickAdd,
+		private plugin: ChoiceBuilderPlugin,
 		private context: FormatSuggestContext = "noteContent",
 	) {
 		super(app, inputEl);
@@ -205,8 +205,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			if (value.startsWith("}}", cursorPosition)) replaceEnd += 2;
 		}
 
-		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
+		replaceInputRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
 			fromCompletion: true,
 		});
 

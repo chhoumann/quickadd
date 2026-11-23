@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, afterEach } from "vitest";
 
-const { editorChoices } = vi.hoisted(() => ({ editorChoices: { names: [] as string[] } }));
+const { editorChoices } = vi.hoisted(() => ({
+	editorChoices: { names: [] as string[], created: 0 },
+}));
 
 vi.mock("./CommandSequenceEditor", () => ({
 	CommandSequenceEditor: class {
 		constructor(options: { choices: { name: string }[] }) {
 			editorChoices.names = options.choices.map((choice) => choice.name);
+			editorChoices.created++;
 		}
 
 		render(parent: HTMLElement) {
@@ -21,6 +24,7 @@ vi.mock("./CommandSequenceEditor", () => ({
 }));
 
 import { App } from "obsidian";
+import { flushSync } from "svelte";
 import type QuickAdd from "../../main";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import { MacroChoice } from "../../types/choices/MacroChoice";
@@ -32,6 +36,8 @@ const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
 function openPage(choice: IMacroChoice, onSave: (choice: IMacroChoice) => void = () => {}) {
 	const page = new MacroBuilder(new App(), plugin, choice, [], onSave);
 	page.display();
+	// Run the settings' mount effects, such as a dropdown's initial selection.
+	flushSync();
 	return page;
 }
 
@@ -92,7 +98,8 @@ describe("MacroBuilder", () => {
 
 		for (const value of ["always", "never", ""]) {
 			select.value = value;
-			select.dispatchEvent(new Event("change"));
+			select.dispatchEvent(new Event("change", { bubbles: true }));
+			page.save();
 			expect(choice.onePageInput).toBe(value || undefined);
 			const reopened = openPage(choice);
 			expect(reopened.containerEl.querySelector("select")?.value).toBe(value);
@@ -109,6 +116,23 @@ describe("MacroBuilder", () => {
 		expect(page.containerEl.textContent).toContain("Last week");
 		expect(rows.at(-2)?.textContent).toContain("Add to command palette");
 		expect(rows.at(-1)?.textContent).toContain("Icon");
+	});
+
+	it("keeps the command editor when a setting adds rows", () => {
+		const choice = new MacroChoice("Macro under test");
+		const page = openPage(choice);
+		const editor = page.containerEl.querySelector(".quickAddCommandEditor");
+		const created = editorChoices.created;
+		const whichDay = page.containerEl.querySelectorAll<HTMLSelectElement>("select")[1];
+		if (!whichDay) throw new Error("Missing Which day dropdown");
+
+		whichDay.value = "ask";
+		whichDay.dispatchEvent(new Event("change", { bubbles: true }));
+		flushSync();
+
+		expect(page.containerEl.textContent).toContain("Picker starts on");
+		expect(editorChoices.created, "the page rebuilt the command editor").toBe(created);
+		expect(page.containerEl.querySelector(".quickAddCommandEditor")).toBe(editor);
 	});
 
 	it("shows a custom offset only for unmatched relatives", () => {

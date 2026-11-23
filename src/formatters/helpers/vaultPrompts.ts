@@ -9,10 +9,9 @@ import { collectFieldValuesProcessedDetailed } from "../../utils/FieldValueColle
 import { FieldValueProcessor } from "../../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../../utils/activeNoteFieldDefault";
 import { buildFileDisplayInfos, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, itemWithAlias, type ParsedFileToken } from "../../utils/fileSyntax";
-import { UserCancelError } from "../../errors/UserCancelError";
-import { isCancellationError } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
 import { getFileTokenFiles } from "../../utils/vaultQueries";
+import { promptOrCancel } from "./promptOrCancel";
 
 interface VaultPromptContext {
 	app: App;
@@ -22,22 +21,20 @@ interface VaultPromptContext {
 
 export async function suggestForField({ app, executor, getSourcePath }: VaultPromptContext, fieldInput: string): Promise<string | string[]> {
 
-	// Route the final picker to a remote interactive session (Raycast) when one
-	// is driving; the vault-side value collection below still runs unchanged.
+	// Route the final picker to a remote interactive session when one is
+	// driving; the vault-side value collection below still runs unchanged.
 	const provider = executor?.promptProvider;
-	try {
+	return await promptOrCancel(async () => {
 		// Parse the field input to extract field name and filters. Do NOT warn
-		// on unknown keys here: the field replacer in formatter.ts already parses
-		// the same token with { warnUnknown: true } before calling this, so
-		// warning again would emit a duplicate notice per malformed FIELD token.
+		// here: the field replacer in formatter.ts already parses the same token
+		// with its warn sink before calling this, so warning again would emit a
+		// duplicate notice per malformed FIELD token.
 		const { fieldName, filters, multiSelect, label } =
 			FieldSuggestionParser.parse(fieldInput);
 
-		// Resolve the active-note default (issue #1429) BEFORE collection but apply
-		// it AFTER, so the resolved value never enters the collection cache key
-		// (which is keyed partly on filters.defaultValue). Gate strictly on
-		// "active"; an unknown source is ignored. `null` => no usable active value
-		// (no/non-Markdown active file, or a missing/empty/object property).
+		// Resolve the active-note default before collection but apply it after, so
+		// it never enters the collection cache key. `null` means no usable active
+		// value (no Markdown active file, or a missing, empty or object property).
 		const activeDefault =
 			filters.defaultFrom === "active"
 				? resolveActiveNoteFieldDefault(
@@ -47,7 +44,6 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 					)
 				: null;
 
-		// Collect and process via shared collector (filters unmutated).
 		const { values: collectedValues, hasDefaultValue: literalHasDefault } =
 			await collectFieldValuesProcessedDetailed(app, fieldName, filters);
 
@@ -119,7 +115,7 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 								filters.caseSensitive,
 							),
 						);
-			// Route to a remote interactive session (Raycast) when one is driving.
+			// Route to a remote interactive session when one is driving.
 			if (provider) {
 				return await provider.suggesterMulti(multiValues, multiValues, {
 					placeholder,
@@ -138,10 +134,8 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		}
 
 		if (values.length === 0) {
-			// No values found even after processing defaults
 			let fallbackPrompt = `No existing values were found in your vault.`;
 
-			// Suggest smart defaults if no custom default was provided
 			if (!filters.defaultValue) {
 				const smartDefaults = FieldValueProcessor.getSmartDefaults(
 					fieldName,
@@ -173,20 +167,15 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		return await InputSuggester.Suggest(app, values, values, {
 			placeholder,
 		});
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }
 
 export async function suggestForFile({ app, executor, getSourcePath }: VaultPromptContext, parsed: ParsedFileToken): Promise<string | string[]> {
 
-	// Route the final picker to a remote interactive session (Raycast) when one
-	// is driving; the vault-side file filtering below still runs unchanged.
+	// Route the final picker to a remote interactive session when one is
+	// driving; the vault-side file filtering below still runs unchanged.
 	const provider = executor?.promptProvider;
-	try {
+	return await promptOrCancel(async () => {
 		const files = getFileTokenFiles(app, parsed);
 
 		const placeholder =
@@ -295,10 +284,5 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 			{ aliases, ...(parsed.optional ? { skippable: true } : {}) },
 		);
 		return result ?? "";
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }

@@ -1,32 +1,30 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceChain } from "./choiceChain";
-import { MacroChoiceEngine } from "./MacroChoiceEngine";
+import { createScriptParameters } from "./scriptParameters";
+import type { ScriptParameters } from "./userScriptExecution";
 
 type AsyncFunctionConstructor = new (code: string) => () => Promise<unknown>;
 
-export class SingleInlineScriptEngine extends MacroChoiceEngine {
+/** Runs a `js quickadd` block with the same `this` a user script gets as `params`. */
+export class SingleInlineScriptEngine {
+	public readonly params: ScriptParameters;
+
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		choiceExecutor: IChoiceExecutor,
-		variables: Map<string, string>,
+		variables: Map<string, unknown>,
 		chain: ChoiceChain,
 	) {
-		//@ts-ignore
-		super(app, plugin, null, choiceExecutor, variables, undefined, undefined, null, chain);
+		this.params = createScriptParameters({ app, plugin, runtime, choiceExecutor, variables, chain });
 	}
 
-	 
 	public async runAndGetOutput(code: string): Promise<unknown> {
-		const AsyncFunction = Object.getPrototypeOf(
-			async function () {}
-		).constructor as AsyncFunctionConstructor;
-		 
-		const userCode = new AsyncFunction(code);
-
-		 
-		return await userCode.bind(this.params, this).call();
+		const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as AsyncFunctionConstructor;
+		return await new AsyncFunction(code).call(this.params);
 	}
 }

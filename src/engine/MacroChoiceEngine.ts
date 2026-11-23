@@ -1,48 +1,36 @@
-import { executeMacroAI, pickMacroModel } from "./macroAI";
+import { executeMacroAI } from "./macroAI";
 import { withDispatch, type ChoiceChain } from "./choiceChain";
-import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import { templaterRerunAfter, warnDeprecatedOnce } from "src/utils/templaterRerunDeprecation";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App, WorkspaceLeaf } from "obsidian";
-import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
-import { QuickAddApi } from "../quickAddApi";
-import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
 import type { ICommand } from "../types/macros/ICommand";
 import type { LoadedUserScript } from "../utils/userScript";
 import { executeUserScript, type ScriptParameters } from "./userScriptExecution";
-import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
+import { createScriptParameters } from "./scriptParameters";
+import { QuickAddEngine } from "./QuickAddEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
-import type QuickAdd from "../main";
-import { getQuickAddInstance } from "../quickAddInstance";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getUserScript } from "../utils/userScript";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
 import type { IEditorCommand } from "../types/macros/EditorCommands/IEditorCommand";
-import { EditorCommandType } from "../types/macros/EditorCommands/EditorCommandType";
-import { CutCommand } from "../types/macros/EditorCommands/CutCommand";
-import { CopyCommand } from "../types/macros/EditorCommands/CopyCommand";
-import { PasteCommand } from "../types/macros/EditorCommands/PasteCommand";
-import { PasteWithFormatCommand } from "../types/macros/EditorCommands/PasteWithFormatCommand";
-import { SelectActiveLineCommand } from "../types/macros/EditorCommands/SelectActiveLineCommand";
-import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
-import { MoveCursorToFileStartCommand } from "../types/macros/EditorCommands/MoveCursorToFileStartCommand";
-import { MoveCursorToFileEndCommand } from "../types/macros/EditorCommands/MoveCursorToFileEndCommand";
-import { MoveCursorToLineStartCommand } from "../types/macros/EditorCommands/MoveCursorToLineStartCommand";
-import { MoveCursorToLineEndCommand } from "../types/macros/EditorCommands/MoveCursorToLineEndCommand";
-import { waitFor } from "src/utility";
+import { executeEditorCommand } from "./editorCommands";
+import { waitFor } from "src/utils/waitFor";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
-import type { ResolvedModel } from "src/ai/aiHelpers";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { openFile } from "../utils/fileOpening";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import { executeObsidianCommand, getObsidianCommands } from "../utils/obsidianInternals";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -51,7 +39,6 @@ import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { namedCurrentNote } from "../utils/currentFile";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
-import { createVariablesProxy } from "../utils/variablesProxy";
 import {
 	commandListOf,
 	hasCommandList,
@@ -64,13 +51,9 @@ import { withPreparedChoiceInputs } from "../preflight/preparedChoiceInputs";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 /**
- * Command types QuickAdd used to declare and no longer does. Without this, the
- * generic message would tell a user whose data.json holds one of these that it
- * "can come from a newer version of QuickAdd" - the opposite of the truth, and
- * no help at all. A removed type is a fact we know; say the known thing.
- *
- * A Map, not an object literal: the key comes straight from a hand-edited
- * data.json, and `{}["constructor"]` is not a miss.
+ * Command types QuickAdd no longer declares, so a data.json holding one is not
+ * told it may come from a newer version. A Map, because the key comes from
+ * hand-edited data.json and `{}["constructor"]` is not a miss.
  */
 const RETIRED_COMMAND_TYPES = new Map<string, string>([
 	[
@@ -80,14 +63,9 @@ const RETIRED_COMMAND_TYPES = new Map<string, string>([
 ]);
 
 /**
- * Why a command could not be run, phrased for the person reading the notice.
- *
- * Three shapes reach here, and telling them apart is the difference between
- * actionable and baffling. A type QuickAdd used to declare gets the truth about
- * where it came from. Any other real type name is worth quoting: it is what the
- * user greps for. An entry with no usable type has nothing to quote - printing
- * `'undefined'` or `'[object Object]'` (a hand-authored package can put any JSON
- * here) would send them looking for a command type that never existed.
+ * Why a command could not be run, for the notice. A retired type says so,
+ * another real type name is quoted, and an entry with no usable type quotes
+ * nothing rather than `'undefined'` or `'[object Object]'`.
  */
 function describeUnknownType(
 	type: unknown,
@@ -108,7 +86,7 @@ function getConditionalScriptCacheKey(condition: ScriptCondition): string {
 	return `${condition.scriptPath}::${condition.exportName ?? "default"}`;
 }
 
-export class MacroChoiceEngine extends QuickAddChoiceEngine {
+export class MacroChoiceEngine extends QuickAddEngine {
 	public choice: IMacroChoice;
 	public params: ScriptParameters;
 	protected output: unknown;
@@ -120,80 +98,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private previousStep: ICommand | undefined;
 	protected macro: IMacro;
 	protected choiceExecutor: IChoiceExecutor;
-	protected readonly plugin: QuickAdd;
+	protected readonly plugin: ChoiceRuntimePlugin;
+	protected readonly runtime: FormatterExecutionRuntime;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 	private readonly preloadedUserScripts: Map<string, LoadedUserScript>;
 	private readonly promptLabel?: string;
-	private buildParams(
-		app: App,
-		plugin: QuickAdd,
-		choiceExecutor: IChoiceExecutor,
-		sharedVariables: Map<string, unknown>
-	) {
-		const variablesProxy = createVariablesProxy(sharedVariables);
-
-		const params = {
-			app,
-			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor, this.chain),
-			obsidian,
-			abort: (message?: string) => {
-				throw new MacroAbortError(message);
-			},
-		} as unknown as typeof this.params;
-
-		// Backward compatibility: some scripts assign `QuickAdd.variables = {...}`
-		// or `params.variables = {...}`.
-		// Treat that as replacing the backing Map so templates can consume them.
-		Object.defineProperty(params, "variables", {
-			get: () => variablesProxy,
-			set: (next: unknown) => {
-				if (next === sharedVariables || next === variablesProxy) return;
-
-				const entries =
-					next instanceof Map
-						? Array.from(next.entries()).filter(([key]) => typeof key === "string")
-						: next && typeof next === "object"
-							? Object.entries(next as Record<string, unknown>)
-							: null;
-
-				// Invalid assignments are ignored to avoid wiping the backing store.
-				if (!entries) return;
-
-				sharedVariables.clear();
-				restoreDateVariableFormats(sharedVariables, new Map());
-
-				entries?.forEach(([key, value]) => sharedVariables.set(key, value));
-			},
-			enumerable: true,
-			configurable: false,
-		});
-
-		return params;
-	}
-
-	private initSharedVariables(
-		choiceExecutor: IChoiceExecutor,
-		providedVariables?: Map<string, unknown>
-	): Map<string, unknown> {
-		const existingVariables = choiceExecutor.variables;
-
-		if (providedVariables) {
-			if (existingVariables && providedVariables !== existingVariables) {
-				existingVariables.forEach((value, key) => {
-					if (!providedVariables.has(key)) {
-						providedVariables.set(key, value);
-					}
-				});
-			}
-			return providedVariables;
-		}
-
-		return existingVariables ?? new Map<string, unknown>();
-	}
-
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		choice: IMacroChoice,
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, unknown>,
@@ -206,30 +119,18 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
+		this.runtime = runtime;
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
 		this.promptLabel = promptLabel;
-		const sharedVariables = this.initSharedVariables(
-			choiceExecutor,
-			variables
-		);
-		this.choiceExecutor.variables = sharedVariables;
-		this.params = this.buildParams(app, plugin, choiceExecutor, sharedVariables);
+		this.params = createScriptParameters({ app, plugin, runtime, choiceExecutor, variables, chain });
 	}
 
 	async run(): Promise<void> {
-		// `!this.macro.commands` is truthiness, so it used to wave through the two
-		// shapes that then failed outside the UI (#1593): an array-turned-object
-		// reached `for..of` and threw a bare "i is not iterable" at the user, and a
-		// string reached it INTACT (strings are iterable), so the macro reported
-		// success having walked its own characters and done nothing at all.
-		//
-		// THROWS rather than returning: none of the macro ran, so this is a
-		// failure and every caller has to see it as one. Returning quietly would
-		// let `quickadd:run` answer `ok: true` and automation carry on as if the
-		// macro had done its job (#1606's contract). The throw surfaces as one
-		// Notice through the executor's error path.
+		// A non-array `commands` fails outright: an object throws in `for..of`, and
+		// a string would walk its own characters and report success. Throws,
+		// since none of the macro ran and callers must see a failure.
 		if (isUnreadableCommandList(this.macro?.commands)) {
 			throw new Error(
 				`Could not read the commands for macro '${this.choice.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
@@ -238,11 +139,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const commands = commandListOf(this.macro?.commands);
 		if (commands.length === 0) {
-			// `commands: []` is the HEALTHY default (QuickAddMacro's constructor),
-			// so an empty list stays as quiet as it was before this guard existed -
-			// otherwise every freshly created macro, and every launch with an
-			// unpopulated run-on-startup macro, would raise a 15s error notice.
-			// Only a MISSING macro is worth saying anything about.
+			// `commands: []` is the healthy default, so an empty list stays quiet;
+			// only a missing macro is reported.
 			if (!hasCommandList(this.macro?.commands)) {
 				log.logError(
 					`No commands in the macro for choice '${this.choice.name}'`
@@ -262,24 +160,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected async executeCommands(commands: ICommand[]) {
 		try {
 			for (const [index, command] of commands.entries()) {
-				// A null/undefined entry is corruption, not a command, and the old
-				// `isRecord` inside every type guard was the only thing keeping it
-				// from throwing here. It stays SILENT: the same shape package import
-				// skips without comment (packageImportService), and a red notice per
-				// hole would bury the #1583 resilience work under noise.
+				// A null entry is corruption, skipped silently as package import skips it.
 				if (!command) continue;
 
-				// A switch, not the old flat `if (isX(command))` chain: that chain had
-				// no else, so a type it did not know was dropped on the floor with no
-				// error, no notice and no log, and the macro still reported success
-				// (#1571). The `never` assignment in the default branch makes adding a
-				// CommandType without a handler a tsc error, so the hole cannot come
-				// back. `type` is all the old guards ever checked, so the casts are
-				// exactly as strict as what they replaced.
+				// The `never` default makes a CommandType without a handler a tsc error.
 				const role = command.type === CommandType.Choice || command.type === CommandType.NestedChoice
-					? classifyStep(command, (id) => resolveChoiceFromPlugin(this.plugin, id))
+					? classifyStep(command, (id) => this.plugin.findChoiceById(id))
 					: null;
-				const rerunAfter = templaterRerunAfter(this.previousStep, command, (id) => resolveChoiceFromPlugin(this.plugin, id));
+				const rerunAfter = templaterRerunAfter(this.previousStep, command, (id) => this.plugin.findChoiceById(id));
 				if (rerunAfter) {
 					warnDeprecatedOnce(
 						`templater-rerun:${this.choice.id}:${command.id}`,
@@ -321,11 +209,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 							await this.executeConditional(command as IConditionalCommand);
 							break;
 						default: {
-							// Compile-time exhaustiveness (the idiom executeEditorCommand
-							// already uses) AND a runtime shout: `type` is only typed at the
-							// edges, so a newer QuickAdd's data.json read by an older one -
-							// which our own downgrade recipe produces - really does arrive
-							// here with a string TypeScript says is impossible.
+							// `type` is only typed at the edges: an older QuickAdd reading a
+							// newer data.json (as a downgrade produces) really arrives here.
 							const exhaustiveCheck: never = command.type;
 							this.reportUnrunnableCommand(
 								command,
@@ -355,18 +240,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	/**
-	 * Say out loud that a command was skipped, then carry on with the rest of
-	 * the macro - the same shape `executeObsidianCommand` uses for a command
-	 * whose plugin is gone. Skipping is the safer half of the choice: the step
-	 * did nothing either way, and aborting a macro on load-order noise would
-	 * take the file-writing steps that DID work with it. The shout is the half
-	 * that was missing (#1571) - without it the macro reports success and the
-	 * user's next step inherits the hole, e.g. an unset output variable that
-	 * turns into a mid-macro prompt asking them to type the missing value.
-	 *
-	 * One notice per skipped command, not per type: the same cadence as every
-	 * other skip in this file, and a macro that holds several is exactly the
-	 * case where seeing each one matters.
+	 * Reports a skipped command and carries on, as for a command whose plugin is
+	 * gone: aborting would take the steps that worked with it, while silence lets
+	 * the macro report success. One notice per skipped command.
 	 */
 	private reportUnrunnableCommand(command: ICommand, reason: string): void {
 		const name =
@@ -398,8 +274,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
-		// @ts-ignore
-		const registry = this.app.commands.commands;
+		const registry = getObsidianCommands(this.app);
 		// When the command registry is available, a missing id means the source
 		// plugin was disabled/uninstalled; executeCommandById would silently no-op,
 		// so surface a clear error instead of letting the macro look successful.
@@ -411,26 +286,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		withDispatch({ chain: this.chain, currentNote: namedCurrentNote(this.choiceExecutor) }, () =>
-			// @ts-ignore
-			this.app.commands.executeCommandById(command.commandId),
+			executeObsidianCommand(this.app, command.commandId),
 		);
 	}
 
 	protected async executeChoice(command: IChoiceCommand) {
-		let targetChoice: IChoice;
-		try {
-			targetChoice = this.plugin.getChoiceById(command.choiceId);
-		} catch (error) {
-			// getChoiceById throws ONLY a "Choice <id> not found" error when the
-			// referenced choice was deleted; surface a friendly message naming the
-			// stored command and skip instead of aborting the whole macro. Rethrow
-			// anything else so a genuine fault isn't silently swallowed (which would
-			// let the macro continue in a corrupted state).
-			const message = error instanceof Error ? error.message : String(error);
-			if (!/not found/i.test(message)) throw error;
-			log.logError(
-				`choice '${command.name}' could not be found.`
-			);
+		// A deleted choice is skipped with a message naming the stored command,
+		// rather than aborting the whole macro.
+		const targetChoice = this.plugin.findChoiceById(command.choiceId);
+		if (!targetChoice) {
+			log.logError(`choice '${command.name}' could not be found.`);
 			return;
 		}
 
@@ -456,60 +321,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeEditorCommand(command: IEditorCommand) {
-		switch (command.editorCommandType) {
-			case EditorCommandType.Cut:
-				await CutCommand.run(this.app);
-				break;
-			case EditorCommandType.Copy:
-				await CopyCommand.run(this.app);
-				break;
-			case EditorCommandType.Paste:
-				await PasteCommand.run(this.app);
-				break;
-			case EditorCommandType.PasteWithFormat:
-				await PasteWithFormatCommand.run(this.app);
-				break;
-			case EditorCommandType.SelectActiveLine:
-				SelectActiveLineCommand.run(this.app);
-				break;
-			case EditorCommandType.SelectLinkOnActiveLine:
-				SelectLinkOnActiveLineCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToFileStart:
-				MoveCursorToFileStartCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToFileEnd:
-				MoveCursorToFileEndCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToLineStart:
-				MoveCursorToLineStartCommand.run(this.app);
-				break;
-			case EditorCommandType.MoveCursorToLineEnd:
-				MoveCursorToLineEndCommand.run(this.app);
-				break;
-			default: {
-				// Skip and shout, like the outer loop - this used to throw, which
-				// aborted the whole macro. Same threat model, so it deserves the same
-				// answer: a newer QuickAdd that adds an EditorCommandType writes a
-				// data.json an older one still has to read, and one unknown editor
-				// step is no reason to take the file-writing steps around it down
-				// with it.
-				const exhaustiveCheck: never = command.editorCommandType;
-				this.reportUnrunnableCommand(
-					command,
-					describeUnknownType(exhaustiveCheck, "editor command"),
-				);
-			}
-		}
+		if (await executeEditorCommand(this.app, command)) return;
+		// Skip and report like the outer loop: a newer QuickAdd may add an
+		// EditorCommandType that an older one still reads.
+		this.reportUnrunnableCommand(
+			command,
+			describeUnknownType(command.editorCommandType, "editor command"),
+		);
 	}
 
 	private async executeAIAssistant(command: IAIAssistantCommand) {
-		return executeMacroAI(this.app, this.choice, this.choiceExecutor, this.chain, command,
-			() => this.pickModelInteractively());
-	}
-
-	private async pickModelInteractively(): Promise<ResolvedModel> {
-		return pickMacroModel(this.app, this.choiceExecutor);
+		return executeMacroAI(this.app, this.plugin, this.runtime, this.choice, this.choiceExecutor, this.chain, command);
 	}
 
 	private async executeConditional(command: IConditionalCommand) {
@@ -523,15 +345,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			? command.thenCommands
 			: command.elseCommands;
 
-		// An absent branch is normal (a conditional with no else), so it stays
-		// silent. A branch we could not read is not: say so rather than skipping
-		// it as if the user had left it empty (#1593).
-		//
-		// THROWS rather than returning, for the same reason run() does, and one
-		// more: returning here only exits executeConditional, so the outer loop
-		// would carry on with every command AFTER the conditional - running
-		// file-writing and script commands that were only ever meant to follow a
-		// branch that never ran.
+		// An absent branch is normal; an unreadable one throws, since returning
+		// here would let the outer loop run the commands meant to follow a branch
+		// that never ran.
 		if (isUnreadableCommandList(branch)) {
 			throw new Error(
 				`Could not read the ${shouldRunThenBranch ? "then" : "else"} commands for '${command.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
@@ -644,13 +460,13 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		try {
 			const formatter = new CompleteFormatter(
 				this.app,
-				getQuickAddInstance(),
-				this.choiceExecutor
+				this.plugin,
+				this.choiceExecutor,
+				this.runtime,
 			);
-			// This formatter is built per command, so a {{VALUE}} in the path only
-			// gets the macro's name and its own draft scope if they are handed over
-			// (issue #1546). Scoped per command id: a macro can hold several Open
-			// File commands, and they must not share one draft.
+			// This formatter is built per command, so it needs the macro's name and
+			// a draft scope per command id: several Open File commands must not
+			// share one draft.
 			formatter.setPromptRunContext({
 				choiceName: this.choice?.name,
 				draftScopeId: `${this.choice?.id ?? "macro"}#openFile:${command.id}`,
@@ -663,20 +479,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
 
-			// Validate path segments to prevent traversal attacks. A substring check
-			// would wrongly reject legitimate filenames that merely contain ".." (e.g.
-			// 'log..2024.md') or "//"; only a literal '..' path segment or an empty
-			// segment (from '//') is an actual traversal/malformed path.
-			const segments = normalizedPath.split("/");
-			const hasTraversal = segments.some(
-				(segment, index) =>
-					segment === ".." ||
-					// An empty segment is a doubled slash; the leading slash of an
-					// absolute path is allowed (index 0), as is a single trailing slash.
-					(segment === "" && index !== 0 && index !== segments.length - 1)
-			);
-			if (hasTraversal) {
-				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
+			// Segment-based, so a name that merely contains ".." ('log..2024.md')
+			// still opens.
+			if (escapesVaultBoundary(normalizedPath)) {
+				log.logError(`OpenFile: '${normalizedPath}' points outside the vault`);
 				return;
 			}
 
@@ -694,6 +500,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				originLeaf: this.originLeaf,
 			});
 		} catch (error) {
+			// A dismissed prompt in the path, or an abort, stops the macro like any other step.
+			if (error instanceof MacroAbortError) throw error;
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
 		}
 	}

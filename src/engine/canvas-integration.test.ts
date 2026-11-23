@@ -6,6 +6,7 @@ import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { templateHarness } from "../../tests/helpers/engines/templateHarness";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
@@ -128,7 +129,7 @@ describe('Canvas Template Integration', () => {
 			choice.folder.enabled = true;
 			choice.folder.folders = [""];
 			choice.fileExistsBehavior = { kind: "apply", mode: "overwrite" };
-			await new TemplateChoiceEngine(h.app, h.plugin, choice, h.executor).run();
+			await new TemplateChoiceEngine(h.app, h.plugin, testFormatterRuntime(h.app, h.plugin), choice, h.executor).run();
 			return h;
 		}
 

@@ -1,11 +1,11 @@
-import type QuickAdd from "../main";
+import type { AppProvider, ChoiceCommandRegistrar, SettingsSaver } from "../types/pluginContext";
 import { settingsStore } from "../settingsStore";
-import type { AssetConflict } from "../gui/PackageManager/importDecisions";
-import { defaultAssetDestinationFor } from "../gui/PackageManager/importDecisions";
+import { defaultAssetDestinationFor } from "./packageImportDecisions";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
 import { syncImportedChoiceCommands } from "./packageImportCommands";
 import type {
 	ApplyImportResult,
+	AssetConflict,
 	AssetImportDecision,
 	AssetImportMode,
 	ChoiceImportDecision,
@@ -70,6 +70,9 @@ function defaultAssetDestinations(
 // and the later store would drop the earlier import, so runs are queued.
 let importQueue: Promise<unknown> = Promise.resolve();
 
+/** What an unattended import needs from the plugin. */
+export type UnattendedImportPlugin = AppProvider & SettingsSaver & ChoiceCommandRegistrar;
+
 /**
  * The import modal's apply step with every decision made up front: the same
  * trust gate, the same analysis, the same default destinations (templates land
@@ -77,7 +80,7 @@ let importQueue: Promise<unknown> = Promise.resolve();
  * their commands synced and the settings saved.
  */
 export function importPackageUnattended(
-	plugin: QuickAdd,
+	plugin: UnattendedImportPlugin,
 	pkg: QuickAddPackage,
 	options: UnattendedImportOptions,
 ): Promise<UnattendedImportOutcome> {
@@ -88,7 +91,7 @@ export function importPackageUnattended(
 }
 
 async function importNow(
-	plugin: QuickAdd,
+	plugin: UnattendedImportPlugin,
 	pkg: QuickAddPackage,
 	options: UnattendedImportOptions,
 ): Promise<UnattendedImportOutcome> {

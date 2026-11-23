@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSemver, isMajorUpdate } from "./semver";
+import { parseSemver } from "./semver";
 
 describe("parseSemver", () => {
 	it("parses standard semantic versions", () => {
@@ -42,34 +42,3 @@ describe("parseSemver", () => {
 		expect(parseSemver("-1.0.0")).toBeNull();
 	});
 });
-
-describe("isMajorUpdate", () => {
-	it("detects major version bumps", () => {
-		expect(isMajorUpdate("3.0.0", "2.7.0")).toBe(true);
-		expect(isMajorUpdate("2.0.0", "1.9.9")).toBe(true);
-		expect(isMajorUpdate("10.0.0", "9.99.99")).toBe(true);
-	});
-
-	it("returns false for minor and patch updates", () => {
-		expect(isMajorUpdate("2.8.0", "2.7.0")).toBe(false);
-		expect(isMajorUpdate("2.7.1", "2.7.0")).toBe(false);
-		expect(isMajorUpdate("2.7.0", "2.7.0")).toBe(false);
-	});
-
-	it("handles pre-release versions", () => {
-		expect(isMajorUpdate("3.0.0-beta.1", "2.7.0")).toBe(true);
-		expect(isMajorUpdate("2.8.0-alpha", "2.7.0")).toBe(false);
-	});
-
-	it("returns true when versions cannot be parsed (err on side of caution)", () => {
-		expect(isMajorUpdate("invalid", "2.7.0")).toBe(true);
-		expect(isMajorUpdate("2.7.0", "invalid")).toBe(true);
-		expect(isMajorUpdate("invalid", "invalid")).toBe(true);
-	});
-
-	it("handles downgrades (should not show as major update)", () => {
-		expect(isMajorUpdate("1.0.0", "2.7.0")).toBe(false);
-		expect(isMajorUpdate("2.6.0", "2.7.0")).toBe(false);
-	});
-});
-

@@ -10,7 +10,8 @@ import { confirmAction } from "../gui/confirmAction";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceChain } from "./choiceChain";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin, SettingsProvider, TemplateFileSource } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
@@ -18,6 +19,7 @@ import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegrati
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { MacroAbortError } from "../errors/MacroAbortError";
 import { readNote } from "../utils/noteContent";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import {
@@ -114,21 +116,19 @@ export function buildTemplatePickerItems(
 }
 
 /**
- * Applies a template to an existing note (issue #526).
+ * Applies a template to an existing note.
  *
- * Interactive flow (no templatePath given): pick a Template choice or
- * template file, then — unless the note is empty, which applies the template
- * directly — pick how to insert it. Choice-backed picks may end with an
- * offer to move/rename the note to match the choice's folder and file name
- * settings.
+ * Interactive (no templatePath): pick a Template choice or template file, then
+ * how to insert it unless the note is empty. Choice-backed picks may end with
+ * an offer to move/rename the note to match the choice's settings.
  *
- * Non-interactive flow (templatePath given, e.g. via the API): no pickers
- * and no reconciliation prompt. Mode defaults to "replace" for empty notes
- * and "bottom" otherwise.
+ * Non-interactive (templatePath given): no pickers and no move offer. Mode
+ * defaults to "replace" for empty notes and "bottom" otherwise.
  */
 export async function applyTemplateToNote(
 	app: App,
-	plugin: QuickAdd,
+	plugin: ChoiceRuntimePlugin,
+	runtime: FormatterExecutionRuntime,
 	params: ApplyTemplateToNoteParams,
 ): Promise<TFile | null> {
 	const file = params.file ?? app.workspace.getActiveFile();
@@ -189,17 +189,15 @@ export async function applyTemplateToNote(
 				const engine = new TemplateInsertEngine(
 					app,
 					plugin,
+					runtime,
 					file,
 					templatePath,
 					mode,
 					params.choiceExecutor,
 				);
 				engine.choiceChain = chain;
-				// Prompts raised while applying the template say which choice is driving
-				// and which note is being written (issue #1546). Applying a bare template
-				// has no choice, so only the destination is known. Prompts inside the
-				// template SOURCE path do not show the destination - scopeShowsDestination
-				// withholds it, because those answers pick which template to read.
+				// Applying a bare template has no choice, so only the destination is
+				// known; scopeShowsDestination withholds it from template-path prompts.
 				engine.setPromptRunContext({
 					choiceName: source.kind === "choice" ? source.choice.name : undefined,
 					draftScopeId:
@@ -210,11 +208,8 @@ export async function applyTemplateToNote(
 					destinationKind: "file",
 				});
 
-				// Resolve format tokens in the path (issue #620), then re-validate that
-				// the RESOLVED file is still a markdown template: a token can expand a
-				// markdown-looking path (e.g. "Templates/{{value:t}}") into a .canvas or
-				// .base file, which must not be applied to a markdown note. The raw-path
-				// check above only catches a literal canvas/base extension.
+				// Re-validate the resolved path: a token can expand a markdown-looking
+				// path into a .canvas or .base file, which must not be applied.
 				const resolvedTemplatePath = await engine.getResolvedTemplatePath();
 				if (!isMarkdownTemplatePath(resolvedTemplatePath)) {
 					new Notice(
@@ -227,10 +222,8 @@ export async function applyTemplateToNote(
 				if (!result) return null;
 
 				if (interactive && source.kind === "choice") {
-					// Reconciliation computes where the choice WOULD create the note so a
-					// move can be offered. Any prompt it raises does not land in the note
-					// being templated, so drop the destination rather than advertise a
-					// path the answer never reaches (issue #1546).
+					// Prompts raised while computing the move target do not land in the
+					// note being templated, so drop the destination.
 					engine.setPromptRunContext({
 						destination: undefined,
 						destinationKind: undefined,
@@ -245,12 +238,11 @@ export async function applyTemplateToNote(
 				return file;
 			},
 			// The note being templated is the run's trigger note, so
-			// {{FIELD:<field>|default-from:active}} reads it (issue #1429) even when
-			// the file menu applied the template to a note that is not the active one.
+			// `|default-from:active` reads it even when it is not the active one.
 			{ ancestry: params.chain, triggerContext: { activeFile: file } },
 		);
 	} catch (err) {
-		if (isCancellationError(err) || isAbortError(err)) {
+		if (isCancellationError(err) || err instanceof MacroAbortError) {
 			return null;
 		}
 		reportError(err, "Error applying template to note");
@@ -287,17 +279,9 @@ function appliedTemplateChoice(source: TemplatePickerItem): ITemplateChoice {
 	};
 }
 
-function isAbortError(error: unknown): boolean {
-	return (
-		Boolean(error) &&
-		typeof error === "object" &&
-		(error as { name?: string }).name === "MacroAbortError"
-	);
-}
-
 async function pickTemplate(
 	app: App,
-	plugin: QuickAdd,
+	plugin: SettingsProvider & TemplateFileSource,
 ): Promise<TemplatePickerItem | null> {
 	const items = buildTemplatePickerItems(
 		plugin.settings.choices,
@@ -362,11 +346,8 @@ async function maybeReconcileNoteLocation(
 		const targetPath = await engine.computeChoiceTargetPath(choice);
 		if (!targetPath || targetPath === file.path) return;
 		if (await app.vault.adapter.exists(targetPath)) return;
-		// Do not offer a move that cannot succeed (#1591). Answering "Yes" here
-		// creates the target FOLDER and then fails at renameFile, leaving an empty
-		// folder behind and reporting it as a warning the user did nothing to
-		// deserve. This offer is an optional convenience, so it declines quietly;
-		// the choice's own file-name preview is where the problem is explained.
+		// Do not offer a move that cannot succeed: it would create the folder and
+		// then fail at renameFile. The choice's file-name preview explains why.
 		if (!isCreatableFilePath(targetPath)) return;
 
 		const shouldMove = await confirmAction(app, {
@@ -385,7 +366,7 @@ async function maybeReconcileNoteLocation(
 
 		await app.fileManager.renameFile(file, targetPath);
 	} catch (error) {
-		if (isCancellationError(error) || isAbortError(error)) return;
+		if (isCancellationError(error) || error instanceof MacroAbortError) return;
 		log.logWarning(`Could not move note to match choice settings: ${error}`);
 	}
 }

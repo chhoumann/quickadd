@@ -1,29 +1,8 @@
 /**
- * Where a prompt opened by an ENGINE goes.
- *
- * `quickadd:interactive` promises to forward a run's prompts to the connected client,
- * and it kept that promise for every prompt a *script* or the *formatter* opens, because
- * each of those hand-wrote an `if (choiceExecutor.promptProvider)` branch at its call
- * site. The engines never got one. So a Template whose target note already existed
- * opened its "file already exists" chooser on the desktop while the client's `/poll`
- * returned nothing, and the run sat there until someone walked past the machine — on a
- * headless or Raycast setup, the entire premise of the seam, until the watchdog gave up
- * (#1614).
- *
- * The fix is a seam rather than six more hand-written branches, because "remember to add
- * the branch" had already been missed six times. But the seam deliberately owns only the
- * part that is genuinely uniform:
- *
- * - the ORDER of the three destinations, and
- * - the `isCancellationError` → {@link UserCancelError} mapping every site repeated.
- *
- * Everything else stays at the call site. A wrapper that *built* the modal would have to
- * model every per-site difference as an option it understands — and the variance here is
- * entirely in modal construction (`renderItem`, `searchItems`, `valueExists`,
- * `customValueLabel`, `allowCustomValue`) and in the headless branch, which is not
- * uniform either: most sites abort, but `MacroChoiceEngine` legitimately RESOLVES a sole
- * exported member without asking. A fixed three-step ladder would have regressed that.
- * So each site passes three closures and keeps its own modal call verbatim.
+ * Where a prompt opened by an engine goes: the connected client, a headless
+ * abort, or the Obsidian modal, with one cancellation mapping. Each site keeps
+ * its own modal construction and headless branch, since those vary (one engine
+ * resolves a sole exported member without asking).
  */
 
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -41,7 +20,6 @@ interface PromptRoute<T> {
 	 * stops needing to ask — or resolves, where the site has one unambiguous answer.
 	 */
 	headless(): Promise<T>;
-	/** Open the Obsidian modal. */
 	app(): Promise<T>;
 }
 
@@ -63,9 +41,8 @@ export async function routePrompt<T>(
 		if (executor.interactive === false) return await route.headless();
 		return await route.app();
 	} catch (error) {
-		// One mapping for all three destinations, so a dismissal reads the same to the
-		// engine whether it came from Escape on a modal or `{"cancelled":true}` on the
-		// wire. Every converted site used to repeat this catch verbatim.
+		// One mapping, so a dismissal reads the same from Escape on a modal or
+		// `{"cancelled":true}` on the wire.
 		if (isCancellationError(error)) {
 			throw new UserCancelError("Input cancelled by user");
 		}
@@ -74,20 +51,21 @@ export async function routePrompt<T>(
 }
 
 /**
- * Script-facing prompts (`quickAddApi.suggester`, `inputPrompt`, `requestInputs`, ...)
- * have no headless answer: in a non-interactive run the modal would open on a desktop
- * nobody is watching and the CLI call would never return. Abort instead, naming the
- * prompt so the caller knows which value to preset.
+ * The headless branch for a script-facing prompt (`quickAddApi.suggester`,
+ * `inputPrompt`, `requestInputs`, ...). These have no headless answer: in a
+ * non-interactive run the modal would open on a desktop nobody is watching and
+ * the CLI call would never return. Abort instead, naming the prompt so the
+ * caller knows which value to preset.
  */
-export function abortIfHeadless(
-	executor: PromptRoutingContext | undefined,
+export function scriptPromptHeadless(
 	prompt: string,
 	label?: string,
 	remedy = "Re-run with the ui flag.",
-): void {
-	if (!executor || executor.promptProvider || executor.interactive !== false) return;
-	const named = label ? `${prompt} "${label}"` : prompt;
-	throw new ChoiceAbortError(
-		`A script opened ${named}, but this run is non-interactive. ${remedy}`,
-	);
+): () => Promise<never> {
+	return async () => {
+		const named = label ? `${prompt} "${label}"` : prompt;
+		throw new ChoiceAbortError(
+			`A script opened ${named}, but this run is non-interactive. ${remedy}`,
+		);
+	};
 }

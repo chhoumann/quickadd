@@ -1,21 +1,37 @@
+import { ASK_ME_MODEL } from "src/constants";
 import type IChoice from "src/types/choices/IChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { ICommand } from "src/types/macros/ICommand";
-import { walkAllCommandsInSettings } from "src/migrations/helpers/choice-traversal";
+import { walkAllCommandsInSettings } from "src/utils/choiceTraversal";
 import type { AIProvider, ModelRef } from "./Provider";
 
-type AICommandish = ICommand & {
+export type AICommandish = ICommand & {
 	model?: string;
 	modelRef?: ModelRef;
+	modelParameters?: Record<string, unknown>;
 };
 
-function isAICommand(command: ICommand): command is AICommandish {
+export function isAICommand(command: ICommand): command is AICommandish {
 	return command.type === CommandType.AIAssistant;
 }
 
 /**
+ * The legacy first-match rule: the first provider (in settings
+ * order) listing the model name. Takes the providers to search so migrations
+ * can run it on their drafts rather than the live store.
+ */
+export function firstMatchProvider(
+	providers: AIProvider[],
+	modelName: string,
+): AIProvider | undefined {
+	return providers.find((provider) =>
+		provider.models.some((model) => model.name === modelName),
+	);
+}
+
+/**
  * Pin every AI command in `choices` whose bare model name is not yet (validly)
- * pinned to the provider the pre-#1495 first-match rule resolves it to TODAY —
+ * pinned to the provider the legacy first-match rule resolves it to today,
  * behavior-preserving by construction. Used by the one-time pinAiModelRefs
  * migration AND by package import, which can introduce bare-name commands
  * long after the migration ran. A ref that no longer matches the legacy
@@ -46,13 +62,9 @@ export function pinAiCommandModelRefs(
 				return;
 			}
 		}
-		if (!command.model || command.model === "Ask me") return;
+		if (!command.model || command.model === ASK_ME_MODEL) return;
 
-		// The pre-#1495 rule, verbatim: FIRST provider (in settings order)
-		// listing the name.
-		const provider = providers.find((p) =>
-			p.models.some((m) => m.name === command.model),
-		);
+		const provider = firstMatchProvider(providers, command.model);
 		if (!provider?.id) return;
 
 		const ref: ModelRef = { providerId: provider.id, name: command.model };

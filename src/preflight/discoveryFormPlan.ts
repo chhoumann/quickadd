@@ -1,12 +1,11 @@
-import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import type QuickAdd from "src/main";
+import type { PreflightPlugin } from "./collectChoiceRequirements";
 import type IChoice from "src/types/choices/IChoice";
-import { isCaptureChoice, isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
+import { isCaptureChoice, isMacroChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
-import { VALUE_SYNTAX } from "src/constants";
+import { RESERVED_VARIABLE_PREFIX, VALUE_SYNTAX } from "src/constants";
 import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { getExistingNoteAction } from "src/template/fileExistsPolicy";
@@ -16,7 +15,9 @@ import { classifyStep } from "./macroCommandRole";
 import { buildFormRoster, type FormRosterEntry } from "./macroFormRoster";
 import { collectChoiceRequirements, getUnresolvedRequirements } from "./collectChoiceRequirements";
 import type { FieldGroup, FieldRequirement } from "./RequirementCollector";
+import { mergeRepeatedRequirement } from "./fieldRequirements";
 import { isDiscoveryMacro, markDiscoveryMacro, setPreparedChoiceInputs } from "./preparedChoiceInputs";
+import { usesSelectionAsCaptureValue } from "src/utils/captureAction";
 
 export interface DiscoveryNoteField {
 	id: string;
@@ -32,7 +33,7 @@ export interface DiscoveryFormConfig {
 
 type DiscoveryFieldMetadata = FieldRequirement;
 
-export type DiscoveryFieldUsage =
+type DiscoveryFieldUsage =
 	| { kind: "always"; metadata: DiscoveryFieldMetadata }
 	| {
 		kind: "note";
@@ -64,7 +65,7 @@ function fieldMetadata(requirement: FieldRequirement): DiscoveryFieldMetadata {
 	return { ...requirement };
 }
 
-export interface DiscoveryInputCondition {
+interface DiscoveryInputCondition {
 	noteId: string;
 	includeExisting: boolean;
 }
@@ -100,11 +101,11 @@ function needsDiscovery(choice: IChoice, executor: IChoiceExecutor): choice is I
 
 export async function buildDiscoveryFormPlan(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	executor: IChoiceExecutor,
 	choice: IChoice,
 ): Promise<DiscoveryFormPlan | null> {
-	const resolveChoice = (id: string) => resolveChoiceFromPlugin(plugin, id);
+	const resolveChoice = (id: string) => plugin.findChoiceById(id);
 	let entries: FormRosterEntry[];
 	if (isMacroChoice(choice)) {
 		for (const command of commandListOf(choice.macro?.commands)) {
@@ -148,7 +149,7 @@ export async function buildDiscoveryFormPlan(
 		const group = { ...entry.group, id: entry.occurrenceId };
 		const child = entry.kind === "choice" ? entry.choice : null;
 		const discovery = child !== null && needsDiscovery(child, executor) ? child : null;
-		const noteId = discovery ? `__qa.note.${entry.occurrenceId}` : null;
+		const noteId = discovery ? `${RESERVED_VARIABLE_PREFIX}note.${entry.occurrenceId}` : null;
 		const step: DiscoveryFormStep = {
 			occurrenceId: entry.occurrenceId,
 			choiceId: child?.id ?? entry.occurrenceId,
@@ -179,13 +180,12 @@ export async function buildDiscoveryFormPlan(
 				existingNoteInputs.set(requirement.id, requirement);
 			}
 		}
-		const captureSelection = child && isCaptureChoice(child) &&
-			(child.useSelectionAsCaptureValue ?? plugin.settings.useSelectionAsCaptureValue ?? true)
+		const captureSelection = child && isCaptureChoice(child) && usesSelectionAsCaptureValue(child, plugin.settings)
 			? currentSelection(app, executor)
 			: "";
 		for (const requirement of collected) {
 			if (discovery && requirement.id === "value") continue;
-			const id = requirement.id === "value" ? `__qa.value.${entry.occurrenceId}` : requirement.id;
+			const id = requirement.id === "value" ? `${RESERVED_VARIABLE_PREFIX}value.${entry.occurrenceId}` : requirement.id;
 			const condition = noteId ? { noteId, includeExisting: existingNoteInputs.has(requirement.id) } : null;
 			step.bindings.set(id, { variable: requirement.id, condition });
 			const usages = config.fieldUsages.get(id) ?? [];
@@ -202,9 +202,7 @@ export async function buildDiscoveryFormPlan(
 			config.fieldUsages.set(id, usages);
 			const existing = requirements.get(id);
 			if (existing) {
-				existing.optional = Boolean(existing.optional && requirement.optional);
-				if (requirement.pathContext) existing.pathContext = true;
-				if (requirement.runtimeOnly) existing.runtimeOnly = true;
+				mergeRepeatedRequirement(existing, requirement);
 			} else {
 				requirements.set(id, field);
 			}

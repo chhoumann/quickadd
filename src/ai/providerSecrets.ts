@@ -1,36 +1,13 @@
 import type { App } from "obsidian";
 import { log } from "src/logger/logManager";
-import type { AIProvider } from "./Provider";
+import { slugifyProviderId, type AIProvider } from "./Provider";
+import { readSecretStorageEntry } from "src/utils/secretStorage";
 
 const SECRET_PREFIX = "quickadd-ai";
 
-function toSecretId(value: string): string {
-	const normalized = value
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "");
-	return normalized || "provider";
-}
-
 function buildSecretBase(provider: AIProvider): string {
 	const name = provider.name?.trim() || "provider";
-	return `${SECRET_PREFIX}-${toSecretId(name)}`;
-}
-
-async function readSecretStorageEntry(
-	app: App | undefined,
-	secretName: string,
-): Promise<string | null> {
-	if (!app?.secretStorage?.getSecret) return null;
-
-	try {
-		return await Promise.resolve(app.secretStorage.getSecret(secretName));
-	} catch (err) {
-		log.logWarning(
-			`Failed to read SecretStorage entry "${secretName}": ${(err as Error).message ?? err}`,
-		);
-		return null;
-	}
+	return `${SECRET_PREFIX}-${slugifyProviderId(name)}`;
 }
 
 export async function resolveProviderApiKey(

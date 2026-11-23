@@ -3,6 +3,7 @@ import { TemplateEngine } from "./TemplateEngine";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 // normalizeTemplateFilePath is the shared chokepoint that assembles the
 // vault-relative path for BOTH the create flow (TemplateChoiceEngine) and the
@@ -28,7 +29,7 @@ class TestTemplateEngine extends TemplateEngine {
 		plugin: QuickAdd,
 		choiceExecutor: IChoiceExecutor,
 	) {
-		super(app, plugin, choiceExecutor);
+		super(app, plugin, testFormatterRuntime(app, plugin), choiceExecutor);
 	}
 
 	public async run(): Promise<void> {}

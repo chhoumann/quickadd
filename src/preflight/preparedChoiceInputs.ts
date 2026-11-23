@@ -1,7 +1,7 @@
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 
-export interface PreparedChoiceInputs {
+interface PreparedChoiceInputs {
 	choiceId: string;
 	values: ReadonlyMap<string, unknown>;
 	discovery: TemplateNoteSelection | null;

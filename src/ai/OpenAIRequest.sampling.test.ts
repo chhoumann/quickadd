@@ -280,7 +280,7 @@ describe("sampling parameter recovery (chat/tool path)", () => {
 			);
 
 		const model: Model = { name: "o4-mini", maxTokens: 200000 };
-		const res = await chatRequest(makeApp(), "sk", model, currentProvider(), {
+		const res = await chatRequest("sk", model, currentProvider(), {
 			messages: [{ role: "user", content: "hello" }],
 			modelParams: { top_p: 0.5 },
 		});

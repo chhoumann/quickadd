@@ -1,9 +1,8 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-import { getTemplateFile } from "../../utils/templateFolderUtils";
-import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
+import { validateTemplatePath } from "./validateTemplatePath";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import SettingItem from "../components/SettingItem.svelte";
 import SettingGroup from "../components/SettingGroup.svelte";
@@ -14,7 +13,6 @@ import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
 import FormatTokenHint from "./components/FormatTokenHint.svelte";
 import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
-import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
@@ -24,10 +22,9 @@ import WritePositionSetting from "./components/WritePositionSetting.svelte";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 
 /**
- * Reactive replacement for CaptureChoiceBuilder.display(). Every conditional row
- * (capture target, create-if-missing, write position + insert-after/before fields,
- * append link, file opening) is an {#if} over the $state choice proxy, so toggling
- * a control updates in place — no contentEl.empty()/display() teardown (#1130).
+ * Every conditional row (capture target, create-if-missing, write position and
+ * insert-after/before fields, append link, file opening) is an {#if} over the
+ * $state choice proxy, so toggling a control updates in place.
  */
 let {
 	choice = $bindable(),
@@ -36,7 +33,7 @@ let {
 }: {
 	choice: ICaptureChoice;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 const templateFilePaths = $derived(
@@ -50,23 +47,6 @@ const formatSuggesters = $derived.by(() => {
 		new FormatSyntaxSuggester(app, el, plugin, context),
 	];
 });
-
-function validateTemplate(
-	raw: string,
-): boolean | string | { valid: boolean; message?: string } {
-	const value = raw.trim();
-	if (!value) return true;
-	// A path with format syntax (e.g. "Templates/{{value:type}} Template.md")
-	// only resolves when the capture runs, so show a neutral hint rather than
-	// flagging it "not found" (issue #620).
-	if (hasTemplatePathSyntax(value)) {
-		return { valid: true, message: "Contains format syntax — resolved at run time." };
-	}
-	// Resolve like the engine does at run time rather than requiring
-	// suggestion-list membership (templates outside the configured folders are
-	// valid). Mirrors templateChoiceBuilder (master #1170/#1325).
-	return getTemplateFile(app, value) !== null || "Template not found";
-}
 
 // An empty format captures {{VALUE}} on its own; `enabled` just mirrors whether
 // there is text, so choices saved with the old toggle keep working.
@@ -128,7 +108,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 						{app}
 						suggestions={templateFilePaths}
 						maxSuggestions={50}
-						validator={validateTemplate}
+						validator={(raw) => validateTemplatePath(app, raw)}
 						onChange={(value) =>
 							(choice.createFileIfItDoesntExist.template = value.trim())}
 					/>
@@ -199,7 +179,11 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 <SettingGroup heading="Behavior">
 	{#if !choice.captureToActiveFile}
-		<OpenFileSetting bind:openFile={choice.openFile} description="Open the captured file." />
+		<SettingItem name="Open" desc="Open the captured file.">
+			{#snippet control()}
+				<Toggle bind:checked={choice.openFile} />
+			{/snippet}
+		</SettingItem>
 		{#if choice.openFile}
 			<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="captured" />
 		{/if}
@@ -218,8 +202,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		{/snippet}
 	</SettingItem>
 
-	<!-- Deprecated (#2014): shown only to choices that already have it on, so they
-	     can turn it off. -->
+	<!-- Deprecated: shown only to choices that already have it on, so they can
+	     turn it off. -->
 	{#if !choice.propertyCapture && choice.templater?.afterCapture === "wholeFile"}
 	<SettingItem
 		name="Run Templater on entire destination file after capture (deprecated)"

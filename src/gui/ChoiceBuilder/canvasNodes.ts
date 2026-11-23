@@ -1,11 +1,11 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../../constants";
+import { normalizeVaultPath } from "../../utils/pathUtils";
 
 /**
- * Pure (App-seam) canvas-target helpers extracted verbatim from
- * captureChoiceBuilder so the Svelte CanvasNodePicker and the form's onChange
- * handlers share the exact same predicates (issue #1130 conversion).
+ * Canvas-target helpers shared by CanvasNodePicker and the form's onChange
+ * handlers, so both use the same predicates.
  */
 
 export interface CanvasNodeOption {
@@ -16,10 +16,6 @@ export interface CanvasNodeOption {
 	searchText: string;
 	capturable: boolean;
 	capturableReason: string;
-}
-
-export function normalizeVaultPath(path: string): string {
-	return path.trim().replace(/^\/+/, "");
 }
 
 export function isCanvasTargetPath(path: string): boolean {

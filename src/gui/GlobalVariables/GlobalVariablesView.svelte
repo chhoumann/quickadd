@@ -2,10 +2,11 @@
   import type { App } from "obsidian";
   import { settingsStore } from "../../settingsStore";
   import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+  import { suggester } from "../ChoiceBuilder/components/suggesterAction";
   import { indentOnTab } from "../components/textareaIndent";
-  import type QuickAdd from "../../main";
+  import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 
-  let { app, plugin }: { app: App; plugin: QuickAdd } = $props();
+  let { app, plugin }: { app: App; plugin: ChoiceBuilderPlugin } = $props();
 
   type GV = { name: string; value: string };
   let items = $state<GV[]>([]);
@@ -20,7 +21,6 @@
   function loadFromSettings() {
     const state = settingsStore.getState();
     const globals = state.globalVariables || {};
-    // Preserve insertion order of object keys
     items = Object.keys(globals).map((k) => ({ name: k, value: globals[k] ?? "" }));
   }
 
@@ -31,16 +31,10 @@
   let suppressReload = false;
 
   function persistToSettings() {
-    // Never publish a lossy record. An empty name can't be keyed (it would be
-    // dropped) and duplicate names collapse last-wins — writing either to the
-    // store (and the debounced data.json save) is the data-loss footgun. While
-    // any name is empty or duplicated, keep the edit local and leave the
-    // previously-persisted values intact until the names are valid again.
-    // Validate and persist on TRIMMED names: the {{GLOBAL_VAR:<name>}} token
-    // trims the name before lookup, so a whitespace-only name ("   ") is
-    // effectively empty and "foo " collides with "foo". Treat both as
-    // invalid/duplicate (keep the edit local) and write trimmed, referenceable
-    // keys when valid.
+    // Never publish a lossy record: an empty name cannot be keyed and duplicate
+    // names collapse last-wins, so keep such edits local until the names are
+    // valid. Names are validated trimmed, since {{GLOBAL_VAR:<name>}} trims
+    // before lookup.
     const names = items.map((it) => it.name.trim());
     const hasEmpty = names.some((n) => !n);
     const hasDuplicate = new Set(names).size !== names.length;
@@ -72,19 +66,11 @@
 
   // Drag-and-drop is intentionally not supported for Global Variables
 
-  // Attach format suggester to inputs
-  function attachSuggester(el: HTMLTextAreaElement | HTMLInputElement) {
-    // Constructed for its side effect (it wires itself to the element).
+  const formatSuggester = (el: HTMLTextAreaElement | HTMLInputElement) =>
     new FormatSyntaxSuggester(app, el, plugin);
-    return {
-      destroy() {
-        // Suggesters clean up themselves on blur/close; no explicit API needed
-      },
-    };
-  }
 
   let debounceTimer: number | undefined;
-  function debouncedPersist(it: GV) {
+  function debouncedPersist() {
     if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(() => {
       debounceTimer = undefined;
@@ -132,17 +118,17 @@
       <div class="qa-gv__row">
         <div class="qa-gv__cell qa-gv__name">
           <input type="text"
-                 use:attachSuggester
+                 use:suggester={formatSuggester}
                  bind:value={it.name}
-                 oninput={() => { debouncedPersist(it); }}
+                 oninput={() => { debouncedPersist(); }}
                  placeholder="Name" />
         </div>
         <div class="qa-gv__cell qa-gv__value">
           <textarea rows="2"
-                    use:attachSuggester
+                    use:suggester={formatSuggester}
                     use:indentOnTab
                     bind:value={it.value}
-                    oninput={() => debouncedPersist(it)}
+                    oninput={() => debouncedPersist()}
                     placeholder="Snippet value (supports QuickAdd tokens)"></textarea>
         </div>
         <div class="qa-gv__cell qa-gv__ops">

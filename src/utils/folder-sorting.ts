@@ -1,3 +1,5 @@
+import { isPathWithinFolder, normalizeVaultPath } from "./pathUtils";
+
 const folderPathSegmentCollator = new Intl.Collator(undefined, {
 	numeric: true,
 	sensitivity: "base",
@@ -8,13 +10,9 @@ const folderPathSegmentFallbackCollator = new Intl.Collator(undefined, {
 	sensitivity: "variant",
 });
 
-function normalizeFolderSortPath(path: string): string {
-	return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
-}
-
 function compareFolderPathsByTree(a: string, b: string): number {
-	const normalizedA = normalizeFolderSortPath(a);
-	const normalizedB = normalizeFolderSortPath(b);
+	const normalizedA = normalizeVaultPath(a);
+	const normalizedB = normalizeVaultPath(b);
 
 	if (normalizedA === normalizedB) return 0;
 
@@ -43,17 +41,6 @@ export function sortFolderPathsByTree(paths: string[]): string[] {
 	return [...paths].sort(compareFolderPathsByTree);
 }
 
-export function isFolderPathWithinRoot(path: string, root: string): boolean {
-	const normalizedPath = normalizeFolderSortPath(path);
-	const normalizedRoot = normalizeFolderSortPath(root);
-
-	if (!normalizedRoot) return true;
-	return (
-		normalizedPath === normalizedRoot ||
-		normalizedPath.startsWith(`${normalizedRoot}/`)
-	);
-}
-
 /**
  * Keep each root's subtree in vault tree order, but emit those blocks in
  * configured-root order. Overlapping roots skip paths already emitted.
@@ -67,7 +54,7 @@ export function orderFolderPathsByConfiguredRoots(
 	for (const root of roots) {
 		for (const path of treeSortedPaths) {
 			if (seen.has(path)) continue;
-			if (!isFolderPathWithinRoot(path, root)) continue;
+			if (!isPathWithinFolder(path, root)) continue;
 			result.push(path);
 			seen.add(path);
 		}

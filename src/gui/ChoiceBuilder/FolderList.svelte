@@ -1,17 +1,14 @@
 <script lang="ts">
-	import { Platform } from "obsidian";
-	import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+	import { type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 	import {
 		baseDndOptions,
-		capturePlaceholderRecovery,
-		moveById,
-		type PlaceholderRecovery,
+		createDropRecovery,
 		type Reorderable,
 		showDragPillOnStart,
 		stripShadow,
 	} from "../shared/dndReorder";
 	import { createDragArming } from "../shared/dragArming.svelte";
-	import { refocusDragHandle } from "../shared/refocusDragHandle";
+	import { moveByKeyboard } from "../shared/keyboardReorder";
 	import DragHandle from "../components/DragHandle.svelte";
 	import IconButton from "../components/IconButton.svelte";
 
@@ -29,9 +26,8 @@
 
 	const zoneId = $props.id();
 	const zoneType = `folder:${zoneId}`;
-	const isMobile = Platform.isMobile;
 	const drag = createDragArming();
-	const dragDisabled = $derived(!isMobile && !drag.armed);
+	const dragDisabled = $derived(drag.disabled);
 
 	let listEl: HTMLOListElement | undefined = $state();
 
@@ -42,59 +38,40 @@
 	let preview = $state<FolderDragItem[] | null>(null);
 	const items = $derived(preview ?? toItems(folders));
 
-	let placeholderRecovery: PlaceholderRecovery<FolderDragItem> | null = null;
+	const dropRecovery = createDropRecovery<FolderDragItem>();
 	const folderLabel = (item: FolderDragItem) => item.id;
 
 	function handleConsider(e: CustomEvent<DndEvent<FolderDragItem>>) {
 		drag.markStarted();
 		showDragPillOnStart(e, folderLabel);
-		const reported = e.detail.items;
-		placeholderRecovery =
-			capturePlaceholderRecovery(reported, e.detail.info.id) ?? placeholderRecovery;
-		preview = stripShadow(reported);
+		preview = dropRecovery.consider(e);
 	}
 
 	function handleFinalize(e: CustomEvent<DndEvent<FolderDragItem>>) {
-		let next = stripShadow(e.detail.items);
-		const draggedId = e.detail.info.id;
-		// Mirror CommandList / ChoiceList: recover the dragged row if finalize
-		// omitted it during the placeholder window. Do not also re-rank against
-		// the pre-drag list — that can silently cancel an intended move.
-		if (
-			placeholderRecovery?.item.id === draggedId &&
-			!next.some((item) => item.id === draggedId)
-		) {
-			next = [...next];
-			next.splice(
-				Math.min(placeholderRecovery.index, next.length),
-				0,
-				placeholderRecovery.item,
-			);
-		}
-		onChange(next.map((item) => item.id));
+		onChange(dropRecovery.finalize(e).map((item) => item.id));
 		preview = null;
-		placeholderRecovery = null;
 		if (e.detail.info.source === SOURCES.POINTER) {
 			drag.reset();
 		}
 	}
 
 	function moveFolder(id: string, delta: -1 | 1) {
-		const label = document.activeElement?.getAttribute("aria-label");
-		const next = moveById(toItems(folders), id, delta);
-		if (!next) return;
-		onChange(next.map((item) => item.id));
-		const target = next.findIndex((item) => item.id === id);
-		alertToScreenReader(`Moved ${id} to position ${target + 1} of ${next.length}`);
-		if (label) void refocusDragHandle(listEl, label);
+		moveByKeyboard({
+			listEl,
+			items: toItems(folders),
+			id,
+			delta,
+			describe: folderLabel,
+			commit: (next) => onChange(next.map((item) => item.id)),
+		});
 	}
 
 	function removeFolder(path: string) {
 		onChange(folders.filter((folder) => folder !== path));
 	}
 
-	let startDrag = () => {
-		drag.startDrag();
+	let startDrag = (event: PointerEvent) => {
+		drag.startDrag(event);
 	};
 </script>
 

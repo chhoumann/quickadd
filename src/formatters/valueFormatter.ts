@@ -31,10 +31,12 @@ import {
 	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
-	type NumericInputConfig,
-	type SliderConfig,
-	type ValueInputType,
 } from "../utils/valueSyntax";
+import type {
+	NumericInputConfig,
+	SliderConfig,
+	ValueInputType,
+} from "../utils/valueSyntaxTypes";
 import { SILENT_WARN, type WarnSink } from "../utils/warnSink";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
 
@@ -73,7 +75,6 @@ export abstract class ValueFormatter {
 	/** Which choice is asking and, once known, where the answer lands. */
 	protected promptRunContext?: PromptRunContext;
 
-	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
 	private templatePropertyCollectionDepth = 0;
 	private singleTokenValue?: { input: string; result?: { value: unknown } };
@@ -138,12 +139,7 @@ export abstract class ValueFormatter {
 		log.logWarning(message);
 	}
 
-	/**
-	 * Like {@link warn}, for a problem that stopped a token from resolving at all
-	 * (a template inclusion cycle, exceeding the inclusion depth). Named
-	 * `reportProblem` rather than `reportError` so it is not mistaken for the
-	 * widely imported `errorUtils.reportError`.
-	 */
+	/** Like {@link warn}, for a problem that stopped a token from resolving at all. */
 	protected reportProblem(message: string): void {
 		log.logError(message);
 	}
@@ -160,15 +156,9 @@ export abstract class ValueFormatter {
 		this.promptRunContext = { ...this.promptRunContext, ...context };
 	}
 
-	public getPromptRunContext(): PromptRunContext | undefined {
-		return this.promptRunContext;
-	}
-
 	/**
-	 * Runs `fn` with the prompt scope set to what `input` will become. Restored in
-	 * a `finally` so a throwing pass cannot leak its scope into the next one -
-	 * exactly the bug the sticky `valueHeader` this replaces used to have, where
-	 * a Capture's file-name pass silently retitled its body prompt.
+	 * Runs `fn` with the prompt scope set to what `input` will become. Restored
+	 * in a `finally` so a throwing pass cannot leak its scope into the next one.
 	 */
 	public async withPromptScope<T>(
 		scope: PromptScopeKind,
@@ -187,16 +177,14 @@ export abstract class ValueFormatter {
 		}
 	}
 
-	/** Returns true when a variable is present AND its value is not undefined.
-	 *  Null and empty string are considered intentional values. */
+	/** Null and empty string count as intentional values; only undefined is missing. */
 	protected hasConcreteVariable(name: string): boolean {
 		if (!this.variables.has(name)) return false;
 		return this.variables.get(name) !== undefined;
 	}
 
 	public setTitle(title: string): void {
-		// Only set title if it hasn't been manually set by a script
-		// This preserves script-provided values for {{VALUE:title}}
+		// A script may have set {{VALUE:title}}; keep it.
 		if (!this.hasConcreteVariable("title")) {
 			this.variables.set("title", title);
 		}
@@ -258,13 +246,11 @@ export abstract class ValueFormatter {
 	protected async replaceValueInString(input: string): Promise<string> {
 		let output: string = input;
 
-		// Fast path: nothing to do.
 		if (!NAME_VALUE_REGEX.test(output)) return output;
 
 		await this.resolveValue(output);
 
-		// Replace all occurrences in a single non-recursive pass.
-		// Important: use a replacer function so `$` in user input is treated literally.
+		// A replacer function, so `$` in user input stays literal.
 		const regex = new RegExp(NAME_VALUE_REGEX.source, "gi");
 		output = output.replace(regex, (...args) => {
 			const token = args[0];
@@ -359,9 +345,7 @@ export abstract class ValueFormatter {
 			if (optionsIndex === -1) continue;
 			const rawOptions = inner.slice(optionsIndex);
 
-			// Silent: this is the prompt-context pre-pass; the actual replacer
-			// pass (replaceValueInString) emits any |case warning so it fires
-			// once, not twice.
+			// Silent: the replacer pass emits any |case warning, so it fires once.
 			const parsed = parseAnonymousValueOptions(rawOptions, {
 				warn: SILENT_WARN,
 			});
@@ -469,11 +453,9 @@ export abstract class ValueFormatter {
 		}
 	}
 
-	/** Warn once per run when a named suggester is defined with conflicting option lists. */
 	private warnOnNamedOptionConflict(parsed: ParsedValueToken): void {
 		if (!parsed.aliasName || !parsed.hasOptions) return;
 		const nameKey = parsed.variableKey.toLowerCase();
-		// Include options, custom input, display mapping, and multi-select shape in conflict detection.
 		const signature = JSON.stringify([
 			parsed.suggestedValues,
 			parsed.allowCustomInput,
@@ -488,7 +470,6 @@ export abstract class ValueFormatter {
 		}
 		if (previous !== signature && !this.namedSuggesterConflictsWarned.has(nameKey)) {
 			this.namedSuggesterConflictsWarned.add(nameKey);
-			// Use the warning hook so previews collect this conflict without emitting Notices.
 			this.warn(
 				`QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`,
 			);
@@ -496,10 +477,8 @@ export abstract class ValueFormatter {
 	}
 
 	/**
-	 * Resolve a parsed VALUE token into `this.variables` (prompting/suggesting
-	 * only if it isn't already cached) and return the key its value lives under.
-	 * Shared by the named-definition pre-pass and the main replacement loop so
-	 * the prompt/suggest/default/store logic has a single source of truth.
+	 * Resolves a parsed VALUE token into `this.variables`, prompting only when it
+	 * is not cached, and returns the key its value lives under.
 	 */
 	private async ensureValueVariableResolved(
 		parsed: ParsedValueToken,
@@ -531,8 +510,7 @@ export abstract class ValueFormatter {
 			? label || (typeof propertyKey === "string" ? propertyKey : undefined)
 			: undefined;
 
-		// |multi opens a multi-select picker and stores a real ARRAY so the
-		// property collector writes a proper YAML list (no beta flag needed).
+		// |multi stores a real array so the property collector writes a YAML list.
 		if (hasOptions && parsed.multiSelect) {
 			const picked = await this.suggestForValueMulti(
 				suggestedValues,
@@ -554,7 +532,6 @@ export abstract class ValueFormatter {
 		let variableValue = "";
 
 		if (!hasOptions) {
-			// For single-value prompts, pass default value to pre-populate the input
 			variableValue = await this.promptForVariable(variableName, {
 				defaultValue,
 				label,
@@ -577,8 +554,7 @@ export abstract class ValueFormatter {
 			);
 		}
 
-		// Use default value if no input provided (applies to both prompt and suggester).
-		// Optional tokens take the empty submission at face value: the default is
+		// Optional tokens take an empty submission at face value: the default was
 		// visibly pre-filled, so an empty box means the user cleared it.
 		if (!variableValue && defaultValue && !parsed.optional) {
 			variableValue = defaultValue;
@@ -592,7 +568,6 @@ export abstract class ValueFormatter {
 	private async resolveNamedSuggesterDefinitions(
 		input: string,
 	): Promise<void> {
-		// Fast path: nothing to hoist unless a |name: option is present.
 		if (!/\|\s*name\s*:/i.test(input)) return;
 
 		const regex = new RegExp(VARIABLE_REGEX.source, "gi");
@@ -616,7 +591,7 @@ export abstract class ValueFormatter {
 		// Track bare references only: counting definitions as uses would let later definitions win.
 		const firstUseIndex = new Map<string, number>();
 		for (const { parsed, index } of tokens) {
-			if (parsed.hasOptions && parsed.aliasName) continue; // skip definitions
+			if (parsed.hasOptions && parsed.aliasName) continue;
 			const key = parsed.variableKey.toLowerCase();
 			if (!firstUseIndex.has(key)) firstUseIndex.set(key, index);
 		}
@@ -636,11 +611,9 @@ export abstract class ValueFormatter {
 	protected async replaceVariableInString(input: string) {
 		let output = input;
 
-		// Pass 1: resolve named suggester definitions up front (see above).
 		await this.resolveNamedSuggesterDefinitions(output);
 
-		// Pass 2: replace every VALUE token in document order.
-		const regex = new RegExp(VARIABLE_REGEX.source, 'gi'); // preserve case-insensitive + global
+		const regex = new RegExp(VARIABLE_REGEX.source, 'gi');
 		const propertyTypesEnabled = this.isTemplatePropertyTypesEnabled();
 		let match: RegExpExecArray | null;
 
@@ -658,7 +631,6 @@ export abstract class ValueFormatter {
 
 			const effectiveKey = await this.ensureValueVariableResolved(parsed);
 
-			// Get the raw value from variables
 			const rawValue = this.variables.get(effectiveKey);
 			const effectiveRawValue = this.applyValueTokenOptions(rawValue, parsed);
 			if (this.singleTokenValue && (!parsed.multiFormat || parsed.multiFormat === "auto")) {
@@ -695,9 +667,8 @@ export abstract class ValueFormatter {
 						parsed,
 					) ?? "",
 				);
-				// |type:text (#757): write the value as a quoted YAML string at a
-				// sole-value front-matter position so Obsidian can't retype it
-				// (e.g. "0042" -> 42, "true" -> boolean, "#todo" -> a comment).
+				// |type:text quotes a sole-value front-matter position so Obsidian
+				// cannot retype it ("0042" -> 42, "true" -> boolean, "#todo" -> a comment).
 				const quote =
 					parsed.inputTypeOverride === "text" &&
 					stringVal !== "" &&
@@ -729,7 +700,6 @@ export abstract class ValueFormatter {
 				}
 			}
 
-			// Replace in output and adjust regex position
 			replacement = this.userText(replacement);
 			const replaceStart = consumeQuotes ? match.index - 1 : match.index;
 			const replaceEnd =
@@ -785,8 +755,5 @@ export abstract class ValueFormatter {
 		context?: PromptContext,
 	): Promise<string>;
 
-	/**
-	 * Returns whether template property types feature is enabled in settings.
-	 */
 	protected abstract isTemplatePropertyTypesEnabled(): boolean;
 }

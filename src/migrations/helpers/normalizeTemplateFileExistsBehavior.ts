@@ -9,17 +9,6 @@ type LegacyTemplateChoice = {
 	fileExistsBehavior?: TemplateFileExistsBehavior;
 };
 
-export function isTemplateChoice(
-	choice: unknown,
-): choice is LegacyTemplateChoice {
-	return (
-		typeof choice === "object" &&
-		choice !== null &&
-		"type" in choice &&
-		(choice as { type?: string }).type === "Template"
-	);
-}
-
 function migrateFileExistsBehavior(
 	choice: LegacyTemplateChoice,
 ): TemplateFileExistsBehavior {

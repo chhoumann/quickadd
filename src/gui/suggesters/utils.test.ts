@@ -2,12 +2,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { log } from "../../logger/logManager";
 import { 
-	insertAtCursor, 
-	replaceRange, 
+	replaceInputRange, 
 	renderExactHighlight, 
 	renderHighlightRanges,
 	stripMdExtensionForDisplay,
 	createRenderFallbackWarner,
+	installSkipAffordance,
 } from "./utils";
 
 // Mock HTMLInputElement for testing
@@ -21,12 +21,8 @@ class MockInput {
 		this.selectionEnd = end;
 	}
 	
-	trigger() {
-		// Mock trigger method
-	}
-	
 	dispatchEvent() {
-		// Required by replaceRange but not tested
+		// Required by replaceInputRange but not tested
 	}
 }
 
@@ -37,35 +33,11 @@ describe("Suggester Utils", () => {
 		mockInput = new MockInput();
 	});
 
-	describe("insertAtCursor", () => {
-		it("should insert text at cursor position", () => {
-			mockInput.value = "Hello World";
-			mockInput.selectionStart = 5;
-			mockInput.selectionEnd = 5;
-
-			insertAtCursor(mockInput as any, " Beautiful");
-
-			expect(mockInput.value).toBe("Hello Beautiful World");
-			expect(mockInput.selectionStart).toBe(15);
-		});
-
-		it("should replace selected text", () => {
-			mockInput.value = "Hello World";
-			mockInput.selectionStart = 6;
-			mockInput.selectionEnd = 11;
-
-			insertAtCursor(mockInput as any, "Universe");
-
-			expect(mockInput.value).toBe("Hello Universe");
-			expect(mockInput.selectionStart).toBe(14);
-		});
-	});
-
-	describe("replaceRange", () => {
+	describe("replaceInputRange", () => {
 		it("should replace text in specified range", () => {
 			mockInput.value = "Hello World";
 
-			replaceRange(mockInput as any, 6, 11, "Universe");
+			replaceInputRange(mockInput as any, 6, 11, "Universe");
 
 			expect(mockInput.value).toBe("Hello Universe");
 			expect(mockInput.selectionStart).toBe(14);
@@ -294,5 +266,27 @@ describe("createRenderFallbackWarner (#1604)", () => {
 		customRow(new Error("b"));
 
 		expect(logWarning).toHaveBeenCalledTimes(2);
+	});
+});
+
+// Optional option-list suggesters need a pointer/touch way to skip, not only
+// the Mod+Shift+Enter hotkey.
+describe("installSkipAffordance", () => {
+	it("renders a Skip button that invokes onSkip", () => {
+		const modalEl = document.createElement("div");
+		const onSkip = vi.fn();
+
+		installSkipAffordance({ modalEl }, onSkip);
+
+		const button = modalEl.querySelector<HTMLButtonElement>("button.qa-suggester-skip-button");
+		expect(button?.textContent).toBe("Skip (leave empty)");
+		button?.click();
+		expect(onSkip).toHaveBeenCalledTimes(1);
+	});
+
+	it("installs no button when the modal has no modalEl", () => {
+		const onSkip = vi.fn();
+		installSkipAffordance({}, onSkip);
+		expect(onSkip).not.toHaveBeenCalled();
 	});
 });

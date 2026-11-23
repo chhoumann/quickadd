@@ -1,10 +1,11 @@
 import type { EditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { prepareTemplateContent, rebaseTemplateCursor } from "../utils/templateCursorPlacement";
-import { stripCursorMarkers } from "../formatters/helpers/capturePlacement";
+import { stripCursorMarkers } from "../utils/capturePlacement";
 import { getBodyStartOffset } from "../utils/noteContentInsertion";
 import { getMarkdownEditorViewForFile, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
 import { processNote } from "../utils/noteContent";
-import { FolderSelectionEngine } from "./FolderSelectionEngine";
+import { QuickAddEngine } from "./QuickAddEngine";
+import { createFileWithInput, stripLeadingSlash } from "./vaultFiles";
 import {
 	postProcessFrontMatter,
 	shouldPostProcessFrontMatter,
@@ -18,9 +19,10 @@ import type { PromptRunContext } from "../formatters/promptScope";
 import type { ChoiceChain } from "./choiceChain";
 import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import { getTemplateFile, resolveTemplatePath } from "../utils/templateFolderUtils";
-import { getTemplater, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
+import { overwriteTemplaterOnce } from "../utils/templaterIntegration";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,
@@ -34,21 +36,10 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
-import { restoreUserText, restoreUserTextAt } from "../formatters/helpers/userText";
+import { restoreUserTextAt } from "../formatters/helpers/userText";
 
-function isMacroAbortError(error: unknown): error is MacroAbortError {
-	return (
-		error instanceof MacroAbortError ||
-		(Boolean(error) &&
-			typeof error === "object" &&
-			"name" in (error as Record<string, unknown>) &&
-			(error as { name?: string }).name === "MacroAbortError")
-	);
-}
-
-export abstract class TemplateEngine extends FolderSelectionEngine {
+export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
-	protected readonly templater;
 	protected cursorPlacement: EditorCursorPlacement | null = null;
 	protected templaterCursorHandled = false;
 
@@ -67,6 +58,27 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		});
 		this.cursorPlacement = prepared;
 		if (this.cursorPlacement?.offsets.length === 0) this.cursorPlacement = null;
+	}
+
+	/**
+	 * Finishes a note the template body was just written to: typed front matter,
+	 * then Templater, then the cursor markers. The markers are cleaned even when
+	 * an earlier step fails, without hiding that step's error.
+	 */
+	private async renderWrittenTemplate(file: TFile, templateVars: Map<string, unknown>): Promise<void> {
+		let rendered = false;
+		try {
+			if (shouldPostProcessFrontMatter(file, templateVars)) {
+				await postProcessFrontMatter(this.app, file, templateVars);
+			}
+			this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, file);
+			rendered = true;
+		} finally {
+			await this.finishTemplateContent(file).catch(error => {
+				if (rendered) throw error;
+				log.logWarning(`Unable to clean cursor markers in '${file.path}': ${String(error)}`);
+			});
+		}
 	}
 
 	public getCursorPlacement(): EditorCursorPlacement | null {
@@ -99,13 +111,13 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 	protected constructor(
 		app: App,
-		protected plugin: QuickAdd,
-		choiceFormatter?: IChoiceExecutor,
+		protected plugin: ChoiceRuntimePlugin,
+		protected readonly runtime: FormatterExecutionRuntime,
+		choiceExecutor?: IChoiceExecutor,
 		inclusion?: TemplateInclusionState,
 	) {
 		super(app);
-		this.templater = getTemplater(app);
-		this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
+		this.formatter = new CompleteFormatter(app, plugin, choiceExecutor, runtime);
 		if (inclusion) {
 			this.formatter.setTemplateInclusionState(inclusion);
 		}
@@ -126,8 +138,8 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		fileName: string,
 		folderPath: string,
 	): { fileName: string; strippedPrefix: boolean } {
-		const normalizedFolder = this.stripLeadingSlash(folderPath);
-		const normalizedFileName = this.stripLeadingSlash(fileName);
+		const normalizedFolder = stripLeadingSlash(folderPath);
+		const normalizedFileName = stripLeadingSlash(fileName);
 
 		if (!normalizedFolder) {
 			return { fileName: normalizedFileName, strippedPrefix: false };
@@ -161,7 +173,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 		if (normalizedFileName.startsWith("/")) return true;
 
-		const [firstSegment] = this.stripLeadingSlash(normalizedFileName).split("/");
+		const [firstSegment] = stripLeadingSlash(normalizedFileName).split("/");
 		if (!firstSegment) return false;
 
 		const rootEntry = this.app.vault.getAbstractFileByPath(firstSegment);
@@ -184,11 +196,11 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		fileName: string,
 		templatePath: string
 	): string {
-		const safeFolderPath = this.stripLeadingSlash(folderPath);
+		const safeFolderPath = stripLeadingSlash(folderPath);
 		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
 		const normalizedFileName = normalizeGeneratedFilePath(
-			this.stripLeadingSlash(fileName),
+			stripLeadingSlash(fileName),
 			"File name",
 		);
 		const formattedFileName: string = normalizeGeneratedFilePath(
@@ -210,14 +222,9 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 			);
 		}
 		const assembledPath = `${actualFolderPath}${formattedFileName}${extension}`;
-		// Contain the assembled target at this shared chokepoint. The file NAME is run
-		// through normalizeGeneratedFilePath above, but the FOLDER portion is only
-		// stripLeadingSlash'd — so a folder like "../../../evil" (from an untrusted,
-		// synced Template choice resolved via formatFolderPath) would assemble an
-		// out-of-vault path. Both callers act on it without a sink guard: the relocation
-		// flow (computeChoiceTargetPath -> createFolder + fileManager.renameFile) would
-		// otherwise move the active note OUTSIDE the vault. Reject any escape here so
-		// every caller of this assembler is contained.
+		// Contain the assembled path here: the folder portion (possibly from an
+		// untrusted synced choice) is not normalized like the name, and the
+		// relocation flow would otherwise move the note outside the vault.
 		if (escapesVaultBoundary(assembledPath)) {
 			throw new Error(
 				`Refusing to build a file path outside the vault: "${assembledPath}".`,
@@ -227,16 +234,9 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	}
 
 	/**
-	 * Why the last template write failed.
-	 *
-	 * Each of the write helpers below reports the real cause ("Template file not found at
-	 * path …") and then returns null, so its caller only knew THAT the write failed, not
-	 * why - and the caller is what records the run's outcome. A remote client was told
-	 * "Choice execution failed; no file was created." while the actionable sentence went
-	 * to a desktop notice nobody was watching (#1603).
-	 *
-	 * Every helper that reports-and-returns-null sets this, so a new one that forgets is
-	 * the only way back to a vague outcome.
+	 * Why the last template write failed. The write helpers report the cause and
+	 * return null, so callers that record the run's outcome read it here. Every
+	 * report-and-return-null helper must set it.
 	 */
 	protected lastTemplateFileFailure: string | null = null;
 
@@ -280,21 +280,14 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		filePath: string,
 		resolvedTemplatePath: string
 	) {
-		// Clear the previous run's swallowed cause FIRST, so the reset is
-		// unconditional even when the guard below aborts (#1617).
+		// Clear the previous run's swallowed cause first, so the reset happens even
+		// when the guard below aborts.
 		this.lastTemplateFileFailure = null;
 
-		// Then, before the template is read and long before its body is formatted
-		// (#1591). Both production callers - TemplateChoiceEngine's `else` branch of
-		// `vault.adapter.exists`, and its freshly incremented collision name - are
-		// paths where nothing is at `filePath` yet, so a name Obsidian refuses can
-		// only end in a failed `vault.create`. Letting it get that far means the
-		// user answers the whole prompt chain and their inline scripts run first,
-		// and QuickAddEngine.createFileWithInput leaves the target folder behind.
-		//
-		// It THROWS rather than recording into lastTemplateFileFailure: that field
-		// is for helpers that report-and-return-null, while this aborts the choice
-		// with a typed ChoiceAbortError carrying its own actionable message (#1606).
+		// Refuse a name Obsidian rejects before the template is read, so the user is
+		// not asked every prompt and inline scripts do not run for a doomed create.
+		// Throws its own ChoiceAbortError rather than recording into
+		// lastTemplateFileFailure.
 		assertCreatableFilePath(filePath);
 
 		try {
@@ -309,29 +302,17 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 			const suppressTemplaterOnCreate = filePath
 				.toLowerCase()
 				.endsWith(".md");
-			const createdFile: TFile = await this.createFileWithInput(
+			const createdFile: TFile = await createFileWithInput(
+				this.app,
 				filePath,
 				formattedTemplateContent,
 				{ suppressTemplaterOnCreate },
 			);
 
-			let rendered = false;
-			try {
-				if (shouldPostProcessFrontMatter(createdFile, templateVars)) {
-					await postProcessFrontMatter(this.app, createdFile, templateVars);
-				}
-				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, createdFile);
-				rendered = true;
-			} finally {
-				await this.finishTemplateContent(createdFile).catch(error => {
-					if (rendered) throw error;
-					log.logWarning(`Unable to clean cursor markers in '${createdFile.path}': ${String(error)}`);
-				});
-			}
-
+			await this.renderWrittenTemplate(createdFile, templateVars);
 			return createdFile;
 		} catch (err) {
-			if (isMacroAbortError(err)) {
+			if (err instanceof MacroAbortError) {
 				throw err;
 			}
 			this.noteTemplateFileFailure(
@@ -358,10 +339,9 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	}
 
 	/**
-	 * Propagates "which choice is asking, and where its output lands" into this
-	 * engine's own formatter, so prompts raised from a nested template
-	 * ({{TEMPLATE:...}} inclusion, or a capture creating its target file from a
-	 * template) still carry the run context (issue #1546).
+	 * Propagates the run context into this engine's own formatter, so prompts
+	 * raised from a nested template still say which choice is asking and where
+	 * its output lands.
 	 */
 	public setPromptRunContext(context: PromptRunContext) {
 		this.formatter.setPromptRunContext(context);
@@ -377,12 +357,10 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	}
 
 	/**
-	 * Resolves QuickAdd format tokens in a template *source* path (issue #620)
-	 * via this engine's formatter, e.g. "Templates/{{value:type}} Template.md".
-	 * Call once at run() entry and reuse the result for BOTH target-path
-	 * construction (extension/name) and content reading, so the file that is
-	 * read and the file that is created can never disagree. Resolving more than
-	 * once would re-evaluate {{date}}/{{random}} to a different value.
+	 * Resolves format tokens in a template source path via this engine's
+	 * formatter. Call once at run() entry and reuse the result for both the
+	 * target path and the content read, so they never disagree; resolving again
+	 * would re-evaluate {{date}}/{{random}}.
 	 */
 	protected async resolveTemplateSourcePath(rawPath: string): Promise<string> {
 		return this.formatter.formatTemplateFilePath(rawPath);
@@ -406,72 +384,14 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 			await processNote(this.app, file, () => formattedTemplateContent);
 
-			let rendered = false;
-			try {
-				if (shouldPostProcessFrontMatter(file, templateVars)) {
-					await postProcessFrontMatter(this.app, file, templateVars);
-				}
-				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, file);
-				rendered = true;
-			} finally {
-				await this.finishTemplateContent(file).catch(error => {
-					if (rendered) throw error;
-					log.logWarning(`Unable to clean cursor markers in '${file.path}': ${String(error)}`);
-				});
-			}
-
+			await this.renderWrittenTemplate(file, templateVars);
 			return file;
 		} catch (err) {
-			if (isMacroAbortError(err)) {
+			if (err instanceof MacroAbortError) {
 				throw err;
 			}
 			this.noteTemplateFileFailure(err, "Could not overwrite file with template");
 			reportError(err, "Could not overwrite file with template");
-			return null;
-		}
-	}
-
-	protected async appendToFileWithTemplate(
-		file: TFile,
-		resolvedTemplatePath: string,
-		section: "top" | "bottom"
-	) {
-		this.lastTemplateFileFailure = null;
-		try {
-			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
-			);
-
-			this.setTemplateDestination(file.path, file.basename);
-
-			let formattedTemplateContent: string = await this.formatter.withPromptScope(
-				"noteBody",
-				templateContent,
-				() => this.formatter.withUserTextProtected(() =>
-					this.formatter.formatFileContent(templateContent)),
-			);
-			if (file.extension === "md") {
-				formattedTemplateContent = await templaterParseTemplate(
-					this.app,
-					formattedTemplateContent,
-					file,
-				);
-			}
-			formattedTemplateContent = restoreUserText(formattedTemplateContent);
-			const fileContent: string = await this.app.vault.cachedRead(file);
-			const newFileContent: string =
-				section === "top"
-					? `${formattedTemplateContent}\n${fileContent}`
-					: `${fileContent}\n${formattedTemplateContent}`;
-			await this.app.vault.modify(file, newFileContent);
-
-			return file;
-		} catch (err) {
-			if (isMacroAbortError(err)) {
-				throw err;
-			}
-			this.noteTemplateFileFailure(err, "Could not append to file with template");
-			reportError(err, "Could not append to file with template");
 			return null;
 		}
 	}

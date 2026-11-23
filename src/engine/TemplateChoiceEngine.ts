@@ -7,7 +7,8 @@ import { isMarkdownTemplatePath } from "./applyTemplateToActiveNote";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import {
 	getFileExistsMode,
 	getExistingNoteAction,
@@ -51,6 +52,8 @@ import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
 import { mapEditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
+import { deriveFolderMode, type FolderMode } from "../utils/folderMode";
+import { canonicalFolderPath, chooseFolder } from "./folderSelection";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
@@ -61,17 +64,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		choice: ITemplateChoice,
 		choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
 		private readonly chain: ChoiceChain = [choice],
 	) {
-		super(app, plugin, choiceExecutor);
+		super(app, plugin, runtime, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.choice = choice;
-		// Every prompt this run opens can say which choice is asking (issue #1546).
 		this.formatter.setPromptRunContext({
 			draftScopeId: choice.id,
 			choiceName: choice.name,
@@ -135,7 +138,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				await this.choiceExecutor.resolveDateOrigin?.(this.choice);
 			}
 
-			if (!this.validateAppendLinkDestination(linkOptions)) return;
+			const linkDestinationError = appendLinkDestinationError(this.app, linkOptions);
+			if (linkDestinationError) {
+				this.outcome.fail(linkDestinationError);
+				return;
+			}
 
 			// Open-only discovery returns before evaluating the template source.
 			const templatePath = await this.resolveTemplateSourcePath(
@@ -152,13 +159,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			let createdNew = false;
-			// What this run did to its target note (#1615). Derived from the file-exists
-			// resolution the engine actually performed rather than from a byte compare,
-			// which is exact for the two answers an automation acts on: "createNew"
-			// always writes a new note, and "reuseExisting" — the Keep existing file
-			// modes — writes nothing at all. Only "modifyExisting" (append/overwrite) is
-			// inferred: it always writes, so `changed` can in principle over-report a
-			// write whose bytes happened to match, which is the harmless direction.
+			// What this run did to its target note, from the file-exists resolution
+			// actually performed. Only "modifyExisting" is inferred: it always writes,
+			// so `changed` can over-report identical bytes, the harmless direction.
 			let effect: ChoiceEffect = "created";
 			if (selectedUpdate) {
 				if (!isMarkdownTemplatePath(templatePath)) {
@@ -168,7 +171,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					selectedUpdate.mode, selectedUpdate.file, templatePath, linkOptions,
 				);
 				if (!createdFile) {
-					this.failRun(this.lastTemplateFileFailure ?? `Could not apply template to '${targetFilePath}'.`, "none");
+					this.outcome.fail(this.lastTemplateFileFailure ?? `Could not apply template to '${targetFilePath}'.`, "none");
 					return;
 				}
 				effect = "changed";
@@ -192,7 +195,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 							existingFile.extension !== "canvas" &&
 							existingFile.extension !== "base"))
 				) {
-					this.failRun(
+					this.outcome.fail(
 						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
 					return;
@@ -210,9 +213,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					// cause (whichever mode ran - create, overwrite or append); prefer it
 					// and do not log a vaguer second line for the same failure.
 					if (this.lastTemplateFileFailure) {
-						this.failRun(this.lastTemplateFileFailure, "none");
+						this.outcome.fail(this.lastTemplateFileFailure, "none");
 					} else {
-						this.failRun(
+						this.outcome.fail(
 							`Could not resolve file exists behavior for '${targetFilePath}'.`,
 							"warning",
 						);
@@ -225,10 +228,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					templatePath,
 				);
 				if (!createdFile) {
-					// No second log line: createFileWithTemplate already reported the real
-					// cause. Record that same cause as the outcome, so a caller who cannot
-					// see notices is told what the notice said (#1603).
-					this.failRun(
+					// No second log line: createFileWithTemplate already reported the
+					// cause. Record it as the outcome for callers who cannot see notices.
+					this.outcome.fail(
 						this.lastTemplateFileFailure ??
 							`Could not create file '${targetFilePath}'.`,
 						"none",
@@ -315,9 +317,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return;
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-			// Record BEFORE reporting: the notice is for whoever is at the desktop, the
-			// reason is for whoever is not (a CLI or interactive-bridge caller), and both
-			// must say the same thing (#1603).
+			// Record before reporting so the notice and the caller's reason agree.
 			this.outcome.failure(failureReason(err));
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		} finally {
@@ -325,41 +325,24 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 	}
 
-	/**
-	 * A failure exit that is not a throw: log it for the desktop, and record the same
-	 * message as the run's outcome so a caller who cannot see notices learns the cause
-	 * instead of the CLI's fixed "Choice execution failed" sentence (#1603).
-	 */
-	private failRun(
-		message: string,
-		level: "error" | "warning" | "none" = "error",
-	): void {
-		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-		// "none" is for a failure a lower layer has ALREADY reported: logging again
-		// would put a second notice on screen for one failure, which is exactly what
-		// report-once removes elsewhere (#1601).
-		if (level === "warning") log.logWarning(message);
-		else if (level === "error") log.logError(message);
-		this.outcome.failure(message);
-	}
-
 	private async resolveNewNotePath({ templatePath, format, discoveryVaultRelativePath }: {
 		templatePath: string;
 		format: string;
 		discoveryVaultRelativePath: string | null;
 	}): Promise<string> {
+		const folderMode = deriveFolderMode(this.choice.folder);
 		let folderPath = "";
 
 		if (discoveryVaultRelativePath) {
 			folderPath = parentFolderPath(discoveryVaultRelativePath);
-		} else if (this.choice.folder.enabled) {
-			folderPath = await this.getFolderPath();
-		} else {
+		} else if (folderMode === "obsidian-default") {
 			// Respect Obsidian's "Default location for new notes" setting
 			const parent = this.app.fileManager.getNewFileParent(
 				currentFile(this.app, this.choiceExecutor)?.path ?? "",
 			);
 			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
+		} else {
+			folderPath = await this.getFolderPath(folderMode);
 		}
 
 		// Make the resolved folder available to {{FOLDER}} in the file name.
@@ -371,7 +354,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		// as folderEnabled), and the answer that reroutes it is the very one
 		// being typed - so Obsidian's default location is not something this
 		// prompt can promise.
-		if (this.choice.folder.enabled) {
+		if (folderMode !== "obsidian-default") {
 			this.formatter.setPromptRunContext({
 				destination: folderPath,
 				destinationKind: "folder",
@@ -392,7 +375,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			this.shouldTreatFormattedNameAsVaultRelativePath(
 				routedName,
 				strippedPrefix,
-				this.choice.folder.enabled,
+				folderMode !== "obsidian-default",
 			);
 
 		return this.normalizeTemplateFilePath(
@@ -418,15 +401,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		};
 	}
 
-	private validateAppendLinkDestination(
-		linkOptions: NormalizedAppendLinkOptions,
-	): boolean {
-		const error = appendLinkDestinationError(this.app, linkOptions);
-		if (!error) return true;
-		this.failRun(error);
-		return false;
-	}
-
 	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {
 		this.choice.fileExistsBehavior ??= { kind: "prompt" };
 
@@ -438,9 +412,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const placeholder = "If the target file already exists";
 
 		return (await routePrompt(this.choiceExecutor, {
-			// An interactive run drives this from the client, like every other prompt
-			// the run opens. Before, it opened on the desktop while the client's /poll
-			// returned nothing, and the run waited for someone to walk past (#1614).
 			remote: (provider) =>
 				promptEngineChoice(provider, {
 					items: promptModes.map((mode) => ({
@@ -450,10 +421,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					placeholder,
 					what: 'the "file already exists" chooser',
 				}),
-			// Non-interactive run (CLI without `ui`): there is no one to answer, so
-			// opening it would hang forever. Abort with an actionable error instead.
-			// This is the default behaviour for new Template choices, so it is the most
-			// common non-interactive hang.
+			// Non-interactive run: nobody can answer. This is the default for new
+			// Template choices, so it is the most common non-interactive hang.
 			headless: () => {
 				throw new ChoiceAbortError(
 					`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
@@ -555,40 +524,28 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			existingFile.extension === "canvas" ||
 			existingFile.extension === "base"
 		) {
-			// Appending raw template text to a canvas/base file would splice it
-			// into the file's structured JSON content and corrupt it. Only the
-			// "Overwrite" file-exists option is safe for these formats.
-			//
-			// Recorded, not just logged: this is one of the report-and-return-null exits
-			// whose caller owns the run's outcome, and it carries the most actionable
-			// sentence of any of them (it names the fix). A CLI or interactive caller
-			// would otherwise be told "Could not resolve file exists behavior" (#1603).
+			// Appending raw text to canvas/base JSON would corrupt it; only Overwrite
+			// is safe. Recorded so a caller who cannot see notices gets this
+			// actionable sentence.
 			this.lastTemplateFileFailure = `Cannot append to '${existingFile.path}': appending a template to a ${existingFile.extension} file would corrupt it. Use the "Overwrite" file-exists option instead.`;
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			log.logError(this.lastTemplateFileFailure);
 			return null;
 		}
 
-		if (existingFile.extension !== "md") {
-			return await this.appendToFileWithTemplate(
-				existingFile,
-				resolvedTemplatePath,
-				position,
-			);
-		}
-
 		const insertEngine = new TemplateInsertEngine(
 			this.app,
 			this.plugin,
+			this.runtime,
 			existingFile,
 			resolvedTemplatePath,
 			position,
 			this.choiceExecutor,
 			resolvedTemplatePath,
 		);
-		// This engine owns its own formatter, so the run context has to be handed
-		// over or every prompt raised while appending loses the choice name, the
-		// destination and its draft scope (issue #1546).
+		// This engine owns its own formatter, so hand over the run context or every
+		// prompt raised while appending loses the choice name, destination and
+		// draft scope.
 		insertEngine.setPromptRunContext({
 			draftScopeId: this.choice.id,
 			choiceName: this.choice.name,
@@ -642,8 +599,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		if (direct instanceof TFile) return direct;
 		if (direct) return null;
 
-		// On case-insensitive filesystems, adapter.exists can return true even when
-		// Obsidian's case-sensitive path index can't resolve the file.
 		const lowerPath = filePath.toLowerCase();
 		const matches = this.app.vault
 			.getFiles()
@@ -672,58 +627,39 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		return folderPaths;
 	}
 
-	// The branch precedence below is mirrored by the choice builder's folder-mode
-	// dropdown (gui/ChoiceBuilder/folderMode.ts → deriveFolderMode). If you change
-	// the order or conditions here, update that helper (and its 16-combo test) so
-	// the dropdown keeps showing the mode that actually runs.
-	private async getFolderPath() {
+	/** The folder a configured mode resolves to; the mode comes from deriveFolderMode. */
+	private async getFolderPath(mode: Exclude<FolderMode, "obsidian-default">) {
 		const config = this.choice.folder;
-		// Configured folders are matched against vault paths below (subfolder
-		// ordering, allowed roots), so they are canonicalized before any of that,
-		// not only when a selection is resolved. The picker replaces them with the
-		// vault's folders, so for it they are not formatted at all: a token in an
-		// unused folder must not prompt or fail.
-		const folders: string[] = config?.chooseWhenCreatingNote ? [] : (
-			await this.formatFolderPaths([...config.folders])
-		).map((folder) => this.canonicalFolderPath(folder));
-		const currentFolder = this.getCurrentFolderSuggestion();
-		const topItems = currentFolder ? [currentFolder] : [];
-		let destinations = folders;
-		let allowedRoots: string[] | undefined = folders;
-		if (config?.chooseWhenCreatingNote) {
-			destinations = sortFolderPathsByTree(getAllFolderPathsInVault(this.app));
-			allowedRoots = undefined;
-		} else if (config?.createInSameFolderAsActiveFile) {
-			const activeFile = currentFile(this.app, this.choiceExecutor);
-			if (!activeFile || !activeFile.parent) {
-				log.logWarning(
-					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
-				);
-				return "";
-			}
-			destinations = [activeFile.parent.path];
-			allowedRoots = undefined;
-		} else if (config?.chooseFromSubfolders) {
-			// Configured root order wins; descendants are tree-sorted within each root.
-			destinations = orderFolderPathsByConfiguredRoots(
-				sortFolderPathsByTree(getAllFolderPathsInVault(this.app)), folders,
-			);
-		}
-		return this.getOrCreateFolder(destinations, {
-			allowCreate: true, allowedRoots, topItems, executor: this.choiceExecutor,
-		});
-	}
+		const currentFolder = currentFile(this.app, this.choiceExecutor)?.parent?.path;
+		const choose = (destinations: string[], allowedRoots?: string[]) =>
+			chooseFolder(this.app, destinations, {
+				allowCreate: true, allowedRoots, currentFolder, executor: this.choiceExecutor,
+			});
 
-	private getCurrentFolderSuggestion():
-		| { path: string; label: string }
-		| null {
-		const activeFile = currentFile(this.app, this.choiceExecutor);
-		const parent = activeFile?.parent;
-		if (!activeFile || !parent) return null;
-		const path = parent.path ?? "";
-		return {
-			path,
-			label: "<current folder>",
-		};
+		switch (mode) {
+			// The picker offers the vault's folders, so configured folders are not
+			// formatted at all: a token in an unused folder must not prompt or fail.
+			case "prompt":
+				return choose(sortFolderPathsByTree(getAllFolderPathsInVault(this.app)));
+			case "active-file":
+				if (currentFolder === undefined) {
+					log.logWarning(
+						"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
+					);
+					return "";
+				}
+				return choose([currentFolder]);
+			case "specified": {
+				// Configured folders are matched against vault paths below (subfolder
+				// ordering, allowed roots), so they are canonicalized before any of
+				// that, not only when a selection is resolved.
+				const folders = (await this.formatFolderPaths([...config.folders])).map(canonicalFolderPath);
+				// Configured root order wins; descendants are tree-sorted within each root.
+				const destinations = config.chooseFromSubfolders
+					? orderFolderPathsByConfiguredRoots(sortFolderPathsByTree(getAllFolderPathsInVault(this.app)), folders)
+					: folders;
+				return choose(destinations, folders);
+			}
+		}
 	}
 }

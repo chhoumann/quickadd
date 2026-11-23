@@ -1,6 +1,8 @@
 import type { App } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import { processNote } from "./noteContent";
+import { normalizeVaultPath } from "./pathUtils";
+import { getVaultConfig } from "./obsidianInternals";
 import { log } from "../logger/logManager";
 import type {
 	AppendLinkDestination,
@@ -27,13 +29,9 @@ type FileLinkTextOptions = {
 };
 
 export function usesMarkdownLinks(app: App): boolean {
-	// vault.getConfig is the de-facto (untyped) plugin API for editor settings.
 	// Inferring the mode from a generated link's shape instead would misdetect
 	// markdown-link vaults whose note basename starts with "[".
-	const vault = app.vault as App["vault"] & {
-		getConfig?: (key: string) => unknown;
-	};
-	return vault.getConfig?.("useMarkdownLinks") === true;
+	return getVaultConfig(app, "useMarkdownLinks") === true;
 }
 
 /**
@@ -53,9 +51,8 @@ export function usesMarkdownLinks(app: App): boolean {
  *   the alias is dropped and the link stays plain.
  */
 function prepareLinkAlias(app: App, rawAlias: string): string | undefined {
-	// Single \s+ pass: a lookaround-free single quantifier cannot backtrack
-	// quadratically on long horizontal-whitespace runs (the opener-flood ReDoS
-	// shape from #1444/#1455/#1462). Only runs containing a newline collapse.
+	// A single \s+ pass cannot backtrack quadratically on long whitespace runs.
+	// Only runs containing a newline collapse.
 	const alias = rawAlias
 		.replace(/\s+/g, (run) => (/[\r\n]/.test(run) ? " " : run))
 		.trim();
@@ -117,7 +114,7 @@ export function buildFileLinkText(
 }
 
 export function normalizeAppendLinkDestinationPath(rawPath: string): string {
-	const path = rawPath.trim().replace(/^\/+/, "");
+	const path = normalizeVaultPath(rawPath);
 	if (!path) return "";
 	return /\.md$/i.test(path) ? path : `${path}.md`;
 }

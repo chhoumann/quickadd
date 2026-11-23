@@ -9,8 +9,7 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import CaptureChoiceForm from "./CaptureChoiceForm.svelte";
 import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
 import Toggle from "../components/Toggle.svelte";
-import { createCaptureChoiceFormProps } from "./captureChoiceFormProps.svelte";
-import { createTemplateChoiceFormProps } from "./templateChoiceFormProps.svelte";
+import { createChoiceFormProps } from "./choiceFormProps.svelte";
 import { TemplateChoiceBuilder } from "./templateChoiceBuilder";
 import { CaptureChoiceBuilder } from "./captureChoiceBuilder";
 import type IChoice from "../../types/choices/IChoice";
@@ -118,7 +117,7 @@ function legacyTemplateChoice(): ITemplateChoice {
 
 describe("choice edit forms tolerate legacy choices missing newer fields (#1497)", () => {
 	it("CaptureChoiceForm mounts when insertAfter.considerSubsections is missing", () => {
-		const props = createCaptureChoiceFormProps({
+		const props = createChoiceFormProps<ICaptureChoice>({
 			choice: legacyCaptureChoice(),
 			app: new App(),
 			plugin,
@@ -137,7 +136,7 @@ describe("choice edit forms tolerate legacy choices missing newer fields (#1497)
 		const choice = legacyCaptureChoice();
 		delete (choice.insertAfter as Partial<ICaptureChoice["insertAfter"]>)
 			.insertAtEnd;
-		const props = createCaptureChoiceFormProps({
+		const props = createChoiceFormProps<ICaptureChoice>({
 			choice,
 			app: new App(),
 			plugin,
@@ -150,7 +149,7 @@ describe("choice edit forms tolerate legacy choices missing newer fields (#1497)
 	});
 
 	it("TemplateChoiceForm mounts when folder.chooseFromSubfolders is missing", async () => {
-		const props = createTemplateChoiceFormProps({
+		const props = createChoiceFormProps<ITemplateChoice>({
 			choice: legacyTemplateChoice(),
 			app: new App(),
 			plugin,

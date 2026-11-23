@@ -17,23 +17,26 @@ import {
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
-import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { rewriteTemplateIncludes } from "../utils/templateIncludes";
-import { escapesVaultBoundary, isWritableAssetDestination } from "../utils/vaultPathBoundary";
+import {
+	assetDestinationProblem,
+	escapesVaultBoundary,
+	isWritableAssetDestination,
+} from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
-import { packageSecretOptionNames } from "./packageAssets";
+import { isScannableTemplateAsset, packageSecretOptionNames } from "./packageAssets";
 import {
 	applyAssetPathOverrides,
-	findChoiceInTree,
 	findMultiByPath,
-	insertIntoMulti,
 	insertUnderParent,
 	isDirectChildOf,
 	mergeFolderChildren,
 	remapChoiceTree,
 	removeChoiceFromTree,
 	replaceChoiceInTree,
+	upsertChildInMulti,
 } from "./packageChoiceImport";
+import { findChoiceById } from "./choiceTree";
 import type { PackagePreview } from "./packagePreview";
 import {
 	buildPackagePreview,
@@ -87,11 +90,9 @@ export interface ApplyImportOptions {
 	choiceDecisions: ChoiceImportDecision[];
 	assetDecisions: AssetImportDecision[];
 	/**
-	 * The vault's configured AI providers. When given, imported AI commands
-	 * carrying only a bare model name are pinned to the provider that name
-	 * first-match resolves to at import time (#1495) — the one-time migration
-	 * has already run by then and would never see them. Optional so callers
-	 * without provider context (tests) import unchanged.
+	 * When given, imported AI commands with only a bare model name are pinned to
+	 * the provider that name first-match resolves to now; the one-time migration
+	 * has already run and would never see them.
 	 */
 	aiProviders?: AIProvider[];
 }
@@ -191,8 +192,7 @@ export async function analysePackagePreview(
 		...collectReferencedAssetPaths(pkg),
 	]);
 
-	// Probe paths concurrently: latency is one disk round-trip, not N. Set.add
-	// from parallel microtasks is safe on JS's single thread.
+	// Probe paths concurrently: latency is one disk round-trip, not N.
 	const existsByPath = new Set<string>();
 	await Promise.all(
 		Array.from(candidatePaths, async (path) => {
@@ -227,39 +227,24 @@ export async function analysePackagePreview(
  * ImportPackageModal). Defensive: imported packages are untrusted shared data.
  */
 export function validateAssetDestination(rawPath: string): string {
-	const rawDestination = rawPath ?? "";
-	const trimmedDestination = rawDestination.trim();
-	if (!trimmedDestination) {
+	const trimmedDestination = (rawPath ?? "").trim();
+	const problem = assetDestinationProblem(trimmedDestination);
+	if (problem === "empty") {
 		throw new Error("Package asset has an empty destination path.");
 	}
-
-	const slashNormalizedRawDestination = trimmedDestination.replace(/\\/g, "/");
-	if (
-		slashNormalizedRawDestination.startsWith("/") ||
-		/^[a-zA-Z]:/.test(slashNormalizedRawDestination)
-	) {
+	if (problem === "absolute") {
 		throw new Error(
-			`Refusing to import asset to an absolute path outside the vault: "${slashNormalizedRawDestination}".`,
+			`Refusing to import asset to an absolute path outside the vault: "${trimmedDestination.replace(/\\/g, "/")}".`,
 		);
 	}
 
 	const normalized = normalizePath(trimmedDestination);
-	if (!normalized || normalized.trim() === "") {
-		throw new Error("Package asset has an empty destination path.");
-	}
-
-	const segments = normalized.split("/").filter((segment) => segment.length > 0);
-	if (segments.some((segment) => segment === "..")) {
+	if (problem === "traversal") {
 		throw new Error(
 			`Refusing to import asset with a path-traversal segment ("..") in: "${normalized}".`,
 		);
 	}
-
-	// Reject hidden/config segments at every depth; "..%" remains a literal filename.
-	const configSegment = segments.find(
-		(segment) => segment.startsWith(".") && !segment.startsWith("..%"),
-	);
-	if (configSegment) {
+	if (problem === "config") {
 		throw new Error(
 			`Refusing to import asset into a config directory: "${normalized}".`,
 		);
@@ -345,7 +330,6 @@ export async function applyPackageImport(
 	const overwrittenChoiceIds: string[] = [];
 	const skippedChoiceIds: string[] = [];
 
-	// Prepare cloned choices with remapped IDs
 	const preparedChoices = new Map<string, IChoice>();
 	for (const entry of pkg.choices) {
 		if (!importableChoiceIds.has(entry.choice.id)) {
@@ -457,7 +441,7 @@ export async function applyPackageImport(
 
 		if (choiceClone.type === "Multi") {
 			// A duplicated folder has a fresh id, so nothing in the vault matches.
-			const current = findChoiceInTree(updatedChoices, finalId);
+			const current = findChoiceById(updatedChoices, finalId);
 			mergeFolderChildren(
 				current?.type === "Multi" ? (current as IMultiChoice) : undefined,
 				choiceClone as IMultiChoice,
@@ -490,7 +474,7 @@ export async function applyPackageImport(
 				updatedChoices,
 				entry.pathHint.slice(0, -1),
 			);
-			if (parentByPath && insertIntoMulti(parentByPath, choiceClone)) {
+			if (parentByPath && upsertChildInMulti(parentByPath, choiceClone)) {
 				addedChoiceIds.push(finalId);
 				handledChoices.add(originalId);
 				continue;
@@ -500,7 +484,6 @@ export async function applyPackageImport(
 			);
 		}
 
-		// Default: append to root
 		const existingIndex = updatedChoices.findIndex(
 			(c) => isChoiceLike(c) && c.id === finalId,
 		);
@@ -615,11 +598,9 @@ function importedAssetContent(
 	pathOverrides: ReadonlyMap<string, string>,
 ): string {
 	const content = decodeFromBase64(asset.content);
-	const isTemplateKind =
-		asset.kind === "template" || asset.kind === "capture-template";
 	// Classified by the path written, so a spelling such as `Parent.md/`
 	// cannot hide the extension the formatter will see.
-	if (!isTemplateKind || !hasTemplateExtension(destinationPath)) {
+	if (!isScannableTemplateAsset(asset, destinationPath)) {
 		return content;
 	}
 	if (

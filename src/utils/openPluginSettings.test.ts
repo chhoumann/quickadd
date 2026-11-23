@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { openQuickAddSettings, tryOpenPluginSettings } from "./openPluginSettings";
 import { log } from "../logger/logManager";

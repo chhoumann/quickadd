@@ -2,7 +2,6 @@ import {
 	FuzzySuggestModal,
 	prepareFuzzySearch,
 	renderMatches,
-	setIcon,
 	sortSearchResults,
 } from "obsidian";
 import type { FuzzyMatch, App, SearchMatches } from "obsidian";
@@ -11,10 +10,10 @@ import {
 	createRenderFallbackWarner,
 	installSkipAffordance,
 	normalizeDisplayItem,
-	normalizeQuery,
 } from "../suggesters/utils";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { matchWithAliases } from "../suggesters/rankMatches";
+import { markAliasSuggestion } from "../suggesters/aliasFlair";
 
 /** `matches` are the query's match ranges in the item's search text. */
 export type SuggestRender<T> = (value: T, el: HTMLElement, matches: SearchMatches) => void;
@@ -124,7 +123,7 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 	}
 
 	getSuggestions(query: string): FuzzyMatch<T>[] {
-		const safeQuery = normalizeQuery(query);
+		const safeQuery = normalizeDisplayItem(query);
 		if (!this.aliases || !safeQuery.trim()) return super.getSuggestions(safeQuery);
 
 		// One row per item, found by its text or any of its aliases.
@@ -176,14 +175,11 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 	/** The alias that matched, with the item's own name beneath, as in the quick switcher. */
 	private renderAliasSuggestion(value: FuzzyMatch<T>, alias: string, el: HTMLElement): void {
 		el.empty();
-		el.addClass("mod-complex");
-		const content = el.createDiv({ cls: "suggestion-content" });
+		const content = el.createDiv();
 		renderMatches(content.createDiv({ cls: "suggestion-title" }), alias, value.match.matches);
 		const index = this.indexOfItem(value.item);
 		content.createDiv({ cls: "suggestion-note", text: this.displayItems[index] ?? "" });
-		const flair = el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" });
-		flair.setAttribute("aria-label", "Alias");
-		setIcon(flair, "forward");
+		markAliasSuggestion(el, content);
 	}
 
 	protected renderDefaultSuggestion(value: FuzzyMatch<T>, el: HTMLElement): void {

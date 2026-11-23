@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AIProvider } from "./Provider";
 import type { App } from "obsidian";
-import type { CommonResponse } from "./OpenAIRequest";
+import type { CommonResponse } from "./providerRequest";
 
 const storeState = vi.hoisted(() => ({
 	disableOnlineFeatures: false,
@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
 	makeRequest: vi.fn(),
 	openAIRequest: vi.fn(),
 	isLikelyContextLimitError: vi.fn(),
-	getModelMaxTokens: vi.fn(),
 }));
 
 vi.mock("src/settingsStore", () => ({
@@ -28,11 +27,7 @@ vi.mock("./providerErrors", () => ({
 	isLikelyContextLimitError: mocks.isLikelyContextLimitError,
 }));
 
-vi.mock("./aiHelpers", () => ({
-	getModelMaxTokens: mocks.getModelMaxTokens,
-}));
-
-const { ChunkedPrompt } = await import("./AIAssistant");
+const { ChunkedPrompt } = await import("./chunkedPrompt");
 
 function makeApp(): App {
 	return {} as App;
@@ -80,14 +75,11 @@ function makeSettings(overrides: Partial<Parameters<typeof ChunkedPrompt>[1]> = 
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	// Obsidian's global sleep(), which the progress notice polls with.
-	vi.stubGlobal("sleep", async () => {});
 	storeState.disableOnlineFeatures = false;
 	mocks.openAIRequest.mockReturnValue(mocks.makeRequest);
 	mocks.isLikelyContextLimitError.mockImplementation((error: unknown) =>
 		error instanceof Error && /context/i.test(error.message)
 	);
-	mocks.getModelMaxTokens.mockReturnValue(1000);
 	mocks.makeRequest.mockImplementation(async (prompt: string) =>
 		response(`response:${prompt}`)
 	);
@@ -205,11 +197,10 @@ describe("ChunkedPrompt", () => {
 	// Finding #9 (regression): a tiny-context model with tiny input must not be
 	// rejected locally — the provider is the source of truth.
 	it("attempts tiny input on a tiny-context model instead of failing locally", async () => {
-		mocks.getModelMaxTokens.mockReturnValue(16);
-
 		await ChunkedPrompt(
 			makeApp(),
 			makeSettings({
+				model: { name: "test-model", maxTokens: 16 },
 				systemPrompt: "",
 				text: "ok",
 				promptTemplate: "{{VALUE:chunk}}",

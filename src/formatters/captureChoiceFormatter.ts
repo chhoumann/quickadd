@@ -1,10 +1,8 @@
-import getEndOfSection from "./helpers/getEndOfSection";
-import { insertOrderedCapture } from "./helpers/orderedCaptureInsertion";
+import { insertOrderedCapture, placeAfterLine, placeAtNoteBodyStart, sectionEndPosition } from "./helpers/orderedCaptureInsertion";
 import type { TFile } from "obsidian";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
 import { currentFile } from "../utils/currentFile";
-import { getLinesInString } from "src/utility";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
@@ -13,30 +11,21 @@ import {
 	NAME_VALUE_REGEX,
 } from "../constants";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { getCaptureAction, isEditorAction } from "../utils/captureAction";
 import { templaterParseTemplate } from "../utils/templaterIntegration";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "./helpers/capturePlacement";
+import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "../utils/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";
 import { restoreUserText, restoreUserTextInCapture } from "./helpers/userText";
-import * as positioning from "./helpers/insertionPositioning";
-import { blockquoteSeparator, insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
+import { hasCursorMarker, isCaptureContentEmpty } from "../utils/capturePlacement";
+import * as positioning from "../utils/insertionPositioning";
+import { blockquoteSeparator } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
 import {
 	buildImageEmbedLink,
 	IMAGE_CLIPBOARD_MIME_EXTENSIONS,
 	saveClipboardImageToVault,
 } from "../utils/clipboardImageAttachments";
-
-/**
-	* Only ASCII whitespace counts as "nothing to capture". Unicode spaces such as
-	* the non-breaking space (U+00A0) are intentional content and must not be
-	* dropped, even though String.prototype.trim() strips them (issue #760).
-	*/
-const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
-
-function isCaptureContentEmpty(content: string): boolean {
-	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
-}
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
@@ -48,11 +37,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private clipboardAttachmentLink: string | null | undefined;
 	private createdClipboardAttachmentPaths: string[] = [];
 	/**
-		* Tracks whether the current formatter instance has already run Templater on the
-		* capture payload.  This prevents the same content from being parsed twice in
-		* multi-stage formatting flows (see issue #533 – double execution when using
-		* tp.system.prompt).
-		*/
+	 * Whether Templater already ran on this payload, so multi-stage formatting
+	 * never parses it twice (a tp.system.prompt would ask again).
+	 */
 	private templaterProcessed = false;
 	/** A picked heading is a verbatim file line: skip token and escape expansion when matching it. */
 	private insertAfterTargetOverride: string | null = null;
@@ -67,9 +54,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.clipboardAttachmentLink = undefined;
 		// {{FOLDER}} in a capture body resolves to the destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
-		// Both destination setters run on EVERY write path (existing file, created
-		// file, canvas card) immediately before the content pass, so hooking them
-		// is what lets a capture's body prompt name its target note (issue #1546).
+		// Both destination setters run on every write path right before the
+		// content pass, so the body prompt can name its target note.
 		this.setPromptRunContext({
 			destination: file.path,
 			destinationKind: "file",
@@ -240,26 +226,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// Keep {{FOLDER}} pointed at the definitive destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
 
-		// Process templater here if we're using insert after or prepend or not capturing to active file
-		// This is needed because in these cases, the content won't be processed by templaterParseTemplate in CaptureChoiceEngine
-		const shouldRunTemplater =
-			choice.insertAfter.enabled ||
-			!!choice.insertBefore?.enabled ||
-			choice.prepend ||
-			!choice.captureToActiveFile ||
-			choice.activeFileWritePosition === "top" ||
-			choice.activeFileWritePosition === "bottom";
+		// The engine runs Templater itself only for an editor insertion at the cursor.
+		const shouldRunTemplater = !isEditorAction(getCaptureAction(choice));
 		return await this.formatCapture(input, shouldRunTemplater, format);
-	}
-
-	public async formatContent(
-		input: string,
-		choice: ICaptureChoice,
-	): Promise<string> {
-		this.choice = choice;
-		if (!choice) return input;
-
-		return await this.formatFileContent(input);
 	}
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
@@ -268,19 +237,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	private async formatCapture(input: string, runTemplater: boolean, format = true): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
-		let formatted = format
-			? await this.withValueLines(!!this.choice?.eachLine, () =>
-				this.withClipboardImageFallback(async () =>
-					this.withPromptScope("captureText", input, async () =>
-						this.withUserTextProtected(async () =>
-							super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
-						),
-					),
-				),
-			)
-			: input;
+		let formatted = format ? await this.formatCaptureText(input, !!this.choice?.eachLine) : input;
 
-		// Run templater only once per capture payload to prevent #533 double execution
+		// Templater runs once per capture payload.
 		if (runTemplater && this.file && !this.templaterProcessed) {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
@@ -298,16 +257,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const placement = payload.cursor.kind === "none"
 			? { content: this.fileContent, cursor: payload.cursor }
 			: await this.insertCapture(payload);
-		return { ...placement, captureContent: payload.content, markerOnly: payload.cursor.kind === "none" && /{{CURSOR}}/i.test(formatted) };
+		return { ...placement, captureContent: payload.content, markerOnly: payload.cursor.kind === "none" && hasCursorMarker(formatted) };
 	}
 
 	private async insertCapture(payload: CapturePlacementResult): Promise<CapturePlacementResult> {
-		const shouldAppendToBottom = this.choice.prepend ||
-			(this.choice.captureToActiveFile && this.choice.activeFileWritePosition === "bottom");
-		if (shouldAppendToBottom) return surroundCapture(payload, this.withLastLineEnded());
-		if (this.choice.insertAfter.enabled) return this.insertAfterHandler(payload);
-		if (this.choice.insertBefore?.enabled) return this.insertBeforeHandler(payload);
-		return this.insertAtNoteBodyStartTracking(payload);
+		switch (getCaptureAction(this.choice)) {
+			case "bottom": return surroundCapture(payload, this.withLastLineEnded());
+			case "insertAfter": return this.insertAfterHandler(payload);
+			case "insertBefore": return this.insertBeforeHandler(payload);
+			default: return placeAtNoteBodyStart(payload, this.fileContent);
+		}
 	}
 
 	/**
@@ -325,15 +284,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	 * text is placed. `eachLine` writes the format once per line of {{VALUE}}.
 	 */
 	async formatContentOnly(input: string, options: { eachLine?: boolean } = {}): Promise<string> {
-		const formatted = await this.withValueLines(options.eachLine ?? false, () =>
-			this.withClipboardImageFallback(async () =>
-				this.withPromptScope("captureText", input, async () =>
-					this.withUserTextProtected(async () =>
-						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
-					),
-				),
-			),
-		);
+		const formatted = await this.formatCaptureText(input, options.eachLine ?? false);
 
 		// The engine or formatContentWithFile owns Templater execution; running it here would execute twice.
 
@@ -341,6 +292,18 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		return formatted;
+	}
+
+	/**
+	 * Formats the capture's own text. One entry per line applies to it, a pasted
+	 * image becomes an attachment, and user text in the result stays marked.
+	 */
+	private formatCaptureText(input: string, eachLine: boolean): Promise<string> {
+		return this.withValueLines(eachLine, () =>
+			this.withClipboardImageFallback(() =>
+				this.withPromptScope("captureText", input, () =>
+					this.withUserTextProtected(async () =>
+						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input))))));
 	}
 
 	private splitValueLines = false;
@@ -448,7 +411,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			);
 		}
 
-		const fileContentLines: string[] = getLinesInString(this.fileContent);
+		const fileContentLines: string[] = this.fileContent.split("\n");
 		// A picked (or typed) heading matches only heading lines, never a
 		// same-text line in the frontmatter, a code fence or a paragraph. A typed
 		// line that isn't a heading keeps the plain search, so a second run finds
@@ -477,24 +440,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			if (!this.file) throw new Error("Tried to get sections without file.");
 
 			// Anchor section detection on the block's first line (a heading there
-			// gets correct section semantics), then clamp to the block's last line
-			// so we never insert INSIDE the matched multi-line anchor.
-			const endOfSectionIndex = getEndOfSection(
-				fileContentLines,
-				start,
-				this.considerSubsectionsForAnchor(fileContentLines, start),
-			);
-			const sectionEnd = Math.max(
-				endOfSectionIndex ?? fileContentLines.length - 1,
-				end,
-			);
-
-			targetPosition = positioning.findInsertAfterPositionAtSectionEnd(
-				fileContentLines,
-				sectionEnd,
-				this.fileContent,
-				formatted,
-			);
+			// gets correct section semantics), and never insert INSIDE the matched
+			// multi-line anchor.
+			targetPosition = sectionEndPosition({
+				lines: fileContentLines, anchorLine: start, lastAnchorLine: end,
+				considerSubsections: !!this.choice.insertAfter?.considerSubsections,
+				fileContent: this.fileContent, text: formatted,
+			});
 		} else {
 			const blankLineMode =
 				this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto";
@@ -507,11 +459,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			);
 		}
 
-		return this.insertTextAfterPositionInBody(
-			payload,
-			this.fileContent,
-			targetPosition,
-		);
+		return placeAfterLine(payload, this.fileContent, targetPosition, !!this.choice.task);
 	}
 
 	private async insertBeforeHandler(payload: CapturePlacementResult): Promise<CapturePlacementResult> {
@@ -533,9 +481,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			);
 		}
 
-		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		// Insert-before anchors on the block's FIRST line so the capture lands
-		// before the whole multi-line anchor (never inside it — issue #742).
+		const fileContentLines: string[] = this.fileContent.split("\n");
+		// Insert-before anchors on the block's first line, so the capture lands
+		// before the whole multi-line anchor, never inside it.
 		const { start } = positioning.findInsertAfterRange(fileContentLines, targetLines);
 		const targetNotFound = start === -1;
 		if (targetNotFound) {
@@ -600,13 +548,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				let position = line;
 				if (settings?.insertAtEnd) {
 					if (!this.file) throw new Error("Tried to get sections without file.");
-					const lines = getLinesInString(this.fileContent);
-					const end = getEndOfSection(lines, line, this.considerSubsectionsForAnchor(lines, line));
-					position = positioning.findInsertAfterPositionAtSectionEnd(
-						lines, end ?? lines.length - 1, this.fileContent, payload.content,
-					);
+					position = sectionEndPosition({
+						lines: this.fileContent.split("\n"), anchorLine: line,
+						considerSubsections: !!settings.considerSubsections,
+						fileContent: this.fileContent, text: payload.content,
+					});
 				}
-				return this.insertTextAfterPositionInBody(payload, this.fileContent, position);
+				return placeAfterLine(payload, this.fileContent, position, !!this.choice.task);
 			},
 		});
 	}
@@ -620,22 +568,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		);
 	}
 
-	/**
-	 * Adapter: binds this run's `considerSubsections` choice flag to the pure
-	 * helper. Kept (unlike the single-use file-content passthroughs, which are
-	 * inlined at their call site) because it dedupes the flag binding across the
-	 * three insert-after positioning call sites.
-	 */
-	private considerSubsectionsForAnchor(
-		lines: string[],
-		anchorLine: number,
-	): boolean {
-		return positioning.anchorAllowsSubsections(
-			!!this.choice.insertAfter?.considerSubsections,
-			lines,
-			anchorLine,
-		);
-	}
 	private createInsertAfterOrdered(payload: CapturePlacementResult, targetString: string): CapturePlacementResult {
 		return insertOrderedCapture({
 			capture: payload, targetString, fileContent: this.fileContent,
@@ -661,7 +593,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			payload,
 			location: this.choice.insertAfter?.createIfNotFoundLocation,
 			rawTarget: this.choice.insertAfter.after,
-			insertAtCursor: (line) => this.insertTextAfterPositionInBody(payload, this.fileContent, line),
+			insertAtCursor: (line) => placeAfterLine(payload, this.fileContent, line, !!this.choice.task),
 		});
 	}
 
@@ -678,7 +610,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}): CapturePlacementResult {
 		switch (location) {
 			case CREATE_IF_NOT_FOUND_TOP:
-				return this.insertAtNoteBodyStartTracking(payload, true);
+				return placeAtNoteBodyStart(payload, this.fileContent, true);
 			case CREATE_IF_NOT_FOUND_BOTTOM: {
 				const note = this.withLastLineEnded();
 				return surroundCapture(payload, note + blockquoteSeparator(note, payload.content));
@@ -697,21 +629,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			default:
 				throw new ChoiceAbortError(`Unknown createIfNotFoundLocation: ${location}`);
 		}
-	}
-
-	private insertAtNoteBodyStartTracking(payload: CapturePlacementResult, separateBlockquotes = false): CapturePlacementResult {
-		const result = insertAtNoteBodyStartWithResult(this.fileContent, payload.content, { separateBlockquotes });
-		return placeCapture(payload, result.content,
-			result.insertedStartOffset === null || payload.cursor.kind === "none"
-				? null : result.insertedStartOffset + payload.cursor.value);
-	}
-
-	private insertTextAfterPositionInBody(payload: CapturePlacementResult, body: string, pos: number): CapturePlacementResult {
-		const result = positioning.insertTextAfterPositionInBody(
-			payload.content, body, pos, !!this.choice.task,
-			payload.cursor.kind === "offset" ? payload.cursor.value : undefined,
-		);
-		return placeCapture(payload, result.content, result.insertedEndOffset);
 	}
 
 	private insertTextBeforePositionInBody(payload: CapturePlacementResult, body: string, pos: number): CapturePlacementResult {

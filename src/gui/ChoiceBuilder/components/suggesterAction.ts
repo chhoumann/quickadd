@@ -17,8 +17,7 @@ function toList(result: ReturnType<SuggesterFactory>): AnySuggest[] {
  * dispatches a real bubbling `input` event, so the selected value round-trips
  * through Svelte `bind:value` / the element's `oninput` handler.
  *
- * Suggesters are constructed once on mount and destroyed on unmount (strictly
- * better than the imperative builders, which never destroyed them). They are
+ * Suggesters are constructed once on mount and destroyed on unmount. They are
  * static per input in the choice builders, so no `update` is provided.
  */
 export function suggester(

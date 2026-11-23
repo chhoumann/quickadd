@@ -19,11 +19,10 @@ type SuggesterFactory = (
 ) => AnySuggest | void;
 
 /**
- * Svelte port of createValidatedInput (validatedInput.ts). Owns its own
- * <input>/<textarea> so the value round-trips through the binding when a
- * suggester writes it. Keeps the monotonic `validateToken` staleness guard,
- * trim normalization, initial + required-change validation, and the aria-live
- * hint. The former imperative `reload()` callers now react to `value` changes.
+ * Owns its <input>/<textarea> so the value round-trips through the binding when
+ * a suggester writes it. A monotonic `validateToken` drops stale validations;
+ * values are trimmed; validation runs on mount and when `value` or `required`
+ * changes, with an aria-live hint.
  */
 let {
 	value = $bindable(""),
@@ -62,7 +61,7 @@ let {
 
 let invalid = $state(false);
 // A required field stays neutral until the user has typed in it or left it:
-// flagging a field they haven't reached yet is noise (#2034).
+// flagging a field they haven't reached yet is noise.
 let touched = $state(false);
 let hintMessage = $state("");
 let hintVariant = $state<HintVariant>("neutral");
@@ -122,8 +121,7 @@ function handleInput(event: Event) {
 	onChange?.(next);
 }
 
-// Initial validation on mount + re-validate when `value` or `required` change
-// (mirrors createValidatedInput's runValidator(initialValue) + setRequired()).
+// Initial validation on mount, and again when `value` or `required` change.
 $effect(() => {
 	void required;
 	void touched;

@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { CREATE_IF_NOT_FOUND_TOP } from "../../constants";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
@@ -12,7 +12,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder<ICaptureChoice> {
 	constructor(
 		app: App,
 		choice: ICaptureChoice,
-		plugin: QuickAdd,
+		plugin: ChoiceBuilderPlugin,
 		onSave: (choice: IChoice) => void,
 	) {
 		super(app, choice, plugin, onSave, CaptureChoiceForm, "this capture choice's settings");
@@ -21,10 +21,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder<ICaptureChoice> {
 	}
 
 	/**
-	 * Apply the defaults the imperative builder set lazily inside render branches —
-	 * once, before mount. addWritePositionSetting ran insertBefore/activeFileWritePosition
-	 * defaults unconditionally on open, so they are hoisted; fileOpening is normalized
-	 * only when openFile (parity with the gated addFileOpeningSetting).
+	 * Fills in missing fields once, before mount: insertBefore and
+	 * activeFileWritePosition always, fileOpening only when openFile is on.
 	 */
 	private normalizeChoice() {
 		if (!this.choice.insertBefore) {

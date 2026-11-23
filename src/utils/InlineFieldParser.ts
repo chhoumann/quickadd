@@ -1,16 +1,10 @@
 import { splitWikilinkAwareList } from "./splitWikilinkAwareList";
 
 export class InlineFieldParser {
-	// Regex to match inline fields in the format "fieldname:: value".
-	// Captures: fieldname (trimmed by the caller) and value, until end of line.
-	//
-	// The field name has no separate leading `[ \t]*`: a standalone `[ \t]*`
-	// before the lazy `([^:\n\r]+?)` (which also matches spaces/tabs) lets the
-	// engine try every split of a long whitespace run against a line with no
-	// `::`, which is O(n^2) backtracking (ReDoS) over untrusted note content.
-	// Leading indentation is instead absorbed by the capture (the caller trims
-	// it) and skipped inside the task-checkbox lookahead, leaving a single
-	// line-consuming quantifier so matching stays linear.
+	// Matches "fieldname:: value" to the end of the line; the caller trims the
+	// name. No separate leading `[ \t]*`: next to the lazy name class it would
+	// backtrack quadratically (ReDoS) on long whitespace runs in untrusted notes,
+	// so the capture absorbs indentation instead.
 	private static readonly INLINE_FIELD_REGEX =
 		/(?:^|[\n\r])(?![ \t]*[-*+][ \t]+\[[ xX]\])([^:\n\r]+?)::[ \t]*(.*)$/gmu;
 
@@ -27,11 +21,6 @@ export class InlineFieldParser {
 	// separately (CommonMark requires the closer to be at least as long).
 	private static readonly FENCE_CLOSE_REGEX = /^[ \t]*(`{3,})[ \t]*$/;
 
-	/**
-	 * Extracts inline fields from the content of a file
-	 * @param content The file content to parse
-	 * @returns Map of field names to their values
-	 */
 	static parseInlineFields(
 		content: string,
 		options?: {
@@ -40,7 +29,6 @@ export class InlineFieldParser {
 	): Map<string, Set<string>> {
 		const fields = new Map<string, Set<string>>();
 
-		// Remove frontmatter and code spans, and include only explicitly allowlisted fences.
 		const cleanedContent = this.removeCodeBlocksAndFrontmatter(content, options);
 
 		let match;
@@ -52,7 +40,6 @@ export class InlineFieldParser {
 			const fieldName = match[1].trim();
 			const fieldValue = match[2].trim();
 
-			// Skip empty values
 			if (!fieldValue) continue;
 
 			if (!fields.has(fieldName)) {
@@ -66,7 +53,6 @@ export class InlineFieldParser {
 			}
 		}
 
-		// Reset regex lastIndex for next use
 		InlineFieldParser.INLINE_FIELD_REGEX.lastIndex = 0;
 
 		return fields;
@@ -143,9 +129,7 @@ export class InlineFieldParser {
 			}
 		}
 
-		// Unclosed fence: emit the buffered lines unchanged, matching the old
-		// regex (which stripped nothing when its closing backreference never
-		// matched).
+		// Unclosed fence: emit the buffered lines unchanged.
 		if (fence) {
 			for (const line of fence.lines) out.push(line);
 		}
@@ -175,12 +159,6 @@ export class InlineFieldParser {
 		return line.endsWith("\r") ? line.slice(0, -1) : line;
 	}
 
-	/**
-	 * Extracts a specific inline field from content
-	 * @param content The file content to parse
-	 * @param fieldName The field name to look for
-	 * @returns Set of values for the field, or empty set if not found
-	 */
 	static getFieldValues(
 		content: string,
 		fieldName: string,

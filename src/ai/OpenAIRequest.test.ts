@@ -129,18 +129,16 @@ beforeEach(() => {
 
 describe("OpenAIRequest", () => {
 	describe("guard clauses", () => {
-		it("throws and does not call requestUrl when online features are disabled", async () => {
+		// The block message must not name OpenAI when another provider is targeted.
+		it.each([
+			["OpenAI", openAIModel, openAIProvider],
+			["Anthropic", anthropicModel, anthropicProvider],
+		])("blocks a %s request with a provider-neutral message when online features are disabled", async (_name, model, provider) => {
 			storeState.disableOnlineFeatures = true;
-			const makeRequest = OpenAIRequest(
-				makeApp(),
-				"key",
-				openAIModel,
-				currentProvider(),
-				"system"
-			);
+			const makeRequest = OpenAIRequest(makeApp(), "key", model, provider as AIProvider, "system");
 
 			await expect(makeRequest("prompt")).rejects.toThrow(
-				"Online features are disabled in settings."
+				/^Blocking request: Online features are disabled in settings\.$/
 			);
 			expect(requestUrlMock).not.toHaveBeenCalled();
 			expect(beginAIRequestLogEntryMock).not.toHaveBeenCalled();
@@ -339,6 +337,49 @@ describe("OpenAIRequest", () => {
 				stopSequence: null,
 				created: 1700000000,
 			});
+		});
+
+		// Local OpenAI-compatible servers (llama.cpp, some Ollama builds) answer
+		// without a `usage` block. Reading usage.prompt_tokens off it crashed the
+		// whole request with a TypeError after the model had already answered.
+		it("returns the answer from a server that reports no usage", async () => {
+			requestUrlMock.mockResolvedValue({ json: openAIResponse({ usage: undefined }) });
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
+
+			const result = await makeRequest("hi");
+
+			expect(result.content).toBe("Hello there");
+			expect(result.usage).toEqual({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
+		});
+
+		it("returns a safety refusal's explanation instead of an empty answer", async () => {
+			requestUrlMock.mockResolvedValue({
+				json: openAIResponse({
+					choices: [{
+						finish_reason: "stop",
+						index: 0,
+						message: { role: "assistant", content: null, refusal: "I can't help with that." },
+					}],
+				}),
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
+
+			const result = await makeRequest("hi");
+
+			expect(result.content).toBe("I can't help with that.");
+			expect(result.stopReason).toBe("refusal");
+		});
+
+		it("never doubles the slash when the endpoint ends in one", async () => {
+			getModelProviderMock.mockReturnValue({ ...openAIProvider, endpoint: "http://localhost:1234/v1/" });
+			const makeRequest = OpenAIRequest(makeApp(), "", openAIModel, currentProvider(), "sys");
+
+			await makeRequest("hi");
+
+			const arg = requestUrlMock.mock.calls[0][0];
+			expect(arg.url).toBe("http://localhost:1234/v1/chat/completions");
+			// A keyless local server gets no empty `Bearer ` header.
+			expect(arg.headers).toEqual({ "Content-Type": "application/json" });
 		});
 	});
 
@@ -597,13 +638,59 @@ describe("OpenAIRequest", () => {
 			const result = await makeRequest("hi");
 
 			expect(result.content).toBe("");
-			expect(result.model).toBe("gemini");
+			// No modelVersion in the reply: report the model that was asked.
+			expect(result.model).toBe(geminiModel.name);
 			expect(result.usage).toEqual({
 				promptTokens: 0,
 				completionTokens: 0,
 				totalTokens: 0,
 			});
 			expect(result.stopReason).toBe("");
+		});
+	});
+
+	describe("2xx replies that are not answers", () => {
+		it.each([
+			["an error object", { error: { message: "Model unavailable" } }],
+			["an error string", { error: "Model unavailable" }],
+		])("rejects and logs an error for %s sent with status 200", async (_name, json) => {
+			getModelProviderMock.mockReturnValue(openAIProvider);
+			requestUrlMock.mockResolvedValue({ status: 200, json });
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).rejects.toThrow(
+				"Error while making request to OpenAI: Model unavailable",
+			);
+			const [, result] = finishAIRequestLogEntryMock.mock.calls[0];
+			expect(result).toMatchObject({ status: "error", errorMessage: "Model unavailable" });
+		});
+
+		it("rejects a reply without the provider's envelope", async () => {
+			getModelProviderMock.mockReturnValue(anthropicProvider);
+			requestUrlMock.mockResolvedValue({ status: 200, json: { id: "msg-1" } });
+			const makeRequest = OpenAIRequest(makeApp(), "key", anthropicModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).rejects.toThrow('The response has no "content" array.');
+		});
+
+		it("names the block reason when Gemini blocks the prompt", async () => {
+			getModelProviderMock.mockReturnValue(geminiProvider);
+			requestUrlMock.mockResolvedValue({ status: 200, json: { promptFeedback: { blockReason: "SAFETY" } } });
+			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).rejects.toThrow("The prompt was blocked (SAFETY).");
+		});
+
+		it.each(["", null])("returns an empty answer when the message content is %j", async (content) => {
+			getModelProviderMock.mockReturnValue(openAIProvider);
+			requestUrlMock.mockResolvedValue({
+				json: openAIResponse({
+					choices: [{ finish_reason: "stop", index: 0, message: { role: "assistant", content } }],
+				}),
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
+
+			await expect(makeRequest("prompt")).resolves.toMatchObject({ content: "" });
 		});
 	});
 

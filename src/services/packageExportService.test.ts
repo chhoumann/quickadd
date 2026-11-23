@@ -684,6 +684,7 @@ describe("writePackageToVault", () => {
 			app as never,
 			pkg,
 			"A/B/C/file.json",
+			{ confirmOverwrite: async () => true },
 		);
 
 		expect(createdFolders).toEqual(["A", "A/B", "A/B/C"]);
@@ -710,7 +711,9 @@ describe("writePackageToVault", () => {
 			existsImpl: () => false,
 		});
 
-		await writePackageToVault(app as never, pkg, "root.json");
+		await writePackageToVault(app as never, pkg, "root.json", {
+			confirmOverwrite: async () => true,
+		});
 
 		expect(createdFolders).toEqual([]);
 		expect(writes[0].path).toBe("root.json");
@@ -721,7 +724,9 @@ describe("writePackageToVault", () => {
 		const { app, writes } = makeFakeApp();
 
 		await expect(
-			writePackageToVault(app as never, pkg, "   "),
+			writePackageToVault(app as never, pkg, "   ", {
+				confirmOverwrite: async () => true,
+			}),
 		).rejects.toThrow("Output path cannot be empty.");
 
 		expect(writes).toEqual([]);

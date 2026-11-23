@@ -2,15 +2,12 @@
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 import Toggle from "../../components/Toggle.svelte";
-import {
-	normalizeFileOpening,
-	type FileOpeningSettings,
-} from "../../../utils/fileOpeningDefaults";
-import type { FileViewMode2, OpenLocation } from "../../../types/fileOpening";
+import { normalizeFileOpening } from "../../../utils/fileOpeningDefaults";
+import { openLocationOptions, splitDirectionOptions } from "../fileOpeningOptions";
+import type { FileOpeningSettings, FileViewMode2, OpenLocation } from "../../../types/fileOpening";
 
 /**
- * Replaces ChoiceBuilder.addFileOpeningSetting. Conditional rows (split
- * direction, focus toggle) are reactive `{#if}` blocks instead of `reload()`.
+ * Conditional rows (split direction, focus toggle) are reactive `{#if}` blocks.
  */
 let {
 	fileOpening = $bindable(),
@@ -20,25 +17,10 @@ let {
 	contextLabel: string;
 } = $props();
 
-// This section only mounts when Open is enabled. An imported/legacy choice can
-// reach here with a missing/partial fileOpening (toggling Open true after mount),
-// so normalize at init — before the template dereferences .location/.mode — the
-// same point the imperative addFileOpeningSetting normalized. (#1130 review)
+// This section only mounts when Open is enabled. An imported or legacy choice
+// can reach here with a missing or partial fileOpening, so normalize at init,
+// before the template dereferences .location/.mode.
 fileOpening = normalizeFileOpening(fileOpening);
-
-const locationOptions = [
-	{ value: "reuse", label: "Reuse current tab" },
-	{ value: "tab", label: "New tab" },
-	{ value: "split", label: "Split pane" },
-	{ value: "window", label: "New window" },
-	{ value: "left-sidebar", label: "Left sidebar" },
-	{ value: "right-sidebar", label: "Right sidebar" },
-];
-
-const directionOptions = [
-	{ value: "vertical", label: "Split right" },
-	{ value: "horizontal", label: "Split down" },
-];
 
 const modeOptions = [
 	{ value: "source", label: "Source" },
@@ -59,7 +41,7 @@ const modeValue = $derived(
 	{#snippet control()}
 		<Dropdown
 			value={fileOpening.location}
-			options={locationOptions}
+			options={openLocationOptions}
 			onchange={(value) => (fileOpening.location = value as OpenLocation)}
 		/>
 	{/snippet}
@@ -73,7 +55,7 @@ const modeValue = $derived(
 		{#snippet control()}
 			<Dropdown
 				value={fileOpening.direction}
-				options={directionOptions}
+				options={splitDirectionOptions}
 				onchange={(value) =>
 					(fileOpening.direction = value as FileOpeningSettings["direction"])}
 			/>

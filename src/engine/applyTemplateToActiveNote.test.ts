@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,7 +53,7 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 		templatePath: string;
 		constructor(...args: unknown[]) {
 			engineConstructorMock(...args);
-			this.templatePath = args[3] as string;
+			this.templatePath = args[4] as string;
 		}
 		async getResolvedTemplatePath() {
 			return resolvedPathMock(this.templatePath);
@@ -78,7 +77,6 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 
 vi.mock("../utils/templaterIntegration", () => ({
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
-	getTemplater: vi.fn(() => ({})),
 	templaterParseTemplate: vi.fn(
 		async (_app: unknown, content: string) => content,
 	),
@@ -99,6 +97,7 @@ import {
 	isNoteEffectivelyEmpty,
 	templatePickerItemLabel,
 } from "./applyTemplateToActiveNote";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 function makeTemplateChoice(
 	name: string,
@@ -308,20 +307,20 @@ describe("applyTemplateToNote (non-interactive)", () => {
 
 	it("uses the empty-note fast path (replace) for empty notes", async () => {
 		const file = makeFile();
-		const result = await applyTemplateToNote(makeApp("", file), plugin, {
+		const result = await applyTemplateToNote(makeApp("", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: makeExecutor(),
 		});
 
 		expect(result).toBe(file);
 		expect(engineConstructorMock).toHaveBeenCalledTimes(1);
-		expect(engineConstructorMock.mock.calls[0][4]).toBe("replace");
+		expect(engineConstructorMock.mock.calls[0][5]).toBe("replace");
 	});
 
 	it("does not jump again or apply QuickAdd placement after native overwrite handled the cursor", async () => {
 		const file = makeFile();
 		nativeCursorHandledMock.mockReturnValueOnce(true);
-		expect(await applyTemplateToNote(makeApp("", file), plugin, {
+		expect(await applyTemplateToNote(makeApp("", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md", choiceExecutor: makeExecutor(),
 		})).toBe(file);
 		expect(jumpToNextTemplaterCursorIfPossible).not.toHaveBeenCalled();
@@ -331,7 +330,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 	it.each([false, true])("gives Templater cursor priority when handled is %s", async handled => {
 		const file = makeFile();
 		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockResolvedValueOnce(handled);
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: makeExecutor(),
 		});
@@ -342,23 +341,23 @@ describe("applyTemplateToNote (non-interactive)", () => {
 
 	it("defaults to bottom for non-empty notes", async () => {
 		const file = makeFile();
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: makeExecutor(),
 		});
 
-		expect(engineConstructorMock.mock.calls[0][4]).toBe("bottom");
+		expect(engineConstructorMock.mock.calls[0][5]).toBe("bottom");
 	});
 
 	it("respects an explicit mode even for empty notes", async () => {
 		const file = makeFile();
-		await applyTemplateToNote(makeApp("", file), plugin, {
+		await applyTemplateToNote(makeApp("", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			mode: "top",
 			choiceExecutor: makeExecutor(),
 		});
 
-		expect(engineConstructorMock.mock.calls[0][4]).toBe("top");
+		expect(engineConstructorMock.mock.calls[0][5]).toBe("top");
 	});
 
 	// issue #1546: prompts raised while applying a template say which choice is
@@ -366,7 +365,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 	// scope so one source's cancelled draft cannot pre-fill another's.
 	it("hands the engine a run context naming the target note", async () => {
 		const file = makeFile();
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: makeExecutor(),
 		});
@@ -381,7 +380,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 
 	it("runs the template inside the caller's choice chain", async () => {
 		const chain = [{ id: "A", name: "A", type: "Macro" }];
-		await applyTemplateToNote(makeApp("CONTENT", makeFile()), plugin, {
+		await applyTemplateToNote(makeApp("CONTENT", makeFile()), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: new ChoiceExecutor(makeApp("CONTENT", makeFile()), plugin),
 			chain: chain as never,
@@ -402,7 +401,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 			"templates/tpl.md",
 			"templates/other.md",
 		]) {
-			await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+			await applyTemplateToNote(makeApp("CONTENT", file), plugin, testFormatterRuntime(), {
 				templatePath,
 				choiceExecutor: makeExecutor(),
 			});
@@ -421,7 +420,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 	it("pre-fills {{VALUE}} with the note's basename", async () => {
 		const file = makeFile();
 		const executor = makeExecutor();
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: executor,
 		});
@@ -434,7 +433,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		const executor = makeExecutor();
 		executor.variables.set("value", "Custom");
 
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: executor,
 		});
@@ -453,7 +452,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 			return file;
 		});
 
-		await applyTemplateToNote(app, plugin, {
+		await applyTemplateToNote(app, plugin, testFormatterRuntime(app, plugin), {
 			file,
 			templatePath: "templates/tpl.md",
 			choiceExecutor: executor,
@@ -478,7 +477,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 			return file;
 		});
 
-		await applyTemplateToNote(app, plugin, {
+		await applyTemplateToNote(app, plugin, testFormatterRuntime(app, plugin), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: executor,
 		});
@@ -490,7 +489,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		settingsStore.setState({ onePageInputEnabled: true });
 		const app = makeApp("CONTENT", makeFile());
 		try {
-			await applyTemplateToNote(app, plugin, {
+			await applyTemplateToNote(app, plugin, testFormatterRuntime(app, plugin), {
 				templatePath: "templates/tpl.md",
 				choiceExecutor: new ChoiceExecutor(app, plugin),
 			});
@@ -510,7 +509,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 	});
 
 	it("returns null without an active markdown note", async () => {
-		const result = await applyTemplateToNote(makeApp("", null), plugin, {
+		const result = await applyTemplateToNote(makeApp("", null), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: makeExecutor(),
 		});
@@ -523,7 +522,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		const file = makeFile();
 		file.extension = "canvas";
 
-		const result = await applyTemplateToNote(makeApp("", file), plugin, {
+		const result = await applyTemplateToNote(makeApp("", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: makeExecutor(),
 		});
@@ -539,7 +538,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 			"templates/board.canvas",
 			"templates/db.base",
 		]) {
-			const result = await applyTemplateToNote(makeApp("", file), plugin, {
+			const result = await applyTemplateToNote(makeApp("", file), plugin, testFormatterRuntime(), {
 				templatePath,
 				choiceExecutor: makeExecutor(),
 			});
@@ -556,7 +555,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		// to a .canvas template, which must not be applied to a markdown note.
 		resolvedPathMock.mockReturnValueOnce("templates/Board.canvas");
 
-		const result = await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+		const result = await applyTemplateToNote(makeApp("CONTENT", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/{{value:kind}}",
 			choiceExecutor: makeExecutor(),
 		});
@@ -571,7 +570,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		engineApplyMock.mockResolvedValue(null);
 		const file = makeFile();
 
-		const result = await applyTemplateToNote(makeApp("", file), plugin, {
+		const result = await applyTemplateToNote(makeApp("", file), plugin, testFormatterRuntime(), {
 			templatePath: "templates/tpl.md",
 			choiceExecutor: makeExecutor(),
 		});
@@ -642,7 +641,7 @@ describe("the move offer refuses an impossible target (#1591)", () => {
 		const file = makeFile();
 		const { app, createFolder, renameFile } = makeApp(file);
 
-		await applyTemplateToNote(app, plugin, {
+		await applyTemplateToNote(app, plugin, testFormatterRuntime(app, plugin), {
 			file,
 			choiceExecutor: executor(),
 		});
@@ -663,7 +662,7 @@ describe("the move offer refuses an impossible target (#1591)", () => {
 		const file = makeFile();
 		const { app, renameFile } = makeApp(file);
 
-		await applyTemplateToNote(app, plugin, {
+		await applyTemplateToNote(app, plugin, testFormatterRuntime(app, plugin), {
 			file,
 			choiceExecutor: executor(),
 		});
@@ -699,7 +698,7 @@ describe("the one-page form for a picked Template choice (#2287)", () => {
 		engineApplyMock.mockImplementation(async () => file);
 		suggestMock.mockImplementation(async (_app, _labels, values) => (values as unknown[])[0]);
 
-		await applyTemplateToNote(app, plugin, { file, choiceExecutor: new ChoiceExecutor(app, plugin) });
+		await applyTemplateToNote(app, plugin, testFormatterRuntime(app, plugin), { file, choiceExecutor: new ChoiceExecutor(app, plugin) });
 
 		expect(preflightMock).toHaveBeenCalledTimes(1);
 		return preflightMock.mock.calls[0][3] as ITemplateChoice;

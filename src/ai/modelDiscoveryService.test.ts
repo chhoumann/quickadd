@@ -425,4 +425,44 @@ beforeEach(() => {
 		).rejects.toThrow("Online features are disabled");
 		expect(requestUrlMock).not.toHaveBeenCalled();
 	});
+
+	it("surfaces the provider's own error detail on a 4xx", async () => {
+		requestUrlMock.mockResolvedValue({
+			status: 401,
+			json: {
+				error: { message: "invalid api key", code: "invalid_api_key" },
+			},
+		});
+
+		await expect(
+			discoverProviderModels({
+				name: "OpenAI",
+				endpoint: "https://api.openai.com/v1",
+				apiKey: "bad-key",
+				models: [],
+				autoSyncModels: false,
+				modelSource: "providerApi",
+			}),
+		).rejects.toThrow(/invalid api key/);
+		// Obsidian's requestUrl rejects with a body-less "Request failed, status N"
+		// unless asked not to throw, so the body is only readable with throw:false.
+		expect(requestUrlMock).toHaveBeenCalledWith(expect.objectContaining({ throw: false }));
+	});
+
+	it("parses a bare-array model list", async () => {
+		requestUrlMock.mockResolvedValue({
+			json: Promise.resolve([{ id: "gpt-4o", max_tokens: 100000 }]),
+		});
+
+		const models = await discoverProviderModels({
+			name: "Custom",
+			endpoint: "https://api.custom.ai",
+			apiKey: "ok",
+			models: [],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		});
+
+		expect(models).toEqual([{ name: "gpt-4o", maxTokens: 100000 }]);
+	});
 });

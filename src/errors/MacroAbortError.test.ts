@@ -1,47 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { MacroAbortError } from "./MacroAbortError";
+import { UserCancelError } from "./UserCancelError";
 
-describe("Macro Abort Functionality", () => {
-	describe("MacroAbortError", () => {
-		it("should create error with custom message", () => {
-			const error = new MacroAbortError("Custom abort message");
-			expect(error.message).toBe("Custom abort message");
-		});
+// User scripts detect an abort with `error?.name === "MacroAbortError"`, as the
+// QuickAdd API and user-script docs show, so the name is public contract.
+describe("MacroAbortError", () => {
+	it.each([
+		["MacroAbortError", new MacroAbortError("stop")],
+		["UserCancelError", new UserCancelError("cancelled")],
+	])("%s carries the name user scripts match on", (_label, error) => {
+		expect(error.name).toBe("MacroAbortError");
+	});
 
-		it("should use default message when no message provided", () => {
-			const error = new MacroAbortError();
-			expect(error.message).toBe("Macro execution aborted");
-		});
-
-		it("should have correct name property", () => {
-			const error = new MacroAbortError("test");
-			expect(error.name).toBe("MacroAbortError");
-		});
-
-		it("should be instance of Error", () => {
-			const error = new MacroAbortError("test");
-			expect(error).toBeInstanceOf(Error);
-		});
-
-		it("should have a stack trace", () => {
-			const error = new MacroAbortError("test");
-			expect(error.stack).toBeDefined();
-			expect(typeof error.stack).toBe("string");
-		});
-
-		it("should be throwable and catchable", () => {
-			expect(() => {
-				throw new MacroAbortError("test");
-			}).toThrow(MacroAbortError);
-		});
-
-		it("should be catchable as generic Error", () => {
-			try {
-				throw new MacroAbortError("test");
-			} catch (error) {
-				expect(error).toBeInstanceOf(Error);
-				expect(error).toBeInstanceOf(MacroAbortError);
-			}
-		});
+	it("falls back to a default message", () => {
+		expect(new MacroAbortError().message).toBe("Macro execution aborted");
 	});
 });

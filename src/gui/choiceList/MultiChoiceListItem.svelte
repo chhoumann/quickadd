@@ -6,10 +6,10 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import { untrack } from "svelte";
-	import { Component, Platform, type App } from "obsidian";
+    import { Platform, type App } from "obsidian";
     import type IChoice from "src/types/choices/IChoice";
-    import { choiceMenuActions, showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
-	import { renderChoiceName } from "./renderChoiceName";
+    import { choiceRowMenu } from "./contextMenu";
+    import { choiceName } from "./renderChoiceName";
     import { childChoicesOf, hasUnreadableChildren } from "../../utils/choiceUtils";
     import type { ChoiceListActions } from "./choiceListActions";
 
@@ -30,7 +30,7 @@
         roots: IChoice[];
         collapseId: string;
         dragDisabled: boolean;
-        startDrag: (e?: Event) => void;
+        startDrag: (event: PointerEvent) => void;
         app: App;
         actions: ChoiceListActions;
         forceDragDisabled?: boolean;
@@ -41,42 +41,17 @@
         onMoveDown?: () => void;
     } = $props();
 
-    // Read the children ONCE, through the accessor: a folder in data.json can
-    // have no `choices` key at all, or a non-array value, and dereferencing it
-    // here threw during mount and took the entire settings tab with it (#1566).
-    // $derived, not a bare call: Svelte props are lazy getters, so calling the
-    // accessor per template read would hand ChoiceList a fresh [] every time and
-    // churn the dnd zone.
+    // Read the children once, through the accessor: a folder in data.json can
+    // have no `choices` key or a non-array value. $derived, not a bare call:
+    // props are lazy getters, so a per-read call would hand ChoiceList a fresh []
+    // every time and churn the dnd zone.
     const children = $derived(childChoicesOf(choice));
     // The one shape that can still be HOLDING choices we cannot read. Such a
     // folder must not claim to be empty, and must not offer any affordance that
     // would overwrite the value (the add row and the drop zone are its only two).
     const unreadable = $derived(hasUnreadableChildren(choice));
 
-    let showConfigureButton = $state(true);
-    let nameElement = $state<HTMLSpanElement>();
-	const cmp = new Component();
-
-	$effect(() => {
-		if (nameElement) {
-			void renderChoiceName(choice.name, nameElement, cmp, app);
-		}
-	});
-
-	// renderChoiceName passes cmp to MarkdownRenderer.render as the lifecycle owner;
-	// unload it on destroy so any registered child components are disposed (no deps
-	// here, so the teardown runs only when this item is destroyed).
-	$effect(() => {
-		return () => cmp.unload();
-	});
-
-    function onContextMenu(evt: MouseEvent) {
-        showChoiceContextMenu(app, evt, choice, roots, choiceMenuActions(choice, actions));
-    }
-
-    function openMenu(anchor: HTMLElement) {
-        showChoiceContextMenuAtElement(app, anchor, choice, roots, choiceMenuActions(choice, actions));
-    }
+    const menu = choiceRowMenu(() => ({ choice, roots, actions }));
 
     // Nested children reordered: write the new order back to this Multi choice (the
     // choice object is shared with the root tree, so this mutates it in place), then
@@ -121,7 +96,7 @@
     <div
         class="multiChoiceListItem"
         data-choice-id={choice.id}
-        oncontextmenu={onContextMenu}
+        oncontextmenu={menu.onContextMenu}
         onclick={(evt) => {
             // Desktop-only: on mobile the bare row surface belongs to long-press
             // drag, and svelte-dnd-action's touch false-alarm replays a synthetic
@@ -151,7 +126,7 @@
             >
                 <ObsidianIcon iconId="chevron-down" size={16} />
             </span>
-            <span class="choiceListItemName" bind:this={nameElement}></span>
+            <span class="choiceListItemName" use:choiceName={{ name: choice.name, app }}></span>
             {#if choice.collapsed && children.length > 0}
                 <!-- What a closed folder hides is real information: a quiet
                      count keeps the list scannable without expanding. -->
@@ -165,10 +140,9 @@
             onConfigureChoice={() => actions.onConfigureChoice(choice)}
             onToggleCommand={() => actions.onToggleCommand(choice)}
             onDuplicateChoice={() => actions.onDuplicateChoice(choice)}
-            onOpenMenu={openMenu}
+            onOpenMenu={menu.openAt}
             {onMoveUp}
             {onMoveDown}
-            {showConfigureButton}
             {dragDisabled}
             choiceName={choice.name}
             commandEnabled={choice.command}
@@ -260,16 +234,14 @@
         box-shadow: none;
         padding: 0;
         /* Obsidian's base button rule sets height: var(--input-height) (30px),
-           which would make folder rows 4px taller than leaf rows — the exact
-           rhythm break this redesign removes. */
+           which would make folder rows 4px taller than leaf rows. */
         height: auto;
         min-height: 0;
         font: inherit;
         color: inherit;
         text-align: left;
         cursor: pointer;
-        /* Suppress double-tap-zoom + its click delay on touch — proper touch hygiene
-           for a tap target, and reduces the ghost-click the dedupe above also guards. */
+        /* Suppress double-tap-zoom and its click delay on touch. */
         touch-action: manipulation;
     }
 

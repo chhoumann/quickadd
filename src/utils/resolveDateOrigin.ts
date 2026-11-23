@@ -1,4 +1,3 @@
-import { NLDParser } from "../parsers/NLDParser";
 import type IChoice from "../types/choices/IChoice";
 import {
 	normalizeDateOrigin,
@@ -40,7 +39,7 @@ export function dateFromStoredValue(stored: unknown): Date | undefined {
 		return parsed.isValid() ? parsed.toDate() : undefined;
 	}
 
-	const nl = parseNaturalLanguageDate(trimmed, undefined, NLDParser);
+	const nl = parseNaturalLanguageDate(trimmed);
 	if (nl.isValid && nl.isoString) {
 		const parsed = window.moment(nl.isoString);
 		return parsed.isValid() ? parsed.toDate() : undefined;

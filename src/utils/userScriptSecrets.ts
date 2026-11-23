@@ -3,6 +3,10 @@ import { log } from "../logger/logManager";
 import type { IUserScript } from "../types/macros/IUserScript";
 export { detectUserScriptSecretOptions } from "./userScriptSecretDetection";
 import { macroCommandsValueOf } from "./macroUtils";
+import { isRecord } from "./isRecord";
+import { readSecretStorageEntry } from "./secretStorage";
+
+const USER_SCRIPT_SECRET = "user script SecretStorage entry";
 
 const USER_SCRIPT_SECRET_PREFIX = "quickadd-user-script";
 const SECRET_MARKER = "__quickaddSecret";
@@ -44,10 +48,6 @@ export type UserScriptSecretSanitizerOptions = {
 	stripUnknownStringSettings?: boolean;
 };
 
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object";
-}
 
 function getSecretStorage(app: App | undefined): SecretStorageLike | undefined {
 	return app?.secretStorage;
@@ -195,23 +195,6 @@ function optionDefinesStableSecretId(option: UserScriptOptionDefinition): boolea
 	return typeof option.id === "string" && option.id.trim().length > 0;
 }
 
-async function readSecretStorageEntry(
-	app: App | undefined,
-	secretRef: string,
-): Promise<string | null> {
-	const secretStorage = getSecretStorage(app);
-	if (!secretStorage?.getSecret) return null;
-
-	try {
-		return await Promise.resolve(secretStorage.getSecret(secretRef));
-	} catch (error) {
-		log.logWarning(
-			`Failed to read user script SecretStorage entry "${secretRef}": ${formatSecretError(error)}`,
-		);
-		return null;
-	}
-}
-
 async function writeSecretStorageEntry(
 	app: App | undefined,
 	secretRef: string,
@@ -245,7 +228,7 @@ async function buildAvailableSecretRef(
 	let suffix = 1;
 
 	while (true) {
-		const existing = await readSecretStorageEntry(app, candidate);
+		const existing = await readSecretStorageEntry(app, candidate, USER_SCRIPT_SECRET);
 		if (!existing || existing === value) return candidate;
 
 		suffix += 1;
@@ -316,7 +299,7 @@ export async function resolveUserScriptSettings(
 
 	for (const [name, value] of Object.entries(commandSettings)) {
 		if (isUserScriptSecretRef(value)) {
-			const secret = await readSecretStorageEntry(app, value.secretRef);
+			const secret = await readSecretStorageEntry(app, value.secretRef, USER_SCRIPT_SECRET);
 			if (secret) {
 				resolvedSettings[name] = secret;
 				continue;
@@ -368,7 +351,7 @@ export async function migrateUserScriptSecretSettings(
 			if (!optionDefinesStableSecretId(option)) continue;
 
 			const secretRef = buildUserScriptSecretId(command, settingName, option);
-			const existingSecret = await readSecretStorageEntry(app, secretRef);
+			const existingSecret = await readSecretStorageEntry(app, secretRef, USER_SCRIPT_SECRET);
 			if (!existingSecret) continue;
 
 			command.settings[settingName] = createUserScriptSecretRef(secretRef);

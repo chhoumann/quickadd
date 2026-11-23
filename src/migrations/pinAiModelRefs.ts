@@ -1,31 +1,13 @@
-import {
-	ensureProviderIds,
-	type AIProvider,
-	type ModelRef,
-} from "src/ai/Provider";
-import { pinAiCommandModelRefs } from "src/ai/modelRefPinning";
+import { ensureProviderIds, type ModelRef } from "src/ai/Provider";
+import { firstMatchProvider, pinAiCommandModelRefs } from "src/ai/modelRefPinning";
 import { settingsStore } from "src/settingsStore";
 import { deepClone } from "src/utils/deepClone";
 import { log } from "src/logger/logManager";
 import type { Migration } from "./Migrations";
 
 /**
- * The pre-#1495 resolution rule, applied verbatim: the FIRST provider (in
- * settings order) listing the model name. Local rather than resolveModel so
- * the migration operates on ITS drafts, not the live store.
- */
-function firstMatchProvider(
-	providers: AIProvider[],
-	modelName: string,
-): AIProvider | undefined {
-	return providers.find((provider) =>
-		provider.models.some((model) => model.name === modelName),
-	);
-}
-
-/**
- * Pin every stored bare model name to the provider it resolves to TODAY
- * (#1495). Behavior-preserving by construction: each ref records exactly what
+ * Pin every stored bare model name to the provider it resolves to today.
+ * Behavior-preserving by construction: each ref records exactly what
  * the first-match rule currently picks, so no command changes endpoint or key
  * during the upgrade — the ref only protects it from being rerouted later
  * when another provider gains the same model name.

@@ -30,9 +30,9 @@ import { UserCancelError } from "../../errors/UserCancelError";
 import { settingsStore } from "../../settingsStore";
 import { runTemplateFromFolder } from "../../engine/runTemplateFromFolder";
 import type * as RunTemplateFromFolderModule from "../../engine/runTemplateFromFolder";
+import { emptyFolderNoticeText } from "../../utils/choiceNotices";
 import ChoiceSuggester, {
 	BACK_CHOICE_ID,
-	emptyFolderNoticeText,
 	RUN_TEMPLATE_FROM_FOLDER_ID,
 	stripInlineMarkdown,
 } from "./choiceSuggester";

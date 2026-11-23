@@ -7,10 +7,9 @@ import {
 	setIcon,
 } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
-import { ChoiceExecutor } from "../../choiceExecutor";
 import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
-import type QuickAdd from "../../main";
+import type { AppProvider, PluginManifestInfo, SettingsProvider, TemplateFileSource } from "../../types/pluginContext";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import type { ChoiceChain } from "../../engine/choiceChain";
 import { createRenderFallbackWarner } from "./utils";
@@ -22,6 +21,7 @@ import {
 	flattenChoicesWithPath,
 	hasUnreadableChildren,
 } from "../../utils/choiceUtils";
+import { emptyFolderNoticeText } from "../../utils/choiceNotices";
 import type { FrontmatterPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import { getFocusedPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "../../types/QuickAddTriggerContext";
@@ -36,40 +36,17 @@ import { renderChoiceName } from "../choiceList/renderChoiceName";
 const backLabel = "← Back";
 
 /**
- * Search hint for the launcher's input. Every Obsidian picker labels its own;
- * QuickAdd's rendered completely blank, which reads as an unfinished surface
- * (issue #1540). Nested levels override this with the folder's name or its
- * custom placeholder.
+ * Search hint for the launcher's input. Nested levels override it with the
+ * folder's name or its custom placeholder.
  */
 const DEFAULT_PLACEHOLDER = "Select a choice";
 
-/**
- * Shared wording for "you opened a folder that has nothing in it", so the
- * picker's drill-down and the command/URI execute path (choiceExecutor) say the
- * same thing.
- */
-export function emptyFolderNoticeText(folder: IChoice): string {
-	// A folder whose `choices` value could still be HOLDING choices is not empty,
-	// it is unreadable, and saying "empty" here would contradict what the settings
-	// list says about the same folder. Same predicate on both surfaces (#1566).
-	if (hasUnreadableChildren(folder)) {
-		return `QuickAdd couldn't read the contents of "${folder.name}". They're still in data.json.`;
-	}
-	return `Folder "${folder.name}" is empty.`;
-}
-
-/**
- * Trailing marker on a folder row the picker cannot drill into. Same word the
- * settings tree already uses for this exact state ("Empty — add a choice or drag
- * one here.", ChoiceList.svelte), so the two surfaces name it the same way.
- */
+/** Marker on a folder row the picker cannot drill into, worded like the settings tree's empty state. */
 const EMPTY_FOLDER_FLAIR = "Empty";
 
 /**
- * The same marker for a folder the picker cannot drill into because its contents
- * could not be READ, as opposed to being absent. Calling that one "Empty" would
- * contradict the settings list, which says the contents are still in data.json
- * (#1566).
+ * For a folder whose contents could not be read, as opposed to absent; the
+ * settings list says they are still in data.json.
  */
 const UNREADABLE_FOLDER_FLAIR = "Unreadable";
 
@@ -82,10 +59,9 @@ export function folderFlairFor(choice: IChoice): string {
 }
 
 /**
- * Sentinel id for the synthetic "New note from template" launcher row (#1023).
- * Like {@link BACK_CHOICE_ID}, it is navigation/action — never a real choice —
- * so it is dispatched explicitly and excluded from nested search. The constant
- * prefix cannot collide with a real uuid-keyed choice.
+ * Sentinel id for the synthetic "New note from template" launcher row. Like
+ * {@link BACK_CHOICE_ID} it is an action, never a real choice, so it is
+ * dispatched explicitly and excluded from nested search.
  */
 export const RUN_TEMPLATE_FROM_FOLDER_ID = "quickadd:run-template-from-folder";
 const runTemplateFromFolderLabel = "New note from template…";
@@ -101,15 +77,9 @@ const runTemplateFromFolderLabel = "New note from template…";
 export const BACK_CHOICE_ID = "quickadd:back";
 
 /**
- * A folder row the picker cannot drill into (#1554): a Multi choice with no
- * children. Deliberately NOT recursive — a folder containing only empty folders
- * still has rows to show, so calling it empty would be false; its children carry
- * the marker one level down. `?.length` rather than `.length === 0` tolerates a
- * data.json whose `choices` is missing or not an array, which the loader
- * preserves rather than heals.
- *
- * The Back row is excluded: it is navigation, and the level it wraps is
- * legitimately allowed to be empty.
+ * A Multi with no children. Not recursive: a folder of empty folders still has
+ * rows to show. `?.length` tolerates a missing or non-array `choices`. The Back
+ * row is excluded.
  */
 export function isEmptyFolderChoice(choice: IChoice): boolean {
 	return (
@@ -153,14 +123,16 @@ type NestedSearchCandidate = {
 	nameOffset: number;
 };
 
+/** What the picker reads from the plugin, including for its "New note from template" row. */
+type ChoiceSuggesterPlugin = AppProvider & SettingsProvider & TemplateFileSource & PluginManifestInfo;
+
 type ChoiceSuggesterOptions = {
-	choiceExecutor?: IChoiceExecutor;
+	/** Runs the picked choice. */
+	choiceExecutor: IChoiceExecutor;
 	focusedProperty?: FrontmatterPropertyTarget | null;
 	/**
-	 * Trigger-time editor context (the active note) captured when the launcher
-	 * opened, threaded through nested Multi levels so a leaf choice's
-	 * {{...|default-from:active}} still reads the original trigger note (issue
-	 * #1429). Absent at the top level → captured live in the constructor.
+	 * Active note captured when the launcher opened, threaded through nested
+	 * levels so a leaf's `|default-from:active` reads the trigger note.
 	 */
 	triggerContext?: QuickAddTriggerContext | null;
 	placeholder?: string;
@@ -172,14 +144,10 @@ type ChoiceSuggesterOptions = {
 	 */
 	includeTemplateFolderRow?: boolean;
 	/**
-	 * Called once when the picker session is over: with no argument when the
-	 * picked leaf choice finished, with the leaf's own error when it failed,
-	 * and with a `promptCancelled()` cancellation when the picker was dismissed
-	 * without a pick. Threaded through nested folder levels so only the
-	 * terminal action settles it. Set by ChoiceExecutor's Multi path, whose
-	 * execute() awaits it so a run can no longer report done while its own
-	 * picker is open (#1630). Absent for the top-level launcher, which has no
-	 * caller waiting and stays fire-and-forget.
+	 * Called once when the picker session ends: no argument on success, the
+	 * leaf's error on failure, a cancellation on dismissal. Only the terminal
+	 * action settles it. Set by ChoiceExecutor's Multi path, which awaits it;
+	 * absent for the fire-and-forget launcher.
 	 */
 	completion?: (error?: Error) => void;
 	/**
@@ -199,11 +167,10 @@ type ChoiceSuggesterOptions = {
 };
 
 /**
- * Whether the synthetic "New note from template" row would actually appear in
- * the top-level launcher. Exported so the launcher entry point can tell whether
- * the picker has anything at all to show before opening it (issue #1540).
+ * Whether the "New note from template" row would appear in the top-level
+ * launcher, so the launcher can tell whether the picker has anything to show.
  */
-export function shouldShowTemplateFolderRow(plugin: QuickAdd): boolean {
+export function shouldShowTemplateFolderRow(plugin: SettingsProvider): boolean {
 	const rowPosition = plugin.settings.templateFolderLauncherRow ?? "bottom";
 	return rowPosition !== "off" && hasConfiguredTemplateFolders(plugin);
 }
@@ -248,55 +215,47 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	);
 
 	public static Open(
-		plugin: QuickAdd,
+		plugin: ChoiceSuggesterPlugin,
 		choices: IChoice[],
-		options?: ChoiceSuggesterOptions
+		options: ChoiceSuggesterOptions
 	) {
 		new ChoiceSuggester(plugin, choices, options).open();
 	}
 
 	constructor(
-		private plugin: QuickAdd,
+		private plugin: ChoiceSuggesterPlugin,
 		private choices: IChoice[],
-		options?: ChoiceSuggesterOptions
+		options: ChoiceSuggesterOptions
 	) {
 		super(plugin.app);
 		// `qa-choice-suggester` is a stable hook for user CSS snippets (see SuggesterModal).
 		this.modalEl.addClass("qa-choice-suggester");
-		// Initialize here (not as a field initializer) so the `plugin` parameter
-		// property is already assigned; a field initializer runs before it.
-		this.choiceExecutor =
-			options?.choiceExecutor ?? new ChoiceExecutor(this.app, this.plugin);
+		this.choiceExecutor = options.choiceExecutor;
 		this.focusedProperty =
-			options && "focusedProperty" in options
+			"focusedProperty" in options
 				? options.focusedProperty ?? null
 				: getFocusedPropertyTarget(this.app);
 		// Capture the trigger-time active note when the launcher opens (top level),
 		// or reuse the one threaded down from a parent Multi level. getActiveFile()
 		// reads the active markdown leaf, which the suggester overlay doesn't change.
 		this.triggerContext =
-			options && "triggerContext" in options
+			"triggerContext" in options
 				? options.triggerContext ?? null
 				: { activeFile: this.app.workspace.getActiveFile() };
-		this.placeholderStack = options?.placeholderStack ?? [];
-		this.completion = options?.completion;
-		this.ancestry = options?.ancestry;
-		this.onPick = options?.onPick;
+		this.placeholderStack = options.placeholderStack ?? [];
+		this.completion = options.completion;
+		this.ancestry = options.ancestry;
+		this.onPick = options.onPick;
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
-		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER;
+		this.currentPlaceholder = options.placeholder?.trim() || DEFAULT_PLACEHOLDER;
 		this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
 
-		// Insert the synthetic "New note from template" row only at the top level
-		// (includeTemplateFolderRow), and only when a template folder is actually
-		// configured (otherwise the action would just send the user to settings).
-		// Position is user-controlled: "bottom" (default) keeps it out of the
-		// first-Enter slot, "top" makes it first, "off" hides it. Settings are read
-		// inside this guard so nested-level opens (no settings on the test plugin)
-		// never touch them.
-		if (options?.includeTemplateFolderRow) {
+		// Only at the top level, and only with a template folder configured.
+		// Settings are read inside this guard so nested levels never touch them.
+		if (options.includeTemplateFolderRow) {
 			const rowPosition =
 				this.plugin.settings.templateFolderLauncherRow ?? "bottom";
 			if (shouldShowTemplateFolderRow(this.plugin)) {
@@ -378,13 +337,10 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	}
 
 	/**
-	 * Refuses to open an empty folder (#1554), which the row already announces
-	 * with its "Empty" marker. This is the only seam where the activation can be
-	 * refused without ejecting the user: `SuggestModal.selectSuggestion` closes
-	 * the modal *before* `onChooseItem` runs, so returning above `super` is what
-	 * keeps the picker open with its typed query, scroll position and selection
-	 * intact. Both input paths land here — the chooser routes clicks and Enter
-	 * through the owner's `selectSuggestion`.
+	 * Refuses to open an empty folder. `SuggestModal.selectSuggestion` closes the
+	 * modal before `onChooseItem` runs, so this is the only seam that can refuse
+	 * without discarding the query, scroll and selection. Clicks and Enter both
+	 * land here.
 	 */
 	selectSuggestion(
 		value: FuzzyMatch<IChoice>,
@@ -397,13 +353,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// `instanceof KeyboardEvent` — a popout window is a separate realm.
 			if ("repeat" in evt && evt.repeat) return;
 			new Notice(emptyFolderNoticeText(value.item));
-			// A trusted mousedown on `.suggestion-item` — a non-focusable div with no
-			// focusable ancestor, since neither `.modal` nor `.modal-container` carries
-			// a tabindex — moves focus to <body>. Obsidian never has to handle that
-			// because every other activation closes the modal; this is the first path
-			// that keeps it open, so without this the input goes dead while the picker
-			// still looks alive (arrow keys and Escape keep working, typing does not).
-			// No-op on the keyboard path, and on mobile it keeps the keyboard up.
+			// A trusted mousedown on a non-focusable `.suggestion-item` moves focus
+			// to <body>. Obsidian never handles that because every other activation
+			// closes the modal, so refocus or typing goes dead.
 			this.inputEl.focus();
 			return;
 		}
@@ -438,11 +390,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		void renderChoiceName(item.item.name, nameEl, this.markdownComponent, this.app)
 			.catch((error) => {
 				nameEl.textContent = item.item.name;
-				// renderSuggestion runs per row and re-runs on every keystroke, so a
-				// renderer that keeps failing would raise a 15-second ERROR notice per
-				// row per keypress. Same shape as the renderItem storm in #1604: one
-				// broken renderer is one defect, and the plain-text fallback above is
-				// what every row gets anyway.
+				// renderSuggestion re-runs per row per keystroke, so a failing
+				// renderer warns once rather than raising a notice per row.
 				this.warnRenderFailure(error);
 			});
 		el.classList.add("quickadd-choice-suggestion");
@@ -451,11 +400,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		if (item.item.id === RUN_TEMPLATE_FROM_FOLDER_ID)
 			el.classList.add("quickadd-choice-suggestion-run-template");
 
-		// Say the folder is a dead end before the click, not after it (#1554). The
-		// row keeps its place in the list — hiding it would make a configured folder
-		// vanish, which is a worse, unexplained dead end. `el.empty()` above clears
-		// children but never attributes, so the marker is cleared explicitly for
-		// rows Obsidian recycles (matching the defensive `mod-complex` reset).
+		// Mark the dead end before the click. `el.empty()` clears children but not
+		// attributes, so recycled rows are reset explicitly.
 		const flairText = folderFlairFor(item.item);
 		const isEmptyFolder = flairText !== "";
 		el.classList.toggle("quickadd-choice-suggestion-empty", isEmptyFolder);
@@ -498,12 +444,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	}
 
 	/**
-	 * Settle the awaiting run (#1630) when a terminal action's promise does: no
-	 * argument on success, the SAME error instance on failure so report-once
-	 * (#1601) keeps it to a single notice. One place for both terminal branches,
-	 * because a stranded completion silently hangs an awaiting run - the two
-	 * call sites must never drift apart. `errorContext` names the action the
-	 * user actually picked; the awaiting caller only knows the folder.
+	 * Settles the awaiting run when a terminal action's promise does, passing the
+	 * same error instance so report-once keeps it to one notice. One place for
+	 * both terminal branches, since a stranded completion hangs the run.
 	 */
 	private settleCompletion(promise: Promise<void>, errorContext: string): void {
 		void promise.then(
@@ -541,14 +484,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		else if (this.onPick)
 			this.onPick(item);
 		else {
-			// Route through executeWithFocusedProperty whenever it exists so the
-			// captured focusedProperty AND triggerContext (issue #1429) are both
-			// re-injected for the leaf run. On the launcher path the leaf is its own
-			// depth-0 run and needs them (its executor context was never set); on the
-			// executor Multi path the outer execute() stays pending (#1630) and the
-			// leaf inherits the executor's still-live context, which holds the same
-			// values this level was handed. Falls back to execute() only for stub
-			// executors without the method.
+			// executeWithFocusedProperty re-injects the captured property and trigger
+			// context: the launcher's leaf is its own depth-0 run, while on the Multi
+			// path the outer execute() is still pending.
 			const enclosingCallerDay = this.choiceExecutor.callerDay;
 			if ("shiftKey" in evt && evt.shiftKey) {
 				this.choiceExecutor.callerDay = "pick";
@@ -572,15 +510,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private onChooseMultiType(multi: IMultiChoice) {
 		const isBack = multi.id === BACK_CHOICE_ID;
 
-		// Unreachable from the picker: selectSuggestion refuses empty folders above
-		// `super`, so the modal never closes and this never dispatches. Kept as a
-		// backstop for programmatic onChooseItem calls (it is public API on
-		// FuzzySuggestModal) so any future regression degrades to "notice, nothing
-		// happens" instead of opening a level whose only row is "← Back". It is also
-		// what makes the spread below safe on a folder with no `choices` array.
-		//
-		// #1550's close-and-reopen is gone with the ejection it worked around: it
-		// discarded the typed query, the scroll position and the selection.
+		// Backstop for programmatic onChooseItem calls; selectSuggestion already
+		// refuses empty folders. Also makes the spread below safe on a folder
+		// without a `choices` array.
 		if (!isBack && isEmptyFolderChoice(multi)) {
 			new Notice(emptyFolderNoticeText(multi));
 			// The modal already closed (this is post-dispatch), so nothing else can

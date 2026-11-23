@@ -1,17 +1,13 @@
 import { Notice, type App } from "obsidian";
 import { tick } from "svelte";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type { ChoiceType } from "../../types/choices/choiceType";
 import {
-	type CommandRegistry,
-	configureChoice,
 	createChoice,
 	createToggleCommandChoice,
 	findChoiceById,
-	deleteChoiceWithConfirmation,
-	duplicateChoiceWithUserScriptSecretSanitization,
 	addChoiceToTree,
 	insertChoiceAfter,
 	moveChoice as moveChoiceService,
@@ -19,7 +15,12 @@ import {
 	removeChoiceById,
 	setFolderChildrenById,
 	setMultiCollapsedById,
-} from "../../services/choiceService";
+} from "../../services/choiceTree";
+import {
+	configureChoice,
+	deleteChoiceWithConfirmation,
+	duplicateChoiceWithUserScriptSecretSanitization,
+} from "./choiceUiService";
 import { log } from "../../logger/logManager";
 import { choiceNoun } from "../../utils/choiceNoun";
 import { reportingHandler } from "../../utils/errorUtils";
@@ -34,18 +35,24 @@ import { settingsStore } from "../../settingsStore";
 
 interface ChoiceViewContext {
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	choices: IChoice[];
 	filterQuery: string;
-	commandRegistry: CommandRegistry;
+	commands: ChoiceCommandRegistrar;
 	saveChoices: (choices: Plain<IChoice[]>) => void;
 }
 
 /** Access live component state after every await, so intervening store writes survive. */
 export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListActions {
-	// Persist the current choices as a plain (non-proxy) snapshot.
 	function save() {
 		context.saveChoices(snapshot(context.choices));
+	}
+
+	// Non-recursive remove: the children stay, and adding the new choice
+	// re-registers its command-enabled descendants.
+	function replaceCommand(oldChoice: IChoice, newChoice: IChoice) {
+		context.commands.removeCommandForChoice(oldChoice);
+		context.commands.addCommandForChoice(newChoice);
 	}
 
 	async function addChoiceToList(
@@ -114,13 +121,10 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		// $state array without relying on the top-array reassignment to heal an
 		// in-place nested mutation (which would silently fail for a nested-only delete).
 		context.choices = removeChoiceById(context.choices, choice.id).updated;
-		// Deleting removes the whole subtree, so recursively unregister the
-		// commands of any command-enabled descendants too (toggling a folder's
-		// own command off, by contrast, must leave its children registered).
-		// Use the resolved live `target`, not `choice`: with an active filter the
-		// passed `choice` can be a truncated clone (only matching children), which
-		// would otherwise leave hidden command-enabled descendants orphaned.
-		context.commandRegistry.disableCommand(target, { recursive: true });
+		// Deleting removes the subtree, so unregister descendants' commands too,
+		// from the live `target`: with a filter active, `choice` can be a truncated
+		// clone.
+		context.commands.removeCommandForChoice(target, { recursive: true });
 		save();
 	}
 
@@ -150,7 +154,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		if (!current) return false;
 		const updatedChoice = threeWayMergeSettings<IChoice>(base, edited, snapshot(current));
 		context.saveChoices(snapshot(choices.map((choice) => updateChoiceHelper(choice, updatedChoice))));
-		context.commandRegistry.updateCommand(current, updatedChoice);
+		replaceCommand(current, updatedChoice);
 		return true;
 	}
 
@@ -167,7 +171,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		}
 		const updatedChoice = { ...live, name: newName };
 		context.choices = context.choices.map((entry) => updateChoiceHelper(entry, updatedChoice));
-		context.commandRegistry.updateCommand(live, updatedChoice);
+		replaceCommand(live, updatedChoice);
 		save();
 	}
 
@@ -176,9 +180,9 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 
 		context.choices = context.choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
 		if (updatedChoice.command) {
-			context.commandRegistry.enableCommand(updatedChoice);
+			context.commands.addCommandForChoice(updatedChoice);
 		} else {
-			context.commandRegistry.disableCommand(updatedChoice);
+			context.commands.removeCommandForChoice(updatedChoice);
 		}
 		save();
 	}
@@ -196,14 +200,10 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 				...context.choices,
 				newChoice,
 			];
-		// A duplicate carries command:true when its source did; register its command so
-		// the copy is immediately usable from the palette instead of only appearing
-		// command-enabled until the next plugin reload. enableCommand -> addCommandForChoice
-		// recurses into a folder's children, so registering once covers any command-enabled
-		// descendants too. Gate on the subtree actually containing a command so we never
-		// touch the registry for a command-less folder.
+		// Register the duplicate's commands now so the copy works from the palette
+		// before a reload; addCommandForChoice recurses into children.
 		if (subtreeHasCommand(newChoice)) {
-			context.commandRegistry.enableCommand(newChoice);
+			context.commands.addCommandForChoice(newChoice);
 		}
 		save();
 		new Notice(`Duplicated "${sourceChoice.name}".`);
@@ -225,19 +225,15 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		save();
 	}
 
-	// Commit a folder's children by id into ChoiceView's authoritative tree. A nested
-	// drag/reorder calls this rather than relying on its (cross-zone-stale) `choice`
-	// reference — finding the folder by id keeps the edit on the real live node, which
-	// is what fixes the root<->folder drag duplication. See onCommitFolder.
+	// Commit a folder's children by id: a nested drag's `choice` reference goes
+	// stale across zones, which duplicated rows.
 	function handleCommitFolder(folderId: string, children: IChoice[]) {
 		context.choices = setFolderChildrenById(context.choices, folderId, children);
 		save();
 	}
 
-	// Reassign the tree immutably (by id, any depth) so the collapse is REACTIVE —
-	// an in-place `choice.collapsed = …` isn't tracked until the array is proxied by
-	// a reassignment, which is why folders wouldn't toggle on first render. save()
-	// also re-seeds choices from the store (proxied), healing reactivity thereafter.
+	// Reassign immutably so the collapse is reactive; an in-place mutation is not
+	// tracked until the array has been proxied by a reassignment.
 	function handleToggleCollapsed(choice: IChoice) {
 		context.choices = setMultiCollapsedById(
 			context.choices,
@@ -247,15 +243,10 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		save();
 	}
 
-	// Every row button, context-menu item and nested list reaches these handlers
-	// through this one bag (MultiChoiceListItem's nestedActions spreads it), so
-	// wrapping it here is what makes a failing row action impossible to miss —
-	// hand-wrapping the call sites would silently skip the nested and menu paths.
-	//
-	// The message is built from the ROW: its own noun, so a folder is never called
-	// a choice (see choiceNoun; #1552), and its name, so a user with a long list
-	// knows which row the Notice is about. A malformed entry can have neither, so
-	// both degrade rather than printing "undefined".
+	// Every row button, menu item and nested list reaches these handlers through
+	// this one bag, so wrapping here covers paths hand-wrapping would miss. The
+	// message uses the row's own noun and name, degrading for a malformed entry
+	// rather than printing "undefined".
 	function rowAction<Rest extends unknown[]>(
 		verb: string,
 		fn: (choice: IChoice, ...rest: Rest) => unknown,

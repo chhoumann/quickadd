@@ -5,7 +5,8 @@ import { tick } from "svelte";
 
 import { App } from "obsidian";
 import CommandList from "./CommandList.svelte";
-import { createCommandListProps } from "./commandListProps.svelte";
+import type { CommandListProps } from "./commandListProps";
+import { reactiveProps } from "../svelte/reactiveProps.svelte";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 
@@ -17,7 +18,7 @@ describe("CommandList conditional branch persistence", () => {
 		const cond = new ConditionalCommand();
 		const saveCommands = vi.fn();
 
-		const props = createCommandListProps({
+		const props = reactiveProps<CommandListProps>({
 			commands: [cond],
 			app: new App() as never,
 			plugin: {} as never,
@@ -49,7 +50,7 @@ describe("CommandList conditional branch persistence", () => {
 		const cond = new ConditionalCommand();
 		const saveCommands = vi.fn();
 
-		const props = createCommandListProps({
+		const props = reactiveProps<CommandListProps>({
 			commands: [cond],
 			app: new App() as never,
 			plugin: {} as never,
@@ -74,8 +75,8 @@ describe("CommandList conditional branch persistence", () => {
 // A step added in this session is a class instance, which $state does not
 // proxy, so an in-place edit only shows if the list gets a new object (#2147).
 describe("CommandList conditional label after an edit", () => {
-	function renderWith(handlers: Partial<Parameters<typeof createCommandListProps>[0]>) {
-		const props = createCommandListProps({
+	function renderWith(handlers: Partial<CommandListProps>) {
+		const props = reactiveProps<CommandListProps>({
 			commands: [new ConditionalCommand()],
 			app: new App() as never,
 			plugin: {} as never,

@@ -4,14 +4,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import { TagSuggester } from "./tagSuggester";
-import { TagIndex } from "./TagIndex";
-
-// Reset the shared singleton between tests so each starts from a clean index.
-class TestableTagIndex extends TagIndex {
-	static reset(): void {
-		TagIndex.instance = undefined as unknown as TagIndex;
-	}
-}
+import { TagIndex } from "../../utils/vaultIndex/TagIndex";
 
 type ResolvedCb = () => void;
 
@@ -39,7 +32,7 @@ describe("TagSuggester shares one tag index across prompts (no per-prompt listen
 	let registerEvent: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
-		TestableTagIndex.reset();
+		TagIndex.destroyInstance();
 		resolvedCbs = [];
 		app = makeApp({ "#a": 1, "#bb": 2, "#ccc": 3 }, resolvedCbs);
 		registerEvent = vi.fn((ref) => ref);
@@ -102,7 +95,7 @@ describe("TagSuggester shares one tag index across prompts (no per-prompt listen
 
 describe("TagSuggester getSuggestions (behavior-preserving over the shared index)", () => {
 	beforeEach(() => {
-		TestableTagIndex.reset();
+		TagIndex.destroyInstance();
 		setQuickAddInstance({
 			registerEvent: vi.fn((ref) => ref),
 		} as unknown as QuickAdd);

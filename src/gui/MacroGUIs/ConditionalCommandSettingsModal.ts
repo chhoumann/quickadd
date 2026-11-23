@@ -1,5 +1,5 @@
 import type { App, DropdownComponent, TextComponent } from "obsidian";
-import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
+import { Notice, Setting } from "obsidian";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import type {
 	ConditionalCondition,
@@ -19,11 +19,10 @@ import {
 	loadScriptCandidates,
 	noteScriptError,
 } from "./scriptCandidates";
+import { SettingsDialogModal } from "./SettingsDialogModal";
 
 function cloneCondition(condition: ConditionalCondition): ConditionalCondition {
-	return condition.mode === "variable"
-		? { ...condition }
-		: { ...condition };
+	return { ...condition };
 }
 
 function createDefaultVariableCondition(): VariableCondition {
@@ -42,12 +41,10 @@ function createDefaultScriptCondition(): ScriptCondition {
 	};
 }
 
-export class ConditionalCommandSettingsModal extends Modal {
-	public waitForClose: Promise<IConditionalCommand | null>;
-	private resolvePromise!: (command: IConditionalCommand | null) => void;
+/** Edits a working copy of the condition; Save validates it and writes it to the command. */
+export class ConditionalCommandSettingsModal extends SettingsDialogModal<IConditionalCommand> {
 	private readonly originalCommand: IConditionalCommand;
 	private workingCommand: IConditionalCommand;
-	private isResolved = false;
 	private scriptCandidates: ScriptCandidate[] = [];
 
 	constructor(app: App, command: IConditionalCommand) {
@@ -58,26 +55,15 @@ export class ConditionalCommandSettingsModal extends Modal {
 			condition: cloneCondition(command.condition),
 		};
 
-		this.waitForClose = new Promise<IConditionalCommand | null>((resolve) => {
-			this.resolvePromise = resolve;
-		});
-
 		this.loadScriptCandidates();
 		this.display();
 		this.open();
 	}
 
-	onClose() {
-		super.onClose();
-		if (!this.isResolved) {
-			this.resolve(null);
-		}
-	}
-
-	private resolve(value: IConditionalCommand | null) {
-		if (this.isResolved) return;
-		this.isResolved = true;
-		this.resolvePromise(value);
+	protected save(): IConditionalCommand | null {
+		if (!this.validateCondition()) return null;
+		this.applyChanges();
+		return this.originalCommand;
 	}
 
 	private loadScriptCandidates() {
@@ -104,7 +90,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 			this.renderScriptConfiguration(this.workingCommand.condition);
 		}
 
-		this.renderButtonBar();
+		this.addSaveCancelButtons();
 	}
 
 	private renderModeSelector() {
@@ -319,29 +305,6 @@ export class ConditionalCommandSettingsModal extends Modal {
 						condition.exportName = value.trim() || undefined;
 					})
 			);
-	}
-
-	private renderButtonBar() {
-		const buttonContainer = this.contentEl.createDiv({
-			cls: "qa-command-button-row",
-		});
-
-		new ButtonComponent(buttonContainer)
-			.setButtonText("Cancel")
-			.onClick(() => {
-				this.resolve(null);
-				this.close();
-			});
-
-		new ButtonComponent(buttonContainer)
-			.setCta()
-			.setButtonText("Save")
-			.onClick(() => {
-				if (!this.validateCondition()) return;
-				this.applyChanges();
-				this.resolve(this.originalCommand);
-				this.close();
-			});
 	}
 
 	private validateCondition(): boolean {

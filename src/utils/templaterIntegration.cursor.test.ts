@@ -20,7 +20,7 @@ function setup() {
 		editor: { getValue: () => content, getCursor: () => ({ line: 0, ch: 0 }) },
 	} as MarkdownView);
 	const overwrite = vi.fn(async () => {});
-	Object.assign(app.plugins.plugins, {
+	Object.assign((app as any).plugins.plugins, {
 		"templater-obsidian": { templater: { overwrite_file_commands: overwrite } },
 	});
 	return {

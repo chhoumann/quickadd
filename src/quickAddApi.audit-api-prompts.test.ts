@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import type { MacroAbortError } from "./errors/MacroAbortError";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 // ---------------------------------------------------------------------------
 // Minimal hoisted mocks. We keep the AI/format/settings subsystems stubbed out
@@ -40,9 +41,9 @@ vi.mock("./gui/VDateInputPrompt/VDateInputPrompt", () => ({
 vi.mock("./preflight/OnePageInputModal", () => ({
 	OnePageInputModal: class {},
 }));
-vi.mock("./ai/AIAssistant", () => ({
-	Prompt: vi.fn(),
-	ChunkedPrompt: vi.fn(),
+vi.mock("./ai/AIAssistant", () => ({ Prompt: vi.fn() }));
+vi.mock("./ai/chunkedPrompt", () => ({ ChunkedPrompt: vi.fn() }));
+vi.mock("./ai/requestLog", () => ({
 	getAIRequestLogEntries: vi.fn(),
 	getAIRequestLogEntryById: vi.fn(),
 	getLastAIRequestLogEntry: vi.fn(),
@@ -114,7 +115,7 @@ function getApi(
 	executor = makeChoiceExecutor(),
 ) {
 	return {
-		api: QuickAddApi.GetApi(app, plugin, executor as never),
+		api: QuickAddApi.GetApi(app, plugin, executor as never, testFormatterRuntime(app, plugin)),
 		app,
 		plugin,
 		executor,

@@ -6,12 +6,10 @@ import type {
 import { ButtonComponent, Notice, Setting } from "obsidian";
 import CommandList from "./CommandList.svelte";
 import { editorCommands } from "./editorCommands";
-import {
-	createCommandListProps,
-	type CommandListProps,
-} from "./commandListProps.svelte";
+import type { CommandListProps } from "./commandListProps";
+import { reactiveProps } from "../svelte/reactiveProps.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type { ICommand } from "../../types/macros/ICommand";
 import type IChoice from "../../types/choices/IChoice";
 import { ObsidianCommand } from "../../types/macros/ObsidianCommand";
@@ -39,11 +37,13 @@ import { log } from "../../logger/logManager";
 import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
 import { settingsStore } from "../../settingsStore";
+import { activeModelRef } from "../../ai/Provider";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { getUserScriptMemberAccess } from "../../utils/userScript";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
+import { getObsidianCommands } from "../../utils/obsidianInternals";
 import {
 	isUnreadableCommandList,
 	normalizeCommandList,
@@ -65,7 +65,7 @@ export interface CommandSequenceEditorConditionalHandlers {
 
 interface CommandSequenceEditorOptions {
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 	/**
 	 * Typed `unknown` because it is not: this is `macro.commands` straight out of
 	 * `data.json` (see commandListOf). The editor normalizes it at construction.
@@ -78,7 +78,7 @@ interface CommandSequenceEditorOptions {
 
 export class CommandSequenceEditor {
 	private readonly app: App;
-	private readonly plugin: QuickAdd;
+	private readonly plugin: ChoiceBuilderPlugin;
 	private readonly choices: IChoice[];
 	private readonly onCommandsChange?: (commands: ICommand[]) => void;
 	private readonly conditionalHandlers?: CommandSequenceEditorConditionalHandlers;
@@ -97,17 +97,15 @@ export class CommandSequenceEditor {
 	private commandListProps: CommandListProps | null = null;
 	private containerEl: HTMLElement | null = null;
 	private unreadableCardHandle: MountHandle | null = null;
+	private suggesters: GenericTextSuggester[] = [];
 
 	constructor(options: CommandSequenceEditorOptions) {
 		this.app = options.app;
 		this.plugin = options.plugin;
-		// data.json is untrusted, so the value arrives raw and is made editable
-		// here — the one seam every host that shows a command list goes through
-		// (MacroBuilder, ConditionalBranchEditorPage). Normalizing keeps a
-		// duplicate-id or id-less command under a fresh uuid instead of letting
-		// the keyed {#each} throw and cost the user the whole editor (#1593).
-		// Nothing is persisted by this: the repair reaches disk only with the
-		// user's first ordinary edit, so opening and closing changes nothing.
+		// data.json is untrusted, so the value arrives raw and is normalized here,
+		// the one seam every command-list host goes through: a duplicate-id or
+		// id-less command gets a fresh uuid instead of crashing the keyed {#each}.
+		// Nothing is persisted until the user's first ordinary edit.
 		this.unreadable = isUnreadableCommandList(options.commands);
 		this.commandsRef = normalizeCommandList(options.commands).commands;
 		this.choices = options.choices;
@@ -129,21 +127,16 @@ export class CommandSequenceEditor {
 		containerEl.empty();
 		containerEl.addClass("quickAddCommandEditor");
 
-		// A list we could not read must not be edited blind. Every control below
-		// appends to `commandsRef` and persists through onCommandsChange, so an
-		// editor offered over a value we could not read would overwrite it with the
-		// `[]` we read it as — destroying the only copy the user has. Say so
-		// instead, and offer nothing that writes. The macro's name, "run on
-		// startup" and icon stay editable around it.
+		// A list we could not read must not be edited blind: every control below
+		// would overwrite it with the [] we read it as, so offer nothing that
+		// writes. The macro's name, run-on-startup and icon stay editable.
 		if (this.unreadable) {
 			this.renderUnreadableCard(containerEl);
 			return false;
 		}
 
-		// Belt and braces: the list is a readable array and every entry has been
-		// given a unique id, so a mount failure here is a genuine bug rather than
-		// bad data. Same reasoning as above though — with the list invisible the
-		// user would be adding commands they cannot see, reorder or delete.
+		// A mount failure here is a genuine bug, but with the list invisible the
+		// user would add commands they cannot see, so stop here too.
 		if (!this.renderCommandList(containerEl)) return false;
 
 		this.renderCommandBar(containerEl);
@@ -170,17 +163,14 @@ export class CommandSequenceEditor {
 		this.commandListProps = null;
 		this.unreadableCardHandle?.destroy();
 		this.unreadableCardHandle = null;
+		this.suggesters.forEach((suggester) => suggester.destroy());
+		this.suggesters = [];
 	}
 
 	private loadObsidianCommands(): void {
-		// @ts-ignore
-		Object.keys(this.app.commands.commands).forEach((key) => {
-			// @ts-ignore
-			const command: { name: string; id: string } =
-				this.app.commands.commands[key];
-
+		for (const command of Object.values(getObsidianCommands(this.app) ?? {})) {
 			this.obsidianCommands.push(new ObsidianCommand(command.name, command.id));
-		});
+		}
 	}
 
 	private loadScriptCandidates(): void {
@@ -191,7 +181,7 @@ export class CommandSequenceEditor {
 	private renderCommandList(parent: HTMLElement): boolean {
 		const commandListEl = parent.createDiv("commandList");
 
-		this.commandListProps = createCommandListProps({
+		this.commandListProps = reactiveProps<CommandListProps>({
 			app: this.app,
 			plugin: this.plugin,
 			commands: this.commandsRef,
@@ -276,7 +266,14 @@ export class CommandSequenceEditor {
 				quickCommandContainer,
 				"bot",
 				"Add AI Assistant command",
-				() => new AIAssistantCommand(),
+				() => {
+					const ai = settingsStore.getState().ai;
+					return new AIAssistantCommand({
+						model: ai.defaultModel,
+						modelRef: activeModelRef(ai.defaultModel, ai.defaultModelRef),
+						systemPrompt: ai.defaultSystemPrompt,
+					});
+				},
 			);
 		}
 	}
@@ -326,12 +323,12 @@ export class CommandSequenceEditor {
 
 		const addEditorCommandFromDropdown = () => {
 			if (!dropdownComponent.getValue()) return;
-			const Command = editorCommands.get(dropdownComponent.getValue());
-			if (!Command) {
+			const create = editorCommands.get(dropdownComponent.getValue());
+			if (!create) {
 				log.logError("invalid editor command type");
 				throw new Error("invalid editor command type");
 			}
-			this.addCommand(new Command());
+			this.addCommand(create());
 			dropdownComponent.setValue("");
 		};
 
@@ -469,7 +466,7 @@ export class CommandSequenceEditor {
 	): TextComponent {
 		input.inputEl.addClass("qa-command-sequence-input");
 		input.setPlaceholder(placeholder);
-		new GenericTextSuggester(this.app, input.inputEl, suggestions);
+		this.suggesters.push(new GenericTextSuggester(this.app, input.inputEl, suggestions));
 		input.inputEl.addEventListener("keypress", (event: KeyboardEvent) => {
 			if (event.key === "Enter") void add();
 		});
@@ -562,8 +559,7 @@ export class CommandSequenceEditor {
 	}
 
 	private emitCommandsChanged() {
-		// Push the new array into the mounted component via its reactive $state props
-		// bag (replaces the old exported updateCommandList() bridge).
+		// Push the new array into the mounted component via its reactive $state props.
 		if (this.commandListProps) {
 			this.commandListProps.commands = [...this.commandsRef];
 		}

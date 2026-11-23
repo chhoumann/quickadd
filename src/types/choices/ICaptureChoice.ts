@@ -1,6 +1,6 @@
 import type IChoice from "./IChoice";
 import type { AppendLinkOptions } from "../linkPlacement";
-import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { FileOpeningSettings } from "../fileOpening";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 
@@ -13,7 +13,7 @@ export interface PropertyCapture {
 	sort: PropertyListSort;
 }
 
-/** How to derive a sort key from a section heading's text (issue #481). */
+/** How to derive a sort key from a section heading's text. */
 export type SectionOrderBy =
 	| "insertion"
 	| "lexical"
@@ -79,7 +79,7 @@ export default interface ICaptureChoice extends IChoice {
 		/**
 			* Sort descriptor for the "ordered" create-if-not-found location. Read ONLY
 			* when `createIfNotFoundLocation === "ordered"`. Absent for every other
-			* location, so existing choices round-trip byte-identically (issue #481).
+			* location, so existing choices round-trip byte-identically.
 			*/
 		orderBy?: SectionOrdering;
 		/**
@@ -102,12 +102,7 @@ export default interface ICaptureChoice extends IChoice {
 		direction: "above" | "below";
 	};
 	openFile: boolean;
-	fileOpening: {
-		location: OpenLocation;
-		direction: "vertical" | "horizontal";
-		mode: FileViewMode2;
-		focus: boolean;
-	};
+	fileOpening: FileOpeningSettings;
 	templater?: {
 		afterCapture?: "none" | "wholeFile";
 	};

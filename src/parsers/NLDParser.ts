@@ -1,15 +1,12 @@
 import * as chrono from "chrono-node";
 import type { IDateParser, ParsedMoment } from "./IDateParser";
+import { log } from "../logger/logManager";
 
 /**
- * Words that pin a phrase to the past: "last friday", "friday last week",
- * "past monday", "previous thursday". chrono's `forwardDate` refiner pushes
- * every weekday-only result that lands before the reference date a week
- * forward, which turns "last thursday" into the *upcoming* Thursday. Phrases
- * that name the past explicitly are parsed without the forward preference;
- * everything else keeps it so bare weekdays ("friday") and bare month-days
- * ("march 5") still resolve to the next occurrence. "past" only counts when
- * it qualifies a day or period, so "friday at half past 3" stays forward.
+ * chrono's `forwardDate` pushes a weekday result that lands before the
+ * reference date a week forward, turning "last thursday" into the upcoming one.
+ * Phrases that name the past are parsed without it. "past" counts only when it
+ * qualifies a day or period, so "half past 3" stays forward.
  */
 const EXPLICIT_PAST_PATTERN =
 	/\b(?:last|previous)\b|\bpast\s+(?:few\s+)?(?:\w*day|weekend|week|month|year|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
@@ -29,7 +26,6 @@ class NLDParserImpl implements IDateParser {
 		});
 	}
 
-	/** Parse date using chrono-node natural language date parser */
 	parseDate(input?: string): ParsedMoment | null {
 		if (!input || !input.trim()) return null;
 
@@ -37,20 +33,18 @@ class NLDParserImpl implements IDateParser {
 			const date = this.getParsedDate(input);
 			if (!date) return null;
 
-			// Check if moment is available at runtime
 			if (!window.moment) {
-				console.warn("Moment.js is not available");
+				log.logWarning("Moment.js is not available");
 				return null;
 			}
 
 			const moment = window.moment(date);
 			return { moment };
 		} catch (error) {
-			console.warn("Failed to parse date:", input, error);
+			log.logWarning(`Failed to parse date "${input}": ${String(error)}`);
 			return null;
 		}
 	}
 }
 
-// Export singleton instance to match expected API
 export const NLDParser = new NLDParserImpl();

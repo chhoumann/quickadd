@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as ErrorUtils from "../utils/errorUtils";
@@ -77,7 +76,6 @@ vi.mock("../formatters/completeFormatter", () => {
 });
 
 vi.mock("../utils/templaterIntegration", () => ({
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(async () => true),
 }));
@@ -139,6 +137,7 @@ import { settingsStore } from "../settingsStore";
 import { getPromptModes } from "../template/fileExistsPolicy";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -216,6 +215,7 @@ const createEngine = () => {
 	const engine = new TemplateChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		createTemplateChoice(),
 		choiceExecutor,
 	);
@@ -612,19 +612,12 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			);
 			templateInsertApplyMock.mockResolvedValue(existingFile);
 
-			const rawAppendSpy = vi.spyOn(
-				engine as unknown as {
-					appendToFileWithTemplate: () => Promise<TFile | null>;
-				},
-				"appendToFileWithTemplate",
-			);
-
 			await engine.run();
 
-			expect(rawAppendSpy).not.toHaveBeenCalled();
 			expect(templateInsertConstructorMock).toHaveBeenCalledWith(
 				app,
 				plugin,
+				expect.anything(),
 				existingFile,
 				engine.choice.templatePath,
 				position,
@@ -708,24 +701,10 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			existingFile,
 		);
 
-		const rawAppendSpy = vi
-			.spyOn(
-				engine as unknown as {
-					appendToFileWithTemplate: (
-						file: TFile,
-						templatePath: string,
-						position: "top" | "bottom",
-					) => Promise<TFile | null>;
-				},
-				"appendToFileWithTemplate",
-			)
-			.mockResolvedValue(existingFile);
-
 		await engine.run();
 
-		// Append must NOT proceed through either the raw-concat path or the
-		// markdown insert engine — both would corrupt the canvas JSON.
-		expect(rawAppendSpy).not.toHaveBeenCalled();
+		// Append must NOT proceed through the markdown insert engine or a raw
+		// write - both would corrupt the canvas JSON.
 		expect(templateInsertConstructorMock).not.toHaveBeenCalled();
 		expect(templateInsertSetLinkToCurrentFileBehaviorMock).not.toHaveBeenCalled();
 		expect(app.vault.modify).not.toHaveBeenCalled();

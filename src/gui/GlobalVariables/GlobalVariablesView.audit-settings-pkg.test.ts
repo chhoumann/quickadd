@@ -7,6 +7,7 @@ import GlobalVariablesView from "./GlobalVariablesView.svelte";
 import { settingsStore } from "../../settingsStore";
 import { DEFAULT_SETTINGS } from "../../settings";
 import { deepClone } from "../../utils/deepClone";
+import { TextInputSuggest } from "../suggesters/suggest";
 
 // Regression coverage for the Global Variables mid-edit data-loss footgun:
 // persistToSettings drops empty-name rows and the store subscriber reloaded
@@ -183,5 +184,29 @@ describe("GlobalVariablesView mid-edit persistence (audit)", () => {
 		expect(settingsStore.getState().globalVariables).toEqual({
 			greeting: "hello world",
 		});
+	});
+});
+
+describe("GlobalVariablesView suggesters", () => {
+	afterEach(() => {
+		settingsStore.replaceState(deepClone(DEFAULT_SETTINGS));
+	});
+
+	it("destroys each row's format suggesters when the view unmounts", () => {
+		settingsStore.setState({ globalVariables: { foo: "snippet-data" } });
+		const destroy = vi.spyOn(TextInputSuggest.prototype, "destroy");
+		try {
+			const view = render(GlobalVariablesView, {
+				props: { app: appWithSuggestSupport(), plugin: fakePlugin() },
+			});
+			expect(destroy).not.toHaveBeenCalled();
+
+			view.unmount();
+
+			// One for the row's Name input, one for its Value textarea.
+			expect(destroy).toHaveBeenCalledTimes(2);
+		} finally {
+			destroy.mockRestore();
+		}
 	});
 });

@@ -1,12 +1,15 @@
 import type { App, MarkdownView, TFile } from "obsidian";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { QuickAddTriggerContext } from "../types/QuickAddTriggerContext";
 import { getActiveMarkdownEditorView } from "./activeMarkdownEditor";
+
+/** The part of a choice run that names its current note. */
+type RunContext = { triggerContext?: QuickAddTriggerContext | null };
 
 /**
  * The note the caller named with `current=`: the note, `null` for
  * `current=none`, or `undefined` when the caller named none.
  */
-export function namedCurrentNote(executor: IChoiceExecutor | undefined): TFile | null | undefined {
+export function namedCurrentNote(executor: RunContext | undefined): TFile | null | undefined {
 	const context = executor?.triggerContext;
 	return context?.named ? context.activeFile : undefined;
 }
@@ -14,9 +17,9 @@ export function namedCurrentNote(executor: IChoiceExecutor | undefined): TFile |
 /**
  * Whether the caller named the run's current note with `current=`. Only then
  * does the run keep that note, and write to it when no editor shows it.
- * Otherwise the current note is the active tab, as it was before `current=`.
+ * Otherwise the current note is the active tab.
  */
-export function namesCurrentNote(executor: IChoiceExecutor | undefined): boolean {
+export function namesCurrentNote(executor: RunContext | undefined): boolean {
 	return namedCurrentNote(executor) !== undefined;
 }
 
@@ -25,7 +28,7 @@ export function namesCurrentNote(executor: IChoiceExecutor | undefined): boolean
  * or else the active file, read live so a macro step that opens a note hands it
  * to the next step.
  */
-export function currentFile(app: App, executor: IChoiceExecutor | undefined): TFile | null {
+export function currentFile(app: App, executor: RunContext | undefined): TFile | null {
 	const named = namedCurrentNote(executor);
 	return named === undefined ? app.workspace.getActiveFile() : named;
 }
@@ -37,12 +40,12 @@ export const CURRENT_NONE_MESSAGE = "This choice needs a current note, and the r
  * in-app message, unless the caller said there is none with `current=none`,
  * where "open a file" is advice the caller cannot act on.
  */
-export function missingCurrentNoteMessage(executor: IChoiceExecutor | undefined, inApp: string): string {
+export function missingCurrentNoteMessage(executor: RunContext | undefined, inApp: string): string {
 	return namedCurrentNote(executor) === null ? CURRENT_NONE_MESSAGE : inApp;
 }
 
 /** The active Markdown editor, when it shows the run's current note. */
-export function currentEditorView(app: App, executor: IChoiceExecutor | undefined): MarkdownView | null {
+export function currentEditorView(app: App, executor: RunContext | undefined): MarkdownView | null {
 	const view = getActiveMarkdownEditorView(app);
 	const context = executor?.triggerContext;
 	if (!context?.named) return view;
@@ -50,6 +53,6 @@ export function currentEditorView(app: App, executor: IChoiceExecutor | undefine
 }
 
 /** The selection in the current note's editor, or "" when no active editor shows it. */
-export function currentSelection(app: App, executor: IChoiceExecutor | undefined): string {
+export function currentSelection(app: App, executor: RunContext | undefined): string {
 	return currentEditorView(app, executor)?.editor.getSelection() ?? "";
 }

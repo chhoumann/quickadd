@@ -1,10 +1,11 @@
 import { Notice } from "obsidian";
-import type QuickAdd from "../main";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { AppProvider, PluginManifestInfo, SettingsProvider, TemplateFileSource } from "../types/pluginContext";
 import { promptCancelled } from "../errors/UserCancelError";
 import ChoiceSuggester from "../gui/suggesters/choiceSuggester";
-import { NO_CHOICES_NOTICE } from "../gui/suggesters/openChoiceLauncher";
+import { NO_CHOICES_NOTICE } from "../utils/choiceNotices";
 import { parseQuickAddPackage } from "../services/packageImportService";
-import { importPackageUnattended } from "../services/packageImportUnattended";
+import { importPackageUnattended, type UnattendedImportPlugin } from "../services/packageImportUnattended";
 import type IChoice from "../types/choices/IChoice";
 import type { ChoiceType } from "../types/choices/choiceType";
 import type { FlatChoicePathEntry } from "../utils/choiceUtils";
@@ -23,7 +24,7 @@ export interface ChoiceSummary {
 }
 
 /** What importPackage added and what it left alone because the vault already had it. */
-export interface PackageImportSummary {
+interface PackageImportSummary {
 	addedChoiceIds: string[];
 	skippedChoiceIds: string[];
 	writtenAssets: string[];
@@ -48,10 +49,12 @@ export function summarizeChoice({ choice, path }: FlatChoicePathEntry): ChoiceSu
  * Opens the launcher's picker in pick mode and resolves with the Template,
  * Capture or Macro the user picks, running nothing. Rejects with
  * `promptCancelled()` when the picker is dismissed, and, after the launcher's
- * notice, when there are no choices to pick from.
+ * notice, when there are no choices to pick from. Pick mode never runs a choice,
+ * so `choiceExecutor` is only what the picker is built with.
  */
 export function pickChoice(
-	plugin: QuickAdd,
+	plugin: AppProvider & SettingsProvider & TemplateFileSource & PluginManifestInfo,
+	choiceExecutor: IChoiceExecutor,
 	options?: { placeholder?: string },
 ): Promise<ChoiceSummary> {
 	const choices = rootChoicesOf(plugin.settings.choices);
@@ -61,6 +64,7 @@ export function pickChoice(
 	}
 	return new Promise((resolve, reject) => {
 		ChoiceSuggester.Open(plugin, choices, {
+			choiceExecutor,
 			placeholder: options?.placeholder,
 			// Looked up again in the live tree, since a sync can change the
 			// choices while the picker is open.
@@ -82,7 +86,7 @@ export function pickChoice(
  * invalid, or when it needs the review modal, as a package that runs code does.
  */
 export async function importPackage(
-	plugin: QuickAdd,
+	plugin: UnattendedImportPlugin,
 	packageJson: string,
 ): Promise<PackageImportSummary> {
 	const outcome = await importPackageUnattended(plugin, parseQuickAddPackage(packageJson), {

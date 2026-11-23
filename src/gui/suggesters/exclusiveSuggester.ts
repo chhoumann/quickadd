@@ -7,18 +7,16 @@ export class ExclusiveSuggester extends GenericTextSuggester {
 		app: App,
 		inputEl: HTMLInputElement | HTMLTextAreaElement,
 		suggestItems: string[],
-		private currentItems: string[]
+		/** Read on every query, so the exclusions follow the live list. */
+		private readonly currentItems: () => readonly string[],
 	) {
 		super(app, inputEl, suggestItems);
 	}
 
-	updateCurrentItems(currentItems: string[]) {
-		this.currentItems = currentItems;
-	}
-
 	getSuggestions(inputStr: string): string[] {
+		const chosen = this.currentItems();
 		return super
 			.getSuggestions(inputStr)
-			.filter((item) => !this.currentItems.includes(item));
+			.filter((item) => !chosen.includes(item));
 	}
 }

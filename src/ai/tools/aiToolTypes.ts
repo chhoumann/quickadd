@@ -1,5 +1,5 @@
 /**
- * Public, AI-SDK-shaped types for the QuickAdd Agent surface (#714).
+ * Public, AI-SDK-shaped types for the QuickAdd Agent surface.
  *
  * Pure (no Obsidian). These are what user scripts touch: `ai.tool(def)` builds a
  * QATool, agents take a `ToolSet` (object map keyed by tool name), and
@@ -9,7 +9,7 @@
  */
 import type { JSONSchema } from "./NormalizedTools";
 
-export interface ToolExecuteContext {
+interface ToolExecuteContext {
 	toolCallId: string;
 	toolName: string;
 }
@@ -42,7 +42,7 @@ export interface QATool extends ToolDefinitionInput {
 
 export type ToolSet = Record<string, QATool>;
 
-export type ToolChoice =
+type ToolChoice =
 	| "auto"
 	| "none"
 	| "required"
@@ -80,7 +80,7 @@ export interface GenerateStep {
 	finishReason: string;
 }
 
-export interface GenerateUsage {
+interface GenerateUsage {
 	inputTokens: number;
 	outputTokens: number;
 	totalTokens: number;

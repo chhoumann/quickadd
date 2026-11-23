@@ -1,5 +1,5 @@
 import { normalizeDisplayItem } from "../gui/suggesters/utils";
-import type { NumericInputConfig } from "../utils/valueSyntax";
+import type { NumericInputConfig } from "../utils/valueSyntaxTypes";
 
 export type RequestInputDisplayOptions<T = string> =
 	| readonly string[]

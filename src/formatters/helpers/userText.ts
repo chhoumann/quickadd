@@ -1,4 +1,4 @@
-import type { CapturePlacementResult } from "./capturePlacement";
+import type { CapturePlacementResult } from "../../utils/capturePlacement";
 
 /**
  * Answers, selections, clipboard text and picked field or file values are data.

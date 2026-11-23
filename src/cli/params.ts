@@ -1,8 +1,9 @@
 import type { App, CliData, CliFlags, TFile } from "obsidian";
-import type QuickAdd from "../main";
+import type { AppProvider, ChoiceLookup } from "../types/pluginContext";
 import type IChoice from "../types/choices/IChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
+import { QA_INTERNAL_DATE_ORIGIN } from "../constants";
 import { normalizeVaultPath } from "../utils/pathUtils";
 import { describeCurrentNoteUse } from "./currentNoteUse";
 
@@ -50,11 +51,13 @@ export const CHECK_FLAGS: CliFlags = {
 	...SELECTOR_FLAGS,
 	vars: VARS_FLAG,
 	fields: { description: "Include full field metadata (options, defaults, widget config)" },
+	date: DATE_FLAG,
 	current: CURRENT_FLAG,
 };
 export const INTERACTIVE_FLAGS: CliFlags = {
 	...SELECTOR_FLAGS,
 	vars: { value: "<json>", description: "Variables object as JSON (pre-seeded inputs)" },
+	date: DATE_FLAG,
 	current: CURRENT_FLAG,
 };
 export const PREVIEW_FLAGS: CliFlags = {
@@ -68,15 +71,35 @@ export const RESERVED_RUN_TEMPLATE_PARAMS = new Set(Object.keys(RUN_TEMPLATE_FLA
 export const RESERVED_CHECK_PARAMS = new Set(Object.keys(CHECK_FLAGS));
 export const RESERVED_INTERACTIVE_PARAMS = new Set(Object.keys(INTERACTIVE_FLAGS));
 
+const TRUE_FLAG_VALUES = new Set(["true", "1", "yes", "on"]);
+const FALSE_FLAG_VALUES = new Set(["false", "0", "no", "off"]);
+
+/** A switch flag (`ui`, `verify`, ...): on for a true-ish value, off otherwise. */
 export function isTruthy(value: string | undefined): boolean {
-	if (value === undefined) return false;
+	return value !== undefined && TRUE_FLAG_VALUES.has(value.toLowerCase());
+}
+
+/**
+ * A flag that overrides a setting: undefined when absent or empty (the setting
+ * applies), else true or false. Any other value throws, naming the flag.
+ */
+export function parseBooleanFlag(name: string, value: string | undefined): boolean | undefined {
+	if (value === undefined || value === "") return undefined;
 	const normalized = value.toLowerCase();
-	return (
-		normalized === "true" ||
-		normalized === "1" ||
-		normalized === "yes" ||
-		normalized === "on"
-	);
+	if (TRUE_FLAG_VALUES.has(normalized)) return true;
+	if (FALSE_FLAG_VALUES.has(normalized)) return false;
+	throw new Error(`Invalid ${name}: ${value}. Use true or false.`);
+}
+
+const VALUE_PARAM_PREFIX = "value-";
+
+/**
+ * The variable a `value-<name>` parameter sets ("" for a bare `value-`, which
+ * names none), or undefined for any other parameter. Shared by the CLI and the
+ * `obsidian://quickadd` URI so both read the convention the same way.
+ */
+export function valueParameterName(key: string): string | undefined {
+	return key.startsWith(VALUE_PARAM_PREFIX) ? key.slice(VALUE_PARAM_PREFIX.length) : undefined;
 }
 
 function parseVarsJson(value: string): Record<string, unknown> {
@@ -108,8 +131,8 @@ export function extractVariables(
 	}
 
 	for (const [key, value] of Object.entries(params)) {
-		if (key.startsWith("value-")) {
-			const variableName = key.slice(6);
+		const variableName = valueParameterName(key);
+		if (variableName !== undefined) {
 			if (variableName) variables[variableName] = value;
 			continue;
 		}
@@ -137,7 +160,7 @@ export function resolveCurrentNote(app: App, params: CliData): TFile | null | un
 	return file;
 }
 
-export function resolveChoiceFromParams(plugin: QuickAdd, params: CliData): IChoice {
+export function resolveChoiceFromParams(plugin: Pick<ChoiceLookup, "getChoiceById" | "getChoiceByName">, params: CliData): IChoice {
 	if (typeof params.id === "string" && params.id.trim().length > 0) {
 		return plugin.getChoiceById(params.id);
 	}
@@ -147,6 +170,11 @@ export function resolveChoiceFromParams(plugin: QuickAdd, params: CliData): ICho
 	}
 
 	throw new Error("Missing choice selector. Provide either choice=<name> or id=<id>");
+}
+
+/** The flag that answers a missing input: the run's day is `date=`, anything else `value-<id>=`. */
+export function missingFlagFor({ id }: Pick<FieldRequirement, "id">): string {
+	return id === QA_INTERNAL_DATE_ORIGIN ? "date=<when>" : `${VALUE_PARAM_PREFIX}${id}=<value>`;
 }
 
 export function toMissingFieldSummary(requirement: FieldRequirement) {
@@ -172,7 +200,6 @@ export function toDetailedFieldSummary(requirement: FieldRequirement) {
 		optional: requirement.optional,
 		runtimeOnly: requirement.runtimeOnly,
 		multiEmit: requirement.multiEmit,
-		filters: requirement.filters,
 		numericConfig: requirement.numericConfig,
 		sliderConfig: requirement.sliderConfig,
 		suggesterConfig: requirement.suggesterConfig,
@@ -188,7 +215,7 @@ export function setExecutorVariables(
 	}
 }
 
-export async function describeChoice(plugin: QuickAdd, choice: IChoice) {
+export async function describeChoice(plugin: AppProvider, choice: IChoice) {
 	return {
 		id: choice.id,
 		name: choice.name,

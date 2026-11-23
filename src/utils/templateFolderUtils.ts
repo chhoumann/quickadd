@@ -5,7 +5,7 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
-import { normalizeVaultPath } from "./pathUtils";
+import { isPathWithinFolder, normalizeVaultPath } from "./pathUtils";
 
 /**
  * Whether a path already carries a template extension the engine can read
@@ -28,8 +28,7 @@ export function hasTemplateExtension(path: string): boolean {
  * file up. Returns null when nothing resolves.
  *
  * Single source of truth shared by engine execution, choice-builder validation,
- * and preflight scanning so the three never drift (they previously each had
- * their own near-copy, and the preflight copy skipped the leading-slash strip).
+ * and preflight scanning.
  */
 export function getTemplateFile(app: App, templatePath: string): TFile | null {
 	const resolved = resolveTemplatePath(templatePath);
@@ -83,7 +82,5 @@ export function isPathWithinTemplateFolders(
 	normalizedFolders: string[],
 ): boolean {
 	if (normalizedFolders.length === 0) return true;
-	return normalizedFolders.some(
-		(folder) => filePath === folder || filePath.startsWith(`${folder}/`),
-	);
+	return normalizedFolders.some((folder) => isPathWithinFolder(filePath, folder));
 }

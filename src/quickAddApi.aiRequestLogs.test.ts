@@ -5,10 +5,11 @@ import {
 	beginAIRequestLogEntry,
 	clearAIRequestLogEntries,
 	finishAIRequestLogEntry,
-} from "./ai/AIAssistant";
+} from "./ai/requestLog";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import { QuickAddApi } from "./quickAddApi";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -35,7 +36,8 @@ describe("QuickAddApi.ai request logs", () => {
 			{} as App,
 			{} as QuickAdd,
 			choiceExecutor
-		);
+		,
+			testFormatterRuntime());
 	});
 
 	afterEach(() => {

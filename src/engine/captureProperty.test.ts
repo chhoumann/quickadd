@@ -9,7 +9,6 @@ import {
 	restorePropertyCaptureSeeds,
 	seedPropertyCaptureVariables,
 	snapshotPropertyCaptureSeeds,
-	stringifyPropertyTokenValue,
 	validatePropertyName,
 } from "./captureProperty";
 import { parsePropertyCapture } from "../types/choices/ICaptureChoice";
@@ -101,18 +100,6 @@ describe("{{PROPERTY}} compose writes", () => {
 		expect(formatContainsPropertyToken("{{PROPERTY}}")).toBe(true);
 		expect(formatContainsPropertyToken("work\n{{property}}\n")).toBe(true);
 		expect(formatContainsPropertyToken("work\npersonal")).toBe(false);
-	});
-	it("stringifies lists as one item per line and scalars as text", () => {
-		expect(stringifyPropertyTokenValue(["a", "b"])).toBe("a\nb");
-		expect(stringifyPropertyTokenValue([])).toBe("");
-		expect(stringifyPropertyTokenValue(undefined)).toBe("");
-		expect(stringifyPropertyTokenValue(null)).toBe("");
-		expect(stringifyPropertyTokenValue("hello")).toBe("hello");
-		expect(stringifyPropertyTokenValue(42)).toBe("42");
-		expect(stringifyPropertyTokenValue(true)).toBe("true");
-	});
-	it("aborts when an existing list item contains a line break", () => {
-		expect(() => stringifyPropertyTokenValue(["a\nb", "c"])).toThrow(/line break/);
 	});
 	it("seeds propertyValue, propertyKey, and list before format", () => {
 		const tags = new Map<string, unknown>();

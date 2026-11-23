@@ -1,0 +1,833 @@
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Notice, type App } from "obsidian";
+import type QuickAdd from "../../main";
+import type IChoice from "../../types/choices/IChoice";
+import type IMacroChoice from "../../types/choices/IMacroChoice";
+import type IMultiChoice from "../../types/choices/IMultiChoice";
+import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+
+// --- Hoisted mock state -----------------------------------------------------
+
+const mocks = vi.hoisted(() => {
+	const state = {
+		/** Every builder page constructed: its kind and the arguments it was handed, by role. */
+		builders: [] as Array<{
+			kind: string;
+			choice: { id: string; backfilled?: boolean };
+			onSave: (choice: unknown) => void;
+			choiceList?: unknown[];
+		}>,
+		/** What open() reports: whether Obsidian opened the page. */
+		opens: true,
+		yesNoPrompt: vi.fn(),
+		storeChoices: [] as IChoice[],
+		logError: vi.fn(),
+		/**
+		 * A builder page class that records the choice, `onSave` and (for the
+		 * macro builder) choice list it was given, found by role so the fake does
+		 * not restate each constructor's parameter order. Like the real builders,
+		 * it fills in a missing field on the choice (`backfilled`) as it is
+		 * constructed.
+		 */
+		fakeBuilderPage: (kind: string) =>
+			class {
+				constructor(...args: unknown[]) {
+					const choice = args.find(
+						(arg): arg is { id: string; type: string; backfilled?: boolean } =>
+							typeof arg === "object" && arg !== null && "type" in arg && "id" in arg,
+					)!;
+					choice.backfilled ??= true;
+					state.builders.push({
+						kind,
+						choice,
+						onSave: args.find((arg) => typeof arg === "function") as (choice: unknown) => void,
+						choiceList: args.find(Array.isArray),
+					});
+				}
+				open() {
+					return state.opens;
+				}
+			},
+	};
+	return state;
+});
+
+// The real GuiLogger turns every logError into a 15s Notice, which would make
+// "did we log?" assertions indistinguishable from "did we notify?".
+vi.mock("../../logger/logManager", () => ({
+	log: {
+		logError: (...args: unknown[]) => mocks.logError(...args),
+		logWarning: vi.fn(),
+		logMessage: vi.fn(),
+	},
+}));
+
+// Mock the builder pages so importing the module does not pull in the full
+// Obsidian/Svelte stack. Each records the choice and `onSave` it was given;
+// `open()` reports whether Obsidian opened it.
+vi.mock("../ChoiceBuilder/templateChoiceBuilder", () => ({
+	TemplateChoiceBuilder: mocks.fakeBuilderPage("Template"),
+}));
+vi.mock("../ChoiceBuilder/captureChoiceBuilder", () => ({
+	CaptureChoiceBuilder: mocks.fakeBuilderPage("Capture"),
+}));
+vi.mock("../MacroGUIs/MacroBuilder", () => ({
+	MacroBuilder: mocks.fakeBuilderPage("Macro"),
+}));
+vi.mock("../MultiChoiceBuilder", () => ({
+	MultiChoiceBuilder: mocks.fakeBuilderPage("Multi"),
+}));
+
+vi.mock("../confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => mocks.yesNoPrompt(...args),
+}));
+
+vi.mock("../../settingsStore", () => ({
+	settingsStore: {
+		getState: () => ({ choices: mocks.storeChoices }),
+	},
+}));
+
+const {
+	createChoice,
+	duplicateChoice,
+	createToggleCommandChoice,
+	moveChoice,
+	findChoiceById,
+} = await import("../../services/choiceTree");
+const {
+	getChoiceBuilder,
+	deleteChoiceWithConfirmation,
+	configureChoice,
+	duplicateChoiceWithUserScriptSecretSanitization,
+} = await import("./choiceUiService");
+
+const { TemplateChoice } = await import("../../types/choices/TemplateChoice");
+const { CaptureChoice } = await import("../../types/choices/CaptureChoice");
+const { MacroChoice } = await import("../../types/choices/MacroChoice");
+const { MultiChoice } = await import("../../types/choices/MultiChoice");
+const { createUserScriptSecretRef } = await import("../../utils/userScriptSecrets");
+
+// Minimal fakes — App/QuickAdd are only used as opaque references here.
+const fakeApp = { name: "fake-app" } as unknown as App;
+
+describe("choiceUiService", () => {
+	beforeEach(() => {
+		mocks.builders.length = 0;
+		mocks.opens = true;
+		mocks.yesNoPrompt.mockReset();
+		mocks.logError.mockReset();
+		mocks.storeChoices = [];
+		(Notice as unknown as { instances: unknown[] }).instances.length = 0;
+	});
+
+	describe("createChoice", () => {
+		it("creates a TemplateChoice", () => {
+			const choice = createChoice("Template", "My Template");
+			expect(choice).toBeInstanceOf(TemplateChoice);
+			expect(choice.type).toBe("Template");
+			expect(choice.name).toBe("My Template");
+			expect(choice.command).toBe(false);
+			expect(typeof choice.id).toBe("string");
+			expect(choice.id.length).toBeGreaterThan(0);
+		});
+
+		it("creates a CaptureChoice", () => {
+			const choice = createChoice("Capture", "Cap");
+			expect(choice).toBeInstanceOf(CaptureChoice);
+			expect(choice.type).toBe("Capture");
+		});
+
+		it("creates a MacroChoice with an attached macro", () => {
+			const choice = createChoice("Macro", "Mac") as IMacroChoice;
+			expect(choice).toBeInstanceOf(MacroChoice);
+			expect(choice.type).toBe("Macro");
+			expect(choice.macro).toBeDefined();
+			expect(choice.macro.commands).toEqual([]);
+		});
+
+		it("creates a MultiChoice with an empty child list", () => {
+			const choice = createChoice("Multi", "Multi") as IMultiChoice;
+			expect(choice).toBeInstanceOf(MultiChoice);
+			expect(choice.type).toBe("Multi");
+			expect(choice.choices).toEqual([]);
+		});
+
+		it("gives each created choice a unique id", () => {
+			const a = createChoice("Template", "A");
+			const b = createChoice("Template", "B");
+			expect(a.id).not.toBe(b.id);
+		});
+
+		it("throws for an unknown choice type", () => {
+			expect(() =>
+				createChoice("Bogus" as unknown as "Template", "x"),
+			).toThrow("Unknown choice type: Bogus");
+		});
+	});
+
+	describe("duplicateChoice", () => {
+		it("appends ' (copy)' to the name and assigns a new id", () => {
+			const original = createChoice("Template", "Source");
+			const copy = duplicateChoice(original);
+			expect(copy.name).toBe("Source (copy)");
+			expect(copy.id).not.toBe(original.id);
+			expect(copy.type).toBe("Template");
+		});
+
+		it("copies simple props except id and name", () => {
+			const original = createChoice("Capture", "Cap") as ITemplateChoice;
+			// Mutate a simple property to verify it is carried over.
+			(original as unknown as { command: boolean }).command = true;
+			original.icon = "inbox";
+			const copy = duplicateChoice(original);
+			expect(copy.command).toBe(true);
+			expect(copy.icon).toBe("inbox");
+			expect(copy.name).toBe("Cap (copy)");
+			expect(copy.id).not.toBe(original.id);
+		});
+
+		it("preserves command and onePageInput when duplicating a Multi", () => {
+			const original = createChoice("Multi", "M") as IMultiChoice;
+			(original as unknown as { command: boolean }).command = true;
+			(original as unknown as { onePageInput: string }).onePageInput =
+				"always";
+			original.choices = [createChoice("Capture", "Child")];
+			original.icon = "folder-open";
+
+			const copy = duplicateChoice(original) as IMultiChoice;
+
+			expect(copy.command).toBe(true);
+			expect(copy.icon).toBe("folder-open");
+			expect(
+				(copy as unknown as { onePageInput?: string }).onePageInput,
+			).toBe("always");
+			// children still duplicated with fresh ids
+			expect(copy.choices![0].id).not.toBe(original.choices![0].id);
+		});
+
+		it("deep clones a Macro's macro and regenerates ids", () => {
+			const original = createChoice("Macro", "Mac") as IMacroChoice;
+			original.macro.commands.push({
+				id: "cmd-1",
+				name: "Cmd",
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+			const originalMacroId = original.macro.id;
+			const originalCmdId = original.macro.commands[0].id;
+
+			const copy = duplicateChoice(original) as IMacroChoice;
+
+			// Deep clone: the macro objects must be distinct references.
+			expect(copy.macro).not.toBe(original.macro);
+			expect(copy.macro.commands).not.toBe(original.macro.commands);
+			expect(copy.macro.commands[0]).not.toBe(original.macro.commands[0]);
+			// Ids regenerated.
+			expect(copy.macro.id).not.toBe(originalMacroId);
+			expect(copy.macro.commands[0].id).not.toBe(originalCmdId);
+			// Command name preserved.
+			expect(copy.macro.commands[0].name).toBe("Cmd");
+			// Mutating the copy does not affect the original.
+			copy.macro.commands[0].name = "Changed";
+			expect(original.macro.commands[0].name).toBe("Cmd");
+		});
+
+		it("strips user-script secrets when duplicating macros", async () => {
+			const original = createChoice("Macro", "Mac") as IMacroChoice;
+			original.macro.commands.push({
+				id: "cmd-1",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.md",
+				settings: {
+					"API Key": "legacy-secret",
+					Token: createUserScriptSecretRef("local-secret-ref"),
+					Model: "gpt-4",
+					Enabled: true,
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+			const app = {
+				vault: {
+					adapter: {
+						exists: vi.fn().mockResolvedValue(true),
+						read: vi.fn().mockResolvedValue(
+							[
+								"# Script note",
+								"",
+								"```js",
+								"module.exports = {",
+								"  settings: {",
+								"    options: {",
+								"      \"API Key\": { \"type\": \"secret\" },",
+								"      Token: { type: \"text\", secret: true },",
+								"      Model: { type: \"text\" },",
+								"    },",
+								"  },",
+								"};",
+								"```",
+							].join("\n"),
+						),
+					},
+				},
+			} as unknown as App;
+
+			const copy = await duplicateChoiceWithUserScriptSecretSanitization(
+				original,
+				app,
+			) as IMacroChoice;
+			const copiedCommand = copy.macro.commands[0] as unknown as {
+				settings: Record<string, unknown>;
+			};
+
+			expect(copiedCommand.settings).toEqual({
+				Model: "gpt-4",
+				Enabled: true,
+			});
+			expect(JSON.stringify(copy)).not.toContain("legacy-secret");
+			expect(JSON.stringify(copy)).not.toContain("local-secret-ref");
+			expect(JSON.stringify(copy)).not.toContain("__quickaddSecret");
+		});
+
+		it("never reads an out-of-vault userscript path when duplicating a synced macro", async () => {
+			// Security: a Macro command's `path` comes from data.json, untrusted on a
+			// synced/shared/imported vault. An escaping path must not reach adapter.read.
+			const original = createChoice("Macro", "Mac") as IMacroChoice;
+			original.macro.commands.push({
+				id: "cmd-evil",
+				name: "Run script",
+				type: "UserScript",
+				path: "../../../etc/passwd",
+				settings: { "API Key": "legacy-secret" },
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+
+			const exists = vi.fn().mockResolvedValue(true);
+			const read = vi.fn().mockResolvedValue("module.exports = {};");
+			const app = {
+				vault: { adapter: { exists, read } },
+			} as unknown as App;
+
+			await duplicateChoiceWithUserScriptSecretSanitization(original, app);
+
+			// The out-of-vault path is skipped before any filesystem touch.
+			expect(exists).not.toHaveBeenCalled();
+			expect(read).not.toHaveBeenCalled();
+		});
+
+		it("recursively duplicates nested Multi choices and preserves placeholder/collapsed", () => {
+			const inner = createChoice("Template", "Inner");
+			const nestedMulti = createChoice("Multi", "Nested") as IMultiChoice;
+			const innerChild = createChoice("Capture", "Child");
+			nestedMulti.choices = [innerChild];
+
+			const root = createChoice("Multi", "Root") as IMultiChoice;
+			root.choices = [inner, nestedMulti];
+			root.placeholder = "ph";
+			root.collapsed = true;
+
+			const copy = duplicateChoice(root) as IMultiChoice;
+
+			expect(copy.name).toBe("Root (copy)");
+			expect(copy.placeholder).toBe("ph");
+			expect(copy.collapsed).toBe(true);
+			expect(copy.choices).toHaveLength(2);
+			expect(copy.choices![0].name).toBe("Inner (copy)");
+			expect(copy.choices![1].name).toBe("Nested (copy)");
+
+			const copiedNested = copy.choices![1] as IMultiChoice;
+			expect(copiedNested.choices).toHaveLength(1);
+			expect(copiedNested.choices![0].name).toBe("Child (copy)");
+
+			// New ids throughout — distinct from the originals.
+			expect(copy.id).not.toBe(root.id);
+			expect(copy.choices![0].id).not.toBe(inner.id);
+			expect(copiedNested.choices![0].id).not.toBe(innerChild.id);
+		});
+	});
+
+	describe("getChoiceBuilder", () => {
+		const onSave = () => {};
+
+		it.each(["Template", "Capture", "Multi"] as const)("opens the %s builder on the choice", (type) => {
+			const choice = createChoice(type, "T");
+			getChoiceBuilder(choice, fakeApp, {} as unknown as QuickAdd, onSave);
+
+			const builder = mocks.builders.at(-1)!;
+			expect(builder.kind).toBe(type);
+			expect(builder.choice).toBe(choice);
+			expect(builder.onSave).toBe(onSave);
+		});
+
+		it("gives the Macro builder the store's choices to pick from", () => {
+			const storeChoice = createChoice("Template", "Stored");
+			mocks.storeChoices = [storeChoice];
+			const choice = createChoice("Macro", "M");
+			getChoiceBuilder(choice, fakeApp, {} as unknown as QuickAdd, onSave);
+
+			const builder = mocks.builders.at(-1)!;
+			expect(builder.kind).toBe("Macro");
+			expect(builder.choice).toBe(choice);
+			expect(builder.onSave).toBe(onSave);
+			expect(builder.choiceList).toEqual([storeChoice]);
+		});
+	});
+
+	describe("deleteChoiceWithConfirmation", () => {
+		it("returns the user's confirmation result (true)", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const choice = createChoice("Template", "Del");
+			const result = await deleteChoiceWithConfirmation(choice, fakeApp);
+			expect(result).toBe(true);
+			expect(mocks.yesNoPrompt).toHaveBeenCalledTimes(1);
+		});
+
+		it("returns the user's confirmation result (false)", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(false);
+			const choice = createChoice("Template", "Del");
+			const result = await deleteChoiceWithConfirmation(choice, fakeApp);
+			expect(result).toBe(false);
+		});
+
+		it("mentions the number of nested choices for a Multi choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const multi = createChoice("Multi", "Group") as IMultiChoice;
+			multi.choices = [
+				createChoice("Template", "a"),
+				createChoice("Template", "b"),
+			];
+			await deleteChoiceWithConfirmation(multi, fakeApp);
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
+			expect(message).toContain("Group");
+			expect(message).toContain("everything inside it: 2 choices.");
+		});
+
+		// #1552: folders are Multi choices internally, but every other surface
+		// calls them folders. The confirmation was the last place the internal
+		// name leaked.
+		it("calls a Multi choice a folder, and a leaf choice a choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const folder = createChoice("Multi", "Journal") as IMultiChoice;
+			folder.choices = [createChoice("Template", "a")];
+
+			await deleteChoiceWithConfirmation(folder, fakeApp);
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { title: string }).title).toBe("Delete folder");
+			const folderMessage = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
+			expect(folderMessage).toContain("Deleting this folder");
+			expect(folderMessage).not.toContain("Deleting this choice");
+
+			mocks.yesNoPrompt.mockClear();
+			await deleteChoiceWithConfirmation(
+				createChoice("Template", "Daily note"),
+				fakeApp,
+			);
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { title: string }).title).toBe("Delete choice");
+		});
+
+		it("does not call a nested folder a choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const nested = createChoice("Multi", "Archive") as IMultiChoice;
+			nested.choices = [createChoice("Template", "old")];
+			const folder = createChoice("Multi", "Journal") as IMultiChoice;
+			folder.choices = [createChoice("Template", "daily"), nested];
+
+			await deleteChoiceWithConfirmation(folder, fakeApp);
+
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
+			expect(message).toContain("everything inside it: 2 choices and 1 folder.");
+		});
+
+		// A dismissal reaches this call site as a plain `false` (GenericYesNoPrompt
+		// resolves rather than rejects, #1567), so it takes the declined path with
+		// no error of any kind — this used to be an unhandled rejection.
+		it("treats a dismissed prompt as 'no' without logging an error", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(false);
+			const result = await deleteChoiceWithConfirmation(
+				createChoice("Multi", "Journal"),
+				fakeApp,
+			);
+			expect(result).toBe(false);
+			expect(mocks.logError).not.toHaveBeenCalled();
+		});
+
+		// dedupeChoicesById deliberately preserves a malformed Multi (children
+		// missing or not an array) instead of fabricating []. The delete must stay
+		// usable for such a folder rather than throwing out of the delete handler.
+		it.each([
+			["missing children", undefined],
+			["non-array children", {} as unknown as IChoice[]],
+		])("still deletes a folder with %s", async (_label, children) => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const folder = {
+				id: "corrupt",
+				name: "Journal",
+				type: "Multi",
+				command: false,
+				choices: children,
+			} as unknown as IChoice;
+
+			await expect(
+				deleteChoiceWithConfirmation(folder, fakeApp),
+			).resolves.toBe(true);
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message).toBe(
+				"Are you sure you want to delete 'Journal'?",
+			);
+		});
+
+		it("warns about macro commands for a Macro choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const macro = createChoice("Macro", "MyMacro");
+			await deleteChoiceWithConfirmation(macro, fakeApp);
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
+			expect(message).toContain("MyMacro");
+			expect(message).toContain("macro commands");
+		});
+
+		// #1612. Delete is the one irreversible action in the list, and the two
+		// container types were asymmetric: a folder whose children could not be read
+		// said so, a macro whose commands could not be read said only the generic
+		// line - true, and silent about the case that matters. Since #1593 the
+		// builder tells the user about that state and refuses to overwrite it, so
+		// the one screen that is about to destroy it must not be the quiet one.
+		it.each([
+			["array-turned-object commands", { "0": { id: "c", type: "Wait" } }, undefined],
+			["string commands", "not a list", undefined],
+			["number commands", 7, undefined],
+			["an unreadable macro object", undefined, "not a macro"],
+			["a numeric macro", undefined, 7],
+		])("says QuickAdd could not read the commands: %s", async (_label, commands, macroValue) => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const macro = {
+				id: "m",
+				name: "MyMacro",
+				type: "Macro",
+				command: false,
+				runOnStartup: false,
+				macro: macroValue !== undefined ? macroValue : { id: "mm", name: "MyMacro", commands },
+			} as unknown as IChoice;
+
+			await expect(deleteChoiceWithConfirmation(macro, fakeApp)).resolves.toBe(
+				true,
+			);
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
+			expect(message).toContain("couldn't read this macro's commands");
+			expect(message).toContain("still stored under it in data.json");
+		});
+
+		it.each([
+			["an empty list", []],
+			["a real list", [{ id: "c", name: "Wait", type: "Wait", time: 1 }]],
+			["no commands key", undefined],
+			["a null macro", null],
+			// An OBJECT-valued macro is a macro object with no commands - #1593's
+			// `isMacroObject`. It is empty, not unreadable, and the builder can write
+			// a real list into it, so it keeps the ordinary line.
+			["an object macro with no commands key", undefined],
+			// An ARRAY-valued macro IS the command list, so the builder can read and
+			// edit it - it must keep the ordinary line, not the alarming one.
+			["an array-valued macro", "ARRAY"],
+		])("keeps the ordinary line when the commands are readable: %s", async (label, value) => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const macroValue =
+				value === "ARRAY"
+					? [{ id: "c", name: "Wait", type: "Wait", time: 1 }]
+					: value === null
+						? null
+						: { id: "mm", name: "MyMacro", ...(value === undefined ? {} : { commands: value }) };
+			const macro = {
+				id: "m",
+				name: "MyMacro",
+				type: "Macro",
+				command: false,
+				runOnStartup: false,
+				macro: macroValue,
+			} as unknown as IChoice;
+
+			await deleteChoiceWithConfirmation(macro, fakeApp);
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
+			expect(message, label).toContain(
+				"Deleting this choice will also delete its macro commands.",
+			);
+			expect(message, label).not.toContain("couldn't read");
+		});
+
+		it("clears nested user-script secrets when deleting a Macro choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const deleteSecret = vi.fn();
+			const app = {
+				secretStorage: {
+					delete: deleteSecret,
+				},
+			} as unknown as App;
+			const macro = createChoice("Macro", "MyMacro") as IMacroChoice;
+			macro.macro.commands.push({
+				id: "cmd",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.js",
+				settings: {
+					"API Key": createUserScriptSecretRef("local-secret-ref"),
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+
+			await deleteChoiceWithConfirmation(macro, app);
+
+			expect(deleteSecret).toHaveBeenCalledWith("local-secret-ref");
+		});
+
+		it("keeps a Macro choice when clearing nested secrets fails", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const app = {
+				secretStorage: {
+					delete: vi.fn().mockRejectedValue(new Error("delete failed")),
+				},
+			} as unknown as App;
+			const macro = createChoice("Macro", "MyMacro") as IMacroChoice;
+			macro.macro.commands.push({
+				id: "cmd",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.js",
+				settings: {
+					"API Key": createUserScriptSecretRef("local-secret-ref"),
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+
+			const result = await deleteChoiceWithConfirmation(macro, app);
+
+			expect(result).toBe(false);
+			expect((Notice as unknown as { instances: { message: string }[] }).instances.map((notice) => notice.message)).toContain(
+				"Could not clear user script secrets. The choice was not deleted.",
+			);
+		});
+
+		// The failure notice is reachable for a folder too (the secret lives on a
+		// Macro nested inside it), so it must not call the folder a choice either.
+		it("keeps a folder — and calls it a folder — when clearing nested secrets fails", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const app = {
+				secretStorage: {
+					delete: vi.fn().mockRejectedValue(new Error("delete failed")),
+				},
+			} as unknown as App;
+			const macro = createChoice("Macro", "MyMacro") as IMacroChoice;
+			macro.macro.commands.push({
+				id: "cmd",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.js",
+				settings: {
+					"API Key": createUserScriptSecretRef("local-secret-ref"),
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+			const folder = createChoice("Multi", "Journal") as IMultiChoice;
+			folder.choices = [macro];
+
+			const result = await deleteChoiceWithConfirmation(folder, app);
+
+			expect(result).toBe(false);
+			expect((Notice as unknown as { instances: { message: string }[] }).instances.map((notice) => notice.message)).toContain(
+				"Could not clear user script secrets. The folder was not deleted.",
+			);
+		});
+
+		it("does not include Multi/Macro warnings for a plain Template choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const choice = createChoice("Template", "Plain");
+			await deleteChoiceWithConfirmation(choice, fakeApp);
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
+			expect(message).toBe("Are you sure you want to delete 'Plain'?");
+		});
+	});
+
+	describe("configureChoice", () => {
+		it("opens the builder page and reports whether it opened", () => {
+			const plugin = {} as unknown as QuickAdd;
+			expect(configureChoice(createChoice("Template", "T"), fakeApp, plugin, vi.fn())).toBe(true);
+			mocks.opens = false;
+			expect(configureChoice(createChoice("Capture", "C"), fakeApp, plugin, vi.fn())).toBe(false);
+		});
+
+		it("hands each save the previous save as its base, starting after the builder's backfill", () => {
+			const onSave = vi.fn();
+			const choice = createChoice("Template", "T");
+			configureChoice(choice, fakeApp, {} as unknown as QuickAdd, onSave);
+			const save = mocks.builders.at(-1)!.onSave;
+
+			save({ ...choice, name: "First" });
+			save({ ...choice, name: "Second" });
+
+			const [first, second] = onSave.mock.calls;
+			// The builder's backfill is in the base, so it is not an edit.
+			expect(first[1]).toMatchObject({ name: "T", backfilled: true });
+			expect(first[0]).toMatchObject({ name: "First" });
+			expect(second[1]).toEqual(first[0]);
+			expect(second[0]).toMatchObject({ name: "Second" });
+		});
+	});
+
+	describe("createToggleCommandChoice", () => {
+		it("flips command from false to true without mutating the original", () => {
+			const choice = createChoice("Template", "T");
+			expect(choice.command).toBe(false);
+			const toggled = createToggleCommandChoice(choice);
+			expect(toggled.command).toBe(true);
+			expect(choice.command).toBe(false);
+			expect(toggled).not.toBe(choice);
+		});
+
+		it("flips command from true to false", () => {
+			const choice = createChoice("Template", "T");
+			choice.command = true;
+			const toggled = createToggleCommandChoice(choice);
+			expect(toggled.command).toBe(false);
+		});
+
+		it("preserves all other properties", () => {
+			const choice = createChoice("Capture", "C");
+			const toggled = createToggleCommandChoice(choice);
+			expect(toggled.id).toBe(choice.id);
+			expect(toggled.name).toBe(choice.name);
+			expect(toggled.type).toBe(choice.type);
+		});
+	});
+
+	describe("moveChoice", () => {
+		const makeMulti = (name: string, children: IChoice[] = []) => {
+			const m = createChoice("Multi", name) as IMultiChoice;
+			m.choices = children;
+			return m;
+		};
+
+		it("returns the input unchanged when ids are empty", () => {
+			const root = [createChoice("Template", "A")];
+			expect(moveChoice(root, "", "x")).toBe(root);
+			expect(moveChoice(root, "x", "")).toBe(root);
+		});
+
+		it("returns the input unchanged when the moving choice does not exist", () => {
+			const target = makeMulti("Group");
+			const root = [target];
+			expect(moveChoice(root, "missing", target.id)).toBe(root);
+		});
+
+		it("returns the input unchanged when the target does not exist", () => {
+			const moving = createChoice("Template", "A");
+			const root = [moving];
+			expect(moveChoice(root, moving.id, "missing")).toBe(root);
+		});
+
+		it("returns the input unchanged when the target is not a Multi", () => {
+			const moving = createChoice("Template", "A");
+			const target = createChoice("Template", "B");
+			const root = [moving, target];
+			expect(moveChoice(root, moving.id, target.id)).toBe(root);
+		});
+
+		it("moves a top-level choice into a Multi at the end of its list", () => {
+			const moving = createChoice("Template", "A");
+			const target = makeMulti("Group", [createChoice("Template", "Existing")]);
+			const root = [moving, target];
+
+			const result = moveChoice(root, moving.id, target.id);
+
+			// Immutability: a new array is returned.
+			expect(result).not.toBe(root);
+			// Moving choice removed from the top level.
+			expect(result.find((c) => c.id === moving.id)).toBeUndefined();
+			// Now appended at the end of the target's children.
+			const newTarget = result.find(
+				(c) => c.id === target.id,
+			) as IMultiChoice;
+			expect(newTarget.choices).toHaveLength(2);
+			expect(newTarget.choices![1].id).toBe(moving.id);
+			expect(newTarget.choices![0].name).toBe("Existing");
+		});
+
+		it("does not mutate the original choices array", () => {
+			const moving = createChoice("Template", "A");
+			const target = makeMulti("Group");
+			const root = [moving, target];
+
+			moveChoice(root, moving.id, target.id);
+
+			expect(root).toHaveLength(2);
+			expect((target as IMultiChoice).choices).toHaveLength(0);
+		});
+
+		it("moves a choice out of one Multi into another", () => {
+			const moving = createChoice("Template", "A");
+			const sourceMulti = makeMulti("Source", [moving]);
+			const destMulti = makeMulti("Dest");
+			const root = [sourceMulti, destMulti];
+
+			const result = moveChoice(root, moving.id, destMulti.id);
+
+			const newSource = result.find(
+				(c) => c.id === sourceMulti.id,
+			) as IMultiChoice;
+			const newDest = result.find(
+				(c) => c.id === destMulti.id,
+			) as IMultiChoice;
+			expect(newSource.choices).toHaveLength(0);
+			expect(newDest.choices).toHaveLength(1);
+			expect(newDest.choices![0].id).toBe(moving.id);
+		});
+
+		it("prevents moving a Multi into itself", () => {
+			const multi = makeMulti("Group", [createChoice("Template", "A")]);
+			const root = [multi];
+			expect(moveChoice(root, multi.id, multi.id)).toBe(root);
+		});
+
+		it("prevents moving a Multi into one of its descendants (cycle)", () => {
+			const child = makeMulti("Child");
+			const parent = makeMulti("Parent", [child]);
+			const root = [parent];
+			// Trying to move parent into its descendant child must be a no-op.
+			expect(moveChoice(root, parent.id, child.id)).toBe(root);
+		});
+
+		it("allows moving a non-Multi into a nested Multi", () => {
+			const moving = createChoice("Template", "Leaf");
+			const inner = makeMulti("Inner");
+			const outer = makeMulti("Outer", [inner]);
+			const root = [moving, outer];
+
+			const result = moveChoice(root, moving.id, inner.id);
+
+			expect(result.find((c) => c.id === moving.id)).toBeUndefined();
+			const newOuter = result.find(
+				(c) => c.id === outer.id,
+			) as IMultiChoice;
+			const newInner = newOuter.choices![0] as IMultiChoice;
+			expect(newInner.choices).toHaveLength(1);
+			expect(newInner.choices![0].id).toBe(moving.id);
+		});
+	});
+
+	// The fix for filtered-view data loss resolves the live choice by id before an
+	// edit. findChoiceById is that resolver: given an id, it must return the
+	// AUTHORITATIVE node from the live tree — the one with the full children — not a
+	// truncated clone that happens to share the id.
+	describe("findChoiceById", () => {
+		it("finds a top-level choice by id", () => {
+			const a = createChoice("Template", "A");
+			const b = createChoice("Capture", "B");
+			expect(findChoiceById([a, b], b.id)).toBe(b);
+		});
+
+		it("finds a choice nested inside a Multi (and returns the live node with its children)", () => {
+			const child = createChoice("Capture", "Child");
+			const folder = createChoice("Multi", "Folder") as IMultiChoice;
+			folder.choices = [child, createChoice("Capture", "Sibling")];
+
+			const found = findChoiceById([folder], folder.id) as IMultiChoice;
+			expect(found).toBe(folder);
+			expect(found.choices).toHaveLength(2); // full children, not truncated
+			expect(findChoiceById([folder], child.id)).toBe(child);
+		});
+
+		it("returns undefined when the id is not present", () => {
+			expect(findChoiceById([createChoice("Template", "A")], "nope")).toBeUndefined();
+		});
+	});
+});

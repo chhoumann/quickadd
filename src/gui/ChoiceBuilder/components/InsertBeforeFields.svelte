@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -17,7 +17,6 @@ import ValidatedInput from "./ValidatedInput.svelte";
 import LabeledField from "./LabeledField.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 
-/** Reactive port of captureChoiceBuilder.addInsertBeforeFields. */
 let {
 	insertBefore = $bindable(),
 	app,
@@ -25,13 +24,13 @@ let {
 }: {
 	insertBefore: NonNullable<ICaptureChoice["insertBefore"]>;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
-// Default the create-line fields synchronously at init (before bind:checked /
-// the dropdown read them), matching the imperative addInsertBeforeFields. Without
-// this, a legacy/imported insertBefore missing these keys would persist `undefined`
-// and throw "Unknown createIfNotFoundLocation" in the capture formatter.
+// Default the create-line fields synchronously at init, before bind:checked and
+// the dropdown read them. Otherwise a legacy or imported insertBefore missing
+// these keys would persist `undefined` and throw "Unknown
+// createIfNotFoundLocation" in the capture formatter.
 if (insertBefore.createIfNotFound === undefined)
 	insertBefore.createIfNotFound = false;
 if (!insertBefore.createIfNotFoundLocation)

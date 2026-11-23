@@ -8,7 +8,7 @@ import { commandListOf, isCommandLike } from "src/utils/macroUtils";
 import { VALUE_SYNTAX } from "src/constants";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import type { FieldGroup } from "./RequirementCollector";
-import { isTemplateChoice } from "src/types/choices/choiceType";
+import { isTemplateChoice } from "src/types/choices/choiceGuards";
 import { classifyStep, type DeferralReason } from "./macroCommandRole";
 
 export type FormRosterEntry =

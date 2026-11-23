@@ -236,3 +236,79 @@ describe("stringifyToolResult", () => {
 		expect(stringifyToolResult(circular, 1000).isError).toBe(true);
 	});
 });
+
+describe("runToolLoop — finish reason when the final step is forced", () => {
+	it("reports 'max-steps' when the budget forces the final step, even with tools stripped (no residual tool calls)", async () => {
+		// Mirror the Agent: the final step sends NO tools, so the model returns plain
+		// text with a 'stop' reason and no residual tool calls.
+		const deps = makeDeps(
+			[],
+			{ t: toolEntry("t", async () => "x") },
+			{
+				maxSteps: 2,
+				dispatch: vi.fn(async (_req, ctx) =>
+					ctx.isFinalStep
+						? turn({ content: "forced wrap-up", normalizedStopReason: "stop" })
+						: turn({ toolCalls: [call("t", {})] }),
+				),
+			},
+		);
+		const res = await runToolLoop(deps);
+		expect(res.finishReason).toBe("max-steps");
+		expect(res.text).toBe("forced wrap-up");
+	});
+
+	it("reports 'stop' (not 'max-steps') when a stopWhen condition forced the final step", async () => {
+		// stopWhen trips after the first tool step → forceFinal. Even if that final
+		// step coincides with the budget, a graceful stop must win over max-steps.
+		const deps = makeDeps(
+			[],
+			{ t: toolEntry("t", async () => "x") },
+			{
+				maxSteps: 2,
+				shouldStop: ({ steps }) => steps.some((s) => s.toolResults.length > 0),
+				dispatch: vi.fn(async (_req, ctx) =>
+					ctx.isFinalStep
+						? turn({ content: "stopped early", normalizedStopReason: "stop" })
+						: turn({ toolCalls: [call("t", {})] }),
+				),
+			},
+		);
+		const res = await runToolLoop(deps);
+		expect(res.finishReason).toBe("stop");
+		expect(res.text).toBe("stopped early");
+	});
+
+	it("reports 'stop' for a single-turn (maxSteps 1) run where the model just answers", async () => {
+		// A degenerate budget-forced-on-step-0 run is a one-shot answer, not an
+		// agentic budget exhaustion — must stay 'stop'.
+		const deps = makeDeps(
+			[],
+			{ t: toolEntry("t", async () => "x") },
+			{
+				maxSteps: 1,
+				dispatch: vi.fn(async () => turn({ content: "single answer", normalizedStopReason: "stop" })),
+			},
+		);
+		const res = await runToolLoop(deps);
+		expect(res.finishReason).toBe("stop");
+		expect(res.text).toBe("single answer");
+	});
+
+	it("'length' still takes precedence over a budget-forced final step", async () => {
+		const deps = makeDeps(
+			[],
+			{ t: toolEntry("t", async () => "x") },
+			{
+				maxSteps: 2,
+				dispatch: vi.fn(async (_req, ctx) =>
+					ctx.isFinalStep
+						? turn({ content: "cut", normalizedStopReason: "length" })
+						: turn({ toolCalls: [call("t", {})] }),
+				),
+			},
+		);
+		const res = await runToolLoop(deps);
+		expect(res.finishReason).toBe("length");
+	});
+});

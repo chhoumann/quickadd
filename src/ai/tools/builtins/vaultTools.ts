@@ -1,27 +1,24 @@
 /**
- * Built-in `vault` tools for the AI Agent (#714).
- *
- * Read tools (read_note/list_notes/search_notes/get_property_values) are readOnly
- * and auto-run (capped to bound cost/exfiltration). Write tools (create_note/
- * append_to_note/insert_under_heading) ship needsApproval:true, run every model-
- * chosen path through sanitizeVaultPath (every-segment dot floor, etc.) + the
- * runtime symlink/realpath guard, are existence-aware (create fails on exist; append/
- * insert require the file), and are frontmatter-aware (insertAtNoteBodyStart). The
- * high-risk trio run_choice/apply_template/set_frontmatter is deliberately NOT shipped.
+ * Built-in `vault` tools for the AI Agent. Read tools are readOnly and
+ * auto-run, capped to bound cost and exfiltration. Write tools need approval,
+ * run every model-chosen path through sanitizeVaultPath and the realpath guard,
+ * check existence (create fails on an existing file; append/insert require
+ * one), and respect frontmatter. run_choice/apply_template/set_frontmatter are
+ * deliberately not shipped.
  */
 import { type App, TFile } from "obsidian";
+import { ensureParentFolders } from "../../../utils/ensureParentFolders";
 import { getMarkdownFilesInFolder } from "../../../utils/vaultQueries";
-import { insertTextAfterPositionInBody } from "../../../formatters/helpers/insertionPositioning";
+import { insertTextAfterPositionInBody } from "../../../utils/insertionPositioning";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
 import { processNote } from "../../../utils/noteContent";
 import { isWithinAllowedRoots } from "../allowedRoots";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
 import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
 import type { JSONSchema } from "../NormalizedTools";
-import type { QATool } from "../aiToolTypes";
-import { applyGroupOptions, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
+import { addPropertyValues } from "../../../utils/propertyValues";
+import { applyGroupOptions, defineTool, truncateNoteText, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
 
-const MAX_READ_CHARS = 16_000;
 const DEFAULT_LIST = 100;
 const MAX_LIST = 200;
 const DEFAULT_SEARCH = 25;
@@ -33,16 +30,13 @@ export function createVaultTools(
 	options: BuiltinGroupOptions = {},
 ): ToolSetMap {
 	const roots = options.allowedRoots;
-	// The read tools below confine results to the allowedRoots fence by filtering each
-	// app-owned TFile.path through isWithinAllowedRoots — the SAME identity-preserving
-	// predicate the workspace group uses (#1432). A TFile.path is an identity, so it is
-	// compared NFC-only and never trimmed/re-spelled; that is what stops a sibling folder
-	// named " AI" from masquerading as the allowed root "AI". sanitizeVaultPath is kept
-	// only for MODEL-CHOSEN inputs (read_note's path and the folder args), where trimming
-	// and structural validation are correct. Absent/all-blank roots ⇒ vault-wide.
+	// Read tools confine results to allowedRoots by filtering each app-owned
+	// TFile.path through isWithinAllowedRoots, the identity-preserving predicate
+	// the workspace group uses (NFC only, never trimmed, so " AI" cannot pass as
+	// "AI"). sanitizeVaultPath is only for model-chosen inputs.
 
 	const tools: ToolSetMap = {
-		read_note: tool({
+		read_note: defineTool({
 			description: "Read a note's full markdown content by vault path.",
 			inputSchema: obj({ path: str("Vault path to the note, e.g. Notes/Foo.md") }, ["path"]),
 			readOnly: true,
@@ -51,18 +45,11 @@ export function createVaultTools(
 				const file = app.vault.getAbstractFileByPath(norm);
 				if (!(file instanceof TFile)) return { found: false, path: norm };
 				const content = await app.vault.cachedRead(file);
-				return {
-					found: true,
-					path: norm,
-					content:
-						content.length > MAX_READ_CHARS
-							? content.slice(0, MAX_READ_CHARS) + "\n…[truncated]"
-							: content,
-				};
+				return { found: true, path: norm, content: truncateNoteText(content) };
 			},
 		}),
 
-		list_notes: tool({
+		list_notes: defineTool({
 			description: "List markdown notes, optionally within a folder.",
 			inputSchema: obj(
 				{
@@ -85,7 +72,7 @@ export function createVaultTools(
 			},
 		}),
 
-		search_notes: tool({
+		search_notes: defineTool({
 			description:
 				"Search notes by name and/or content. Returns matching paths with a short snippet.",
 			inputSchema: obj(
@@ -140,7 +127,7 @@ export function createVaultTools(
 			},
 		}),
 
-		get_property_values: tool({
+		get_property_values: defineTool({
 			description:
 				"List the distinct values a frontmatter property takes across the vault (e.g. existing tags or statuses).",
 			inputSchema: obj(
@@ -155,21 +142,13 @@ export function createVaultTools(
 				).filter((f) => isWithinAllowedRoots(f.path, roots));
 				const values = new Set<string>();
 				for (const f of files) {
-					const fm = app.metadataCache.getFileCache(f)?.frontmatter;
-					const v = fm?.[String(field)];
-					if (v == null) continue;
-					for (const item of Array.isArray(v) ? v : [v]) {
-						if (typeof item !== "object") {
-							const s = String(item).trim();
-							if (s) values.add(s);
-						}
-					}
+					addPropertyValues(values, app.metadataCache.getFileCache(f)?.frontmatter?.[String(field)]);
 				}
 				return { field: String(field), values: [...values].sort().slice(0, 200) };
 			},
 		}),
 
-		create_note: tool({
+		create_note: defineTool({
 			description: "Create a new markdown note. Fails if the path already exists.",
 			inputSchema: obj(
 				{ path: str("Vault path for the new note."), content: str("Initial markdown content.") },
@@ -179,13 +158,13 @@ export function createVaultTools(
 			execute: async ({ path, content }) => {
 				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				await assertWriteStaysInVault(app, norm);
-				await ensureParentFolder(app, norm);
+				await ensureParentFolders(app, norm);
 				const file = await app.vault.create(norm, String(content ?? ""));
 				return { created: true, path: file.path };
 			},
 		}),
 
-		append_to_note: tool({
+		append_to_note: defineTool({
 			description: "Append text to an existing note (frontmatter-aware for top inserts).",
 			inputSchema: obj(
 				{
@@ -210,7 +189,7 @@ export function createVaultTools(
 			},
 		}),
 
-		insert_under_heading: tool({
+		insert_under_heading: defineTool({
 			description:
 				"Insert markdown under an existing heading (matched exactly). Errors if the heading is not found.",
 			inputSchema: obj(
@@ -227,8 +206,8 @@ export function createVaultTools(
 				const file = requireFile(app, norm);
 				await assertWriteStaysInVault(app, norm);
 				// Section positions come from Obsidian's heading parse, which only
-				// exists for the saved text, so this stays a disk write: Obsidian merges
-				// it into an open editor with unsaved typing (#1872).
+				// exists for the saved text, so this stays a disk write; Obsidian
+				// merges it into an open editor with unsaved typing.
 				const headings = app.metadataCache.getFileCache(file)?.headings ?? [];
 				const target = headings.find((h) => h.heading === String(heading));
 				if (!target) throw new Error(`Heading "${heading}" not found in ${norm}`);
@@ -254,9 +233,6 @@ export function createVaultTools(
 
 // --- helpers ----------------------------------------------------------------
 
-function tool(def: Omit<QATool, "__qaTool">): QATool {
-	return { ...def, __qaTool: true };
-}
 function obj(properties: Record<string, JSONSchema>, required: string[]): JSONSchema {
 	return { type: "object", properties, required };
 }
@@ -294,17 +270,6 @@ function requireFile(app: App, normalizedPath: string): TFile {
 		throw new Error(`Note not found: ${normalizedPath}`);
 	}
 	return file;
-}
-async function ensureParentFolder(app: App, normalizedPath: string): Promise<void> {
-	const slash = normalizedPath.lastIndexOf("/");
-	if (slash <= 0) return;
-	const parent = normalizedPath.slice(0, slash);
-	if (app.vault.getAbstractFileByPath(parent)) return;
-	try {
-		await app.vault.createFolder(parent);
-	} catch {
-		/* already exists / race — ignore */
-	}
 }
 function snippetAround(text: string, idx: number): string {
 	const start = Math.max(0, idx - 40);

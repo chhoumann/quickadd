@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, Setting, TextAreaComponent, debounce } from "obsidian";
+import { Setting, TextAreaComponent, debounce } from "obsidian";
 import { mountSystemPromptLiteralNote } from "../ai/systemPromptLiteralNote";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -10,66 +10,36 @@ import { estimateTokenCount } from "src/ai/tokenEstimator";
 import { addSamplingParamSettings } from "./samplingParamSettings";
 import { populateModelDropdown } from "../modelSelect";
 import { activeModelRef } from "src/ai/Provider";
+import { SettingsDialogModal } from "./SettingsDialogModal";
 
-export class AIAssistantCommandSettingsModal extends Modal {
-	public waitForClose: Promise<IAIAssistantCommand | null>;
-
-	private resolvePromise: (settings: IAIAssistantCommand | null) => void;
-	private rejectPromise: (reason?: unknown) => void;
-
-	private settings: IAIAssistantCommand;
-	// Snapshot of the command as it was opened, so Cancel/Esc can restore the live
-	// object (the same reference the caller persists) instead of committing edits.
-	private readonly originalSettings: IAIAssistantCommand;
-	private isResolved = false;
+/** Edits a working copy of the step; Save resolves it, anything else resolves null. */
+export class AIAssistantCommandSettingsModal extends SettingsDialogModal<IAIAssistantCommand> {
+	private readonly settings: IAIAssistantCommand;
 	private showAdvancedSettings = false;
+	private promptTemplateSuggester: GenericTextSuggester | null = null;
 
 	private get systemPromptTokenLength(): number {
-		// The estimate is provider-agnostic, so it no longer depends on the model.
+		// The estimate is provider-agnostic.
 		return estimateTokenCount(this.settings.systemPrompt);
 	}
 
-	constructor(app: App, settings: IAIAssistantCommand) {
+	constructor(app: App, command: IAIAssistantCommand) {
 		super(app);
 
-		this.settings = settings;
-		this.originalSettings = this.cloneSettings(settings);
-
-		this.waitForClose = new Promise<IAIAssistantCommand | null>(
-			(resolve, reject) => {
-				this.rejectPromise = reject;
-				this.resolvePromise = resolve;
-			}
-		);
+		// Spread, not structuredClone: the command is a Svelte $state proxy when
+		// edited from the macro command list, and structuredClone throws on one.
+		this.settings = {
+			...command,
+			promptTemplate: { ...command.promptTemplate },
+			modelParameters: { ...command.modelParameters },
+		};
 
 		this.open();
 		this.display();
 	}
 
-	private resolve(value: IAIAssistantCommand | null) {
-		if (this.isResolved) return;
-		this.isResolved = true;
-		this.resolvePromise(value);
-	}
-
-	// Proxy-safe deep clone of the editable fields. Avoids structuredClone, which
-	// throws DataCloneError on a Svelte dev-mode $state proxy (the command passed in
-	// is one such proxy when edited from the macro command list).
-	private cloneSettings(settings: IAIAssistantCommand): IAIAssistantCommand {
-		return {
-			...settings,
-			promptTemplate: { ...settings.promptTemplate },
-			modelParameters: { ...settings.modelParameters },
-		};
-	}
-
-	// Restore the live command (same reference the caller persists) to its opened
-	// state so Cancel/Esc discards edits, including the nested objects.
-	private restoreOriginal(): void {
-		const snapshot = this.cloneSettings(this.originalSettings);
-		Object.assign(this.settings, snapshot);
-		this.settings.promptTemplate = snapshot.promptTemplate;
-		this.settings.modelParameters = snapshot.modelParameters;
+	protected save(): IAIAssistantCommand {
+		return this.settings;
 	}
 
 	private display(): void {
@@ -77,7 +47,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		header.addClass("qa-clickable-modal-title");
 
 		// Rename affordance is a real <button> (keyboard operable: Enter/Space) inside
-		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
+		// the heading, so the <h2> keeps its heading role for screen readers.
 		const renameButton = header.createEl("button", {
 			cls: "qa-rename-title-button",
 			text: `${this.settings.name} settings`,
@@ -112,8 +82,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		this.addShowAdvancedSettingsToggle(this.contentEl);
 
 		if (this.showAdvancedSettings) {
-			if (!this.settings.modelParameters)
-				this.settings.modelParameters = {};
 			addSamplingParamSettings(
 				this.contentEl,
 				this.settings.modelParameters,
@@ -125,36 +93,20 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		this.addSystemPromptSetting(this.contentEl);
 
-		this.addButtonBar(this.contentEl);
-	}
-
-	private addButtonBar(container: HTMLElement): void {
-		const buttonRow = container.createDiv({
-			cls: "qa-command-button-row",
-		});
-
-		new ButtonComponent(buttonRow)
-			.setButtonText("Cancel")
-			.onClick(() => {
-				// Dismissing via Cancel discards every edit made in this session.
-				this.restoreOriginal();
-				this.resolve(null);
-				this.close();
-			});
-
-		new ButtonComponent(buttonRow)
-			.setButtonText("Save")
-			.setCta()
-			.onClick(() => {
-				this.resolve(this.settings);
-				this.close();
-			});
+		this.addSaveCancelButtons();
 	}
 
 	private reload(): void {
+		this.promptTemplateSuggester?.destroy();
 		this.contentEl.empty();
 
 		this.display();
+	}
+
+	onClose(): void {
+		super.onClose();
+		this.promptTemplateSuggester?.destroy();
+		this.promptTemplateSuggester = null;
 	}
 
 	addPromptTemplateSetting(container: HTMLElement) {
@@ -183,7 +135,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 					}
 				);
 
-				new GenericTextSuggester(
+				this.promptTemplateSuggester = new GenericTextSuggester(
 					this.app,
 					text.inputEl,
 					promptTemplateFiles
@@ -281,15 +233,5 @@ export class AIAssistantCommandSettingsModal extends Modal {
 					this.reload();
 				});
 			});
-	}
-
-	onClose(): void {
-		// Dismissing via Esc / click-outside / X discards edits (matches the
-		// Conditional/Open File modals). Only the Save button commits the working copy.
-		if (!this.isResolved) {
-			this.restoreOriginal();
-			this.resolve(null);
-		}
-		super.onClose();
 	}
 }

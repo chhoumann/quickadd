@@ -6,6 +6,7 @@
 	import type IChoice from "../../types/choices/IChoice";
 	import type {
 		ApplyImportResult,
+		AssetConflict,
 		LoadedQuickAddPackage,
 		PackageAnalysis,
 		ChoiceImportMode,
@@ -40,13 +41,12 @@
 		setChoiceMode,
 		snapshotAssetDecisions,
 		snapshotChoiceDecisions,
-	} from "./importDecisions";
+	} from "../../services/packageImportDecisions";
 	import type {
-		AssetConflict,
 		AssetDecisions,
 		ChoiceDecisions,
 		ExistsProbe,
-	} from "./importDecisions";
+	} from "../../services/packageImportDecisions";
 
 	let {
 		app,

@@ -3,7 +3,7 @@ import { settingNames } from "../../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import FileOpeningSetting from "./FileOpeningSetting.svelte";
-import type { FileOpeningSettings } from "../../../utils/fileOpeningDefaults";
+import type { FileOpeningSettings } from "../../../types/fileOpening";
 
 
 const base = (

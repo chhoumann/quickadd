@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { App } from "obsidian";
-import type QuickAdd from "../../../main";
+import type { ChoiceBuilderPlugin } from "../../../types/pluginContext";
 import type { PropertyCapture } from "../../../types/choices/ICaptureChoice";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
 import SettingItem from "../../components/SettingItem.svelte";
@@ -12,7 +12,7 @@ import ValidatedInput from "./ValidatedInput.svelte";
 let { config = $bindable(), app, plugin }: {
 	config: PropertyCapture;
 	app: App;
-	plugin: QuickAdd;
+	plugin: ChoiceBuilderPlugin;
 } = $props();
 
 const suggesters = [(el: HTMLInputElement | HTMLTextAreaElement) => new FormatSyntaxSuggester(app, el, plugin)];

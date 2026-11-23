@@ -5,36 +5,35 @@ import type { ChoiceChain } from "./choiceChain";
 import type { IAIAssistantCommand } from "../types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "../ai/AIAssistant";
 import { resolveProviderApiKey } from "../ai/providerSecrets";
+import { assertOnlineFeaturesEnabled } from "../ai/onlineFeatures";
 import { settingsStore } from "../settingsStore";
 import { CompleteFormatter } from "../formatters/completeFormatter";
-import { getQuickAddInstance } from "../quickAddInstance";
+import type { FormatterPluginContext } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import { resolveModel, type ResolvedModel } from "../ai/aiHelpers";
 import { activeModelRef, sortModelsForDisplay } from "../ai/Provider";
 import { isCancellationError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import { ASK_ME_MODEL } from "../constants";
 
 export async function executeMacroAI(
-	app: App, choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
-	command: IAIAssistantCommand, chooseModel: () => Promise<ResolvedModel>,
+	app: App, plugin: FormatterPluginContext, runtime: FormatterExecutionRuntime,
+	choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
+	command: IAIAssistantCommand,
 ) {
-	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Blocking request: Online features are disabled in settings."
-		);
-	}
+	assertOnlineFeaturesEnabled();
 
 	const aiSettings = settingsStore.getState().ai;
 
 	let resolved: ResolvedModel | undefined;
-	if (command.model === "Ask me") {
-		resolved = await chooseModel();
+	if (command.model === ASK_ME_MODEL) {
+		resolved = await pickMacroModel(app, executor);
 	} else {
-		// Prefer the pinned provider-scoped ref — but only while it matches
-		// the legacy string (a stale ref from a downgrade edit must not
-		// override the visible selection). Bare names resolve first-match,
-		// as they always have.
+		// Prefer the pinned provider-scoped ref, but only while it matches the
+		// legacy string (a stale ref from a downgrade edit must not override the
+		// visible selection). Bare names resolve first-match.
 		resolved = resolveModel(
 			activeModelRef(command.model, command.modelRef) ?? command.model,
 		);
@@ -47,16 +46,10 @@ export async function executeMacroAI(
 
 	const { model, provider: modelProvider } = resolved;
 
-	const formatter = new CompleteFormatter(
-		app,
-		getQuickAddInstance(),
-		executor
-	);
-	// Same run context every other prompt surface gets (issue #1546): a
-	// {{VALUE}} inside the AI prompt template names the choice that is asking
-	// instead of prompting generically. Scoped per command id, like
-	// executeOpenFile below: a macro can hold several AI commands, and their
-	// prompts must not share one draft.
+	const formatter = new CompleteFormatter(app, plugin, executor, runtime);
+	// A {{VALUE}} inside the AI prompt template names the choice that is asking.
+	// Scoped per command id, like executeOpenFile below: a macro can hold several
+	// AI commands, and their prompts must not share one draft.
 	formatter.setPromptRunContext({
 		choiceName: choice?.name,
 		draftScopeId: `${choice?.id ?? "macro"}#aiAssistant:${command.id}`,
@@ -95,7 +88,7 @@ export async function executeMacroAI(
  * serving the same model name are distinguishable — picking from a flat
  * name list would silently first-match, defeating the point of asking.
  */
-export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promise<ResolvedModel> {
+async function pickMacroModel(app: App, executor: IChoiceExecutor): Promise<ResolvedModel> {
 	const providers = settingsStore.getState().ai.providers;
 	const entries: { label: string; qualified: string; resolved: ResolvedModel }[] =
 		providers.flatMap((provider) =>
@@ -112,7 +105,7 @@ export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promi
 		);
 	}
 
-	// Route to a remote interactive session (Raycast) when one is driving.
+	// Route to a remote interactive session when one is driving.
 	const promptProvider = executor.promptProvider;
 	if (promptProvider) {
 		const picked = String(
@@ -130,8 +123,6 @@ export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promi
 	}
 
 	if (executor.interactive === false) {
-		// Non-interactive run (CLI without `ui`): the "Ask me" model picker has
-		// no one to answer it. Abort with an actionable error instead of hanging.
 		throw new ChoiceAbortError(
 			"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
 			"Pick a specific model in the command, or re-run with the ui flag.",

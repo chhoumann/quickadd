@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -83,7 +82,6 @@ vi.mock("../utils/fileLinks", () => ({
 }));
 
 vi.mock("../utils/templaterIntegration", () => ({
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 }));
 vi.mock("../utils/vaultQueries", () => ({
@@ -117,6 +115,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { insertFileLinkToCurrentNote } from "../utils/editorInsertion";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -187,6 +186,7 @@ const createEngine = (
 	const engine = new TemplateChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		createTemplateChoice(),
 		choiceExecutor,
 	);

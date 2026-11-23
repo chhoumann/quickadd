@@ -16,6 +16,8 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { InputPromptDraftHandler } from "../utils/InputPromptDraftHandler";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { log } from "../logger/logManager";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
+import type * as VaultFiles from "./vaultFiles";
 
 const {
 	setUseSelectionAsCaptureValueMock,
@@ -32,6 +34,17 @@ const {
 	promptHydratedValues: [] as string[],
 	createdClipboardAttachmentPaths: [] as string[],
 }));
+
+// The vault write is replaced per test; every other test creates through the real one.
+const { createFileWithInputMock, realVaultFiles } = vi.hoisted(() => ({
+	createFileWithInputMock: vi.fn(),
+	realVaultFiles: {} as { createFileWithInput?: (...args: unknown[]) => unknown },
+}));
+vi.mock("./vaultFiles", async (importOriginal) => {
+	const actual = await importOriginal<typeof VaultFiles>();
+	realVaultFiles.createFileWithInput = actual.createFileWithInput as never;
+	return { ...actual, createFileWithInput: createFileWithInputMock };
+});
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
 	CaptureChoiceFormatter: class {
@@ -135,6 +148,9 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 vi.mock("./SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {
 		setLinkToCurrentFileBehavior() {}
+		setDestinationPath() {}
+		setPromptRunContext() {}
+		setKeepUserTextProtected() {}
 		async run() {
 			return await singleTemplateRunMock();
 		}
@@ -240,7 +256,8 @@ function createCaptureEngine({
 	app = createApp(), choice = createChoice(), executor = createExecutor(), selection = false,
 }: { app?: App; choice?: ICaptureChoice; executor?: IChoiceExecutor; selection?: boolean } = {}) {
 	return new CaptureChoiceEngine(app,
-		{ settings: { useSelectionAsCaptureValue: selection } } as any, choice, executor);
+		{ settings: { useSelectionAsCaptureValue: selection } } as any,
+		testFormatterRuntime(), choice, executor);
 }
 
 describe("CaptureChoiceEngine selection-as-value resolution", () => {
@@ -262,6 +279,8 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockReset();
 		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockResolvedValue(false);
 		vi.mocked(setMarkdownCursorAtOffset).mockClear();
+		createFileWithInputMock.mockReset();
+		createFileWithInputMock.mockImplementation((...args: unknown[]) => realVaultFiles.createFileWithInput?.(...args));
 	});
 
 	it("uses global setting when no override is set", async () => {
@@ -300,7 +319,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).getFormattedPathToCaptureTo = vi
 			.fn()
 			.mockResolvedValue("Test.md");
-		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "content",
@@ -334,7 +353,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).getFormattedPathToCaptureTo = vi
 			.fn()
 			.mockResolvedValue("Test.md");
-		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "Line A\nCAPTURE\nLine B",
@@ -370,7 +389,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).getFormattedPathToCaptureTo = vi
 			.fn()
 			.mockResolvedValue("Test.md");
-		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "CAPTURE",
@@ -407,9 +426,9 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 				});
 				const engine = createCaptureEngine({ app, choice, executor });
 				const insertLink = vi.fn(async () => {});
+				engine.app.vault.adapter.exists = vi.fn(async () => true);
 				Object.assign(engine, {
 					getFormattedPathToCaptureTo: vi.fn(async () => file.path),
-					fileExists: vi.fn(async () => true),
 					onFileExists: vi.fn(async () => ({
 						file, newFileContent: "AB", captureContent: "AB", priorContent: "",
 						cursor: { kind: "offset", source: "marker", value: 1 },
@@ -437,7 +456,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).getFormattedPathToCaptureTo = vi
 			.fn()
 			.mockResolvedValue("Test.md");
-		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "CAPTURE",
@@ -471,7 +490,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).getFormattedPathToCaptureTo = vi
 			.fn()
 			.mockResolvedValue("Test.md");
-		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: content,
@@ -515,7 +534,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).getFormattedPathToCaptureTo = vi
 			.fn()
 			.mockResolvedValue("Test.md");
-		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "content",
@@ -743,7 +762,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 	});
 
 	// Security: a drive/absolute 'Capture to' must be rejected at path assembly,
-	// BEFORE run()'s `fileExists(filePath)` existence probe — otherwise on Windows
+	// BEFORE run()'s existence probe of the target path — otherwise on Windows
 	// the probe would stat an out-of-vault path. normalizeGeneratedFilePath passes
 	// drive paths through to the boundary check, so this exercises that guard.
 	it("refuses a drive/absolute capture target before the existence probe", async () => {
@@ -1106,7 +1125,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 				},
 			}), app: app });
 
-		(engine as any).createFileWithInput = vi.fn(async (path: string) => ({
+		createFileWithInputMock.mockImplementation(async (_app: App, path: string) => ({
 			path,
 			basename: path.split("/").pop()?.replace(/\.(base|canvas)$/i, "") ?? "",
 			extension: path.endsWith(".base") ? "base" : "canvas",
@@ -1136,6 +1155,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad:Title.md",
 				createFileIfItDoesntExist: {
@@ -1151,7 +1171,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			createExecutor(),
 		);
 
-		(engine as any).createFileWithInput = vi.fn(async () => {
+		createFileWithInputMock.mockImplementation(async () => {
 			throw new Error("File name cannot contain ':'");
 		});
 
@@ -1185,6 +1205,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureToActiveFile: true,
 				newLineCapture: { enabled: true, direction: "below" },
@@ -1216,6 +1237,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad: Title.md",
 				createFileIfItDoesntExist: {
@@ -1228,12 +1250,10 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			createExecutor(),
 		);
 
-		const createFileWithInput = vi.fn();
-		(engine as any).createFileWithInput = createFileWithInput;
 
 		await engine.run();
 
-		expect(createFileWithInput).not.toHaveBeenCalled();
+		expect(createFileWithInputMock).not.toHaveBeenCalled();
 		// And the capture's own {{VALUE}} prompt never opened: the whole point of
 		// #1591 is that the user does not answer a prompt chain for a note that
 		// cannot be created.
@@ -1256,6 +1276,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad: Title.md",
 				createFileIfItDoesntExist: {
@@ -1275,13 +1296,11 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			}),
 			createExecutor(),
 		);
-		const createFileWithInput = vi.fn();
-		(engine as any).createFileWithInput = createFileWithInput;
 
 		await engine.run();
 
 		expect(suggestSpy).not.toHaveBeenCalled();
-		expect(createFileWithInput).not.toHaveBeenCalled();
+		expect(createFileWithInputMock).not.toHaveBeenCalled();
 	});
 
 	it("still appends to an EXISTING file whose name carries a colon (#1591)", async () => {
@@ -1297,6 +1316,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Bad: Title.md",
 				createFileIfItDoesntExist: {
@@ -1307,7 +1327,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			}),
 			createExecutor(),
 		);
-		(engine as any).fileExists = vi.fn(async () => true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		const onFileExists = vi.fn(async () => ({
 			file: { path: "Bad: Title.md", basename: "Bad: Title" },
 			newFileContent: "",
@@ -1338,6 +1358,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				// A LEGAL target: an impossible one is now refused before the
 				// prompt is ever opened (#1591), which is a different behaviour
@@ -1357,7 +1378,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			createExecutor(),
 		);
 
-		(engine as any).createFileWithInput = vi.fn(async () => {
+		createFileWithInputMock.mockImplementation(async () => {
 			throw new Error("Disk is on fire");
 		});
 
@@ -1393,6 +1414,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Recovered.md",
 				createFileIfItDoesntExist: {
@@ -1407,8 +1429,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			}),
 			createExecutor(),
 		);
-		(successfulEngine as any).createFileWithInput = vi.fn(
-			async (path: string) => ({
+		createFileWithInputMock.mockImplementation(async (_app: App, path: string) => ({
 				path,
 				basename: "Recovered",
 				extension: "md",
@@ -1432,6 +1453,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "Issue\n221",
 				createFileIfItDoesntExist: {
@@ -1446,16 +1468,16 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			}),
 			createExecutor(),
 		);
-		const createFileWithInput = vi.fn().mockResolvedValue({
+		createFileWithInputMock.mockResolvedValue({
 			path: "Issue 221.md",
 			basename: "Issue 221",
 			extension: "md",
 		});
-		(engine as any).createFileWithInput = createFileWithInput;
 
 		await engine.run();
 
-		expect(createFileWithInput).toHaveBeenCalledWith(
+		expect(createFileWithInputMock).toHaveBeenCalledWith(
+			expect.anything(),
 			"Issue 221.md",
 			"",
 			expect.objectContaining({ suppressTemplaterOnCreate: false }),
@@ -1481,6 +1503,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				captureTo: "New.md",
 				createFileIfItDoesntExist: {
@@ -1543,7 +1566,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			captureContent: "capture",
 			cursor: { kind: "none" },
 		}));
-		(engine as any).fileExists = fileExistsMock;
+		engine.app.vault.adapter.exists = fileExistsMock;
 		(engine as any).onFileExists = onFileExistsMock;
 
 		await engine.run();
@@ -1598,7 +1621,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 				activeFileWritePosition: "top",
 			}), app: app });
 
-		(engine as any).fileExists = vi.fn(async () => true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn(async () => ({
 			file: linkedFile,
 			newFileContent: "updated",
@@ -1666,6 +1689,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: false,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				appendLink,
 				captureToActiveFile: true,
@@ -1674,7 +1698,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			executor,
 		);
 
-		(engine as any).fileExists = vi.fn(async () => true);
+		engine.app.vault.adapter.exists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn(async () => ({
 			file: linkedFile,
 			newFileContent: "updated",
@@ -1805,6 +1829,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 					showCaptureNotification: true,
 				},
 			} as any,
+			testFormatterRuntime(),
 			createChoice({
 				appendLink: true,
 				captureToActiveFile: true,
@@ -1864,7 +1889,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			}),
 		);
 
-		(engine as any).fileExists = fileExistsMock;
+		engine.app.vault.adapter.exists = fileExistsMock;
 		(engine as any).onCreateFileIfItDoesntExist =
 			onCreateFileIfItDoesntExistMock;
 
@@ -1907,7 +1932,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		const fileExistsMock = vi.fn();
 		const onFileExistsMock = vi.fn();
-		(engine as any).fileExists = fileExistsMock;
+		engine.app.vault.adapter.exists = fileExistsMock;
 		(engine as any).onFileExists = onFileExistsMock;
 
 		await engine.run();

@@ -13,6 +13,7 @@ import { CommandType } from "../types/macros/CommandType";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { log } from "../logger/logManager";
 import { settingsStore } from "../settingsStore";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 function runMacro(macro: unknown) {
 	const choice = {
@@ -31,6 +32,7 @@ function runMacro(macro: unknown) {
 	return new MacroChoiceEngine(
 		{} as App,
 		{ settings: settingsStore.getState() } as never,
+		testFormatterRuntime(),
 		choice,
 		choiceExecutor,
 		new Map<string, unknown>(),

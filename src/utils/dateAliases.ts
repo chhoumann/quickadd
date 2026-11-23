@@ -13,10 +13,8 @@ export const DEFAULT_DATE_ALIASES: DateAliasMap = {
 };
 
 // The alias map is a plain object literal, so a bare bracket lookup walks the
-// prototype chain: an input of "constructor" or "__proto__" (never defined as
-// an alias) would resolve to an inherited built-in instead of falling through
-// to the raw input. Own-property membership keeps magic names deterministic
-// (same guard as the #1442 FIELD-default / legacy-mode lookups).
+// prototype chain: "constructor" or "__proto__" would resolve to an inherited
+// built-in instead of falling through to the raw input.
 function lookupAlias(aliases: DateAliasMap, key: string): string | undefined {
 	return Object.prototype.hasOwnProperty.call(aliases, key)
 		? aliases[key]
@@ -55,12 +53,9 @@ export function parseDateAliasLines(text: string): DateAliasMap {
 		const value = trimmed.slice(separatorIndex + 1).trim();
 
 		if (!key || !value) continue;
-		// defineProperty, not `result[key] = value`: a bare assignment for the
-		// key "__proto__" hits the Object.prototype accessor instead of creating
-		// an own property, so that alias silently vanished on the next settings
-		// round-trip. defineProperty always creates the own (enumerable,
-		// serializable) entry, which the hasOwnProperty-guarded lookup then
-		// resolves like any other alias.
+		// defineProperty, not assignment: assigning "__proto__" hits the
+		// Object.prototype accessor instead of creating an own property, and the
+		// alias would vanish on the next settings round-trip.
 		Object.defineProperty(result, key, {
 			value,
 			enumerable: true,

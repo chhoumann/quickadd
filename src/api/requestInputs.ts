@@ -2,10 +2,10 @@ import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import { OnePageInputModal } from "../preflight/OnePageInputModal";
-import type { NumericInputConfig, SliderConfig } from "../utils/valueSyntax";
+import type { NumericInputConfig, SliderConfig } from "../utils/valueSyntaxTypes";
 import { formatISODate } from "../utils/dateParser";
-import { rethrowPromptError } from "./promptApi";
-import { abortIfHeadless } from "../interactive/routePrompt";
+import { decodeDateToken } from "../utils/dateTokenCodec";
+import { routePrompt, scriptPromptHeadless } from "../interactive/routePrompt";
 import { type OnePageFormHeader, sanitizeOnePageFormHeader } from "../preflight/formHeader";
 import type { FormAnswer } from "../interactive/promptProvider";
 import {
@@ -158,35 +158,26 @@ export async function requestInputs(
 	let collected: Record<string, FormAnswer> = {};
 	if (missing.length > 0) {
 		const formHeader = sanitizeOnePageFormHeader(options);
-		abortIfHeadless(
-			choiceExecutor,
-			"an input form",
-			formHeader?.title ?? missing.map((input) => input.label).join(", "),
-			`Pass ${missing.map((input) => input.id).join(", ")} in vars, or re-run with the ui flag.`,
-		);
-		// Route the batch form to a remote interactive session (Raycast)
-		// when one is driving this run; otherwise open the Obsidian modal.
-		const provider = choiceExecutor?.promptProvider;
-		if (provider) {
-			try {
-				collected = await provider.requestInputs(missing, formHeader);
-			} catch (error) {
-				rethrowPromptError(error);
-			}
-		} else {
-			const modal = new OnePageInputModal(
-				app,
-				missing,
-				choiceExecutor.variables,
-				formHeader,
-			);
-			try {
-				collected = await modal.waitForClose;
-			} catch (error) {
-				rethrowPromptError(error);
-			}
-			for (const [id, picks] of modal.multiSelections) collected[id] = picks;
-		}
+		collected = await routePrompt(choiceExecutor, {
+			// A remote interactive session answers the batch form.
+			remote: (provider) => provider.requestInputs(missing, formHeader),
+			headless: scriptPromptHeadless(
+				"an input form",
+				formHeader?.title ?? missing.map((input) => input.label).join(", "),
+				`Pass ${missing.map((input) => input.id).join(", ")} in vars, or re-run with the ui flag.`,
+			),
+			app: async () => {
+				const modal = new OnePageInputModal(
+					app,
+					missing,
+					choiceExecutor.variables,
+					formHeader,
+				);
+				const answers: Record<string, FormAnswer> = await modal.waitForClose;
+				for (const [id, picks] of modal.multiSelections) answers[id] = picks;
+				return answers;
+			},
+		});
 	}
 
 	for (const spec of inputs) {
@@ -204,13 +195,12 @@ export async function requestInputs(
 	for (const spec of inputs) {
 		const value = rawResult[spec.id];
 		let output = value;
-		if (
-			spec.type === "date" &&
-			spec.dateFormat &&
-			typeof value === "string" &&
-			value.startsWith("@date:")
-		) {
-			const formatted = formatISODate(value.slice(6), spec.dateFormat);
+		const iso =
+			spec.type === "date" && spec.dateFormat && typeof value === "string"
+				? decodeDateToken(value)
+				: null;
+		if (iso !== null && spec.dateFormat) {
+			const formatted = formatISODate(iso, spec.dateFormat);
 			if (formatted) output = formatted;
 		}
 		formattedResult[spec.id] = output;

@@ -1,10 +1,11 @@
 import type { OpenFileOptions } from "../../types/fileOpening";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
 import { NewTabDirection } from "../../types/newTabDirection";
+import { DEFAULT_FILE_OPENING } from "../../utils/fileOpeningDefaults";
 
 function getSplitDirection(
 	direction: IOpenFileCommand["direction"],
-	fallback: "vertical" | undefined = undefined
+	fallback: "horizontal" | "vertical" | undefined = undefined
 ): "horizontal" | "vertical" | undefined {
 	if (direction === NewTabDirection.horizontal) return "horizontal";
 	if (direction === NewTabDirection.vertical) return "vertical";
@@ -17,14 +18,14 @@ function createOpenFileOptions(
 	direction?: OpenFileOptions["direction"]
 ): OpenFileOptions {
 	return direction
-		? { location, direction, focus, mode: "default" }
-		: { location, focus, mode: "default" };
+		? { location, direction, focus, mode: DEFAULT_FILE_OPENING.mode }
+		: { location, focus, mode: DEFAULT_FILE_OPENING.mode };
 }
 
 export function buildOpenFileOptions(
 	command: IOpenFileCommand
 ): OpenFileOptions {
-	const focus = command.focus ?? true;
+	const focus = command.focus ?? DEFAULT_FILE_OPENING.focus;
 
 	if (command.location) {
 		switch (command.location) {
@@ -36,7 +37,7 @@ export function buildOpenFileOptions(
 				return createOpenFileOptions(
 					"split",
 					focus,
-					getSplitDirection(command.direction, "vertical")
+					getSplitDirection(command.direction, DEFAULT_FILE_OPENING.direction)
 				);
 			}
 			case "window":
@@ -60,5 +61,5 @@ export function buildOpenFileOptions(
 		return createOpenFileOptions("reuse", focus);
 	}
 
-	return createOpenFileOptions("split", focus, legacyDirection ?? "vertical");
+	return createOpenFileOptions("split", focus, legacyDirection ?? DEFAULT_FILE_OPENING.direction);
 }

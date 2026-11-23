@@ -27,6 +27,7 @@ import {
 	listDeferredMacroSteps,
 } from "./collectChoiceRequirements";
 import { captureTargetKeyFor, readPreselectedCaptureTarget } from "./captureTargetKey";
+import { applyFolderMode } from "src/utils/folderMode";
 
 const {
 	getMarkdownFilesInFolderMock,
@@ -357,6 +358,22 @@ describe("collectChoiceRequirements - template include scanning", () => {
 
 		expect(requirements.map((requirement) => requirement.id)).toEqual(["client", "fname", "body"]);
 	});
+
+	it.each(["active-file", "obsidian-default", "prompt"] as const)(
+		"does not require a token in configured folders the %s mode never reads",
+		async (mode) => {
+			templateBodies.set("Templates/Source.md", "Body");
+			const templateChoice = createTemplateChoice("Templates/Source.md");
+			templateChoice.folder = applyFolderMode(
+				{ ...templateChoice.folder, folders: ["Archive/{{VALUE:IgnoredFolder}}"] },
+				mode,
+			);
+
+			const requirements = await collect(templateChoice, createChoiceExecutor());
+
+			expect(requirements.map((requirement) => requirement.id)).not.toContain("IgnoredFolder");
+		},
+	);
 
 	it("collects requirements from TEMPLATE includes in Template file names", async () => {
 		templateBodies.set("Templates/Source.md", "Body");
@@ -1503,18 +1520,14 @@ describe("collectChoiceRequirements - macro form roster", () => {
 
 	function pluginWithChoices(
 		choices: Record<string, IChoice> = {},
-	): { settings: Record<string, unknown>; getChoiceById: (id: string) => IChoice } {
+	): { settings: Record<string, unknown>; findChoiceById: (id: string) => IChoice | null } {
 		return {
 			settings: {
 				inputPrompt: "single-line",
 				globalVariables: {},
 				useSelectionAsCaptureValue: true,
 			},
-			getChoiceById: (id: string) => {
-				const found = choices[id];
-				if (!found) throw new Error(`Choice ${id} not found`);
-				return found;
-			},
+			findChoiceById: (id: string) => choices[id] ?? null,
 		};
 	}
 
@@ -2087,7 +2100,7 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		},
 	);
 
-	it("collects a Choice command Capture when getChoiceById resolves it", async () => {
+	it("collects a Choice command Capture when findChoiceById resolves it", async () => {
 		const capture = {
 			...createCaptureChoice("Projects"),
 			id: "cap-ref",

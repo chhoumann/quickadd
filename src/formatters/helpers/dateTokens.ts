@@ -2,12 +2,14 @@ import { DATE_REGEX, DATE_REGEX_FORMATTED, TIME_REGEX, TIME_REGEX_FORMATTED, DAT
 import { getDate } from "../../utils/dates";
 import type { RunClocks } from "../../types/dateOrigin";
 import type { IDateParser } from "../../parsers/IDateParser";
-import type { PromptContext } from "../formatter";
+import type { PromptContext } from "../valueFormatter";
 import { settingsStore } from "../../settingsStore";
 import { normalizeDateInput } from "../../utils/dateAliases";
 import { applyDateSnap, type DateSnap, parseDateSnapSegment } from "../../utils/dateModifiers";
 import { parseVDateOptions } from "../../utils/vdateSyntax";
 import { formatUnknownValue } from "../../utils/conditionalHelpers";
+import { decodeDateToken, defaultDateVariableFormat, encodeDateToken, isDateToken } from "../../utils/dateTokenCodec";
+import { uniqueKeyIgnoringCase } from "../../utils/uniqueKeyIgnoringCase";
 
 type ApplyCase = (value: string, style: string | undefined, token: string) => string;
 interface DateTokenContext {
@@ -24,17 +26,13 @@ function replaceLiteral(input: string, pattern: RegExp, value: string): string {
 	return input.replace(pattern, () => value);
 }
 
-export function defaultDateVariableFormat(withTime: boolean): string {
-	return withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD";
-}
-
 type DateVariableFormats = Map<string, { answer: unknown; dateFormat: string }>;
 
 // The {{VDATE}} format a {{VALUE:<name>}} reuse prints the stored @date:ISO in:
 // the first VDATE that rendered the answer. Run-scoped like the answer itself,
 // so it is keyed by the run's variables map, which included templates and
 // macro steps share. Code that clears or restores a variables map for reuse
-// must carry these along (quickAddApi.ts, MacroChoiceEngine's params.variables).
+// must carry these along (quickAddApi.ts, a script's params.variables in engine/scriptParameters.ts).
 const dateVariableFormats = new WeakMap<Map<string, unknown>, DateVariableFormats>();
 
 /** `freshAnswer`: this VDATE just produced the answer, so its format wins. */
@@ -74,15 +72,8 @@ export function findDateVariableFormat(
 	variables: Map<string, unknown>,
 	name: string,
 ): string | undefined {
-	const exact = getDateVariableFormat(variables, name);
-	if (exact !== undefined) return exact;
-	const lower = name.toLowerCase();
-	const matches = [...(dateVariableFormats.get(variables)?.keys() ?? [])].filter(
-		(key) => key.toLowerCase() === lower,
-	);
-	return matches.length === 1
-		? getDateVariableFormat(variables, matches[0])
-		: undefined;
+	const key = uniqueKeyIgnoringCase(dateVariableFormats.get(variables)?.keys() ?? [], name);
+	return key === undefined ? undefined : getDateVariableFormat(variables, key);
 }
 
 export function snapshotDateVariableFormats(
@@ -113,34 +104,33 @@ export function renderStoredDateVariable(
 	// parameter, or a `quickadd:run value-x=` flag) is coerced into the internal
 	// @date:ISO form so formatting works. Only when it parses: an unparseable
 	// string keeps the verbatim branch below, for back-compat.
-	if (typeof value === "string" && value && !value.startsWith("@date:")) {
+	if (typeof value === "string" && value && !isDateToken(value)) {
 	if (dateParser) {
 		const aliasMap = settingsStore.getState().dateAliases;
 		const parseAttempt = dateParser.parseDate(
 			normalizeDateInput(value, aliasMap),
 		);
 		if (parseAttempt) {
-			normalized = `@date:${parseAttempt.moment.toISOString()}`;
+			normalized = encodeDateToken(parseAttempt.moment.toISOString());
 			value = normalized;
 		}
 	}
 	} else if (value instanceof Date) {
 	// Some callers pass actual Date objects through the JS API.
 	if (!Number.isNaN(value.getTime())) {
-		normalized = `@date:${value.toISOString()}`;
+		normalized = encodeDateToken(value.toISOString());
 		value = normalized;
 	}
 }
 
-	if (typeof value === "string" && value.startsWith("@date:")) {
-		const isoString = value.substring(6);
+	const isoString = decodeDateToken(value);
+	if (isoString !== null) {
 		if (dateParser && window.moment) {
 			const moment = window.moment(isoString);
 			if (moment?.isValid()) {
-				// Snap is per-occurrence (issue #511): the stored @date:ISO stays
-				// raw, so {{VDATE:d,F1|startof:week}} and {{VDATE:d,F2}} share one
-				// picked date but only one snaps. A fresh moment per call prevents
-				// leaks.
+				// Snap is per occurrence: the stored @date:ISO stays raw, so
+				// {{VDATE:d,F1|startof:week}} and {{VDATE:d,F2}} share one picked date
+				// but only one snaps. A fresh moment per call prevents leaks.
 				return { text: applyDateSnap(moment, snap).format(dateFormat), ...(normalized !== undefined ? { normalized } : {}) };
 			}
 		}
@@ -209,13 +199,9 @@ function invalidDateToken(kind: string, input: string, pattern: RegExp): Error {
 }
 
 export async function replaceDateVariableInString(input: string, context: DateVariableContext): Promise<string> {
-	// Scan with a GLOBAL regex + accumulator (mirrors replaceFieldVarInString)
-	// so a malformed/empty-name {{VDATE:}} token is skipped (left literal) and
-	// every LATER valid {{VDATE}} is still prompted. The previous in-place
-	// while-loop `break`ed the entire scan on the first empty-name match, which
-	// silently dropped all subsequent date prompts. The accumulator also never
-	// re-scans a replacement, so a stored value re-containing the token can't
-	// loop.
+	// A global regex with an accumulator, so a malformed or empty-name {{VDATE:}}
+	// is left literal while later tokens still prompt, and a replacement is never
+	// re-scanned.
 	const regex = new RegExp(DATE_VARIABLE_REGEX.source, "gi");
 	let output = "";
 	let lastIndex = 0;
@@ -242,12 +228,9 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 
 		const existingValue = context.variables.get(variableName);
 
-		// Check if we already have this date variable stored.
-		// Only `undefined` counts as unset — null and "" are intentional
-		// values (same contract as VALUE variables, see #872), so a
-		// script-set "" renders empty instead of re-prompting.
+		// Only `undefined` counts as unset; null and "" are intentional values,
+		// as for VALUE, so a script-set "" renders empty instead of re-prompting.
 		if (existingValue === undefined) {
-			// Prompt for date input with VDATE context
 			const dateInput = await context.prompt(
 				variableName,
 				{ type: "VDATE", dateFormat, defaultValue, optional, withTime, label }
@@ -255,7 +238,7 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 			if (optional && !dateInput?.trim()) {
 				// Optional date left blank or skipped: answered-empty.
 				context.variables.set(variableName, "");
-			} else if (dateInput?.startsWith("@date:")) {
+			} else if (isDateToken(dateInput)) {
 				context.variables.set(variableName, dateInput);
 			} else {
 				if (!context.dateParser)
@@ -269,10 +252,9 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 				const parseAttempt = context.dateParser.parseDate(normalizedInput);
 
 				if (parseAttempt) {
-					// Store the ISO string with a special prefix
 					context.variables.set(
 						variableName,
-						`@date:${parseAttempt.moment.toISOString()}`,
+						encodeDateToken(parseAttempt.moment.toISOString()),
 					);
 				} else {
 					throw new Error(
@@ -286,10 +268,8 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 			}
 		}
 
-		// Format the date based on what's stored. Shared with both preview
-		// formatters, which resolve an ANSWERED {{VDATE:}} through the same
-		// helper so the one-page form's preview shows the date the user just
-		// picked rather than today's (#1589).
+		// Shared with both preview formatters, so the one-page form's preview shows
+		// the date the user just picked rather than today.
 		const rendered = renderStoredDateVariable(
 			context.variables.get(variableName),
 			dateFormat,

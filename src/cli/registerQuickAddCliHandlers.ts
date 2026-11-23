@@ -1,6 +1,6 @@
 import type { CliData, CliFlags } from "obsidian";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
 import { checkChoiceHandler, listChoicesHandler, previewPackageHandler } from "./inspectChoices";
 import { CHECK_FLAGS, INTERACTIVE_FLAGS, LIST_FLAGS, PREVIEW_FLAGS, RUN_FLAGS, RUN_TEMPLATE_FLAGS, SUGGEST_FLAGS } from "./params";
 import { obsidianSuggestSource, suggestHandler } from "./suggestCli";
@@ -37,7 +37,7 @@ const CLI_COMMANDS = {
 	aiTestConnection: AI_TEST_CONNECTION_COMMAND,
 } as const;
 
-export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
+export function registerQuickAddCliHandlers(plugin: ChoiceRuntimePlugin): boolean {
 	const cliTarget = plugin as unknown as RegisterCliHandlerTarget;
 	if (typeof cliTarget.registerCliHandler !== "function") {
 		log.logMessage(
@@ -120,7 +120,7 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		AI_TEST_CONNECTION_FLAGS,
 		(params: CliData) => aiTestConnectionHandler(plugin, params),
 	);
-	cliTarget.registerCliHandler.call(cliTarget,
+	register(
 		CLI_COMMANDS.saveClipboardImage,
 		"Save a 1x1 PNG as a vault attachment using QuickAdd clipboard-image naming",
 		SAVE_CLIPBOARD_IMAGE_FLAGS,

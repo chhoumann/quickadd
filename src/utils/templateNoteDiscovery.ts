@@ -4,6 +4,7 @@ import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import { escapesVaultBoundary } from "src/utils/vaultPathBoundary";
 import { resolveTemplatePath } from "src/utils/templateFolderUtils";
+import { normalizeVaultPath } from "src/utils/pathUtils";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 
 const EXISTING_PREFIX = "@quickadd-existing-note:";
@@ -21,11 +22,9 @@ export type DiscoveryCandidate = {
 	item: string;
 	exactKeys: string[];
 	/**
-	 * The fuzzy-SEARCH text, not a label: basename + path + aliases, joined. The
-	 * in-app picker feeds this to the matcher and draws the visible row from
-	 * `renderItem` instead. A remote client has no `renderItem`, so it gets
-	 * {@link DiscoveryCandidate.title} - sending `display` there would have shown
-	 * rows reading "Tom Areas/Work/Tom.md Thomas" (#1614).
+	 * The fuzzy-search text, not a label: basename + path + aliases, joined. The
+	 * in-app picker draws the visible row from `renderItem`; a remote client has
+	 * none, so it gets {@link DiscoveryCandidate.title} instead.
 	 */
 	display: string;
 	/** The human label: the note's basename, or the unresolved link's target. */
@@ -61,10 +60,6 @@ function decodeUnresolvedTitle(item: string): string {
 
 export function normalizedKey(value: string): string {
 	return value.trim().replace(/\.md$/i, "").toLowerCase();
-}
-
-function normalizeVaultPath(value: string): string {
-	return value.trim().replace(/^\/+/, "");
 }
 
 function isLiteralMarkdownPath(path: string): boolean {
@@ -129,9 +124,7 @@ function normalizeUnresolvedTarget(raw: string): string | null {
 }
 
 function collectUnresolvedTargets(app: App): string[] {
-	const unresolvedLinks =
-		(app.metadataCache as { unresolvedLinks?: Record<string, Record<string, number>> })
-			.unresolvedLinks ?? {};
+	const unresolvedLinks = app.metadataCache.unresolvedLinks ?? {};
 	const targets = new Map<string, string>();
 
 	for (const links of Object.values(unresolvedLinks)) {

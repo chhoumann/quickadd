@@ -1,11 +1,11 @@
 import { setIcon, type App, type SearchMatches } from "obsidian";
+import { normalizeForSearch } from "src/utils/vaultIndex/normalizeForSearch";
 import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
 import {
 	createRenderFallbackWarner,
 	dispatchCompletion,
-	normalizeForSearch,
-	normalizeQuery,
+	normalizeDisplayItem,
 	renderHighlightRanges,
 } from "./utils";
 
@@ -84,7 +84,7 @@ export class SuggesterInputSuggest extends TextInputSuggest<SuggesterOption> {
 	}
 
 	getSuggestions(query: string): SuggesterOption[] {
-		const text = normalizeQuery(query);
+		const text = normalizeDisplayItem(query);
 		const options = this.config.getOptions();
 		const available = this.config.multiSelect
 			? options.filter((option) => !this.isSelected(option))

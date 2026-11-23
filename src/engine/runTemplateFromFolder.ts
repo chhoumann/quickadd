@@ -3,7 +3,7 @@ import { Notice } from "obsidian";
 import { VALUE_SYNTAX } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import type QuickAdd from "../main";
+import type { PluginManifestInfo, SettingsProvider, TemplateFileSource } from "../types/pluginContext";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { normalizeTemplateFolderPaths } from "../utils/templateFolderUtils";
@@ -37,11 +37,9 @@ function templateDisplayName(path: string): string {
  */
 export function createFolderTemplateChoice(templatePath: string): ITemplateChoice {
 	const choice = new TemplateChoice(templateDisplayName(templatePath));
-	// TemplateChoice's constructor mints a fresh uuid. This choice is ephemeral
-	// and rebuilt on every invocation, so a per-run id would give the note-name
-	// prompt a new input-draft key each time and break cancel-and-retry recovery
-	// (issue #1546). Derive it from the template instead: stable across runs,
-	// distinct per template.
+	// TemplateChoice's constructor mints a fresh uuid, which would give the
+	// note-name prompt a new input-draft key on every run and break
+	// cancel-and-retry recovery. Derive a stable id from the template instead.
 	choice.id = `folder-template:${templatePath}`;
 	choice.templatePath = templatePath;
 	// Creating a brand-new note from a template — land in it, like the user expects.
@@ -52,7 +50,7 @@ export function createFolderTemplateChoice(templatePath: string): ITemplateChoic
 }
 
 /** Whether at least one template folder is configured (empty = whole vault, which we refuse). */
-export function hasConfiguredTemplateFolders(plugin: QuickAdd): boolean {
+export function hasConfiguredTemplateFolders(plugin: SettingsProvider): boolean {
 	return (
 		normalizeTemplateFolderPaths(plugin.settings.templateFolderPaths).length > 0
 	);
@@ -94,7 +92,7 @@ async function pickTemplateFile(
 
 /**
  * Runs a template straight from the configured template folder, prompting for
- * the new note name — without a dedicated Template choice (issue #1023).
+ * the new note name, without a dedicated Template choice.
  *
  * Interactive (no templatePath): require a configured template folder, list its
  * templates, then run the picked one. Non-interactive (templatePath given, e.g.
@@ -102,7 +100,7 @@ async function pickTemplateFile(
  */
 export async function runTemplateFromFolder(
 	app: App,
-	plugin: QuickAdd,
+	plugin: SettingsProvider & TemplateFileSource & PluginManifestInfo,
 	params: RunTemplateFromFolderParams,
 ): Promise<void> {
 	try {

@@ -10,7 +10,7 @@ class CaptureFormatterTest extends FormatterStub {
         // Simulate complete formatting pipeline
         let output = input;
         output = await this.replaceVariableInString(output);
-        output = this.replaceTitleInString(output);
+        output = this.replaceCurrentFileTokensInString(output, { title: true });
         return output;
     }
 

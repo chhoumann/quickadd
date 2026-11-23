@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
-import type QuickAdd from "./main";
+import type { ChoiceRuntimePlugin } from "./types/pluginContext";
+import type { FormatterExecutionRuntime } from "./formatters/formatterRuntime";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type { ChoiceChain } from "./engine/choiceChain";
 import { CompleteFormatter } from "./formatters/completeFormatter";
@@ -20,7 +21,7 @@ import {
 	type RequestInputsOptions,
 } from "./api/requestInputs";
 import type { RequestInputSpec } from "./api/requestInputOptions";
-import { abortIfHeadless } from "./interactive/routePrompt";
+import { routePrompt, scriptPromptHeadless } from "./interactive/routePrompt";
 import { createAiApi } from "./api/aiApi";
 import { createFieldSuggestionsApi } from "./api/fieldSuggestionsApi";
 
@@ -58,8 +59,9 @@ export class QuickAddApi {
 	 */
 	public static GetApi(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
 		choiceExecutor: IChoiceExecutor,
+		runtime: FormatterExecutionRuntime,
 		chain?: ChoiceChain,
 	) {
 		const format = async (
@@ -80,7 +82,7 @@ export class QuickAddApi {
 			// Restored on failure too: answers given before a cancelled prompt must
 			// not stay behind for the caller's later format calls and Macro steps.
 			try {
-				const formatter = new CompleteFormatter(app, plugin, choiceExecutor);
+				const formatter = new CompleteFormatter(app, plugin, choiceExecutor, runtime);
 				if (chain) formatter.choiceChain = chain;
 				return await formatter.formatFileContent(input);
 			} finally {
@@ -144,60 +146,54 @@ export class QuickAddApi {
 		return {
 			requestInputs: ((inputs: readonly RequestInputSpec<any>[], options?: RequestInputsOptions) =>
 				requestInputs(app, choiceExecutor, inputs, options)) as RequestInputs,
-			inputPrompt: async (
+			inputPrompt: (
 				header: string,
 				placeholder?: string,
 				value?: string,
 				options?: InputPromptOptions,
-			) => {
-				const provider = choiceExecutor?.promptProvider;
-				abortIfHeadless(choiceExecutor, "an input prompt", header);
-				if (provider) return provider.inputPrompt(header, placeholder, value);
-				return QuickAddApi.inputPrompt(app, header, placeholder, value, options);
-			},
-			datePrompt: async (
+			) =>
+				routePrompt(choiceExecutor, {
+					remote: (provider) => provider.inputPrompt(header, placeholder, value),
+					headless: scriptPromptHeadless("an input prompt", header),
+					app: () => QuickAddApi.inputPrompt(app, header, placeholder, value, options),
+				}),
+			datePrompt: (
 				header: string,
 				options?: {
 					placeholder?: string;
 					defaultValue?: string;
 					dateFormat?: string;
 				},
-			) => {
-				const provider = choiceExecutor?.promptProvider;
-				abortIfHeadless(choiceExecutor, "a date prompt", header);
-				if (provider) return provider.datePrompt(header, options);
-				return QuickAddApi.datePrompt(app, header, options);
-			},
-			wideInputPrompt: async (
+			) =>
+				routePrompt(choiceExecutor, {
+					remote: (provider) => provider.datePrompt(header, options),
+					headless: scriptPromptHeadless("a date prompt", header),
+					app: () => QuickAddApi.datePrompt(app, header, options),
+				}),
+			wideInputPrompt: (
 				header: string,
 				placeholder?: string,
 				value?: string,
 				options?: InputPromptOptions,
-			) => {
-				const provider = choiceExecutor?.promptProvider;
-				abortIfHeadless(choiceExecutor, "a wide input prompt", header);
-				if (provider) return provider.wideInputPrompt(header, placeholder, value);
-				return QuickAddApi.wideInputPrompt(
-					app,
-					header,
-					placeholder,
-					value,
-					options,
-				);
-			},
-			yesNoPrompt: async (header: string, text?: string) => {
-				const provider = choiceExecutor?.promptProvider;
-				abortIfHeadless(choiceExecutor, "a yes/no prompt", header);
-				if (provider) return provider.yesNoPrompt(header, text);
-				return QuickAddApi.yesNoPrompt(app, header, text);
-			},
-			infoDialog: async (header: string, text: string[] | string) => {
-				const provider = choiceExecutor?.promptProvider;
-				abortIfHeadless(choiceExecutor, "an info dialog", header);
-				if (provider) return provider.infoDialog(header, text);
-				return QuickAddApi.infoDialog(app, header, text);
-			},
-			suggester: async (
+			) =>
+				routePrompt(choiceExecutor, {
+					remote: (provider) => provider.wideInputPrompt(header, placeholder, value),
+					headless: scriptPromptHeadless("a wide input prompt", header),
+					app: () => QuickAddApi.wideInputPrompt(app, header, placeholder, value, options),
+				}),
+			yesNoPrompt: (header: string, text?: string) =>
+				routePrompt(choiceExecutor, {
+					remote: (provider) => provider.yesNoPrompt(header, text),
+					headless: scriptPromptHeadless("a yes/no prompt", header),
+					app: () => QuickAddApi.yesNoPrompt(app, header, text),
+				}),
+			infoDialog: (header: string, text: string[] | string) =>
+				routePrompt(choiceExecutor, {
+					remote: (provider) => provider.infoDialog(header, text),
+					headless: scriptPromptHeadless("an info dialog", header),
+					app: () => QuickAddApi.infoDialog(app, header, text),
+				}),
+			suggester: (
 				displayItems:
 					| string[]
 					| ((value: string, index?: number, arr?: string[]) => string),
@@ -205,45 +201,24 @@ export class QuickAddApi {
 				placeholder?: string,
 				allowCustomInput = false,
 				options?: { renderItem?: (value: string, el: HTMLElement) => void; },
-			) => {
-				// Route to a remote interactive session (Raycast) when one is driving
-				// this execution; otherwise open the Obsidian suggester modal.
-				abortIfHeadless(choiceExecutor, "a suggester", placeholder);
-				const provider = choiceExecutor?.promptProvider;
-				if (provider) {
-					return provider.suggester(
-						displayItems,
-						actualItems,
-						placeholder,
-						allowCustomInput,
-					);
-				}
-				return QuickAddApi.suggester(
-					app,
-					displayItems,
-					actualItems,
-					placeholder,
-					allowCustomInput,
-					options,
-				);
-			},
-			checkboxPrompt: async (
+			) =>
+				routePrompt(choiceExecutor, {
+					remote: (provider) =>
+						provider.suggester(displayItems, actualItems, placeholder, allowCustomInput),
+					headless: scriptPromptHeadless("a suggester", placeholder),
+					app: () =>
+						QuickAddApi.suggester(app, displayItems, actualItems, placeholder, allowCustomInput, options),
+				}),
+			checkboxPrompt: (
 				items: string[],
 				selectedItems?: string[],
 				header?: string,
-			) => {
-				abortIfHeadless(choiceExecutor, "a checkbox prompt", header);
-				const provider = choiceExecutor?.promptProvider;
-				if (provider) {
-					return provider.checkboxPrompt(items, selectedItems, header);
-				}
-				return QuickAddApi.checkboxPrompt(
-					app,
-					items,
-					selectedItems,
-					header,
-				);
-			},
+			) =>
+				routePrompt(choiceExecutor, {
+					remote: (provider) => provider.checkboxPrompt(items, selectedItems, header),
+					headless: scriptPromptHeadless("a checkbox prompt", header),
+					app: () => QuickAddApi.checkboxPrompt(app, items, selectedItems, header),
+				}),
 			// Still rejects when the user cancels, so an awaiting script stops. But
 			// callers often wire this to a button and never catch it, and pressing
 			// Escape there must not show up as an error.
@@ -254,7 +229,7 @@ export class QuickAddApi {
 				return found ? summarizeChoice(found) : null;
 			},
 			pickChoice: (options?: { placeholder?: string }) =>
-				handledIfCancelled(pickChoice(plugin, options)),
+				handledIfCancelled(pickChoice(plugin, choiceExecutor, options)),
 			importPackage: (packageJson: string) => importPackage(plugin, packageJson),
 			applyTemplateToActiveFile: async (
 				templatePath: string,
@@ -282,7 +257,7 @@ export class QuickAddApi {
 
 				const snapshot = snapshotVariables(choiceExecutor.variables);
 				try {
-					return await applyTemplateToNote(app, plugin, {
+					return await applyTemplateToNote(app, plugin, runtime, {
 						templatePath,
 						mode: options?.mode,
 						choiceExecutor,
@@ -293,7 +268,7 @@ export class QuickAddApi {
 				}
 			},
 			format,
-			ai: createAiApi(app, plugin, choiceExecutor, format),
+			ai: createAiApi(app, choiceExecutor, format),
 			utility: {
 				getClipboard: async () => {
 					return await navigator.clipboard.readText();

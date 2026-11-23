@@ -1,7 +1,7 @@
 /**
  * The ctrl/cmd+shift chord family shared by the input prompts. Checking shift
- * is what keeps every member clear of the wide prompt's ctrl/cmd+Enter submit
- * (issue #1259), and `isComposing` keeps IME composition out of all of them.
+ * keeps every member clear of the wide prompt's ctrl/cmd+Enter submit, and
+ * `isComposing` keeps IME composition out of all of them.
  */
 function isModShiftShortcut(evt: KeyboardEvent, key: string): boolean {
 	return (

@@ -59,6 +59,7 @@ import type { IMacro } from "../types/macros/IMacro";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { runAIAssistant } from "../ai/AIAssistant";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const runAIAssistantMock = runAIAssistant as unknown as ReturnType<typeof vi.fn>;
 
@@ -96,6 +97,7 @@ function createEngine(commands: ICommand[]) {
 	return new MacroChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		choice,
 		choiceExecutor,
 		new Map<string, unknown>()

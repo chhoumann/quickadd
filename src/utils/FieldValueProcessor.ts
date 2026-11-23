@@ -1,5 +1,4 @@
 import { FIELD_VAR_REGEX_WITH_FILTERS } from "../constants";
-import { FieldValueDeduplicator } from "./FieldValueDeduplicator";
 import type { FieldFilter } from "./FieldSuggestionParser";
 
 interface ProcessedValues {
@@ -15,9 +14,6 @@ export class FieldValueProcessor {
 		"i",
 	);
 
-	/**
-	 * Process field values with deduplication, defaults, and sorting
-	 */
 	static processValues(
 		rawValues: Set<string>,
 		filters: FieldFilter
@@ -27,13 +23,9 @@ export class FieldValueProcessor {
 			(value) => !this.isUnresolvedFieldToken(value),
 		);
 
-		const deduplicationResult = FieldValueDeduplicator.deduplicate(
-			values,
-			filters.caseSensitive,
-		);
+		const deduplicationResult = this.deduplicate(values, filters.caseSensitive);
 		values = deduplicationResult.values;
 
-		// Handle default values
 		const { processedValues, hasDefault } = this.applyDefaultValues(values, filters);
 		values = processedValues;
 
@@ -45,13 +37,37 @@ export class FieldValueProcessor {
 		};
 	}
 
+	/**
+	 * Drops values that repeat an earlier one (under the case and diacritic fold
+	 * unless `caseSensitive`), keeping the first spelling, then sorts.
+	 */
+	static deduplicate(
+		values: string[],
+		caseSensitive = false,
+	): { values: string[]; duplicatesRemoved: number } {
+		const seen = new Map<string, string>();
+		for (const value of values) {
+			const key = caseSensitive ? value : this.normalizeForComparison(value);
+			if (!seen.has(key)) seen.set(key, value);
+		}
+
+		const deduplicated = Array.from(seen.values());
+		deduplicated.sort((a, b) =>
+			caseSensitive
+				? a.localeCompare(b)
+				: a.toLowerCase().localeCompare(b.toLowerCase()),
+		);
+
+		return {
+			values: deduplicated,
+			duplicatesRemoved: values.length - deduplicated.length,
+		};
+	}
+
 	private static isUnresolvedFieldToken(value: string): boolean {
 		return this.unresolvedFieldTokenRegex.test(value.trim());
 	}
 
-	/**
-	 * Apply default value logic based on filters
-	 */
 	private static applyDefaultValues(
 		values: string[],
 		filters: FieldFilter
@@ -95,14 +111,10 @@ export class FieldValueProcessor {
 	}
 
 	/**
-	 * Promotes `value` to the front of an already-processed suggestion list,
-	 * removing any existing entry that matches under the same case fold used for
-	 * deduplication (issue #1429). Used for a context-derived default
-	 * (`default-from:active`) so it appears first without duplicating an existing
-	 * suggestion, mirroring the `default-always` branch of {@link applyDefaultValues}
-	 * — but applied AFTER vault collection, so it never perturbs the collection
-	 * cache key. The promoted entry keeps the supplied value's casing (the active
-	 * note's current value), which is the value the user is inheriting.
+	 * Promotes `value` to the front of an already-processed list, removing any
+	 * entry that matches under the dedup case fold. Used for `default-from:active`,
+	 * applied after vault collection so it never perturbs the collection cache
+	 * key. The promoted entry keeps the active note's casing.
 	 */
 	static promoteValueToFront(
 		values: string[],
@@ -118,12 +130,9 @@ export class FieldValueProcessor {
 	}
 
 	/**
-	 * Returns the entry in `values` that matches `value` under the dedup case fold,
-	 * or `value` itself when none does (issue #1429). Used to map an active-note
-	 * preselection onto the existing (vault-cased) suggestion before handing it to
-	 * the multi-select picker, so a case variant (active `Done` vs collected `done`)
-	 * toggles the existing option instead of adding a duplicate custom row. With
-	 * `caseSensitive` the value is returned unchanged.
+	 * The entry in `values` matching `value` under the dedup case fold, or `value`
+	 * itself, so an active-note preselection toggles the existing option instead of
+	 * adding a case-variant custom row. Unchanged with `caseSensitive`.
 	 */
 	static canonicalizeAgainst(
 		values: string[],
@@ -141,9 +150,8 @@ export class FieldValueProcessor {
 	}
 
 	/**
-	 * Normalize a value for case-insensitive comparison, mirroring
-	 * FieldValueDeduplicator's fold (Unicode NFD + diacritic strip + lowercase)
-	 * so default-value matching is consistent with case-insensitive dedup.
+	 * The case-insensitive fold (Unicode NFD + diacritic strip + lowercase) that
+	 * deduplication, default matching and promotion all compare under.
 	 */
 	private static normalizeForComparison(value: string): string {
 		return value
@@ -152,9 +160,6 @@ export class FieldValueProcessor {
 			.toLowerCase();
 	}
 
-	/**
-	 * Get suggestions with smart defaults based on existing patterns
-	 */
 	static getSmartDefaults(
 		fieldName: string,
 		existingValues: string[]
@@ -173,27 +178,20 @@ export class FieldValueProcessor {
 
 		const normalizedFieldName = fieldName.toLowerCase();
 
-		// Check for exact matches. `commonDefaults` is a plain object, so a bare
-		// `[normalizedFieldName]` lookup resolves inherited members for magic field
-		// names: `{{FIELD:constructor}}` yields the Object function (truthy, length
-		// 1) instead of a `string[]`, which then crashes `.slice`/`.map` in
-		// completeFormatter and aborts the choice. The field name flows unsanitized
-		// from a `{{FIELD:<name>}}` token (and may come from an imported package
-		// template), so restrict to own keys.
+		// Own keys only: a field name like `constructor` from an untrusted token
+		// would otherwise resolve an inherited member and crash later.
 		if (
 			Object.prototype.hasOwnProperty.call(commonDefaults, normalizedFieldName)
 		) {
 			return commonDefaults[normalizedFieldName];
 		}
 
-		// Check for partial matches
 		for (const [key, defaults] of Object.entries(commonDefaults)) {
 			if (normalizedFieldName.includes(key) || key.includes(normalizedFieldName)) {
 				return defaults;
 			}
 		}
 
-		// If we have existing values, suggest the most common ones
 		if (existingValues.length > 0) {
 			const valueCounts = new Map<string, number>();
 			
@@ -209,5 +207,4 @@ export class FieldValueProcessor {
 
 		return [];
 	}
-
 }

@@ -27,3 +27,11 @@ export interface OpenFileOptions {
   /** Optional ephemeral state passed to setViewState */
   eState?: Record<string, unknown>;
 }
+
+/** How a Template or Capture choice opens the file it wrote. */
+export interface FileOpeningSettings {
+  location: OpenLocation;
+  direction: "vertical" | "horizontal";
+  mode: FileViewMode2;
+  focus: boolean;
+}

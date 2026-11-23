@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -71,7 +70,6 @@ vi.mock("../utils/fileOpening", () => ({
 vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	getTemplater: vi.fn(() => ({})),
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 	withTemplaterFileCreationSuppressed: vi.fn(async (_app: unknown, _p: string, run: () => unknown) => await run()),
@@ -99,6 +97,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { settingsStore } from "../settingsStore";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const realCanvasCapture = await vi.importActual<typeof CanvasCapture>("./canvasCapture");
 
@@ -176,7 +175,7 @@ function harness({
 	choice.format = { enabled: true, format: "captured\n" };
 	configure(choice);
 	const plugin = { settings: { ...settingsStore.getState(), showCaptureNotification: false } } as never;
-	return { app, executor, contents, engine: new CaptureChoiceEngine(app, plugin, choice as ICaptureChoice, executor) };
+	return { app, executor, contents, engine: new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice as ICaptureChoice, executor) };
 }
 
 describe("CaptureChoiceEngine and the run's current note", () => {

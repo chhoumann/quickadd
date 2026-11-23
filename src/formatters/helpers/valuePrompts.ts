@@ -1,15 +1,15 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import type { InputPromptOptions } from "../../types/inputPrompt";
-import type { PromptContext } from "../formatter";
+import type { PromptContext } from "../valueFormatter";
 import { buildPromptContextLine, scopeShowsDestination, type PromptScopeKind, type PromptRunContext } from "../promptScope";
 import InputPrompt from "../../gui/InputPrompt";
 import InputSuggester from "../../gui/InputSuggester/inputSuggester";
 import GenericSuggester from "../../gui/GenericSuggester/genericSuggester";
 import MultiSuggester from "../../gui/MultiSuggester/multiSuggester";
 import VDateInputPrompt from "../../gui/VDateInputPrompt/VDateInputPrompt";
-import { UserCancelError } from "../../errors/UserCancelError";
-import { isCancellationError } from "../../utils/errorUtils";
+import { promptOrCancel } from "./promptOrCancel";
+import { defaultDateVariableFormat } from "../../utils/dateTokenCodec";
 
 export interface PromptRuntime {
 	app: App;
@@ -22,7 +22,7 @@ export interface PromptRuntime {
 
 export async function promptForVariable(runtime: PromptRuntime, header?: string,
 	context?: PromptContext): Promise<string> {
-	// Route to a remote interactive session (Raycast) when one is driving.
+	// Route to a remote interactive session when one is driving.
 	const provider = runtime.executor?.promptProvider;
 	if (provider) {
 		if (context?.type === "VDATE") {
@@ -30,7 +30,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 				context.label ?? header ?? "Enter date",
 				{
 					defaultValue: context.defaultValue,
-					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
+					dateFormat: context.dateFormat ?? defaultDateVariableFormat(!!context.withTime),
 					// Carry |time/|datetime so the remote client renders a time
 					// picker; otherwise the picked time is silently dropped.
 					withTime: context.withTime,
@@ -56,10 +56,10 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 	runtime.assertInteractivePrompt(
 		header ? `{{VALUE:${header}}}` : "a template variable",
 	);
-	try {
+	return await promptOrCancel(async () => {
 		// A |label: names the prompt; otherwise the variable name does. The name
 		// stays the variable's key either way. The context line adds which choice
-		// is asking and where the answer lands (issue #1546).
+		// is asking and where the answer lands.
 		const variableTitle = context?.label ?? header ?? "Enter value";
 		const showDestination = scopeShowsDestination(runtime.scope);
 		const namedContextLine = buildPromptContextLine(
@@ -73,7 +73,6 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 			{ elide: false, showDestination },
 		);
 
-		// Use VDateInputPrompt for VDATE variables
 		if (context?.type === "VDATE") {
 			return await VDateInputPrompt.Prompt(
 				runtime.app,
@@ -82,7 +81,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 					? "Enter a date & time (e.g., 'tomorrow at 3pm', '2025-12-25 14:30')"
 					: "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 				context.defaultValue,
-				context.dateFormat ?? "YYYY-MM-DD",
+				context.dateFormat ?? defaultDateVariableFormat(!!context.withTime),
 				{
 					optional: context.optional,
 					contextLine: namedContextLine,
@@ -96,7 +95,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 		// {{VALUE:x|type:checkbox}} renders a forced true/false picker (no
 		// free text) so the written `x: true` round-trips as a Checkbox. The
 		// |label becomes the picker's title so the user knows which property
-		// they are setting (#202).
+		// they are setting.
 		if (context?.inputTypeOverride === "checkbox") {
 			return await GenericSuggester.Suggest(
 				runtime.app,
@@ -108,7 +107,6 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 			);
 		}
 
-		// Use default prompt for other variables
 		return await new InputPrompt().factory(context?.inputTypeOverride).Prompt(
 			runtime.app,
 			variableTitle,
@@ -122,12 +120,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 				namedContextLineFull,
 			),
 		);
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }
 
 export async function suggestForValue(runtime: PromptRuntime, suggestedValues: string[],
@@ -138,9 +131,8 @@ export async function suggestForValue(runtime: PromptRuntime, suggestedValues: s
 		displayValues?: string[];
 		optional?: boolean;
 	}): Promise<string> {
-	// Route to a remote interactive session (Raycast) when one is driving this
-	// run - covers `{{VALUE:a,b,c}}` option lists in a template/capture format
-	// (e.g. a rating field) that the requirement collector didn't pre-satisfy.
+	// Route to a remote interactive session when one is driving this run, for
+	// `{{VALUE:a,b,c}}` option lists the requirement collector did not pre-satisfy.
 	const provider = runtime.executor?.promptProvider;
 	if (provider) {
 		// Formatter tokens resolve to strings; the provider hands back the
@@ -157,7 +149,7 @@ export async function suggestForValue(runtime: PromptRuntime, suggestedValues: s
 	runtime.assertInteractivePrompt(
 		context?.variableKey ? `{{VALUE:${context.variableKey}}}` : "a value choice",
 	);
-	try {
+	return await promptOrCancel(async () => {
 		const displayValues = context?.displayValues ?? suggestedValues;
 		if (allowCustomInput) {
 			return await InputSuggester.Suggest(
@@ -180,12 +172,7 @@ export async function suggestForValue(runtime: PromptRuntime, suggestedValues: s
 			undefined,
 			context?.optional ? { skippable: true } : undefined,
 		);
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }
 
 export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValues: string[],
@@ -197,7 +184,7 @@ export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValu
 		optional?: boolean;
 	}): Promise<string[]> {
 	const displayValues = context?.displayValues ?? suggestedValues;
-	// Route to a remote interactive session (Raycast) when one is driving.
+	// Route to a remote interactive session when one is driving.
 	const provider = runtime.executor?.promptProvider;
 	if (provider) {
 		return await provider.suggesterMulti(displayValues, suggestedValues, {
@@ -210,7 +197,7 @@ export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValu
 			? `{{VALUE:${context.variableKey}}}`
 			: "a multi-select value",
 	);
-	try {
+	return await promptOrCancel(async () => {
 		return await MultiSuggester.Suggest(
 			runtime.app,
 			displayValues,
@@ -223,10 +210,5 @@ export async function suggestForValueMulti(runtime: PromptRuntime, suggestedValu
 				...(context?.optional ? { skippable: true } : {}),
 			},
 		);
-	} catch (error) {
-		if (isCancellationError(error)) {
-			throw new UserCancelError("Input cancelled by user");
-		}
-		throw error;
-	}
+	});
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AIProvider, Model } from "./Provider";
 import type { NormalizedChatRequest } from "./tools/NormalizedTools";
 
-import { storeState, mocks, makeApp } from "../../tests/helpers/ai/requestHarness";
+import { storeState, mocks } from "../../tests/helpers/ai/requestHarness";
 
 const { requestUrlMock, noticeMock } = mocks;
 
@@ -108,7 +108,7 @@ describe("function tools on reasoning models behind a Chat Completions gateway",
 			.mockReturnValueOnce(Promise.resolve(toolsWhileReasoningFailure()))
 			.mockReturnValueOnce(Promise.resolve(toolCallSuccess()));
 
-		const res = await chatRequest(makeApp(), "sk", gpt6, gatewayProvider, toolRequest());
+		const res = await chatRequest("sk", gpt6, gatewayProvider, toolRequest());
 
 		expect(res.toolCalls?.map((call) => call.name)).toEqual(["get_weather"]);
 		expect(requestUrlMock).toHaveBeenCalledTimes(2);
@@ -124,7 +124,6 @@ describe("function tools on reasoning models behind a Chat Completions gateway",
 
 		await expect(
 			chatRequest(
-				makeApp(),
 				"sk",
 				gpt6,
 				gatewayProvider,
@@ -148,7 +147,7 @@ describe("function tools on reasoning models behind a Chat Completions gateway",
 		);
 
 		await expect(
-			chatRequest(makeApp(), "sk", gpt6, gatewayProvider, toolRequest()),
+			chatRequest("sk", gpt6, gatewayProvider, toolRequest()),
 		).rejects.toThrow(/Invalid schema/);
 		expect(requestUrlMock).toHaveBeenCalledTimes(1);
 	});
@@ -158,7 +157,7 @@ describe("function tools on reasoning models behind a Chat Completions gateway",
 			.mockReturnValueOnce(Promise.resolve(toolsWhileReasoningFailure()))
 			.mockReturnValueOnce(Promise.resolve(toolCallSuccess()));
 
-		await chatRequest(makeApp(), "sk", gpt6, gatewayProvider, toolRequest());
+		await chatRequest("sk", gpt6, gatewayProvider, toolRequest());
 
 		expect(requestUrlMock.mock.calls.map((call) => call[0].url)).toEqual([
 			"https://openrouter.ai/api/v1/chat/completions",
@@ -172,7 +171,7 @@ describe("function tools on reasoning models behind a Chat Completions gateway",
 		);
 
 		await expect(
-			chatRequest(makeApp(), "sk", gpt6, gatewayProvider, {
+			chatRequest("sk", gpt6, gatewayProvider, {
 				messages: [{ role: "user", content: "hi" }],
 			}),
 		).rejects.toThrow();

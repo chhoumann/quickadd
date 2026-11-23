@@ -1,28 +1,27 @@
 import type { App, TFile } from "obsidian";
-import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter, hasFileFilter } from "./FieldSuggestionFileFilter";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import type { FieldFilter } from "./FieldSuggestionParser";
 import { FieldValueProcessor } from "./FieldValueProcessor";
 import { InlineFieldParser } from "./InlineFieldParser";
+import { getMetadataCacheTags } from "./obsidianInternals";
+import { noteTags } from "./tagNormalizer";
 
+// Arrays are JSON-encoded so element boundaries survive: ["A,B"] and
+// ["A", "B"] are different filters.
 export function generateFieldCacheKey(filters: FieldFilter): string {
 	const parts: string[] = [];
 	if (filters.folder) parts.push(`folder:${filters.folder}`);
-	if (filters.folders?.length) {
-		parts.push(`folders:${filters.folders.join(",")}`);
-	}
-	if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
+	if (filters.folders?.length) parts.push(`folders:${JSON.stringify(filters.folders)}`);
+	if (filters.tags) parts.push(`tags:${JSON.stringify(filters.tags)}`);
 	if (filters.inline) parts.push("inline:true");
 	if (filters.inlineCodeBlocks?.length) {
-		parts.push(`inline-code-blocks:${filters.inlineCodeBlocks.join(",")}`);
+		parts.push(`inline-code-blocks:${JSON.stringify(filters.inlineCodeBlocks)}`);
 	}
 	if (filters.caseSensitive) parts.push("case-sensitive:true");
-	if (filters.excludeFolders)
-		parts.push(`exclude-folders:${filters.excludeFolders.join(",")}`);
-	if (filters.excludeTags)
-		parts.push(`exclude-tags:${filters.excludeTags.join(",")}`);
-	if (filters.excludeFiles)
-		parts.push(`exclude-files:${filters.excludeFiles.join(",")}`);
+	if (filters.excludeFolders) parts.push(`exclude-folders:${JSON.stringify(filters.excludeFolders)}`);
+	if (filters.excludeTags) parts.push(`exclude-tags:${JSON.stringify(filters.excludeTags)}`);
+	if (filters.excludeFiles) parts.push(`exclude-files:${JSON.stringify(filters.excludeFiles)}`);
 	if (filters.defaultValue) parts.push(`default:${filters.defaultValue}`);
 	if (filters.defaultEmpty) parts.push("default-empty:true");
 	if (filters.defaultAlways) parts.push("default-always:true");
@@ -85,15 +84,7 @@ export async function collectFieldValuesRaw(
 }
 
 async function collectTagValues(app: App, filters: FieldFilter): Promise<Set<string>> {
-	const hasFileFilters =
-		Boolean(filters.folder) ||
-		Boolean(filters.folders?.length) ||
-		Boolean(filters.tags?.length) ||
-		Boolean(filters.excludeFolders?.length) ||
-		Boolean(filters.excludeTags?.length) ||
-		Boolean(filters.excludeFiles?.length);
-
-	if (!hasFileFilters) {
+	if (!hasFileFilter(filters)) {
 		const fromIndex = collectAllVaultTags(app);
 		if (fromIndex.size > 0) return fromIndex;
 	}
@@ -105,10 +96,7 @@ function collectAllVaultTags(app: App): Set<string> {
 	const values = new Set<string>();
 
 	try {
-		// @ts-expect-error - getTags exists in Obsidian but is not typed
-		const tagObj = app.metadataCache.getTags?.() as
-			| Record<string, number>
-			| undefined;
+		const tagObj = getMetadataCacheTags(app);
 
 		if (!tagObj) return values;
 
@@ -165,13 +153,7 @@ async function collectTagValuesFromFiles(
 	filters: FieldFilter,
 ): Promise<Set<string>> {
 	return collectFromFiles(app, filters, (file, values) => {
-		const metadata = app.metadataCache.getFileCache(file);
-		addValues(values, metadata?.frontmatter?.tags);
-		addValues(values, metadata?.frontmatter?.tag);
-		for (const entry of metadata?.tags ?? []) {
-			const tag = String(entry.tag ?? "").trim().replace(/^#/, "");
-			if (tag) values.add(tag);
-		}
+		for (const tag of noteTags(app.metadataCache.getFileCache(file))) values.add(tag);
 	});
 }
 

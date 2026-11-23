@@ -1,201 +1,135 @@
-import { describe, it, expect } from 'vitest';
-import { LINK_TO_CURRENT_FILE_REGEX, TITLE_REGEX } from '../constants';
-import * as positioning from './helpers/insertionPositioning';
+import { createFile, createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plugin";
+import { describe, expect, it, vi } from "vitest";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
-// Local helper mirroring Formatter.replaceLinkToCurrentFileInString,
-// but without importing Formatter (to avoid obsidian deps in tests).
-async function replaceLinkToCurrentFileInString(
-  input: string,
-  currentFileLink: string | null,
-): Promise<string> {
-  let output = input;
-  if (!currentFileLink && LINK_TO_CURRENT_FILE_REGEX.test(output)) {
-    throw new Error('Unable to get current file path.');
-  } else if (!currentFileLink) {
-    return output;
-  }
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
-  while (LINK_TO_CURRENT_FILE_REGEX.test(output)) {
-    output = output.replace(LINK_TO_CURRENT_FILE_REGEX, currentFileLink);
-  }
+import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 
-  return output;
-}
+const insertAfterChoice = (
+	after: string,
+	createIfNotFound = false,
+): ICaptureChoice =>
+	({
+		id: "test",
+		name: "Test Choice",
+		type: "Capture",
+		command: false,
+		captureTo: "Inbox.md",
+		captureToActiveFile: false,
+		captureToCanvasNodeId: "",
+		activeFileWritePosition: "cursor",
+		createFileIfItDoesntExist: { enabled: false, createWithTemplate: false, template: "" },
+		format: { enabled: false, format: "" },
+		prepend: false,
+		appendLink: false,
+		task: false,
+		insertAfter: {
+			enabled: true,
+			after,
+			insertAtEnd: false,
+			considerSubsections: false,
+			createIfNotFound,
+			createIfNotFoundLocation: "bottom",
+			inline: false,
+			replaceExisting: false,
+			blankLineAfterMatchMode: "auto",
+		},
+		insertBefore: { enabled: false, before: "", createIfNotFound: false, createIfNotFoundLocation: "top" },
+		newLineCapture: { enabled: false, direction: "below" },
+		openFile: false,
+		fileOpening: { location: "tab", direction: "vertical", mode: "default", focus: true },
+	}) as ICaptureChoice;
 
-// Helper mirroring CaptureChoiceFormatter.findSingleLineIndex (single-line
-// matching). `\n` escapes are expanded upstream in the real formatter before
-// search (issue #742), so there is no escape-stripping here — only a trimEnd,
-// matching production exactly. These cases use single-line, escape-free targets.
-function findInsertAfterIndex(lines: string[], rawTarget: string): number {
-  const target = rawTarget.trimEnd();
-  let partialIndex = -1;
+/** A formatter whose active note links as `[[Target Note]]`. */
+const formatterWithActiveNote = () => {
+	const app = createMockApp();
+	vi.mocked(app.workspace.getActiveFile).mockReturnValue(createFile("Target Note.md"));
+	vi.mocked(app.fileManager.generateMarkdownLink).mockReturnValue("[[Target Note]]");
+	return new CaptureChoiceFormatter(app, createCaptureFormatterPlugin());
+};
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trimStart();
+const capture = async (
+	formatter: CaptureChoiceFormatter,
+	choice: ICaptureChoice,
+	fileContent: string,
+	input: string,
+) => (await formatter.formatContentWithFile(input, choice, fileContent, createFile("Inbox.md"))).content;
 
-    if (line === target) return i;
+describe("Insert after - format syntax in the target", () => {
+	it("resolves {{linkcurrent}} and inserts after the existing link line", async () => {
+		const content = await capture(
+			formatterWithActiveNote(),
+			insertAfterChoice("{{linkcurrent}}"),
+			"# Inbox\n\n[[Target Note]]\nOther content",
+			"- [ ] Inserted task\n",
+		);
 
-    if (line.startsWith(target)) {
-      const suffix = line.slice(target.length);
-      if (/^\s*$/.test(suffix)) return i;
-      if (partialIndex === -1) partialIndex = i;
-      continue;
-    }
+		expect(content).toBe("# Inbox\n\n[[Target Note]]\n- [ ] Inserted task\nOther content");
+	});
 
-    const targetIndex = line.indexOf(target);
-    if (targetIndex !== -1) {
-      const suffix = line.slice(targetIndex + target.length);
-      if (/^\s*$/.test(suffix)) return i;
-      if (partialIndex === -1) partialIndex = i;
-    }
-  }
+	it("creates a missing {{linkcurrent}} target with the resolved link, not the token", async () => {
+		const content = await capture(
+			formatterWithActiveNote(),
+			insertAfterChoice("{{linkcurrent}}", true),
+			"# Empty\n",
+			"CONTENT\n",
+		);
 
-  return partialIndex;
-}
+		expect(content).toBe("# Empty\n[[Target Note]]\nCONTENT\n");
+	});
 
-// Thin adapter over the PRODUCTION splice helper (non-task path), so these
-// simulation tests exercise the real semantics instead of a frozen local copy
-// (which had already drifted: it lacked the separator guard for text without
-// a trailing newline). Every target here is found, so pos is always >= 0.
-function insertTextAfterPositionInBody(text: string, body: string, pos: number): string {
-  return positioning.insertTextAfterPositionInBody(text, body, pos, false).content;
-}
+	it("resolves {{title}} and inserts after the matching title line", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setTitle("My Title");
 
-describe('Insert after — {{linkcurrent}} resolution', () => {
-  it('resolves {{linkcurrent}} in the target and inserts after the actual link line', async () => {
-    const currentLink = '[[Target Note]]';
-    // Simulate a file that already contains a link to the current file
-    const fileContent = [
-      '# Inbox',
-      '',
-      currentLink,
-      'Other content',
-    ].join('\n');
+		const content = await capture(formatter, insertAfterChoice("{{title}}"), "# Inbox\nMy Title\nBody", "Inserted\n");
 
-    const rawTarget = '{{linkcurrent}}';
+		expect(content).toBe("# Inbox\nMy Title\nInserted\nBody");
+	});
 
-    // Sanity: ensure regex detects the token
-    expect(LINK_TO_CURRENT_FILE_REGEX.test(rawTarget)).toBe(true);
+	it("creates a missing {{title}} target with the resolved title, not the token", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setTitle("My Title");
 
-    const resolvedTarget = await replaceLinkToCurrentFileInString(rawTarget, currentLink);
-    expect(resolvedTarget).toBe(currentLink);
+		const content = await capture(formatter, insertAfterChoice("{{title}}", true), "# Empty\n", "CONTENT\n");
 
-    const lines = fileContent.split('\n');
-    const idx = findInsertAfterIndex(lines, resolvedTarget);
-    expect(idx).toBe(2); // Should match the existing link line
-
-    const newContent = insertTextAfterPositionInBody('- [ ] Inserted task\n', fileContent, idx);
-    const expected = [
-      '# Inbox',
-      '',
-      '[[Target Note]]',
-      '- [ ] Inserted task',
-      'Other content',
-    ].join('\n');
-
-    expect(newContent).toBe(expected);
-  });
-
-  it('creates the line with resolved link (not literal token) when not found', async () => {
-    const currentLink = '[[Target Note]]';
-    const fileContent = '# Empty\n';
-    const rawTarget = '{{linkcurrent}}';
-
-    const resolvedTarget = await replaceLinkToCurrentFileInString(rawTarget, currentLink);
-    expect(resolvedTarget).toBe(currentLink);
-
-    // Simulate the create-if-not-found flow: build the header line + formatted content
-    const insertAfterLineAndFormatted = `${resolvedTarget}\nCONTENT`; // mirrors formatter behavior
-    const newContent = `${fileContent}\n${insertAfterLineAndFormatted}`.replace(/\n\n+$/, '\n');
-
-    expect(newContent.includes('[[Target Note]]')).toBe(true);
-    expect(newContent.includes('{{linkcurrent}}')).toBe(false);
-  });
+		expect(content).toBe("# Empty\nMy Title\nCONTENT\n");
+	});
 });
 
-// Local helper mirroring Formatter.replaceTitleInString without importing it
-function replaceTitleInStringLocal(input: string, title: string): string {
-  let output = input;
-  while (TITLE_REGEX.test(output)) {
-    output = output.replace(TITLE_REGEX, title);
-  }
-  return output;
-}
+describe("Insert after - table separator targets", () => {
+	it("matches a table separator row whose last cell is the target", async () => {
+		const content = await capture(
+			formatterWithActiveNote(),
+			insertAfterChoice("| ----- |"),
+			[
+				"| Name          | Quantity | HH:MM |",
+				"| ------------- | -------- | ----- |",
+				"| data          | 5        | 10:00 |",
+			].join("\n"),
+			"| new | row |\n",
+		);
 
-describe('Insert after — {{title}} resolution', () => {
-  it('resolves {{title}} in the target and inserts after the actual title line', async () => {
-    const title = 'My Title';
-    const fileContent = [
-      '# Inbox',
-      title,
-      'Body',
-    ].join('\n');
+		expect(content).toBe(
+			[
+				"| Name          | Quantity | HH:MM |",
+				"| ------------- | -------- | ----- |",
+				"| new | row |",
+				"| data          | 5        | 10:00 |",
+			].join("\n"),
+		);
+	});
 
-    const rawTarget = '{{title}}';
-    const resolvedTarget = replaceTitleInStringLocal(rawTarget, title);
-    expect(resolvedTarget).toBe(title);
+	it("matches a separator row that is exactly the target", async () => {
+		const content = await capture(
+			formatterWithActiveNote(),
+			insertAfterChoice("| ----- |"),
+			"| Name | Quantity |\n| ----- |\n| data | 5 |",
+			"| new |\n",
+		);
 
-    const lines = fileContent.split('\n');
-    const idx = findInsertAfterIndex(lines, resolvedTarget);
-    expect(idx).toBe(1);
-
-    const newContent = insertTextAfterPositionInBody('Inserted\n', fileContent, idx);
-    const expected = ['# Inbox', title, 'Inserted', 'Body'].join('\n');
-    expect(newContent).toBe(expected);
-  });
-
-  it('creates the line with resolved title (not literal token) when not found', async () => {
-    const title = 'My Title';
-    const fileContent = '# Empty\n';
-    const rawTarget = '{{title}}';
-    const resolvedTarget = replaceTitleInStringLocal(rawTarget, title);
-
-    const insertAfterLineAndFormatted = `${resolvedTarget}\nCONTENT`;
-    const newContent = `${fileContent}\n${insertAfterLineAndFormatted}`.replace(/\n\n+$/, '\n');
-
-    expect(newContent.includes(title)).toBe(true);
-    expect(newContent.includes('{{title}}')).toBe(false);
-  });
-});
-
-describe('Insert after — table separator matching', () => {
-  it('matches table separator row when target appears at end of line', () => {
-    const fileContent = [
-      '| Name          | Quantity | HH:MM |',
-      '| ------------- | -------- | ----- |',
-      '| data          | 5        | 10:00 |',
-    ].join('\n');
-
-    const target = '| ----- |';
-    const lines = fileContent.split('\n');
-    const idx = findInsertAfterIndex(lines, target);
-    
-    // Should match line 1 (index 1) where "| ----- |" appears at the end
-    expect(idx).toBe(1);
-
-    const newContent = insertTextAfterPositionInBody('| new | row |\n', fileContent, idx);
-    const expected = [
-      '| Name          | Quantity | HH:MM |',
-      '| ------------- | -------- | ----- |',
-      '| new | row |',
-      '| data          | 5        | 10:00 |',
-    ].join('\n');
-
-    expect(newContent).toBe(expected);
-  });
-
-  it('matches exact table separator row', () => {
-    const fileContent = [
-      '| Name | Quantity |',
-      '| ----- |',
-      '| data | 5 |',
-    ].join('\n');
-
-    const target = '| ----- |';
-    const lines = fileContent.split('\n');
-    const idx = findInsertAfterIndex(lines, target);
-    
-    // Should match line 1 (index 1) with exact match
-    expect(idx).toBe(1);
-  });
+		expect(content).toBe("| Name | Quantity |\n| ----- |\n| new |\n| data | 5 |");
+	});
 });

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { templateChoice } from "../../../tests/helpers/settings/choices";
 import { describe, expect, it } from "vitest";
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
@@ -6,8 +7,8 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
 import { CaptureChoice } from "../../types/choices/CaptureChoice";
-import { createTemplateChoiceFormProps } from "./templateChoiceFormProps.svelte";
-import { createCaptureChoiceFormProps } from "./captureChoiceFormProps.svelte";
+import { snapshot } from "../svelte/persist.svelte";
+import { createChoiceFormProps } from "./choiceFormProps.svelte";
 
 // The app/plugin are passed through the factory untouched (only the choice is
 // cloned), so minimal stubs suffice.
@@ -38,7 +39,7 @@ function asSavedProxy<T>(choice: T): T {
 describe("choice form props: existing (proxied plain-object) choices", () => {
 	it("builds Template props from a $state proxy without DataCloneError", () => {
 		const proxied = asSavedProxy<ITemplateChoice>(new TemplateChoice("Saved"));
-		const props = createTemplateChoiceFormProps({ choice: proxied, app, plugin });
+		const props = createChoiceFormProps<ITemplateChoice>({ choice: proxied, app, plugin });
 		// props.choice must be a fresh, reactive (plain-prototype) clone.
 		expect(Object.getPrototypeOf(props.choice)).toBe(Object.prototype);
 		expect(props.choice.name).toBe("Saved");
@@ -47,7 +48,7 @@ describe("choice form props: existing (proxied plain-object) choices", () => {
 
 	it("builds Capture props from a $state proxy without DataCloneError", () => {
 		const proxied = asSavedProxy<ICaptureChoice>(new CaptureChoice("Saved"));
-		const props = createCaptureChoiceFormProps({ choice: proxied, app, plugin });
+		const props = createChoiceFormProps<ICaptureChoice>({ choice: proxied, app, plugin });
 		expect(Object.getPrototypeOf(props.choice)).toBe(Object.prototype);
 		expect(props.choice.name).toBe("Saved");
 		expect(props.choice).not.toBe(proxied);
@@ -64,7 +65,7 @@ describe("choice form props: existing (proxied plain-object) choices", () => {
 		source.folder.folders.push("Seed");
 		expect(Object.getPrototypeOf(source)).not.toBe(Object.prototype); // is a class instance
 
-		const props = createTemplateChoiceFormProps({ choice: source, app, plugin });
+		const props = createChoiceFormProps<ITemplateChoice>({ choice: source, app, plugin });
 		expect(Object.getPrototypeOf(props.choice)).toBe(Object.prototype); // prototype stripped
 		expect(props.choice.name).toBe("New");
 
@@ -90,7 +91,7 @@ describe("choice form props: existing (proxied plain-object) choices", () => {
 		source.fileExistsBehavior = { kind: "append" } as never;
 		const proxied = asSavedProxy<ITemplateChoice>(source);
 
-		const props = createTemplateChoiceFormProps({ choice: proxied, app, plugin });
+		const props = createChoiceFormProps<ITemplateChoice>({ choice: proxied, app, plugin });
 		(props.choice.folder.folders as string[]).push("C");
 		props.choice.folder.enabled = false;
 		(props.choice.appendLink as { placement: string }).placement = "beforeContent";
@@ -114,11 +115,36 @@ describe("choice form props: existing (proxied plain-object) choices", () => {
 		} as never;
 		const proxied = asSavedProxy<ICaptureChoice>(source);
 
-		const props = createCaptureChoiceFormProps({ choice: proxied, app, plugin });
+		const props = createChoiceFormProps<ICaptureChoice>({ choice: proxied, app, plugin });
 		props.choice.insertAfter.after = "## Changed";
 		props.choice.insertAfter.enabled = false;
 
 		expect(proxied.insertAfter.after).toBe("## Heading");
 		expect(proxied.insertAfter.enabled).toBe(true);
+	});
+
+	// The host resolves snapshot(props.choice) on close (#1130 blocker).
+	it("edits resolve through snapshot(props.choice) as plain data, not through the original", () => {
+		const original = templateChoice({ name: "Original", templatePath: "Templates/Note.md" });
+		const props = createChoiceFormProps<ITemplateChoice>({ choice: original, app, plugin });
+
+		// What bind:value and the onchange handlers inside the form do.
+		props.choice.name = "Edited";
+		props.choice.templatePath = "Templates/Other.md";
+		props.choice.folder.enabled = true;
+		props.choice.folder.folders.push("Daily");
+
+		const resolved = snapshot(props.choice);
+		expect(resolved.name).toBe("Edited");
+		expect(resolved.templatePath).toBe("Templates/Other.md");
+		expect(resolved.folder.enabled).toBe(true);
+		expect(resolved.folder.folders).toEqual(["Daily"]);
+		// Round-trip stable = plain data, safe for callers that spread + saveData.
+		expect(JSON.parse(JSON.stringify(resolved))).toEqual(resolved);
+
+		// A $state proxy does NOT write through to the original, so resolving
+		// snapshot(original) would silently drop every edit.
+		expect(original.name).toBe("Original");
+		expect(snapshot(original).name).toBe("Original");
 	});
 });

@@ -1,13 +1,14 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
+import type { AppProvider } from "../types/pluginContext";
 import type IChoice from "../types/choices/IChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { SELECTED_REGEX } from "../constants";
 import { CURRENT_FOLDER_TOKEN_REGEX, CURRENT_NOTE_TOKEN_REGEX } from "../formatters/helpers/currentFileTokens";
-import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
+import { deriveFolderMode } from "../utils/folderMode";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
+import { getVaultConfig } from "../utils/obsidianInternals";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 
 /** Whether a choice needs the current note: `required` fails without one, `optional` leaves something empty. */
@@ -50,12 +51,10 @@ export function currentNoteUse(choice: IChoice, context: CurrentNoteUseContext):
 }
 
 /** {@link currentNoteUse} with the templates the run formats read from the vault. */
-export async function describeCurrentNoteUse(plugin: QuickAdd, choice: IChoice): Promise<CurrentNoteUse> {
-	// vault.getConfig is the de-facto (untyped) plugin API for Obsidian's settings.
-	const vault = plugin.app.vault as App["vault"] & { getConfig?: (key: string) => unknown };
+export async function describeCurrentNoteUse(plugin: AppProvider, choice: IChoice): Promise<CurrentNoteUse> {
 	return currentNoteUse(choice, {
 		templates: await readTemplates(plugin.app, templatePaths(choice)),
-		newNotesInCurrentFolder: vault.getConfig?.("newFileLocation") === "current",
+		newNotesInCurrentFolder: getVaultConfig(plugin.app, "newFileLocation") === "current",
 	});
 }
 

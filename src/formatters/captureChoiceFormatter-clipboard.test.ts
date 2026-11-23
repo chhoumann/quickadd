@@ -37,9 +37,6 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 		async runAndGetOutput() {
 			return "";
 		}
-		getVariables() {
-			return new Map();
-		}
 	},
 }));
 

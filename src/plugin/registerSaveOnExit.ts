@@ -12,11 +12,10 @@ export function registerSaveOnExit(
 	flushPendingSave: () => Promise<void> | null,
 ): void {
 	// Quitting closes the window without closing settings or finishing the
-	// debounced write, so a change made in the last second was lost too.
-	// Obsidian waits for the tasks it is handed before it quits, by cancelling
-	// the close, showing "Saving...", and closing again. Hand it a task only
-	// when there is a write to wait for. A failed write is reported where it
-	// started; handed to Obsidian, it would leave the window on "Saving...".
+	// debounced write. Obsidian waits for the tasks it is handed before it quits
+	// (cancelling the close, showing "Saving...", closing again), so hand it a
+	// task only when there is a write to wait for. A failed write is reported
+	// where it started; handed to Obsidian, it would leave the window on "Saving...".
 	plugin.registerEvent(
 		plugin.app.workspace.on("quit", (tasks) => {
 			leaveBuilderPages(plugin.app);

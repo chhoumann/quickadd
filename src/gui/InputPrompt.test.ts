@@ -1,18 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type QuickAdd from "../main";
-import { setQuickAddInstance } from "../quickAddInstance";
+import { settingsStore } from "../settingsStore";
 import InputPrompt from "./InputPrompt";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import GenericWideInputPrompt from "./GenericWideInputPrompt/GenericWideInputPrompt";
 import NumberInputPrompt from "./NumberInputPrompt/NumberInputPrompt";
 import SliderInputPrompt from "./SliderInputPrompt/SliderInputPrompt";
 
-const fakePlugin = (inputPrompt: "single-line" | "multi-line") =>
-	({ settings: { inputPrompt } }) as unknown as QuickAdd;
-
 describe("InputPrompt factory", () => {
 	beforeEach(() => {
-		setQuickAddInstance(fakePlugin("single-line"));
+		settingsStore.setState({ inputPrompt: "single-line" });
 	});
 
 	it("prefers multiline override over global single-line", () => {
@@ -21,7 +17,7 @@ describe("InputPrompt factory", () => {
 	});
 
 	it("uses global multiline when no override provided", () => {
-		setQuickAddInstance(fakePlugin("multi-line"));
+		settingsStore.setState({ inputPrompt: "multi-line" });
 		const prompt = new InputPrompt();
 		expect(prompt.factory()).toBe(GenericWideInputPrompt);
 	});

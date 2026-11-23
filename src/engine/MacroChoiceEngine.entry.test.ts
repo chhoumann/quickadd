@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
@@ -17,6 +16,7 @@ import { QuickAddApi } from "../quickAddApi";
 import { getDateVariableFormat, rememberDateVariableFormat } from "../formatters/helpers/dateTokens";
 import type * as UserScriptModule from "../utils/userScript";
 import type { LoadedUserScript } from "../utils/userScript";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const { mockLoadModuleExports, mockInitializeUserScriptSettings, mockSuggest, mockGetApi, mockInputPrompt } =
 	vi.hoisted(() => ({
@@ -189,7 +189,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 	])("$name", async ({ callable, expected }) => {
 		const script = vi.fn().mockResolvedValue(undefined);
 		mockLoadModuleExports.mockResolvedValue(callable ? script : undefined);
-		const engine = new MacroChoiceEngine(app, plugin, macroChoice, choiceExecutor, variables);
+		const engine = new MacroChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), macroChoice, choiceExecutor, variables);
 		engine.setOutput("previous");
 		await engine["executeUserScript"](userScriptCommand);
 		expect(engine.getOutput()).toBe(expected);
@@ -206,6 +206,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -235,6 +236,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -268,6 +270,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -307,6 +310,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -355,6 +359,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const engine = new MacroChoiceEngine(
 			secretApp,
 			pluginWithSave,
+			testFormatterRuntime(secretApp, pluginWithSave),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -386,6 +391,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -411,6 +417,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -505,6 +512,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -527,6 +535,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			{
 				...choiceExecutor,
@@ -576,6 +585,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			assignChoice,
 			choiceExecutor,
 			variables,
@@ -623,6 +633,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			assignSameChoice,
 			choiceExecutor,
 			variables,
@@ -668,6 +679,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			invalidAssignChoice,
 			choiceExecutor,
 			variables,
@@ -715,6 +727,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			mapAssignChoice,
 			choiceExecutor,
 			variables,
@@ -730,15 +743,15 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 
 describe("MacroChoiceEngine choice command cancellation", () => {
 	const app = {} as App;
-	let plugin: QuickAdd & { getChoiceById: ReturnType<typeof vi.fn> };
+	let plugin: QuickAdd & { findChoiceById: ReturnType<typeof vi.fn> };
 	let choiceExecutor: IChoiceExecutor;
 	let variables: Map<string, unknown>;
 	let macroChoice: IMacroChoice;
 
 	beforeEach(() => {
 		plugin = {
-			getChoiceById: vi.fn(),
-		} as unknown as QuickAdd & { getChoiceById: ReturnType<typeof vi.fn> };
+			findChoiceById: vi.fn(),
+		} as unknown as QuickAdd & { findChoiceById: ReturnType<typeof vi.fn> };
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
 			...createChoiceExecutor(),
@@ -768,6 +781,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -778,7 +792,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			type: "Macro",
 			command: false,
 		};
-		(plugin.getChoiceById as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+		(plugin.findChoiceById as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
 			choice,
 		);
 		const command: IChoiceCommand = {
@@ -804,6 +818,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -885,6 +900,7 @@ describe("MacroChoiceEngine malformed saved command entries", () => {
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			macroChoice,
 			choiceExecutor,
 			variables,
@@ -963,7 +979,7 @@ describe("params.abort in a user script", () => {
 			} as IMacro,
 		};
 
-		const engine = new MacroChoiceEngine({} as App, {} as unknown as QuickAdd, macroChoice, choiceExecutor, choiceExecutor.variables);
+		const engine = new MacroChoiceEngine({} as App, {} as unknown as QuickAdd, testFormatterRuntime(), macroChoice, choiceExecutor, choiceExecutor.variables);
 		await expect(engine.run()).resolves.toBeUndefined();
 
 		expect(laterScript).not.toHaveBeenCalled();

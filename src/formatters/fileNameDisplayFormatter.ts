@@ -1,16 +1,11 @@
-import { stripCursorMarkers } from "./helpers/capturePlacement";
+import { stripCursorMarkers } from "../utils/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
-import { expandGlobalVariables } from "./helpers/globalVariables";
-import { unescapePipesInTokens } from "./helpers/pipeEscapes";
-import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./formatter";
-import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
-import {
-	describePreviewFailure,
-	PreviewDiagnostics,
-} from "./previewDiagnostics";
+import { unescapePipesInTokens } from "../utils/pipeEscapes";
+import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "../utils/inlineScriptSpans";
+import { describePreviewFailure } from "./previewDiagnostics";
 import type { App } from "obsidian";
 import { TFile, TFolder } from "obsidian";
-import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
+import { TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import type { RunClocks } from "../types/dateOrigin";
@@ -20,16 +15,8 @@ import {
 	findIllegalFilePathChars,
 	previewGeneratedFilePath,
 } from "../utils/generatedFilePath";
-import { getTemplateFile } from "../utils/templateFolderUtils";
 
-import type QuickAdd from "../main";
-
-/**
- * Includes one preview pass may expand, across the whole format string.
- * Generous next to any real naming template (which includes one file, or none),
- * and small enough that a pathological include tree cannot stall a keystroke.
- */
-const MAX_PREVIEW_TEMPLATE_INCLUDES = 25;
+import type { FormatterPluginContext } from "../types/pluginContext";
 
 /** Detect an unfinished token with linear scans; preview input may include an entire template. */
 function hasUnterminatedToken(input: string): boolean {
@@ -38,8 +25,7 @@ function hasUnterminatedToken(input: string): boolean {
 	return input.indexOf("}}", lastOpen + 2) === -1;
 }
 
-/** Exclude script source from filename diagnostics without executing it.
- * Fences introduced by later global expansion are also excluded, although runtime leaves them literal. */
+/** Excludes script source from filename diagnostics without executing it. */
 function textOutsideScriptSpans(text: string): string {
 	const spans = findInlineScriptSpans(text);
 	if (spans.length === 0) return text;
@@ -54,9 +40,11 @@ function textOutsideScriptSpans(text: string): string {
 }
 
 export class FileNameDisplayFormatter extends PreviewFormatter {
+	protected readonly showsTokenHints = false;
+
 	constructor(
 		app: App,
-		private readonly plugin?: QuickAdd,
+		protected readonly plugin?: FormatterPluginContext,
 		dateParser?: IDateParser,
 	) {
 		super(app);
@@ -71,59 +59,36 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		this.clocks = clocks;
 	}
 
-	/**
-	 * Includes this pass may still expand. See {@link getTemplateContent}.
-	 */
-	private templateIncludeBudget = MAX_PREVIEW_TEMPLATE_INCLUDES;
-
 	public async format(input: string): Promise<string> {
 		let output: string = input;
-		this.diagnostics = new PreviewDiagnostics();
-		this.templateIncludeBudget = MAX_PREVIEW_TEMPLATE_INCLUDES;
+		this.beginPreviewPass();
 
 		try {
 			output = stripCursorMarkers(await this.formatInternal(input, { included: false }));
 		} catch (error) {
-			// Return the input as-is if formatting fails during preview. The failure
-			// itself is the most useful thing the preview can say, so it goes on the
-			// diagnostics channel rather than being swallowed (issue #1558).
 			const described = describePreviewFailure(error);
 			if (described) this.diagnostics.add("error", described);
 			return stripCursorMarkers(input);
 		}
 
-		// Before the normalizer, mirroring the run: formatFileName's
-		// circular-dependency check runs on the formatted string, and if it fires
-		// the choice dies there - no name is ever normalized (#1588).
+		// Before the normalizer, as at run time: the title-cycle check fires on the
+		// formatted string before any name is normalized.
 		this.reportCircularTitle(input, output);
 
-		// The run puts every generated name through this normalizer on the way to
-		// the vault (TemplateChoiceEngine, TemplateInsertEngine,
-		// templateNoteDiscovery, and the capture target via
-		// captureTargetResolution), so a preview that skips it asserts a name the
-		// run will never create: a trailing "." or space is stripped, a backslash is
-		// a path separator, and a run of line breaks - the shape a {{TEMPLATE:}}
-		// body arrives in - collapses to one space (#1563). Non-throwing here: a
-		// preview evaluates incomplete input on every keystroke, so the rejections
-		// the run would abort on become diagnostics instead.
+		// Every generated name goes through this normalizer at run time, so the
+		// preview must too. Non-throwing: incomplete input on each keystroke becomes
+		// diagnostics instead of aborts.
 		const normalized = previewGeneratedFilePath(output);
 		for (const problem of normalized.problems) {
-			// "path": the format resolved fine, the vault just will not take the
-			// result. A host that knows this field may not be a path at all (the
-			// capture target) discards exactly these.
 			this.diagnostics.add("error", problem, "path");
 		}
-		// On `output`, not `normalized.path`: the normalizer collapses the line
-		// breaks that delimit an inline script fence, and the scan below has to
-		// still be able to find one. It costs nothing - the normalizer only trims
-		// trailing dots/spaces and collapses control runs, so it can neither add
-		// nor remove one of these characters.
+		// On `output`: the normalizer collapses the line breaks that delimit an
+		// inline script fence, and cannot add or remove an illegal character.
 		this.reportIllegalChars(input, output);
 		return normalized.path;
 	}
 
-	/** Mirror runtime title-cycle checks on raw and expanded input.
- * This is a formatting error, not a path error that capture-target previews may discard. */
+	/** A title cycle is a formatting error, not a path error that capture-target previews may discard. */
 	private reportCircularTitle(input: string, output: string): void {
 		if (!TITLE_REGEX.test(input) && !TITLE_REGEX.test(output)) {
 			return;
@@ -135,21 +100,12 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 
 	/** Validate the finished name so illegal characters introduced by expansion are included. */
 	private reportIllegalChars(input: string, name: string): void {
-		// A pass that already failed has said something better. All four of this
-		// formatter's `[QuickAdd: ...]` placeholders carry a colon and all four
-		// report their real problem first, so without this the row would pile a
-		// second, misleading sentence on top of "Template not found".
+		// A pass that already failed said something better, and every
+		// `[QuickAdd: ...]` placeholder contains a colon.
 		if (this.diagnostics.hasError) return;
 
-		// Mid-token. `Notes/{{DATE:` is what the field holds for as long as
-		// someone reads the format-suggester popup that this exact prefix opens,
-		// and the unmatched token stays literal in the output - so the colon is
-		// the caret's position, not a mistake. Costs only a literal `{{` in a
-		// name, which no format string has.
-		// ...and mid-SCRIPT, for the same reason: until the closing backticks are
-		// typed there is no span to strip, so the half-written JavaScript is read
-		// as part of the name, and `{a: 1}` or `"HH:mm"` in it turns the row red
-		// on every pause.
+		// Mid-token or mid-script: until the closing `}}` or backticks are typed,
+		// a colon marks the caret, not a mistake.
 		if (hasUnterminatedToken(input) || hasUnterminatedInlineScriptFence(input)) {
 			return;
 		}
@@ -157,13 +113,8 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		const illegal = findIllegalFilePathChars(textOutsideScriptSpans(name));
 		if (illegal.length === 0) return;
 
-		// A file that is already there is never created, so Obsidian is never
-		// asked to accept its name. `:` is legal on macOS/Linux at the filesystem
-		// level, so a note made outside Obsidian really can carry one - and a
-		// capture pointed at it appends happily (CaptureChoiceEngine takes the
-		// `fileExists` branch and never reaches `vault.create`), as does a
-		// Template choice set to append/increment. Claiming otherwise would mark a
-		// working configuration broken.
+		// An existing file is never created, so Obsidian never judges its name.
+		// `:` is legal on macOS/Linux, and captures into such a note work.
 		if (this.existsInVault(name)) return;
 
 		this.diagnostics.add("error", describeIllegalFilePathChars(illegal), "path");
@@ -172,9 +123,8 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 	/** Recognize existing vault targets before rejecting filename characters; tolerate partially initialized preview apps. */
 	private existsInVault(name: string): boolean {
 		const vault = this.app?.vault;
-		// Defensive because this runs OUTSIDE format()'s try/catch: a preview that
-		// throws its way out of a keystroke is the #1558 failure, and this is the
-		// only vault call the pass makes.
+		// Runs outside format()'s try/catch, and a preview must never throw out of
+		// a keystroke.
 		if (typeof vault?.getAbstractFileByPath !== "function") return false;
 		const trimmed = name.trim();
 		if (!trimmed) return false;
@@ -201,14 +151,9 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 	): Promise<string> {
 		let output = input;
 
-		// {{TEMPLATE:}} FIRST, mirroring the run (CompleteFormatter.format resolves
-		// includes before globals and before {{VALUE}}). Resolving it later would
-		// make the preview splice in a body for a token that a global snippet or a
-		// value produced - which the run leaves literal, because its template pass
-		// has already gone by. (The globals/macros order below is older than this
-		// and is left as it was.)
+		// {{TEMPLATE:}} first, as at run time, so a body is never spliced in for a
+		// token that a global snippet or value produced.
 		output = await this.replaceTemplateOutsideScripts(output);
-		// Expand globals to preview inserted snippets
 		output = await this.replaceGlobalVarInString(output);
 		output = unescapePipesInTokens(output);
 		output = await this.replaceMacrosInString(output);
@@ -221,15 +166,12 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceFileInString(output);
-		// Where the run has it (CompleteFormatter.format: after {{FILE:}}, before
-		// {{RANDOM:}}). The run really does prompt here - formatFileName goes
-		// through format() - so leaving {{MVALUE}} literal made the preview
-		// promise a name with a token in it (#1587). `promptForMathValue` was
-		// already overridden with a stand-in below; it was simply unreachable.
+		// Where the run has it: after {{FILE:}}, before {{RANDOM:}}. formatFileName
+		// really prompts here.
 		output = await this.replaceMathValueInString(output);
-		// Note-derived tokens in ONE pass so no token re-scans another's output
-		// (#1358). Every preview resolver returns a placeholder rather than null,
-		// so neither mode can hit the runtime's missing-active-file throw.
+		// Note-derived tokens in one pass, so no token re-scans another's output.
+		// Preview resolvers never return null, so the missing-active-file throw
+		// cannot fire.
 		output = this.replaceCurrentFileTokensInString(
 			output,
 			included
@@ -239,10 +181,6 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		output = this.replaceRandomInString(output);
 
 		return output;
-	}
-
-	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 
 	/**
@@ -265,78 +203,12 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		return suggestedValues[0] ?? getSuggestionPreview(suggestedValues);
 	}
 
-	/** Skip script fences during inclusion: runtime consumes scripts first, while previews must remain inert. */
-	private async replaceTemplateOutsideScripts(input: string): Promise<string> {
-		const spans = findInlineScriptSpans(input);
-		if (spans.length === 0) return this.replaceTemplateInString(input);
-
-		let output = "";
-		let index = 0;
-		for (const span of spans) {
-			output += await this.replaceTemplateInString(
-				input.slice(index, span.start),
-			);
-			output += input.slice(span.start, span.end);
-			index = span.end;
-		}
-		return output + (await this.replaceTemplateInString(input.slice(index)));
-	}
-
-	/** Resolve included bodies through this preview, never a runtime engine that could execute scripts or prompt. */
-	protected async getTemplateContent(templatePath: string): Promise<string> {
-		const app = this.app;
-		if (!app) {
-			this.reportProblem(`Template preview unavailable: ${templatePath}`);
-			return `[QuickAdd: template preview unavailable] ${templatePath}`;
-		}
-
-		// Depth and cycle detection (in the shared `replaceTemplateInString`) both
-		// unwind per include, so neither bounds a format string that keeps
-		// producing NEW includes - and it can, now that the template pass runs
-		// before global expansion: a global snippet holding a {{TEMPLATE:}} token
-		// re-arms the loop with an empty `visited` set. One budget for the whole
-		// pass terminates that, and bounds the fan-out of a wide include tree on a
-		// field that resolves on every keystroke.
-		if (this.templateIncludeBudget <= 0) {
-			const placeholder = `[QuickAdd: too many template includes to preview]`;
-			this.reportProblem(placeholder);
-			return placeholder;
-		}
-
-		const file = getTemplateFile(app, templatePath);
-		if (!file) {
-			// An error, not a quiet placeholder: the run THROWS here
-			// (TemplateEngine.getTemplateContent) and the choice dies, so the row
-			// must read "Unresolved:" rather than presenting a name.
-			this.reportProblem(`Template not found: ${templatePath}`);
-			return `[QuickAdd: template not found] ${templatePath}`;
-		}
-
-		this.templateIncludeBudget--;
-		// The depth counter is preview-LOCAL on purpose. At run time
-		// `CompleteFormatter.getTemplateContent` hands the child engine a COPY of
-		// the state with depth + 1, while `visited` is shared by reference - so
-		// incrementing depth inside the shared `replaceTemplateInString` would
-		// advance the runtime by two per level and halve its inclusion limit. The
-		// preview has no child formatter to carry it, so it counts here.
-		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
-		this.templateInclusion.depth++;
-		try {
-			const body = await app.vault.cachedRead(file);
-			const resolved = this.resolveTitleInIncludedBody(
-				await this.formatInternal(body, { included: true }),
-			);
-			this.warnIfJoinedIntoOneLine(templatePath, resolved);
-			return resolved;
-		} catch (error) {
-			// Contained here rather than by format()'s catch, so one bad token
-			// inside an included template does not blank the whole field's preview.
-			const described = describePreviewFailure(error);
-			if (described) this.diagnostics.add("error", described);
-			return `[QuickAdd: template preview failed] ${templatePath}`;
-		} finally {
-			this.templateInclusion.depth--;
-		}
+	protected async formatIncludedTemplate(body: string, templatePath: string): Promise<string> {
+		const resolved = this.resolveTitleInIncludedBody(
+			await this.formatInternal(body, { included: true }),
+		);
+		this.warnIfJoinedIntoOneLine(templatePath, resolved);
+		return resolved;
 	}
 
 	/** Included bodies use the stored title or empty string, matching runtime without inventing an example title. */
@@ -356,57 +228,5 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		this.warn(
 			`Template "${templatePath}" is ${lines.length} lines; a file name is one line, so they are joined with spaces.`,
 		);
-	}
-
-	protected async replaceDateVariableInString(input: string): Promise<string> {
-		// The date only. FormatDisplayFormatter appends " (default: X)" /
-		// " (optional)" hints about the token; this row is a FILE NAME, and the
-		// run splices in the formatted date and nothing else - so a hint here
-		// asserted a name that could never be created (#1563/#1578). The hints
-		// survive where they are true: on the body preview, and in the run's own
-		// prompt placeholder ("Enter value for due (default: tomorrow)").
-		return input.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
-			// Only a NAMELESS token stays literal, which is what the run does with it.
-			const name = variableName?.trim();
-			if (!name) return match;
-
-			// A unit that never resolves is an authoring mistake the run aborts on,
-			// so it belongs on the diagnostics channel (held back until the field is
-			// idle) rather than being swallowed. The options still come back usable,
-			// so the TEXT does not flicker while the unit is being typed.
-			const { options, error } = parseVDateOptionsForPreview(rawOptions);
-			if (error) this.reportProblem(error);
-
-			const date = this.previewDateVariable(match, name, dateFormat, options);
-			return date.text ?? `[${date.format}]`;
-		});
-	}
-
-	protected replaceRandomInString(input: string): string {
-		let output = input;
-		
-		// Replace {{RANDOM:n}} with a preview showing example output
-		output = output.replace(/{{RANDOM:(\d+)}}/gi, (match, length) => {
-			const len = parseInt(length);
-			if (len <= 0 || len > 100) {
-				return match; // Return original if invalid
-			}
-			
-			// For filename preview, show a simple example
-			const exampleChars = 'ABC123';
-			let preview = '';
-			for (let i = 0; i < Math.min(len, 6); i++) {
-				preview += exampleChars.charAt(i % exampleChars.length);
-			}
-			
-			// For long strings, show ellipsis
-			if (len > 6) {
-				preview += '...';
-			}
-			
-			return preview;
-		});
-		
-		return output;
 	}
 }

@@ -2,11 +2,9 @@
     import ObsidianIcon from "./ObsidianIcon.svelte";
     import { stopDragInit } from "../shared/stopDragInit";
 
-    // Shared accessible icon button. Renders a real <button> so it is keyboard
-    // operable (Enter + Space) and focusable for free — replacing the old
-    // <div|span role="button" tabindex onclick onkeypress> faux-buttons across the
-    // choice & macro GUIs (#1250). Visuals come from the global .qa-icon-button
-    // class in styles.css (kept global so a scoped <style> can't drift / trip
+    // Shared accessible icon button: a real <button>, so it is keyboard operable
+    // (Enter + Space) and focusable. Visuals come from the global .qa-icon-button
+    // class in styles.css (global so a scoped <style> can't drift or trip
     // svelte/valid-compile's css_unused_selector).
     let {
         iconId,

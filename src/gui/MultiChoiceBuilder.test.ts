@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { fireEvent } from "@testing-library/svelte";
+import { flushSync } from "svelte";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import { MultiChoiceBuilder } from "./MultiChoiceBuilder";
 
@@ -32,6 +33,8 @@ function openPage(choice: IMultiChoice) {
 	const onSave = vi.fn();
 	const page = new MultiChoiceBuilder(appWithSuggestSupport(), choice, onSave);
 	page.display();
+	// Run the icon setting's mount effects, such as its preview.
+	flushSync();
 	const [name, placeholder, icon] = Array.from(
 		page.containerEl.querySelectorAll<HTMLInputElement>("input"),
 	);

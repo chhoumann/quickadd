@@ -1,19 +1,22 @@
 import { captureCandidates, captureScopeFiles } from "src/engine/helpers/captureCandidates";
 import { getQuickAddScriptInputs, toFieldRequirement } from "./scriptInputRequirements";
-import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
+import { mergeRepeatedRequirement } from "./fieldRequirements";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { currentSelection } from "src/utils/currentFile";
-import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
+	MAX_TEMPLATE_INCLUSION_DEPTH,
 	QA_INTERNAL_DATE_ORIGIN,
 	VALUE_SYNTAX,
 } from "src/constants";
-import type QuickAdd from "src/main";
+import type { ChoiceLookup, SettingsProvider } from "src/types/pluginContext";
+
+/** What collecting a choice's inputs reads from the plugin. */
+export type PreflightPlugin = SettingsProvider & Pick<ChoiceLookup, "findChoiceById">;
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
-import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
+import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
 import { dateOriginInput } from "src/utils/resolveDateOrigin";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
@@ -22,6 +25,7 @@ import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDisc
 import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
 import { getTemplateFile } from "src/utils/templateFolderUtils";
 import { isFolder } from "src/utils/vaultQueries";
+import { deriveFolderMode } from "src/utils/folderMode";
 import { log } from "src/logger/logManager";
 import {
 	getUserScriptPreloadKey,
@@ -53,17 +57,15 @@ import {
 	buildFormRoster,
 	type DeferredStep,
 } from "./macroFormRoster";
+import { defaultDateVariableFormat } from "../utils/dateTokenCodec";
+import { usesSelectionAsCaptureValue } from "src/utils/captureAction";
 
 interface CollectChoiceRequirementsOptions {
 	seedCaptureSelectionAsValue?: boolean;
 	/**
-	 * When provided, user-script modules loaded to read `quickadd.inputs` are
-	 * cached here (keyed via `getUserScriptPreloadKey`: `command.path ??
-	 * command.id` plus any `::` member-drill suffix) and reused across
-	 * collection passes. Loading a CommonJS user script EXECUTES its top-level
-	 * code, so without this cache a single trigger runs every script's module
-	 * body twice: once here for introspection and once in MacroChoiceEngine.
-	 * The engine consumes these entries instead of re-loading (delete-on-use).
+	 * Caches user-script modules loaded to read `quickadd.inputs`, keyed by
+	 * `getUserScriptPreloadKey`. Loading executes a script's top-level code, so
+	 * the engine consumes these instead of loading again.
 	 */
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
 	/**
@@ -101,16 +103,10 @@ async function scanContentWithTemplateIncludes(
 
 	for (const ref of nested) {
 		if (templateStack.has(ref)) continue;
-		// Skip a template already fully scanned at an equal-or-shallower depth:
-		// same content, and its children were explored at least as deep, so a
-		// re-scan can only repeat work (the per-path `templateStack` alone lets
-		// a dense DAG re-scan each template once per PATH - up to
-		// branching^depth invocations). A ref first seen NEAR the depth cap is
-		// re-scanned if met again shallower, so the memo never truncates a
-		// subtree the old walk would have explored.
-		// The memo is keyed per CONTEXT: a template first scanned from content
-		// must be re-scanned when later reached from a path string, or its
-		// variables would keep image paste despite feeding a path (#1484).
+		// Skip a template already fully scanned at an equal or shallower depth;
+		// without this a dense DAG re-scans each template once per path. Keyed per
+		// context: a template reached again from a path string must be re-scanned
+		// to mark its variables as path context.
 		const memoKey = `${pathContext ? "path" : "content"}:${ref}`;
 		const scannedDepth = collector.scannedTemplateRefDepths.get(memoKey);
 		if (scannedDepth !== undefined && scannedDepth <= depth) continue;
@@ -132,15 +128,10 @@ async function scanContentWithTemplateIncludes(
 }
 
 /**
- * Collects requirements from a template *source* path and (when resolvable) its
- * body. Shared by Template choices and Capture "create with template" so both
- * stay in sync (issue #620):
- *  - Always scans the path string itself, so tokens IN the path (e.g.
- *    `Templates/{{value:type}} Template.md`) are collected up front.
- *  - If the path uses format syntax, the body can't be pre-scanned (the path
- *    depends on the very answers we're collecting); those prompts surface at run
- *    time. Logged so it isn't a silent gap.
- *  - Otherwise walks the literal template body (and nested {{TEMPLATE:}}).
+ * Collects requirements from a template source path and, when resolvable, its
+ * body. Shared by Template choices and Capture "create with template". The path
+ * string is always scanned; a path that uses format syntax depends on the very
+ * answers being collected, so its body is left to run time (and logged).
  */
 async function scanTemplateSource(
 	app: App,
@@ -175,7 +166,7 @@ async function scanTemplateBody(
 
 async function collectForTemplateChoice(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: ITemplateChoice,
 ): Promise<RequirementCollector> {
@@ -187,7 +178,9 @@ async function collectForTemplateChoice(
 		await collector.scanString(choice.templatePath, true, "templatePath");
 	}
 
-	if (choice.folder?.enabled) {
+	// Only the specified mode formats the configured folders; the engine never
+	// reads them in the other modes, so a token there must not be required.
+	if (choice.folder && deriveFolderMode(choice.folder) === "specified") {
 		for (const folder of choice.folder.folders ?? []) {
 			await scanContentWithTemplateIncludes(
 				app,
@@ -198,13 +191,9 @@ async function collectForTemplateChoice(
 		}
 	}
 
-	// Only the ENABLED format is scanned. The engine resolves a disabled one to
-	// VALUE_SYNTAX, so this under-collects the implicit note-name prompt - but
-	// collecting it would also make the non-interactive CLI guard reject runs the
-	// engine satisfies from the editor selection, and would show the one-page
-	// form an empty title field where the selection used to fill it in silently.
-	// Closing that needs the selection modelled here first (there is no Template
-	// counterpart to seedCaptureSelectionAsValue); tracked separately.
+	// Only the enabled format is scanned. Collecting the implicit note-name
+	// prompt of a disabled one would make the headless guard reject runs that the
+	// engine satisfies from the editor selection.
 	if (choice.fileNameFormat?.enabled) {
 		await scanContentWithTemplateIncludes(
 			app,
@@ -231,7 +220,7 @@ async function collectForTemplateChoice(
 
 async function collectForCaptureChoice(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: ICaptureChoice,
 	seedCaptureSelectionAsValue: boolean,
@@ -293,10 +282,8 @@ async function collectForCaptureChoice(
 		);
 	}
 
-	// Capture's "create file if it doesn't exist → with template" runs through
-	// SingleTemplateEngine, which resolves format tokens in the template path
-	// (issue #620). Mirror the Template-choice preflight so the one-page form /
-	// CLI collect the path's (and, for a literal path, the body's) inputs.
+	// "Create file with template" resolves format tokens in the template path, so
+	// mirror the Template-choice preflight.
 	const createWithTemplate = choice.createFileIfItDoesntExist;
 	if (
 		createWithTemplate?.enabled &&
@@ -306,10 +293,8 @@ async function collectForCaptureChoice(
 		await scanTemplateSource(app, collector, createWithTemplate.template);
 	}
 
-	// One classifier (shared with CaptureChoiceEngine) decides whether "Capture to"
-	// needs a runtime file pick and, if so, the scope. Keeping the engine and this
-	// collector on the same classification guarantees a preselected pick is honoured
-	// exactly when it was legitimately collected, never silently dropped or hijacked.
+	// One classifier, shared with CaptureChoiceEngine, so a preselected pick is
+	// honoured exactly when it was legitimately collected.
 	const captureScope = classifyCaptureTargetScope(
 		{
 			isFolder: (path) => isFolder(app, path),
@@ -380,14 +365,7 @@ async function collectForCaptureChoice(
 	}
 
 	if (seedCaptureSelectionAsValue) {
-		const selectionOverride = choice.useSelectionAsCaptureValue;
-		const globalSelectionAsValue =
-			plugin.settings.useSelectionAsCaptureValue ?? true;
-		const useSelectionAsCaptureValue =
-			typeof selectionOverride === "boolean"
-				? selectionOverride
-				: globalSelectionAsValue;
-		if (useSelectionAsCaptureValue) {
+		if (usesSelectionAsCaptureValue(choice, plugin.settings)) {
 			const existingValue = choiceExecutor.variables.get("value");
 			if (existingValue === undefined || existingValue === null) {
 				const selectedText = currentSelection(app, choiceExecutor);
@@ -408,11 +386,9 @@ async function collectUserScriptRequirements(
 ): Promise<FieldRequirement[]> {
 	const requirements: FieldRequirement[] = [];
 	try {
-		// Reuse an already-loaded module (loading executes the script's
-		// top-level code); cache what we load so the runtime engine consumes
-		// this execution instead of running the module body a second time.
-		// The key is member-aware (path + `::` drill) because the cached
-		// `script` is the drilled export.
+		// Reuse an already-loaded module and cache what we load, so the engine does
+		// not run the module body again. The key is member-aware because the
+		// cached `script` is the drilled export.
 		const cacheKey = getUserScriptPreloadKey(userScriptCommand);
 		let loaded =
 			cacheKey !== undefined
@@ -450,13 +426,13 @@ async function collectUserScriptRequirements(
 
 async function collectForMacroChoice(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: IMacroChoice,
 	options?: CollectChoiceRequirementsOptions,
 ): Promise<FieldRequirement[]> {
 	const roster = buildFormRoster(
-		(id) => resolveChoiceFromPlugin(plugin, id), choice, choiceExecutor.variables.get("value"),
+		(id) => plugin.findChoiceById(id), choice, choiceExecutor.variables.get("value"),
 	);
 	const merged = new Map<string, FieldRequirement>();
 	const seedCaptureSelectionAsValue =
@@ -496,12 +472,7 @@ async function collectForMacroChoice(
 		for (const requirement of collected) {
 			const existing = merged.get(requirement.id);
 			if (existing) {
-				existing.optional =
-					(existing.optional ?? false) && (requirement.optional ?? false);
-				if (requirement.pathContext) existing.pathContext = true;
-				if (requirement.runtimeOnly) existing.runtimeOnly = true;
-				// A text area also takes one line, so a field several steps share gets the wider input.
-				if (existing.type === "text" && requirement.type === "textarea") existing.type = "textarea";
+				mergeRepeatedRequirement(existing, requirement);
 				continue;
 			}
 			merged.set(requirement.id, { ...requirement, group: entry.group });
@@ -541,7 +512,7 @@ function dateOriginRequirement(
 		id: QA_INTERNAL_DATE_ORIGIN,
 		label: `Date for ${choice.name}`,
 		type: "date",
-		dateFormat: "YYYY-MM-DD",
+		dateFormat: defaultDateVariableFormat(false),
 		defaultValue: dateOrigin.defaultValue,
 		source: "collected",
 	};
@@ -564,7 +535,7 @@ function withDateOriginRequirement(
 
 export async function collectChoiceRequirements(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: IChoice,
 	options?: CollectChoiceRequirementsOptions,
@@ -594,11 +565,11 @@ export async function collectChoiceRequirements(
 }
 
 export function listDeferredMacroSteps(
-	plugin: Pick<QuickAdd, "getChoiceById">,
+	plugin: Pick<ChoiceLookup, "findChoiceById">,
 	choice: IMacroChoice,
 	seededValue: unknown,
 ): DeferredStep[] {
-	return buildFormRoster((id) => resolveChoiceFromPlugin(plugin, id), choice, seededValue).deferred;
+	return buildFormRoster((id) => plugin.findChoiceById(id), choice, seededValue).deferred;
 }
 
 export function getUnresolvedRequirements(

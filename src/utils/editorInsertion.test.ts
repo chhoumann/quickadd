@@ -2,7 +2,7 @@
 import { frontmatterManager } from "../../tests/helpers/utilities/obsidianFixtures";
 import { describe, expect, it, vi } from "vitest";
 import type { App, Editor, TFile } from "obsidian";
-import { prepareCapture } from "../formatters/helpers/capturePlacement";
+import { prepareCapture } from "./capturePlacement";
 import {
 	appendToCurrentLine,
 	insertCaptureInBoundEditor,

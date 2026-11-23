@@ -1,20 +1,18 @@
 import type { App } from "obsidian";
-import { Modal, Setting, ButtonComponent } from "obsidian";
+import { Setting } from "obsidian";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
 import { NewTabDirection } from "../../types/newTabDirection";
 import type { OpenLocation } from "../../types/fileOpening";
 import { CommandType } from "../../types/macros/CommandType";
+import { openLocationOptions, splitDirectionOptions } from "../ChoiceBuilder/fileOpeningOptions";
+import { SettingsDialogModal } from "./SettingsDialogModal";
 
-export class OpenFileCommandSettingsModal extends Modal {
-	public waitForClose: Promise<IOpenFileCommand | null>;
-	private resolvePromise: (command: IOpenFileCommand | null) => void;
+/** Edits a working copy of the step; Save resolves it, anything else resolves null. */
+export class OpenFileCommandSettingsModal extends SettingsDialogModal<IOpenFileCommand> {
 	private command: IOpenFileCommand;
-	private originalCommand: IOpenFileCommand;
-	private isResolved = false;
 
 	constructor(app: App, command: IOpenFileCommand) {
 		super(app);
-		this.originalCommand = command;
 		this.command = { ...command, type: CommandType.OpenFile }; // copy and ensure type
 
 		// Backfill defaults for legacy commands
@@ -22,30 +20,12 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.command.location = this.command.location ?? this.deriveLocation();
 		this.syncLegacyFlagsFromLocation(this.command.location);
 
-		this.waitForClose = new Promise<IOpenFileCommand | null>((resolve) => {
-			this.resolvePromise = resolve;
-		});
-
 		this.display();
 		this.open();
 	}
 
-	onClose() {
-		super.onClose();
-		// Dismissing via Esc / click-outside / X discards edits (resolve null),
-		// matching the sibling Conditional/Branch modals. Only the Save button
-		// commits the working copy (it resolves before close()).
-		if (!this.isResolved) {
-			this.resolvePromise(null);
-			this.isResolved = true;
-		}
-	}
-
-	private resolveWithGuard(value: IOpenFileCommand | null) {
-		if (!this.isResolved) {
-			this.resolvePromise(value);
-			this.isResolved = true;
-		}
+	protected save(): IOpenFileCommand {
+		return this.command;
 	}
 
 	private display() {
@@ -60,7 +40,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.addOpenLocationSetting();
 		this.addFocusSetting();
 
-		this.addButtonBar();
+		this.addSaveCancelButtons("qa-command-button-row qa-command-button-row-compact");
 	}
 
 	private addFilePathSetting() {
@@ -77,23 +57,12 @@ export class OpenFileCommandSettingsModal extends Modal {
 			);
 	}
 
-
-
 	private addOpenLocationSetting() {
-		const locationOptions: { value: OpenLocation; label: string }[] = [
-			{ value: "reuse", label: "Reuse active tab" },
-			{ value: "tab", label: "New tab" },
-			{ value: "split", label: "Split" },
-			{ value: "window", label: "New window" },
-			{ value: "left-sidebar", label: "Left sidebar" },
-			{ value: "right-sidebar", label: "Right sidebar" },
-		];
-
 		new Setting(this.contentEl)
 			.setName("Where to open")
 			.setDesc("Choose tab, split, window, or sidebar")
 			.addDropdown((dropdown) => {
-				for (const { value, label } of locationOptions) {
+				for (const { value, label } of openLocationOptions) {
 					dropdown.addOption(value, label);
 				}
 
@@ -136,9 +105,10 @@ export class OpenFileCommandSettingsModal extends Modal {
 			.setName("Split direction")
 			.setDesc("How to arrange the new pane relative to the current one")
 			.addDropdown((dropdown) => {
+				for (const { value, label } of splitDirectionOptions) {
+					dropdown.addOption(value, label);
+				}
 				dropdown
-					.addOption(NewTabDirection.vertical, "Split right")
-					.addOption(NewTabDirection.horizontal, "Split down")
 					.setValue(this.command.direction ?? NewTabDirection.vertical)
 					.onChange((value) => {
 						this.command.direction = value as NewTabDirection;
@@ -165,32 +135,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 			return "split";
 		}
 		return "reuse";
-	}
-
-
-
-	private addButtonBar() {
-		const buttonContainer = this.contentEl.createDiv({
-			cls: "qa-command-button-row qa-command-button-row-compact",
-		});
-
-		const cancelButton = new ButtonComponent(buttonContainer);
-		cancelButton
-			.setButtonText("Cancel")
-			.onClick(() => {
-				// Return null to indicate cancellation
-				this.resolveWithGuard(null);
-				this.close();
-			});
-
-		const saveButton = new ButtonComponent(buttonContainer);
-		saveButton
-			.setButtonText("Save")
-			.setCta()
-			.onClick(() => {
-				this.resolveWithGuard(this.command);
-				this.close();
-			});
 	}
 
 	private reload() {

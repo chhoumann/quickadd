@@ -1,5 +1,5 @@
 import { log } from "src/logger/logManager";
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
 import type { Migrations } from "./Migrations";
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
@@ -37,7 +37,7 @@ const migrations: Migrations = {
 	pinAiModelRefs,
 };
 
-async function migrate(plugin: QuickAdd): Promise<void> {
+async function migrate(plugin: MigrationContext): Promise<void> {
 	const migrationsToRun = Object.keys(migrations).filter(
 		(migration: keyof Migrations) => !plugin.settings.migrations[migration]
 	);
@@ -90,7 +90,7 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 		}
 	}
 
-	void plugin.saveSettings();
+	await plugin.saveSettings();
 }
 
 export default migrate;

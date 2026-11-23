@@ -1,21 +1,13 @@
 /**
- * Runtime symlink/realpath write guard for untrusted-input vault writers.
- *
- * Shared by the AI built-in vault writers (#714) and the package-import asset
- * writer — both write data the user did not author byte-for-byte (model output /
- * an imported community package), so both must confine writes to the vault.
- *
- * Lexical string sanitization (sanitizeVaultPath / validateAssetDestination) is
- * not enough: Obsidian's desktop adapter follows symlinks, so a write to an
- * in-vault symlink can land OUTSIDE the vault while a confirm shows an in-vault
- * path (runtime-proven in review). This resolves the realpath of the target (or
- * its nearest existing ancestor, since the file may not exist yet) and the vault
- * root, and throws if the target is not contained.
- *
- * Desktop only — FileSystemAdapter + Node fs/path are accessed lazily via
- * `window.require` so the mobile bundle (no symlinks, no require) is never affected.
+ * Realpath write guard for vault writers of untrusted data (AI built-in
+ * writers, package import). Lexical sanitization is not enough: Obsidian's
+ * desktop adapter follows symlinks, so an in-vault symlink can land a write
+ * outside the vault. This resolves the realpath of the target (or its nearest
+ * existing ancestor) and of the vault root, and throws unless contained.
+ * Desktop only; fs/path load lazily so the mobile bundle is unaffected.
  */
 import { FileSystemAdapter, type App } from "obsidian";
+import { nodeRequire } from "./nodeRequire";
 
 export class VaultWriteEscapeError extends Error {
 	constructor(message: string) {
@@ -35,16 +27,6 @@ interface NodePath {
 	relative(from: string, to: string): string;
 	isAbsolute(p: string): boolean;
 	sep: string;
-}
-
-function nodeRequire<T>(mod: string): T | null {
-	try {
-		const req = (window as unknown as { require?: (m: string) => unknown })
-			.require;
-		return req ? (req(mod) as T) : null;
-	} catch {
-		return null;
-	}
 }
 
 export async function assertWriteStaysInVault(
@@ -79,12 +61,9 @@ export async function assertWriteStaysInVault(
 	try {
 		realTarget = await fs.promises.realpath(probe);
 	} catch {
-		// `probe` exists (lstatSync above) yet cannot be resolved: it is, or passes
-		// through, a DANGLING symlink whose ultimate target does not exist. A write
-		// still FOLLOWS that symlink and can land outside the vault, and we cannot
-		// prove where — so fail CLOSED. (On Linux/glibc realpath throws ENOENT here;
-		// the previous `.catch(() => probe)` fallback trusted the unresolved in-vault
-		// path and let the escape through.)
+		// `probe` exists yet cannot be resolved: it is, or passes through, a
+		// dangling symlink. A write would still follow it and could land outside
+		// the vault, so fail closed. Linux realpath throws ENOENT here.
 		throw new VaultWriteEscapeError(
 			`Refusing to write to "${vaultRelativePath}": it resolves through an unresolvable (dangling) symlink.`,
 		);

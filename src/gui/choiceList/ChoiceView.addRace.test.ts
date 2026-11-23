@@ -6,13 +6,13 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 const { configureChoiceMock } = vi.hoisted(() => ({
 	configureChoiceMock: vi.fn(),
 }));
-vi.mock("../../services/choiceService", async (importOriginal) => ({
-	...(await importOriginal<typeof ChoiceServiceModule>()),
+vi.mock("./choiceUiService", async (importOriginal) => ({
+	...(await importOriginal<typeof ChoiceUiServiceModule>()),
 	configureChoice: configureChoiceMock,
 }));
 
 import { App, Menu } from "obsidian";
-import type * as ChoiceServiceModule from "../../services/choiceService";
+import type * as ChoiceUiServiceModule from "./choiceUiService";
 
 // The vitest obsidian stub records the last Menu shown so menu-driven flows can
 // be driven without a real DOM menu; the real typings know nothing about it.

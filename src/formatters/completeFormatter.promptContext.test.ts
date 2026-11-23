@@ -32,6 +32,10 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 	},
 }));
 
+// Only templates run here; the other engines stay unloaded.
+vi.mock("../engine/SingleMacroEngine", () => ({ SingleMacroEngine: class {} }));
+vi.mock("../engine/SingleInlineScriptEngine", () => ({ SingleInlineScriptEngine: class {} }));
+
 vi.mock("obsidian", async () => (await import("../../tests/helpers/formatters/mocks")).obsidianMock());
 
 vi.mock("../gui/InputPrompt", () => ({
@@ -62,6 +66,7 @@ vi.mock("../logger/logManager", () => ({
 }));
 
 import { CompleteFormatter } from "./completeFormatter";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const app = {
 	workspace: { getActiveFile: () => null, getActiveViewOfType: () => null },
@@ -70,7 +75,7 @@ const app = {
 const plugin = { settings: { globalVariables: {}, inputPrompt: "single-line" } } as never;
 
 function makeFormatter() {
-	return new CompleteFormatter(app, plugin);
+	return new CompleteFormatter(app, plugin, undefined, testFormatterRuntime(app, plugin));
 }
 
 /** The (app, header, placeholder, ...) tuple the modal factory was called with. */

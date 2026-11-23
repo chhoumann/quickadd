@@ -88,6 +88,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { setMarkdownCursorAtOffset } from "../utils/editorInsertion";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const createCaptureChoice = (): ICaptureChoice => ({
 	name: "Test Capture Choice",
@@ -181,6 +182,7 @@ const createEngine = ({
 	const engine = new CaptureChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		{ ...createCaptureChoice(), openFile: true },
 		choiceExecutor,
 	);

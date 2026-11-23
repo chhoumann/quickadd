@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import { isSkipPromptShortcut } from "../promptShortcuts";
+import { InputPromptDraftStore } from "../../utils/InputPromptDraftStore";
 import GenericInputPrompt from "./GenericInputPrompt";
 import GenericWideInputPrompt from "../GenericWideInputPrompt/GenericWideInputPrompt";
 import { makeFakeApp } from "../../../tests/helpers/prompts/app";
@@ -104,3 +105,42 @@ for (const { name, Prompt, selector, cases } of groups) {
 		}
 	});
 }
+
+describe("Skip after the prompt already settled", () => {
+	const skipButton = () =>
+		document.querySelector<HTMLButtonElement>('button[aria-label="Skip and leave empty"]');
+
+	const cancelButton = () =>
+		Array.from(document.querySelectorAll<HTMLButtonElement>(".qaInputPrompt button")).find(
+			(button) => button.textContent === "Cancel",
+		);
+
+	it.each([
+		["submitted", (input: HTMLInputElement) => input.dispatchEvent(keyEvent({}))],
+		["cancelled", () => cancelButton()?.click()],
+	])("does not overwrite a %s prompt's kept draft with an empty answer", async (_label, settle) => {
+		const store = InputPromptDraftStore.getInstance();
+		const scope = store.beginExecutionScope();
+		const submitted = vi.spyOn(store, "handleSubmittedDraft");
+		try {
+			const result = GenericInputPrompt.Prompt(app as never, "Header", "", "", undefined, {
+				optional: true,
+			});
+			const input = document.querySelector<HTMLInputElement>(".qaInputPrompt input");
+			const skip = skipButton();
+			if (!input || !skip) throw new Error("Missing prompt input or Skip button");
+			input.value = "typed answer";
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+
+			settle(input);
+			const settled = await result.catch((error: unknown) => error);
+			skip.click();
+
+			expect(submitted).not.toHaveBeenCalledWith(expect.any(String), "");
+			expect(await result.catch((error: unknown) => error)).toBe(settled);
+		} finally {
+			submitted.mockRestore();
+			store.rollbackExecutionScope(scope);
+		}
+	});
+});

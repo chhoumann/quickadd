@@ -1,4 +1,4 @@
-import { prepareCapture, type CaptureCursor } from "../formatters/helpers/capturePlacement";
+import { prepareCapture, type CaptureCursor } from "../utils/capturePlacement";
 import { restoreUserText, restoreUserTextInCapture } from "../formatters/helpers/userText";
 import { insertCaptureInEditor, setMarkdownCursorsAtOffsets, appendToCurrentLine, insertOnNewLineAbove, insertOnNewLineBelow, setMarkdownCursorAtOffset } from "../utils/editorInsertion";
 import { mapEditorCursorPlacement, type EditorCursorPlacement, type EditorTextMutationObserver } from "../utils/editorCursorPlacement";
@@ -23,10 +23,10 @@ import {
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
-import { extractHeadingsFromLines } from "../formatters/helpers/sectionLink";
-import { getLinesInString } from "../utility";
+import { extractHeadingsFromLines } from "../utils/sectionLink";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { parsePropertyCapture, type PropertyCapture } from "../types/choices/ICaptureChoice";
 import {
@@ -72,7 +72,9 @@ import {
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
-import { getCaptureAction, isEditorAction, withoutCursorPosition, type CaptureAction } from "./captureAction";
+import { getCaptureAction, isEditorAction, usesSelectionAsCaptureValue, withoutCursorPosition, type CaptureAction } from "../utils/captureAction";
+import { createFileWithInput, getFileByPath } from "./vaultFiles";
+import { hasCursorMarker, isCaptureContentEmpty, isCursorMarkerOnly } from "../utils/capturePlacement";
 import { currentEditorView, currentFile, namesCurrentNote } from "../utils/currentFile";
 import {
 	getCanvasTextCaptureContent,
@@ -94,15 +96,6 @@ import {
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
-// Mirrors CaptureChoiceFormatter's "nothing to capture" definition: only ASCII
-// whitespace counts as empty (Unicode spaces like U+00A0 are intentional content,
-// see #760). Kept local so the engine's no-op detection does not depend on the
-// formatter module's mocked shape in tests.
-const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
-function isCaptureContentEmpty(content: string): boolean {
-	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
-}
-
 const MULTI_SELECT_TOKEN_REGEX =
 	/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi\s*(?=[:}|]|$)[^}]*\}\}/gi;
 const EXPLICIT_MULTI_FORMAT_REGEX =
@@ -121,10 +114,9 @@ type CaptureWriteResult = {
 	newFileContent: string;
 	captureContent: string;
 	/**
-	 * The note's text that `newFileContent` was computed from, so `run()` can report
-	 * whether the capture actually changed anything rather than inferring it from the
-	 * payload (#1615). An empty payload can still create a note, and a non-empty one can
-	 * still leave the file untouched, so the payload is the wrong thing to ask.
+	 * The text `newFileContent` was computed from. Whether the capture changed the
+	 * note is decided from this: an empty payload can still create a note, and a
+	 * non-empty one can leave it untouched.
 	 */
 	priorContent: string;
 	cursor: CaptureCursor;
@@ -134,24 +126,21 @@ type CaptureWriteResult = {
 export class CaptureChoiceEngine extends CaptureTargetEngine {
 	choice: ICaptureChoice;
 	protected formatter: CaptureChoiceFormatter;
-	private readonly plugin: QuickAdd;
+	private readonly plugin: ChoiceRuntimePlugin;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
-	// Set per run: true when the capture content lands in a note BODY (any capture
-	// into an existing file, into a template's body, or an editor insertion) rather
-	// than becoming the file's own front matter. Front matter property collection is
-	// suppressed in that case so collected containers aren't stranded as "[]"
-	// placeholders (and written to the wrong note's front matter). See run().
+	// True when the capture lands in a note body rather than becoming the file's
+	// own front matter. Collection is then suppressed so containers are not
+	// stranded as "[]" placeholders.
 	private suppressFrontmatterCollection = false;
-	// Set when the "Choose heading when capturing" picker resolves a heading. Holds the heading
-	// TEXT (without '#' markers) for the success notice; the verbatim line goes to the
-	// formatter override. Null when not in heading mode.
+	// Heading text (without `#`) picked by "Choose heading when capturing", for the notice.
 	private resolvedInsertAfterHeading: string | null = null;
 	private readonly outcome: ChoiceOutcomeRecorder;
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		private readonly runtime: FormatterExecutionRuntime,
 		choice: ICaptureChoice,
 		protected choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
@@ -161,9 +150,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		this.choice = choice;
 		this.plugin = plugin;
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
-		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor, runtime);
 		this.formatter.choiceChain = chain;
-		// Every prompt this run opens can say which choice is asking (issue #1546).
 		this.formatter.setPromptRunContext({
 			draftScopeId: choice.id,
 			choiceName: choice.name,
@@ -171,11 +159,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}
 
 	/**
-	 * For ordered captures (the "ordered" create-if-not-found location), copy the
-	 * formatter's resolved insert-after heading (e.g. `## 2026-06-16`) so the
-	 * success notice names the real heading instead of the raw `{{DATE:…}}` token.
-	 * Called after the format pass; a no-op for every other capture (so existing
-	 * insert-after notice behaviour is unchanged).
+	 * Lets the success notice of an ordered capture name the resolved heading
+	 * instead of the raw `{{DATE:…}}` token.
 	 */
 	private captureResolvedOrderedHeading(): void {
 		if (
@@ -202,11 +187,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			return;
 		}
 
-		const shouldAppendToBottom =
-			this.choice.prepend ||
-			(this.choice.captureToActiveFile &&
-				this.choice.activeFileWritePosition === "bottom");
-
 		let msg = "";
 		switch (action) {
 			case "currentLine":
@@ -219,13 +199,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				msg = `Captured on a new line below cursor in ${fileName}`;
 				break;
 			case "activeFileTop":
+			case "top":
 				msg = `Captured to top of ${fileName}`;
 				break;
-			case "prepend":
-			case "append":
-				msg = shouldAppendToBottom
-					? `Captured to bottom of ${fileName}`
-					: `Captured to top of ${fileName}`;
+			case "bottom":
+				msg = `Captured to bottom of ${fileName}`;
 				break;
 			case "insertAfter": {
 				const heading =
@@ -251,11 +229,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}
 
 	/**
-	 * Shown instead of the success notice when the formatted capture payload is
-	 * empty/whitespace-only: the file is unchanged (the formatter returns it as-is,
-	 * and editor insertion replaces the selection with an empty string), so a
-	 * confident "Captured to …" would be misleading. `wasNewFile` keeps the "note
-	 * created" fact honest when create-if-not-found still made an empty file.
+	 * Replaces the success notice when the payload is blank and the file is
+	 * unchanged. `wasNewFile` keeps the "note created" fact when
+	 * create-if-not-found still made an empty file.
 	 */
 	private showNothingToCaptureNotice(
 		file: TFile,
@@ -327,29 +303,13 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		await copyChoiceFileLink(file);
 	}
 
-	private validateAppendLinkDestination(
-		linkOptions: NormalizedAppendLinkOptions,
-	): boolean {
-		const error = appendLinkDestinationError(this.app, linkOptions);
-		if (!error) return true;
-		this.failRun(error);
-		return false;
-	}
-
 	private configureFormatter(linkOptions: NormalizedAppendLinkOptions): void {
 		this.formatter.setLinkToCurrentFileBehavior(
 			linkOptions.enabled && !linkOptions.requireActiveFile
 				? "optional"
 				: "required",
 		);
-		const selectionOverride = this.choice.useSelectionAsCaptureValue;
-		const globalSelectionAsValue =
-			this.plugin.settings.useSelectionAsCaptureValue ?? true;
-		const useSelectionAsCaptureValue =
-			typeof selectionOverride === "boolean"
-				? selectionOverride
-				: globalSelectionAsValue;
-		this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
+		this.formatter.setUseSelectionAsCaptureValue(usesSelectionAsCaptureValue(this.choice, this.plugin.settings));
 	}
 
 	/**
@@ -415,7 +375,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		return { kind: "note", filePath, isCanvasTriggered: !!canvasTarget };
 	}
 
-	/** Whether an insert-after/before capture creates its missing line at the cursor. */
 	private createsMissingLineTargetAtCursor(action: CaptureAction): boolean {
 		const target =
 			action === "insertAfter" ? this.choice.insertAfter
@@ -430,12 +389,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	 * matter is collected, and aborts on a missing note that is not to be created.
 	 */
 	private async prepareNoteWrite(filePath: string, fileAlreadyExists: boolean): Promise<void> {
-		// "Choose heading when capturing" (After line…): prompt for a heading from the resolved
-		// target note and feed the picked line to the formatter as an insert-after
-		// override. Runs after the target file is known and before any formatting/write.
-		// Canvas TEXT cards are handled earlier in handleCanvasTextCapture (which resolves
-		// the heading from the card text); a bare .canvas file path here would be a file
-		// card whose underlying note is markdown, so the extension guard is defensive.
+		// Canvas text cards pick their heading in handleCanvasTextCapture.
 		if (
 			this.isInsertAfterHeadingMode() &&
 			!CANVAS_FILE_EXTENSION_REGEX.test(filePath)
@@ -445,13 +399,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			);
 		}
 
-		// Collect front matter property types only when the capture content
-		// becomes the file's OWN front matter — i.e. a brand-new file created
-		// from the capture with no template. Captures into an existing file
-		// (append / bottom / insert-after/before / editor insertion), or into a
-		// template's body, place the snippet in the BODY: collecting there would
-		// strand a "[]" placeholder in the body AND write the values to the wrong
-		// note's front matter. Suppress collection for those.
+		// Collect property types only when the capture becomes a new file's own
+		// front matter. In a body, collection would strand a "[]" placeholder and
+		// write the values to the wrong note.
 		const captureBecomesOwnFrontmatter =
 			!fileAlreadyExists &&
 			!!this.choice?.createFileIfItDoesntExist?.enabled &&
@@ -460,17 +410,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			!this.periodicNoteFor(filePath)?.settings.template;
 		this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
 
-		// |multi only yields a real YAML list when its array can be collected
-		// into the new note's own front matter. In any other capture shape the
-		// array degrades to a comma-joined string; warn instead of silently
-		// writing the wrong shape.
+		// |multi only yields a YAML list in the new note's own front matter;
+		// elsewhere it degrades to a comma-joined string, so warn.
 		if (
 			this.suppressFrontmatterCollection &&
-			// Match the `|multi` flag specifically: a pipe, then `multi`
-			// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
-			// `|multi1`, `|multi-select`, etc. FIELD is included because
-			// {{FIELD:…|multi}} degrades to a comma-joined string in the exact
-			// same way VALUE/FILE do (see formatter.ts replaceFieldVarInString).
 			hasContextualMultiSelectToken(this.choice?.format?.format ?? "")
 		) {
 			log.logWarning(
@@ -488,11 +431,14 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	async run(): Promise<void> {
 		let contentCommitted = false;
 		try {
-			// Reset any pending structured values before starting a new capture run
 			this.capturePropertyVars.clear();
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			this.configureFormatter(linkOptions);
-			if (!this.validateAppendLinkDestination(linkOptions)) return;
+			const linkDestinationError = appendLinkDestinationError(this.app, linkOptions);
+			if (linkDestinationError) {
+				this.outcome.fail(linkDestinationError);
+				return;
+			}
 
 			const propertyCapture = this.choice.propertyCapture === undefined
 				? undefined
@@ -500,7 +446,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			if (!propertyCapture && isEditorAction(getCaptureAction(this.choice)) && this.namedNoteHasNoEditor()) {
 				this.choice = withoutCursorPosition(this.choice);
 			}
-			const action = propertyCapture ? "append" : getCaptureAction(this.choice);
+			const action = propertyCapture ? "bottom" : getCaptureAction(this.choice);
 			const target = await this.resolveWriteTarget(action, !!propertyCapture);
 			if (target.kind === "canvasText") {
 				await this.handleCanvasTextCapture(
@@ -517,16 +463,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 			const content = this.getCaptureContent();
 
-			const fileAlreadyExists = await this.fileExists(filePath);
+			const fileAlreadyExists = await this.app.vault.adapter.exists(filePath);
 
-			// Refuse an impossible target here rather than at vault.create (#1591).
-			// Gated character-for-character on the dispatch condition below, so a
-			// missing target with creation OFF still gets its own message - and an
-			// EXISTING file with a colon in its name (legal on macOS/Linux, so a note
-			// made outside Obsidian can have one) keeps appending as it does today.
-			// Placed above the heading picker rather than inside
-			// onCreateFileIfItDoesntExist so the user is not asked to choose a
-			// heading for a note that cannot be created.
+			// Refuse an impossible name before the heading picker asks about a note
+			// that cannot be created. An existing file with a colon (legal outside
+			// Obsidian on macOS/Linux) keeps working.
 			if (!fileAlreadyExists && this.choice?.createFileIfItDoesntExist?.enabled) {
 				assertCreatableFilePath(filePath);
 			}
@@ -583,11 +524,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				return;
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-			// Record BEFORE reporting: the notice is for whoever is at the desktop, the
-			// reason is for whoever is not (a CLI or interactive-bridge caller), and both
-			// must say the same thing (#1603). A no-op once the capture committed, so a
-			// post-commit link/open failure cannot make an automation retry and write
-			// the capture twice.
+			// Record before reporting so the notice and the caller's reason agree. A
+			// no-op once the capture committed, so a post-commit failure cannot make
+			// an automation retry and write the capture twice.
 			this.outcome.failure(failureReason(err));
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		} finally {
@@ -618,7 +557,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		// Commit success before links/navigation so later failures cannot invite duplicate writes.
 		this.outcome.success(file, result.effect);
 
-		// Show success notification
 		if (this.plugin.settings.showCaptureNotification) {
 			if (captureIsNoOp) {
 				this.showNothingToCaptureNotice(file, {
@@ -681,7 +619,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (isEditorAction(action)) {
 			const parsed = captureIsNoOp ? captureContent : await templaterParseTemplate(this.app, captureContent, file);
 			const payload = restoreUserTextInCapture(prepareCapture(parsed));
-			if (payload.cursor.kind === "none" && /{{CURSOR}}/i.test(parsed)) {
+			if (payload.cursor.kind === "none" && hasCursorMarker(parsed)) {
 				if (this.plugin.settings.showCaptureNotification) {
 					this.showNothingToCaptureNotice(file, { wasNewFile: !options.fileAlreadyExists });
 				}
@@ -698,7 +636,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 					: insert(payload.content, this.app, file);
 				if (!inserted) {
 					await this.cleanupCreatedClipboardAttachments();
-					this.failRun(`Capture "${this.choice.name}": no active Markdown editor to insert into.`);
+					this.outcome.fail(`Capture "${this.choice.name}": no active Markdown editor to insert into.`);
 					return null;
 				}
 			}
@@ -741,7 +679,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (!fileAlreadyExists && !this.choice.createFileIfItDoesntExist.enabled) {
 			throw new ChoiceAbortError(`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`);
 		}
-		let file = fileAlreadyExists ? this.getFileByPath(filePath) : undefined;
+		let file = fileAlreadyExists ? getFileByPath(this.app, filePath) : undefined;
 		this.formatter.setTitle(basenameWithoutMdOrCanvas(filePath));
 		this.formatter.setTargetFolderPath(parentFolderPath(filePath));
 		this.formatter.setDestinationSourcePath(filePath);
@@ -756,17 +694,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			: createWithTemplate ? "" : await this.periodicNoteContent(filePath) ?? "";
 		let templateVars = new Map<string, unknown>();
 		if (createWithTemplate) {
-			const template = new SingleTemplateEngine(this.app, this.plugin,
-				this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
-			template.setDestinationPath(filePath);
-			template.setPromptRunContext({
-				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
-				choiceName: this.choice.name, destination: filePath, destinationKind: "file",
-			});
-			template.choiceChain = this.chain;
-			if (linkOptions.enabled && !linkOptions.requireActiveFile) template.setLinkToCurrentFileBehavior("optional");
-			initialContent = await template.run();
-			templateVars = template.getAndClearTemplatePropertyVars();
+			({ content: initialContent, templateVars } = await this.renderCreateTemplate(filePath, linkOptions, false));
 		}
 		const frontmatter = readCaptureFrontmatter(initialContent);
 		for (const [key, value] of templateVars) {
@@ -812,7 +740,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				});
 			} else {
 				frontmatter[key] = prepared;
-				const create = () => this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
+				const create = () => createFileWithInput(this.app, filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
 					suppressTemplaterOnCreate: createWithTemplate,
 				});
 				file = createWithTemplate ? await create() : await createNoteAfterTemplaterTrigger(this.app, filePath, create);
@@ -862,17 +790,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		});
 	}
 
-	/**
-	 * A failure exit that is not a throw: log it for the desktop, and record the same
-	 * message as the run's outcome so a caller who cannot see notices learns the cause
-	 * instead of the CLI's fixed "Choice execution failed" sentence (#1603).
-	 */
-	private failRun(message: string): void {
-		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-		log.logError(message);
-		this.outcome.failure(message);
-	}
-
 	private async cleanupCreatedClipboardAttachments(): Promise<void> {
 		const paths = this.formatter.consumeCreatedClipboardAttachmentPaths();
 		for (const path of paths) {
@@ -914,9 +831,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const captureTemplate = this.getCaptureContent();
 		const existingText = getCanvasTextCaptureContent(target);
 
-		// "Choose heading when capturing" on a canvas text card: resolve the heading from
-		// the card's own text so the insert-after override targets a real line in the card
-		// (otherwise heading mode leaves the static `after` empty and the formatter aborts).
+		// Heading mode on a canvas text card picks from the card's own text, or the
+		// formatter would abort on an empty `after`.
 		if (this.isInsertAfterHeadingMode()) {
 			await this.maybeResolveInsertAfterHeading(existingText);
 		}
@@ -937,15 +853,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		}
 		this.captureResolvedOrderedHeading();
 
-		// An empty/whitespace capture leaves the card text unchanged (the formatter
-		// returns existingText as-is) — surface a no-op notice instead of a false
-		// "Captured to …" success, consistent with the note-body path in run().
+		// A blank capture leaves the card text unchanged.
 		const captureIsNoOp = nextText === existingText;
 
-		// Checked BEFORE the write, not after. `setCanvasTextCaptureContent` re-serialises
-		// the whole .canvas JSON, so writing identical card text can still rewrite the
-		// file's bytes — which would make the "unchanged" this run is about to report
-		// false, and would touch a file the user was told was left alone (#1615).
+		// Checked before the write: re-serialising the .canvas JSON can change its
+		// bytes even when the card text is identical.
 		if (!captureIsNoOp) {
 			await setCanvasTextCaptureContent(this.app, target, nextText);
 		}
@@ -985,18 +897,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}
 
 	/**
-	 * For "Choose heading when capturing": prompt the user with a dropdown of the
-	 * destination's headings and set the picked line as the formatter's insert-after
-	 * override. The items are heading LINES from `content`, without indentation (so the
-	 * formatter's literal search finds them, the #742 invariant),
-	 * parsed with the same `extractHeadingsFromLines` that finds section ends, so it offers
-	 * the headings Obsidian shows. `allowCustomValue` lets the user type a NEW heading
-	 * only when "Create line if not found" is enabled — otherwise the override path can only
-	 * match an existing line and would abort after the user already typed one (the picker must
-	 * never offer to create a heading the engine cannot create). `content` is the
-	 * destination's current text — a note body, or a Canvas text card's text. A no-op unless
-	 * the choice is in heading mode. Cancelling aborts the capture cleanly (UserCancelError),
-	 * before any write.
+	 * Heading-picker mode: asks for one of the destination's headings and makes
+	 * its line the formatter's insert-after override. A custom heading is allowed
+	 * only when "Create line if not found" is on, since otherwise the override
+	 * could never match.
 	 */
 	private async maybeResolveInsertAfterHeading(content: string): Promise<void> {
 		const insertAfter = this.choice.insertAfter;
@@ -1004,7 +908,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		const allowCreate = !!insertAfter.createIfNotFound;
 
-		const lines = getLinesInString(content);
+		const lines = content.split("\n");
 		// The headings Obsidian shows, minus setext ones: the picked line becomes
 		// the insert-after target, and a setext heading's line is its text, so a
 		// capture after it would split the heading from its underline. An ATX
@@ -1024,9 +928,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const placeholder = "Choose a heading to insert under";
 		const chosen = String(
 			await routePrompt(this.choiceExecutor, {
-				// Routed like every other prompt the run opens. Before, an interactive
-				// run opened this on the desktop while the client's /poll returned
-				// nothing (#1614).
 				remote: (provider) =>
 					promptEngineChoice(provider, {
 						items: headingLines.map((line, index) => ({
@@ -1037,8 +938,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 						allowCustomInput: allowCreate,
 						what: "the heading picker",
 					}),
-				// Non-interactive run (CLI without `ui`): no one can answer, so opening
-				// it would hang. Abort with an actionable error.
 				headless: () => {
 					throw new ChoiceAbortError(
 						`'${this.choice.name}' needs to ask which heading to capture under, but this run is non-interactive. ` +
@@ -1064,16 +963,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		this.formatter.setInsertAfterTargetOverride(chosen);
 
-		// Notice copy: show the heading TEXT (no '#') for a picked heading; fall back to
-		// the raw typed value for a custom entry.
 		const pickedIndex = headingLines.indexOf(chosen);
 		this.resolvedInsertAfterHeading =
 			pickedIndex >= 0 ? headingTexts[pickedIndex] : chosen;
 	}
 
-	/**
-	 * Whether the choice is in heading-picker mode (After line… + "Choose heading when capturing").
-	 */
 	private isInsertAfterHeadingMode(): boolean {
 		return (
 			!!this.choice.insertAfter?.enabled &&
@@ -1081,7 +975,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		);
 	}
 
-	/** Reads the destination note body for the heading picker (empty when the file is new). */
 	private async readNoteBodyForHeadingPicker(
 		filePath: string,
 		fileAlreadyExists: boolean,
@@ -1107,31 +1000,28 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		content: string,
 		editorInsertion = false,
 	): Promise<CaptureWriteResult> {
-		const file: TFile = this.getFileByPath(filePath);
+		const file: TFile = getFileByPath(this.app, filePath);
 		if (!file) throw new Error("File not found");
 
-		// Set the title to the existing file's basename
 		this.formatter.setTitle(file.basename);
 
-		// Set the destination file so formatters can generate proper relative links
 		this.formatter.setDestinationFile(file);
 
-		// First format pass...
 		const formatted = await this.collectIfFrontmatter(
 			() => this.formatter.formatContentOnly(content, { eachLine: this.choice.eachLine }),
 		);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		const fileContent = await readNote(this.app, file);
-		if (/{{CURSOR}}/i.test(formatted) && prepareCapture(formatted).cursor.kind === "none") {
+		if (isCursorMarkerOnly(formatted)) {
 			return { file, newFileContent: fileContent, captureContent: "", priorContent: fileContent, cursor: { kind: "none" }, markerOnly: true };
 		}
 		if (editorInsertion) {
 			return { file, newFileContent: fileContent, captureContent: formatted, priorContent: fileContent, cursor: { kind: "none" } };
 		}
 		// The first pass ran every prompt before the note was read, so placement
-		// starts from the note's current content (#210). This step only runs
-		// Templater and places the text; it does not format it again.
+		// starts from the note's current content. This step only runs Templater
+		// and places the text; it does not format it again.
 		const placement =
 			await this.collectIfFrontmatter(() =>
 				this.formatter.insertFormattedContent(
@@ -1180,33 +1070,52 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			window.moment(clocks?.date ?? clocks?.now), window.moment(clocks?.now));
 	}
 
+	/**
+	 * Renders the "Create file with template" body of a note this capture creates.
+	 * The template engine has its own formatter, so it is given the destination
+	 * and run context. Its draft scope is the template's own, so its {{VALUE}}
+	 * prompt does not share the capture body prompt's draft key.
+	 */
+	private async renderCreateTemplate(
+		filePath: string,
+		linkOptions: { enabled: boolean; requireActiveFile?: boolean } | undefined,
+		keepUserTextProtected: boolean,
+	): Promise<{ content: string; templateVars: Map<string, unknown> }> {
+		const templatePath = this.choice.createFileIfItDoesntExist.template;
+		const engine = new SingleTemplateEngine(this.app, this.plugin, this.runtime, templatePath, this.choiceExecutor);
+		if (linkOptions?.enabled && !linkOptions.requireActiveFile) engine.setLinkToCurrentFileBehavior("optional");
+		engine.setDestinationPath(filePath);
+		engine.setPromptRunContext({
+			draftScopeId: `${this.choice.id}#${templatePath}`,
+			choiceName: this.choice.name, destination: filePath, destinationKind: "file",
+		});
+		engine.choiceChain = this.chain;
+		engine.setKeepUserTextProtected(keepUserTextProtected);
+		const content = await engine.run();
+		return { content, templateVars: engine.getAndClearTemplatePropertyVars() };
+	}
+
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
 		linkOptions?: AppendLinkOptions,
 	): Promise<CaptureWriteResult | null> {
-		// Re-asserted at the sink, so the invariant is local to the one function
-		// that creates the file, not only to its caller's branch. It is an
-		// `includes` scan over a short string and costs nothing (#1591).
+		// Re-asserted at the one function that creates the file.
 		assertCreatableFilePath(filePath);
 
-		// Extract filename without extension from the full path.
 		const fileBasename = basenameWithoutMdOrCanvas(filePath);
 		this.formatter.setTitle(fileBasename);
 
-		// Set the destination path so formatters can generate proper relative links
-		// even before the file is created
 		this.formatter.setDestinationSourcePath(filePath);
 
-		// First formatting pass: resolve QuickAdd placeholders and prompt for user input (e.g. {{value}})
-		// This mirrors the logic used when the target file already exists and prevents the timing issue
-		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
+		// Format before the file exists so Templater never runs before `{{VALUE}}`
+		// is substituted.
 		const formattedCaptureContent: string =
 			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentOnly(captureContent, { eachLine: this.choice.eachLine }),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
-		if (/{{CURSOR}}/i.test(formattedCaptureContent) && prepareCapture(formattedCaptureContent).cursor.kind === "none") {
+		if (isCursorMarkerOnly(formattedCaptureContent)) {
 			return null;
 		}
 
@@ -1215,46 +1124,15 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (!this.choice.createFileIfItDoesntExist.createWithTemplate) {
 			fileContent = await this.periodicNoteContent(filePath) ?? "";
 		} else {
-			const singleTemplateEngine: SingleTemplateEngine =
-				new SingleTemplateEngine(
-					this.app,
-					this.plugin,
-					this.choice.createFileIfItDoesntExist.template,
-					this.choiceExecutor,
-				);
-
-			if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
-				singleTemplateEngine.setLinkToCurrentFileBehavior("optional");
-			}
-
-			// The SingleTemplateEngine has its own formatter; give it the
-			// destination folder so {{FOLDER}} resolves in the template body, and
-			// the run context so its prompts still name the choice and target.
-			singleTemplateEngine.setTargetFolderPath(parentFolderPath(filePath));
-			singleTemplateEngine.setPromptRunContext({
-				// Scoped to the template: the engine has its own formatter and raises
-				// its own {{VALUE}} prompt, which must not share the capture body
-				// prompt's draft key.
-				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
-				choiceName: this.choice.name,
-				destination: filePath,
-				destinationKind: "file",
-			});
-			singleTemplateEngine.choiceChain = this.chain;
-
 			// Answers to the template's prompts stay marked until Templater has run.
-			singleTemplateEngine.setKeepUserTextProtected(true);
-			fileContent = await singleTemplateEngine.run();
-
-			// Get template variables from the template engine's formatter
-			const templateVars = singleTemplateEngine.getAndClearTemplatePropertyVars();
+			const { content, templateVars } = await this.renderCreateTemplate(filePath, linkOptions, true);
+			fileContent = content;
 
 			log.logMessage(`CaptureChoiceEngine: Collected ${templateVars.size} template property variables`);
 			if (templateVars.size > 0) {
 				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
 			}
 
-			// Store for later use
 			this.templatePropertyVars = templateVars;
 		}
 
@@ -1263,7 +1141,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		// template is rendered below; without one, the trigger may fill the note
 		// first, so the capture is placed once it is done.
 		const createWithTemplate = this.choice.createFileIfItDoesntExist.createWithTemplate;
-		const create = () => this.createFileWithInput(filePath, fileContent, {
+		const create = () => createFileWithInput(this.app, filePath, fileContent, {
 			suppressTemplaterOnCreate: createWithTemplate,
 		});
 		const file: TFile = createWithTemplate
@@ -1271,14 +1149,12 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			: await createNoteAfterTemplaterTrigger(this.app, filePath, create);
 
 		try {
-			// Post-process front matter for template property types if we used a template
 			if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
 				this.templatePropertyVars &&
 				shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
 				await postProcessFrontMatter(this.app, file, this.templatePropertyVars);
 			}
 
-			// Process Templater commands in the template if a template was used
 			if (createWithTemplate && fileContent) {
 				await overwriteTemplaterOnce(this.app, file);
 			}
@@ -1286,10 +1162,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			if (fileContent) await this.restoreUserTextInNote(file);
 		}
 
-		// Read the file fresh from disk to avoid any potential cached content
-		// after the initial Templater run on newly created files.
+		// Read fresh: Templater may have rewritten the new file.
 		const updatedFileContent: string = await this.app.vault.read(file);
-		// Place the already-formatted capture content into the newly created file
 		const placement =
 			await this.collectIfFrontmatter(() =>
 				this.formatter.insertFormattedContent(

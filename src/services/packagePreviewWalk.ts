@@ -1,8 +1,8 @@
-import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
+import { inlineScriptBodies } from "../utils/inlineScriptSpans";
 import { normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type IChoice from "../types/choices/IChoice";
-import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceGuards";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -47,7 +47,7 @@ function joinCrumb(parts: Array<string | undefined>): string {
 
 /**
  * Whether a step's name already shows its script path, as it does for the steps
- * the macro builder names after same-named scripts (#1850). A `::member` suffix
+ * the macro builder names after same-named scripts. A `::member` suffix
  * doesn't count. The review then shows the path once.
  */
 export function isNamedAfterScript(label: string, scriptPath: string): boolean {
@@ -248,8 +248,7 @@ function collectChoice(
 
 	if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
 		for (const child of choice.choices) {
-			// A packaged folder's list can hold a `null` hole like any other
-			// (#1566); it carries nothing, so step over it rather than deref it.
+			// A packaged folder's list can hold a `null` hole; step over it.
 			if (!isChoiceLike(child)) continue;
 			// Skip children that have their own top-level row (avoids double
 			// counting); recurse inline-only children so they can't hide.

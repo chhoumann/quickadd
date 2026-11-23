@@ -4,6 +4,7 @@ import type { App } from "obsidian";
 import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
 import type { CallerDay } from "./types/dateOrigin";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock state / spies. These back the vi.mock factories below.
@@ -84,7 +85,11 @@ vi.mock("./preflight/OnePageInputModal", () => ({
 
 vi.mock("./ai/AIAssistant", () => ({
 	Prompt: mocks.prompt,
+}));
+vi.mock("./ai/chunkedPrompt", () => ({
 	ChunkedPrompt: mocks.chunkedPrompt,
+}));
+vi.mock("./ai/requestLog", () => ({
 	getAIRequestLogEntries: mocks.getAIRequestLogEntries,
 	getAIRequestLogEntryById: mocks.getAIRequestLogEntryById,
 	getLastAIRequestLogEntry: mocks.getLastAIRequestLogEntry,
@@ -155,6 +160,7 @@ vi.mock("./utils/errorUtils", async () => {
 const { QuickAddApi } = await import("./quickAddApi");
 const { MacroAbortError } = await import("./errors/MacroAbortError");
 const { promptCancelled } = await import("./errors/UserCancelError");
+const { FieldSuggestionCache } = await import("./utils/FieldSuggestionCache");
 
 // ---------------------------------------------------------------------------
 // Test doubles for app / plugin / choiceExecutor
@@ -199,7 +205,7 @@ function getApi(
 	executor = makeChoiceExecutor(),
 ) {
 	return {
-		api: QuickAddApi.GetApi(app, plugin, executor as never),
+		api: QuickAddApi.GetApi(app, plugin, executor as never, testFormatterRuntime(app, plugin)),
 		app,
 		plugin,
 		executor,
@@ -889,17 +895,6 @@ describe("ai.prompt validation", () => {
 			showAssistantMessages: true,
 		});
 	});
-
-	it("returns {} and reports error when Prompt resolves null", async () => {
-		mocks.getModelByName.mockReturnValue({ name: "gpt-4", maxTokens: 1 });
-		mocks.getModelProvider.mockReturnValue({ name: "OpenAI" });
-		mocks.resolveProviderApiKey.mockResolvedValue("KEY");
-		mocks.prompt.mockResolvedValue(null);
-		const { api } = getApi();
-		const res = await api.ai.prompt("q", "gpt-4");
-		expect(res).toEqual({});
-		expect(mocks.reportError).toHaveBeenCalled();
-	});
 });
 
 // ===========================================================================
@@ -945,16 +940,6 @@ describe("ai.chunkedPrompt validation", () => {
 			maxChunkTokens: undefined,
 		});
 		expect(opts.chunkSeparator).toBeInstanceOf(RegExp);
-	});
-
-	it("returns {} and reports error when ChunkedPrompt resolves null", async () => {
-		mocks.getModelByName.mockReturnValue({ name: "gpt-4", maxTokens: 1 });
-		mocks.getModelProvider.mockReturnValue({ name: "OpenAI" });
-		mocks.resolveProviderApiKey.mockResolvedValue("KEY");
-		mocks.chunkedPrompt.mockResolvedValue(null);
-		const { api } = getApi();
-		expect(await api.ai.chunkedPrompt("t", "tmpl", "gpt-4")).toEqual({});
-		expect(mocks.reportError).toHaveBeenCalled();
 	});
 });
 
@@ -1350,9 +1335,17 @@ describe("fieldSuggestions.getFieldValues", () => {
 });
 
 describe("fieldSuggestions.clearCache", () => {
-	it("delegates to the FieldSuggestionCache singleton without throwing", () => {
+	it("clears one field's cached suggestions, or all of them", () => {
 		const { api } = getApi();
-		expect(() => api.fieldSuggestions.clearCache()).not.toThrow();
-		expect(() => api.fieldSuggestions.clearCache("status")).not.toThrow();
+		const cache = FieldSuggestionCache.getInstance();
+		cache.set("status", new Set(["open"]));
+		cache.set("priority", new Set(["high"]));
+
+		api.fieldSuggestions.clearCache("status");
+		expect(cache.get("status")).toBeNull();
+		expect(cache.get("priority")).toEqual(new Set(["high"]));
+
+		api.fieldSuggestions.clearCache();
+		expect(cache.get("priority")).toBeNull();
 	});
 });

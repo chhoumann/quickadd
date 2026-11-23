@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import type { Component } from "svelte";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import type IChoice from "../../types/choices/IChoice";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 import { snapshot } from "../svelte/persist.svelte";
@@ -11,7 +11,7 @@ import { createChoiceFormProps, type ChoiceFormProps } from "./choiceFormProps.s
  * Settings page for the Template and Capture builders: a Name field over the
  * builder's Svelte form (TemplateChoiceForm / CaptureChoiceForm), whose
  * conditional settings live in reactive {#if} blocks, so a toggle never
- * rebuilds the page (#1130). Hands the edited choice to `onSave` when the
+ * rebuilds the page. Hands the edited choice to `onSave` when the
  * page is left.
  */
 export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoice> {
@@ -27,7 +27,7 @@ export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoi
 	protected constructor(
 		app: App,
 		public readonly choice: C,
-		private readonly plugin: QuickAdd,
+		private readonly plugin: ChoiceBuilderPlugin,
 		onSave: (choice: IChoice) => void,
 		private readonly form: Component<ChoiceFormProps<C>>,
 		/** What the form shows, for the card shown if it fails to mount. */

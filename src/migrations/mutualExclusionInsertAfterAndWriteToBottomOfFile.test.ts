@@ -6,7 +6,7 @@ describe("mutualExclusionInsertAfterAndWriteToBottomOfFile migration", () => {
 	it("does not throw on a legacy capture choice that lacks insertAfter", async () => {
 		// A capture choice persisted by an old version / imported / hand-edited in
 		// data.json may have no `insertAfter` object at all. Migrations run on RAW
-		// settings before CaptureChoice.Load normalizes them, so reading
+		// settings, so reading
 		// `insertAfter.enabled` unguarded throws TypeError, the migration runner
 		// reverts to backup WITHOUT marking the migration done, and it re-fails on
 		// every startup.

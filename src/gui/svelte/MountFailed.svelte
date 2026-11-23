@@ -7,9 +7,10 @@
 	}: {
 		/** Noun phrase naming what could not be displayed ("the command list"). */
 		what: string;
-		/** The underlying error message, when there is one. Shown verbatim: it is
-		 *  what makes a bug report actionable, and this card is otherwise a dead
-		 *  end for the user. */
+		/**
+		 * The underlying error message, when there is one. Shown verbatim: it is
+		 * what makes a bug report actionable.
+		 */
 		detail?: string;
 	} = $props();
 </script>
@@ -30,15 +31,10 @@
 		<span class="qaMountFailedTitle">QuickAdd couldn't display {what}</span>
 	</div>
 	<!--
-	  The body claims only what this card can actually vouch for. Two earlier
-	  drafts overreached and both were wrong somewhere:
-	    "nothing in your vault has been changed" - an action earlier in the same
-	      flow may well have written something (adding a choice saves it, THEN
-	      opens the builder).
-	    "everything else on this screen still works" - not for a host whose
-	      remaining controls only made sense alongside the view that failed.
-	  A card that can be wrong is worse than one that says less, so this one says
-	  what happened, that the failure itself changed nothing, and what to report.
+	  Claims only what this card can vouch for: what happened, that the failure
+	  itself changed nothing, and what to report. An action earlier in the same
+	  flow may have written something, and the remaining controls may not work
+	  without the failed view.
 	-->
 	<p class="qaMountFailedBody">
 		This part of QuickAdd could not be drawn, so it has been left out. Nothing

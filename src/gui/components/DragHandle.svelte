@@ -1,7 +1,7 @@
 <script lang="ts">
     import ObsidianIcon from "./ObsidianIcon.svelte";
 
-    // Shared drag-to-reorder handle (#1250). Keeps the existing POINTER drag AND adds
+    // Shared drag-to-reorder handle. Keeps the existing POINTER drag AND adds
     // keyboard reorder: ArrowUp/ArrowDown move the row one step via onMoveUp/onMoveDown.
     // It is a real <button> so it is focusable and announced; the list sets
     // autoAriaDisabled on the dndzone so the library no longer injects its own
@@ -25,7 +25,7 @@
         label: string;
         dragDisabled: boolean;
         /** Arm the list's pointer drag (flip dragDisabled=false). Must not preventDefault. */
-        onDragStart: () => void;
+        onDragStart: (event: PointerEvent) => void;
         onMoveUp?: () => void;
         onMoveDown?: () => void;
         size?: number;
@@ -59,7 +59,7 @@
     aria-label={label}
     aria-keyshortcuts={reorderable ? "ArrowUp ArrowDown" : undefined}
     tabindex={dragDisabled ? 0 : -1}
-    onpointerdown={() => onDragStart()}
+    onpointerdown={onDragStart}
     onkeydown={onKeyDown}
 >
     <ObsidianIcon iconId="grip-vertical" {size} />

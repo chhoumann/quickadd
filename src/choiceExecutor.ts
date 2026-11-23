@@ -1,6 +1,8 @@
 import { Notice, type App, type TFile, type WorkspaceLeaf } from "obsidian";
 import { currentDispatch, enterChoice, type ChoiceChain } from "./engine/choiceChain";
-import type QuickAdd from "./main";
+import type { ChoiceRuntimePlugin } from "./types/pluginContext";
+import type { FormatterExecutionRuntime } from "./formatters/formatterRuntime";
+import { createFormatterExecutionRuntime } from "./engine/formatterRuntime";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
@@ -11,9 +13,8 @@ import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor, RunChoiceOptions } from "./IChoiceExecutor";
 import type { PromptProvider } from "./interactive/promptProvider";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import ChoiceSuggester, {
-	emptyFolderNoticeText,
-} from "./gui/suggesters/choiceSuggester";
+import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { emptyFolderNoticeText } from "./utils/choiceNotices";
 import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
@@ -41,24 +42,14 @@ import { log } from "./logger/logManager";
 import type { ICommand } from "./types/macros/ICommand";
 import type { LoadedUserScript } from "./utils/userScript";
 import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
-import { isTemplateChoice } from "./types/choices/choiceType";
+import { isTemplateChoice } from "./types/choices/choiceGuards";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, LoadedUserScript>();
 	public readonly preparedInputs = createPreparedChoiceInputState();
-	// Default to interactive so every GUI entry point (command palette, ribbon,
-	// suggester) keeps its current prompt behaviour. Non-interactive callers (CLI
-	// without `ui`) flip this to false so engine prompts abort instead of hanging.
 	public interactive = true;
-	// When set, script prompts route to this remote provider (interactive session
-	// driven by an external front end) instead of Obsidian modals. See
-	// IChoiceExecutor.promptProvider.
 	public promptProvider?: PromptProvider;
-	// User-script modules loaded by requirement collection (preflight / CLI),
-	// consumed once by MacroChoiceEngine so a script's top-level code runs a
-	// single time per trigger instead of once for introspection plus once for
-	// execution (see IChoiceExecutor.preloadedUserScripts).
 	public readonly preloadedUserScripts = new Map<string, LoadedUserScript>();
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	public triggerContext: QuickAddTriggerContext | null = null;
@@ -76,7 +67,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
 
-	constructor(private app: App, private plugin: QuickAdd) {
+	private readonly formatterRuntime: FormatterExecutionRuntime;
+
+	constructor(private app: App, private plugin: ChoiceRuntimePlugin) {
+		this.formatterRuntime = createFormatterExecutionRuntime(app, plugin);
 		const dispatch = currentDispatch();
 		this.dispatchAncestry = dispatch.chain;
 		if (dispatch.currentNote !== undefined) this.setCurrentFile(dispatch.currentNote);
@@ -115,20 +109,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				this.focusedPropertyOverride !== undefined
 					? this.focusedPropertyOverride
 					: getFocusedPropertyTarget(this.app);
-			// Snapshot the trigger-time editor context at the outermost boundary, so a
-			// nested execute() (a {{MACRO}} that opens a file then runs a FIELD
-			// template, or the API path) keeps the ORIGINAL trigger note as the source
-			// for {{...|default-from:active}}, mirroring focusedProperty's depth-0
-			// semantics. The captured context is still threaded through the suggester
-			// and re-injected via executeWithFocusedProperty for the chosen leaf: on
-			// the LAUNCHER path (Run QuickAdd drill-down) the leaf is its own depth-0
-			// run and the override is what carries the context; on the executor Multi
-			// path the outer execute() now stays pending while the picker is open
-			// (#1630), so the leaf runs nested and simply inherits these still-live
-			// fields — the override it is handed holds the same values. A direct
-			// execute() (command palette/ribbon) has no override and reads live, which
-			// is the trigger note (the active markdown leaf is unchanged by the
-			// launching modal).
+			// Snapshot the trigger-time editor context at the outermost boundary, so
+			// nested runs keep the original trigger note for `|default-from:active`.
+			// The active leaf is unchanged by the launching modal.
 			this.triggerContext =
 				this.triggerContextOverride !== undefined
 					? this.triggerContextOverride
@@ -152,22 +135,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.triggerContextOverride = undefined;
 			this.clocks = undefined;
 			this.callerDay = undefined;
-			// Preloaded script modules are scoped to ONE outermost execution: a
-			// cancelled/aborted run must not strand its entries, or a later
-			// trigger on a long-lived executor (api.executeChoice callers reuse
-			// one) would consume a module loaded before the user's latest edits.
-			// Cleared at the END so the CLI's collect-then-execute handoff (which
-			// populates the map before execute() begins) still works.
+			// Preloaded modules are scoped to one outermost run, so a later trigger
+			// never consumes a module loaded before the user's latest edits. Cleared at
+			// the end so the CLI's collect-then-execute handoff still works.
 			this.preloadedUserScripts.clear();
 			clearPreparedChoiceInputs(this);
 		}
 	}
 
-	/**
-	 * Runs `work` as a run of `choice`. Every run of a choice starts here, so
-	 * each one gets the one-page form, the choice's Which day, the run's clocks
-	 * and trigger context, and a prompt-draft scope.
-	 */
 	async runChoice<T>(
 		choice: IChoice,
 		work: (chain: ChoiceChain) => Promise<T>,
@@ -211,10 +186,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		choice: IChoice,
 		ancestry: ChoiceChain = this.dispatchAncestry,
 	): Promise<void> {
-		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
-		// another choice through this same executor) transparent to the outcome slot of an
-		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
-		// choice's recorded result never leaks into the outer choice's reported outcome.
+		// Snapshot and restore pendingResult so a nested choice's result never
+		// leaks into an enclosing executeWithOutcome().
 		const savedResult = this.pendingResult;
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		try {
@@ -273,14 +246,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	/**
-	 * Executes a Template or Capture choice and returns a structured
-	 * {@link ChoiceOutcome} (used by the URI x-callback handler). The run is the
-	 * same as {@link execute}'s; the only addition is surfacing the outcome.
-	 *
-	 * Nesting-safe: Template/Capture never run nested choices through this executor, so
-	 * the single result slot cannot be clobbered. An engine that completed without
-	 * recording success (and without aborting/throwing) hit a swallowed-failure branch,
-	 * which is reported as `error` — never silently as success.
+	 * Nesting-safe: Template/Capture never run nested choices through this
+	 * executor. An engine that finished without recording success or aborting
+	 * swallowed a failure, which reports as `error`.
 	 */
 	async executeWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
@@ -422,13 +390,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private async runOnePagePreflightIfEnabled(choice: IChoice): Promise<void> {
-		// One-page preflight honoring per-choice override.
 		const globalEnabled = settingsStore.getState().onePageInputEnabled;
 		const override = choice.onePageInput ?? this.macroOnePageInput;
-		// A remote interactive run (Raycast) has no in-app modal fallback, so it must
-		// collect a choice's declared inputs up front via the provider regardless of
-		// the global one-page setting - otherwise those inputs are never gathered and
-		// the run proceeds with them empty.
+		// A remote run has no in-app fallback, so it collects declared inputs up
+		// front regardless of the one-page setting.
 		const remote = this.promptProvider != null;
 		const shouldUseOnePager =
 			override === "always" ||
@@ -463,6 +428,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		await new TemplateChoiceEngine(
 			this.app,
 			this.plugin,
+			this.formatterRuntime,
 			templateChoice,
 			this,
 			originLeaf,
@@ -478,6 +444,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		await new CaptureChoiceEngine(
 			this.app,
 			this.plugin,
+			this.formatterRuntime,
 			captureChoice,
 			this,
 			originLeaf,
@@ -493,6 +460,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
+			this.formatterRuntime,
 			macroChoice,
 			this,
 			this.variables,
@@ -508,26 +476,19 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		} finally {
 			this.macroOnePageInput = previousOverride;
 		}
-
-		Object.entries(macroEngine.params.variables).forEach(([key, value]) => {
-			this.variables.set(key, value);
-		});
 	}
 
 	private async onChooseMultiType(
 		multiChoice: IMultiChoice,
 		chain: ChoiceChain,
 	): Promise<void> {
-		// Read through the accessor, not `.length`: a non-array value such as `{}`
-		// has an `undefined` length, so a bare `=== 0` check would slide past this
-		// guard and hand the picker a non-list to iterate (#1566).
+		// Read through the accessor, not `.length`: a non-array such as `{}` has an
+		// undefined length and would slip past a bare `=== 0` check.
 		const children = childChoicesOf(multiChoice);
 
-		// A remote or non-interactive run has nobody in front of the Obsidian
-		// window, so the folder picker below would sit unanswered on a desktop the
-		// caller cannot see - and before #1630 the run then reported done with the
-		// picker still open. Refuse instead. Signalled rather than thrown so the
-		// CLI serializes the same aborted frame every engine guard produces.
+		// Nobody in front of the Obsidian window could answer the folder picker, so
+		// refuse. Signalled rather than thrown so the CLI serializes the same
+		// aborted frame as the engine guards.
 		if (this.promptProvider || this.interactive === false) {
 			// The remedy differs per arm: a remote session has no ui flag to offer.
 			const remedy = this.promptProvider
@@ -543,28 +504,21 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			return;
 		}
 
-		// An empty folder run via command/URI would otherwise open a dead, item-less
-		// picker (no Back row is appended on this path) that reads as a broken command.
-		// Surface a Notice instead so the user knows the folder simply has nothing in it.
+		// An empty folder would open a dead picker that reads as a broken command.
 		if (children.length === 0) {
 			new Notice(emptyFolderNoticeText(multiChoice));
 			return;
 		}
 
-		// Await the picker: the promise settles when the picked leaf choice
-		// finishes (or fails), or when the picker is dismissed - so this
-		// execute() no longer resolves while its own picker is open (#1630). A
-		// macro's Choice command therefore runs its remaining steps AFTER the
-		// picked child, and dismissing the picker cancels the run exactly like
-		// dismissing any other prompt mid-run.
+		// Settles when the picked leaf finishes or fails, or when the picker is
+		// dismissed, so a macro's later steps run after the picked child and a
+		// dismissal cancels the run.
 		await new Promise<void>((resolve, reject) => {
 			ChoiceSuggester.Open(this.plugin, children, {
 				choiceExecutor: this,
 				focusedProperty: this.focusedProperty,
 				triggerContext: this.triggerContext,
-				// Fall back to the folder name when no custom placeholder is set, matching the
-				// picker drill-down (choiceSuggester.onChooseMultiType) so both entry points to
-				// the same folder show the same search hint.
+				// Falls back to the folder name, matching the picker drill-down.
 				placeholder: multiChoice.placeholder?.trim() || multiChoice.name,
 				ancestry: chain,
 				completion: (error) =>

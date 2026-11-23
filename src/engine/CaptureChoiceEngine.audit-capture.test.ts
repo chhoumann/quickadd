@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { insertOnNewLineBelow } from "../utils/editorInsertion";
@@ -133,6 +132,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { log } from "../logger/logManager";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 type NoticeTestClass = typeof Notice & {
 	instances: Array<{ message: string; timeout?: number }>;
@@ -219,6 +219,7 @@ const buildRunEngine = (choice: ICaptureChoice, app: App) =>
 	new CaptureChoiceEngine(
 		app,
 		{ settings: { showCaptureNotification: true } } as any,
+		testFormatterRuntime(),
 		choice,
 		createExecutor(),
 	);
@@ -250,6 +251,7 @@ describe("CaptureChoiceEngine heading picker create affordance gating", () => {
 		new CaptureChoiceEngine(
 			{} as unknown as App,
 			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			testFormatterRuntime(),
 			choice,
 			createExecutor(),
 		);

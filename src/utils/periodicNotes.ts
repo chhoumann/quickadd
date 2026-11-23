@@ -1,6 +1,9 @@
 import { TFile, type App } from "obsidian";
 import type { Moment, unitOfTime } from "moment";
 import { usesMarkdownLinks } from "./fileLinks";
+import { normalizeVaultPath } from "./pathUtils";
+import { isRecord } from "./isRecord";
+import { getCommunityPlugin, getInternalPlugin } from "./obsidianInternals";
 
 export const PERIODS = ["daily", "weekly", "monthly", "quarterly", "yearly"] as const;
 export type Period = (typeof PERIODS)[number];
@@ -38,15 +41,11 @@ const PERIOD_UNITS: Record<Period, unitOfTime.StartOf> = {
 };
 
 function record(value: unknown): Record<string, unknown> | undefined {
-	return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+	return isRecord(value) ? value : undefined;
 }
 
 function text(value: unknown): string {
 	return typeof value === "string" ? value.trim() : "";
-}
-
-function vaultPath(path: string): string {
-	return path.replace(/[\\/]+/g, "/").replace(/^\/|\/$/g, "");
 }
 
 function token(period: Period): string {
@@ -56,9 +55,9 @@ function token(period: Period): string {
 function settingsFrom(source: PeriodicNoteSettings["source"], period: Period, raw: Record<string, unknown>): PeriodicNoteSettings {
 	return {
 		source,
-		folder: vaultPath(text(raw.folder)),
+		folder: normalizeVaultPath(text(raw.folder)),
 		format: text(raw.format) || DEFAULT_FORMATS[period],
-		template: vaultPath(text(raw.template)),
+		template: normalizeVaultPath(text(raw.template)),
 	};
 }
 
@@ -69,7 +68,7 @@ function settingsFrom(source: PeriodicNoteSettings["source"], period: Period, ra
  * is checked before use.
  */
 export function getPeriodicNoteSettings(app: App | undefined, period: Period): PeriodicNoteSettings {
-	const periodicNotes = record(record(app?.plugins?.plugins?.["periodic-notes"])?.settings);
+	const periodicNotes = record(record(getCommunityPlugin(app, "periodic-notes"))?.settings);
 	// Periodic Notes 1.0 (beta) keeps its settings in calendar sets. Reading only
 	// core Daily notes there could target a different note than the one it opens.
 	if (periodicNotes && "calendarSets" in periodicNotes) {
@@ -81,7 +80,7 @@ export function getPeriodicNoteSettings(app: App | undefined, period: Period): P
 	if (period !== "daily") {
 		throw new Error(`${token(period)} needs the Periodic Notes plugin with ${period} notes turned on.`);
 	}
-	const dailyNotes = record(app?.internalPlugins?.plugins?.["daily-notes"]);
+	const dailyNotes = getInternalPlugin(app, "daily-notes");
 	if (dailyNotes?.enabled === true) {
 		return settingsFrom("daily-notes", period, record(record(dailyNotes.instance)?.options) ?? {});
 	}

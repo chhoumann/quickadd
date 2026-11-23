@@ -72,10 +72,7 @@ export class ProviderPickerModal extends Modal {
             try {
               const selectedSecret = apiKeyRef.trim();
 
-              // Basic validation
               try {
-                // Validate endpoint URL format
-
                 new URL(preset.endpoint);
               } catch {
                 new Notice(`Invalid endpoint URL for ${preset.name}.`);

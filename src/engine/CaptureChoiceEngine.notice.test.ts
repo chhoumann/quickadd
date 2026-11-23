@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -71,7 +70,6 @@ vi.mock("../utils/fileOpening", () => ({
 vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
-	getTemplater: vi.fn(() => ({})),
 }));
 
 vi.mock("three-way-merge", () => ({
@@ -96,6 +94,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { settingsStore } from "../settingsStore";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -181,6 +180,7 @@ const createEngine = (abortError: Error) => {
 	const engine = new CaptureChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		createCaptureChoice(),
 		choiceExecutor,
 	);
@@ -298,6 +298,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 		const engine = new CaptureChoiceEngine(
 			app,
 			plugin,
+			testFormatterRuntime(app, plugin),
 			createCaptureChoice(),
 			choiceExecutor,
 		);
@@ -376,7 +377,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 			choice,
 			destinationFile,
 			choiceExecutor,
-			engine: new CaptureChoiceEngine(app, plugin, choice, choiceExecutor),
+			engine: new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor),
 		};
 	}
 

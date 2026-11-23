@@ -7,33 +7,13 @@ import {
 const seededByRaw = new WeakMap<object, NormalizedChoiceList>();
 
 /**
- * `normalizeChoiceList`, memoized on the identity of the raw array it was given.
- *
- * The repair is not persisted - it reaches disk with the user's first ordinary
- * edit - so the same unrepaired array is normalized again every time anything
- * re-reads it, and each of those would mint DIFFERENT uuids for the same choice.
- * Two things go wrong when that happens, and neither is cosmetic:
- *
- *   - ChoiceView's subscription fires on EVERY settingsStore write, including
- *     ones nothing in the view caused (the AI provider auto-sync lands one a few
- *     seconds after launch). Every by-id write in the view resolves its target
- *     BEFORE an await - handleConfigureChoice captures the choice, awaits the
- *     builder, then matches on `oldChoice.id === newChoice.id` - so a re-mint
- *     inside that window turns the match into a no-op and silently discards the
- *     user's edits.
- *   - The settings tab DESTROYS and re-mounts ChoiceView every time it is
- *     opened. A memo living in the component would miss that, so a repaired
- *     `command: true` choice would be registered under a fresh id on every
- *     open, leaving one dead palette entry per open.
- *
- * Hence a module-level WeakMap rather than component state: the cache outlives
- * the component, and is keyed on the array object so an unrelated `setState`
- * (the store merges partials, leaving `state.choices` reference-identical) hits it
- * while a genuine tree change misses it. Entries die with the array.
- *
- * Keying on the choice's own previous id would NOT work: `undefined` collides
- * across every id-less entry, so two siblings would be handed the same uuid -
- * `each_key_duplicate` again (#1451).
+ * `normalizeChoiceList`, memoized on the identity of the raw array. The repair
+ * is not persisted until the next edit, and re-normalizing would mint different
+ * uuids for the same choice: a by-id write awaiting a builder would then match
+ * nothing and drop the user's edits, and command registration would leave a dead
+ * palette entry per settings open. Module-level, because the settings tab
+ * re-mounts ChoiceView on every open. Keying on the previous id would not work:
+ * every id-less entry shares `undefined`.
  */
 export function seedChoiceTree(raw: IChoice[]): NormalizedChoiceList {
 	const cached = seededByRaw.get(raw);

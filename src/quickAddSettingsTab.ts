@@ -1,6 +1,7 @@
 import type {
 	App,
 	ButtonComponent,
+	Plugin,
 	Setting,
 	SettingDefinitionGroup,
 	SettingDefinitionItem,
@@ -8,7 +9,7 @@ import type {
 	TextAreaComponent,
 } from "obsidian";
 import { Notice, PluginSettingTab } from "obsidian";
-import type QuickAdd from "./main";
+import type { ChoiceBuilderPlugin, ChoiceCommandRegistrar } from "./types/pluginContext";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import ChoicesUnavailable from "./gui/choiceList/ChoicesUnavailable.svelte";
@@ -20,8 +21,8 @@ import { settingsStore } from "./settingsStore";
 import { getAllFolderPathsInVault } from "./utils/vaultQueries";
 import { normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
-import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
-import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
+import { openExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
+import { openImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
 import { syncImportedChoiceCommands } from "./services/packageImportCommands";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { QuickAddSettings } from "./settings";
@@ -54,8 +55,15 @@ import { isCancellationError } from "./utils/errorUtils";
 
 const AI_KEY_PREFIX = "ai.";
 
+/** What the settings tab needs from the plugin. */
+type SettingsTabPlugin = Plugin &
+	ChoiceBuilderPlugin &
+	ChoiceCommandRegistrar & {
+		flushPendingSave(): Promise<void> | null;
+	};
+
 export class QuickAddSettingsTab extends PluginSettingTab {
-	public plugin: QuickAdd;
+	public plugin: SettingsTabPlugin;
 	/**
 	 * The choice list, kept mounted while the tab is shown. Obsidian tears the
 	 * tab down when a settings page opens over it (a choice's settings) and
@@ -68,7 +76,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	/** Live store subscription behind the Packages row's Export state. */
 	private packagesUnsubscribe: (() => void) | null = null;
 
-	constructor(app: App, plugin: QuickAdd) {
+	constructor(app: App, plugin: SettingsTabPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.icon = "zap";
@@ -135,15 +143,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	// -----------------------------------------------------------------------
 	// Store bridge
 	//
-	// QuickAdd's single source of truth is `settingsStore`, and the
-	// only persistence path is the subscriber installed in main.ts (which sets
-	// `plugin.settings` and calls `saveSettings()` on every store change). The
-	// declarative `control` API would otherwise bind directly to
-	// `plugin.settings[key]` and call `saveData` itself, bypassing the store and
-	// leaving every live store consumer (formatter, dateParser, choiceExecutor,
-	// the AI command, the Svelte views, ...) stale. Overriding both accessors to
-	// read/write the store keeps it authoritative. We must NOT also touch
-	// `plugin.settings` or call `saveData` here — the subscriber owns that.
+	// The declarative `control` API would bind to `plugin.settings[key]` and call
+	// `saveData` itself, leaving every store consumer stale. These accessors
+	// read and write `settingsStore` instead; the store subscriber owns
+	// persistence, so never touch `plugin.settings` or `saveData` here.
 	// -----------------------------------------------------------------------
 
 	override getControlValue(key: string): unknown {
@@ -256,12 +259,9 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	override hide(): void {
-		// In declarative mode the framework owns row teardown — unloading the
-		// control Components and running each render def's cleanup closure —
-		// which the base hide() drives. We must call it (the old imperative tab
-		// emptied containerEl itself, so the missing super.hide() was harmless
-		// then; it is not now). destroySettingViews() is the idempotent safety
-		// net for the two Svelte mounts.
+		// In declarative mode the base hide() tears down rows and runs render
+		// cleanups, so it must be called. destroySettingViews() is the idempotent
+		// safety net for the Svelte mounts.
 		super.hide();
 		this.destroySettingViews();
 		// Closing settings is when a change is done. The pending write waits on
@@ -282,26 +282,15 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.packagesUnsubscribe = null;
 	}
 
-	/** Strip the label/description column and let a row span the full width —
-	 * used to host the mounted Svelte views. The declarative API requires a
-	 * `name` on every definition (for search indexing); we set it on the def and
-	 * remove the rendered `infoEl` here so the view still spans full width. */
+	/** Strips the info column so a mounted Svelte view spans the full row; definitions still need a `name` for search. */
 	private prepareFullWidthSetting(setting: Setting): void {
 		setting.infoEl.remove();
 		setting.settingEl.addClass("qa-setting-full-width");
 		setting.controlEl.addClass("qa-setting-full-width-control");
 	}
 
-	// The declarative framework builds every group by calling these `render`
-	// closures in turn, so a throw out of one of them abandons the rest: when
-	// ChoiceView's mount threw, QuickAdd's settings came up as a lone "Choices &
-	// packages" heading with nothing under it, and no other section rendered at
-	// all (#1451, #1507, #1566). That guard now lives in mountComponent itself, so
-	// every Svelte host in the plugin gets it (#1584) — here we only choose which
-	// card takes the view's place.
-	//
-	// ChoiceView has its own <svelte:boundary> for reactive failures inside the
-	// list; mountComponent catches the setup that boundary sits inside.
+	// mountComponent never throws, so a failed view cannot abandon the remaining
+	// render closures; here we only choose which card takes its place.
 
 	private mountView(
 		setting: Setting,
@@ -386,22 +375,17 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	private renderPackages(setting: Setting): () => void {
-		// Both package actions are secondary utilities — not the page's primary
-		// action ("New choice" is) — so neither is a CTA. Keeping only one filled
-		// primary button in the view avoids competing purple CTAs (per the
-		// one-primary-button-per-page rule).
+		// Both package actions are secondary utilities, so neither is a CTA; "New
+		// choice" is the page's one primary button.
 		let exportButton: ButtonComponent | undefined;
 		setting.addButton((button) => {
 			exportButton = button;
 			button.setButtonText("Export package…").onClick(() => {
-				const choicesSnapshot = rootChoicesOf(
-					settingsStore.getState().choices,
-				);
-				new ExportPackageModal(
+				openExportPackageModal(
 					this.app,
-					this.plugin,
-					choicesSnapshot,
-				).open();
+					this.plugin.manifest.version,
+					rootChoicesOf(settingsStore.getState().choices),
+				);
 			});
 		});
 
@@ -410,17 +394,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText("Import package…").onClick(() => {
-				new ImportPackageModal(this.app, {
-					onImported: (result, previousChoices) =>
-						syncImportedChoiceCommands(this.plugin, previousChoices, result),
-				}).open();
+				openImportPackageModal(this.app, (result, previousChoices) =>
+					syncImportedChoiceCommands(this.plugin, previousChoices, result),
+				);
 			}),
 		);
 
-		// "Export package…" used to be the first concrete action a new user saw
-		// below the "No choices yet" empty state, with nothing to export (issue
-		// #1547). The tooltip covers desktop hover; the description carries the
-		// same reason for touch, where there is no hover, and for screen readers.
+		// The tooltip covers desktop hover; the description carries the same reason
+		// for touch and screen readers.
 		const apply = (hasNothingToExport: boolean): void => {
 			setting.setDesc(this.packagesDesc(hasNothingToExport));
 			if (!exportButton) return;

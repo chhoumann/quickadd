@@ -1,21 +1,8 @@
 /**
- * Tiny JSON Schema subset validator for QuickAdd tool inputs and structured output (#714).
- *
- * QuickAdd has no Zod and is bundle-size sensitive, so this is a purpose-built
- * validator for the lowest-common-denominator subset the three providers agree on.
- * It does TWO jobs, both pure (no Obsidian):
- *
- *  1. `assertRegisterableSchema(schema)` — called when a tool (or an output schema)
- *     is registered. It REJECTS unsupported keywords so an author can never write a
- *     constraint that one provider silently drops (e.g. `pattern`, `minLength`,
- *     `additionalProperties`, `$ref`, `allOf`, `format`). It is a security/shape gate,
- *     NOT a guarantee of per-provider acceptance — the runtime repair re-ask handles
- *     provider divergence.
- *
- *  2. `validateValue(value, schema)` — validates model-produced args / structured
- *     output against the subset. Returns the first error message (or null) so the
- *     loop can feed an `isError` result back to the model instead of running a
- *     handler with malformed input.
+ * JSON Schema subset validator for tool inputs and structured output, limited to
+ * what all three providers agree on. assertRegisterableSchema rejects any other
+ * keyword at registration, so no constraint is silently dropped by a provider.
+ * validateValue returns the first error so the loop can feed it back to the model.
  */
 import type { JSONSchema, JSONSchemaType } from "./NormalizedTools";
 
@@ -135,8 +122,7 @@ function matchesType(value: unknown, expected: JSONSchemaType): boolean {
 	if (actual === expected) return true;
 	// JSON has one number type; an integer value satisfies "number".
 	if (expected === "number" && actual === "integer") return true;
-	// An integer schema accepts only whole numbers (handled by typeOfValue: a
-	// non-integer number reports "number", which won't match "integer").
+	// typeOfValue reports a non-integer as "number", so it fails "integer".
 	return false;
 }
 
@@ -149,7 +135,6 @@ export function validateValue(
 	schema: JSONSchema,
 	path = "$",
 ): string | null {
-	// type
 	if (schema.type !== undefined) {
 		const types = Array.isArray(schema.type) ? schema.type : [schema.type];
 		if (!types.some((t) => matchesType(value, t))) {
@@ -157,18 +142,15 @@ export function validateValue(
 		}
 	}
 
-	// enum
 	if (Array.isArray(schema.enum)) {
 		const ok = schema.enum.some((e) => deepEqual(e, value));
 		if (!ok) return `${path}: value is not one of the allowed enum values`;
 	}
 
-	// const
 	if ("const" in schema && !deepEqual(schema.const, value)) {
 		return `${path}: value does not equal the required const`;
 	}
 
-	// object: required + nested properties
 	if (typeOfValue(value) === "object") {
 		const obj = value as Record<string, unknown>;
 		if (Array.isArray(schema.required)) {
@@ -189,7 +171,6 @@ export function validateValue(
 		}
 	}
 
-	// array: items
 	if (typeOfValue(value) === "array" && schema.items && !Array.isArray(schema.items)) {
 		const arr = value as unknown[];
 		for (let i = 0; i < arr.length; i++) {

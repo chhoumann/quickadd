@@ -1,5 +1,5 @@
 import type IChoice from "../types/choices/IChoice";
-import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceGuards";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -7,7 +7,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import { childChoicesOf, isChoiceLike, rootChoicesOf } from "./choiceUtils";
-import { commandListOf, isCommandLike } from "./macroUtils";
+import { commandListOf, isCommandLike, macroCommandsValueOf } from "./macroUtils";
 import { resolveTemplatePath } from "./templateFolderUtils";
 import { collectTemplateIncludePaths } from "./templateIncludes";
 import { CommandType } from "../types/macros/CommandType";
@@ -108,8 +108,7 @@ function buildChoiceCatalog(
 		parentPath: string[],
 	) => {
 		for (const choice of choices) {
-			// A hole in the list (null, a stray primitive) is not a choice; step over
-			// it rather than dereferencing it (#1566).
+			// A hole in the list (null, a stray primitive) is not a choice; step over it.
 			if (!isChoiceLike(choice)) continue;
 			const path = [...parentPath, choice.name];
 			catalog.set(choice.id, {
@@ -138,7 +137,7 @@ function collectChoiceDependencies(choice: IChoice): Set<string> {
 	}
 
 	if (isMacroChoice(choice)) {
-		collectDependenciesFromCommands(choice.macro?.commands, dependencies);
+		collectDependenciesFromCommands(macroCommandsValueOf(choice.macro), dependencies);
 	}
 
 	return dependencies;
@@ -263,7 +262,7 @@ function visitIncludedChoices(
 		if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
 			choice.choices.forEach(visitChoice);
 		}
-		if (isMacroChoice(choice)) visitCommands(choice.macro?.commands);
+		if (isMacroChoice(choice)) visitCommands(macroCommandsValueOf(choice.macro));
 	};
 	const visitCommands = (commands: unknown) => {
 		for (const command of commandListOf(commands)) {

@@ -1,11 +1,5 @@
 import type { ILogger } from "./ilogger";
 
-// There used to be a second `toError` here, a context-less twin of the one in
-// `utils/errorUtils`. Its existence is why #1604 happened: the two suggesters
-// imported THIS one, so the safe helper's "do NOT mutate the caller's Error"
-// contract did not apply to the call sites that most needed it, and they hand-rolled
-// the mutation it forbids. One helper now, in `utils/errorUtils`.
-
 export class LogManager {
 	public static loggers: ILogger[] = [];
 
@@ -13,6 +7,14 @@ export class LogManager {
 		LogManager.loggers.push(logger);
 
 		return this;
+	}
+
+	/**
+	 * Drop every registered logger. The plugin calls this on unload, so loading
+	 * it again registers its loggers once instead of next to the old instance's.
+	 */
+	public clear(): void {
+		LogManager.loggers = [];
 	}
 
 	logError(message: string | Error) {

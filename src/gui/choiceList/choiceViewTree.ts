@@ -1,12 +1,12 @@
 import { prepareFuzzySearch } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
-import type { CommandRegistry } from "../../services/choiceService";
+import type { ChoiceCommandRegistrar } from "../../types/pluginContext";
 import { childChoicesOf, hasChildChoices, isChoiceLike } from "../../utils/choiceUtils";
 import { log } from "../../logger/logManager";
 import { hasSeeded, seedChoiceTree } from "./seedChoiceTree";
 
-export function seedChoices(raw: IChoice[], commandRegistry: CommandRegistry): IChoice[] {
+export function seedChoices(raw: IChoice[], commands: ChoiceCommandRegistrar): IChoice[] {
 	// An unreadable root must survive unchanged; rendering it as empty would allow data loss.
 	if (!Array.isArray(raw)) return raw;
 	const alreadySeeded = hasSeeded(raw);
@@ -17,7 +17,7 @@ export function seedChoices(raw: IChoice[], commandRegistry: CommandRegistry): I
 	for (const { choice } of repaired) {
 		if (!choice.command) continue;
 		try {
-			commandRegistry.enableCommand(choice);
+			commands.addCommandForChoice(choice);
 		} catch (err) {
 			log.logError(
 				`Could not register a command for the repaired choice "${choice.name}": ${
@@ -81,10 +81,9 @@ export function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice): ICho
 		return { ...oldChoice, ...newChoice };
 	}
 
-	// Only rebuild a folder whose children we could actually read. This runs
-	// over the WHOLE tree on every rename/configure/toggle and is followed by
-	// save(), so spreading a folder with an unreadable `choices` value would
-	// persist [] over it the first time the user renamed anything (#1566).
+	// Only rebuild a folder whose children we could read. This runs over the
+	// whole tree before save(), so spreading an unreadable `choices` value would
+	// persist [] over it.
 	if (hasChildChoices(oldChoice)) {
 		const updatedChoices = childChoicesOf(oldChoice).map((c) =>
 			updateChoiceHelper(c, newChoice),

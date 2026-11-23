@@ -1,7 +1,9 @@
 import type { App } from "obsidian";
-import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { ChunkedPrompt, Prompt, clearAIRequestLogEntries, getAIRequestLogEntryById, getAIRequestLogEntries, getLastAIRequestLogEntry } from "../ai/AIAssistant";
+import { Prompt } from "../ai/AIAssistant";
+import { ChunkedPrompt } from "../ai/chunkedPrompt";
+import { clearAIRequestLogEntries, getAIRequestLogEntryById, getAIRequestLogEntries, getLastAIRequestLogEntry } from "../ai/requestLog";
+import { assertOnlineFeaturesEnabled } from "../ai/onlineFeatures";
 import { getModelNames, resolveModelInputOrThrow, type ScriptModelInput } from "../ai/aiHelpers";
 import type { OpenAIModelParameters } from "../ai/OpenAIModelParameters";
 import type { Model } from "../ai/Provider";
@@ -13,9 +15,8 @@ import { assertAssignableVariableName } from "../ai/tools/assignableVariable";
 import { createVaultTools } from "../ai/tools/builtins/vaultTools";
 import { createWorkspaceTools } from "../ai/tools/builtins/workspaceTools";
 import { createSystemTools } from "../ai/tools/builtins/systemTools";
-import type { BuiltinGroupOptions } from "../ai/tools/builtins/shared";
+import { defineTool, type BuiltinGroupOptions } from "../ai/tools/builtins/shared";
 import { settingsStore } from "../settingsStore";
-import { reportError } from "../utils/errorUtils";
 import { log } from "../logger/logManager";
 
 type Format = (text: string, variables?: Record<string, unknown>, clearVariables?: boolean) => Promise<string>;
@@ -29,12 +30,10 @@ type PromptSettings = Partial<{
 }>;
 let warnedCountTokensDeprecated = false;
 
-export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor, format: Format) {
+export function createAiApi(app: App, choiceExecutor: IChoiceExecutor, format: Format) {
 	async function promptOptions(model: ScriptModelInput, settings?: PromptSettings) {
-		const pluginSettings = settingsStore.getState();
-		if (pluginSettings.disableOnlineFeatures) {
-			throw new Error("Rejecting request to `prompt` via API AI module. Online features are disabled in settings.");
-		}
+		// Before resolving the model, so a disabled run never reports a missing model.
+		assertOnlineFeaturesEnabled();
 		const { model: resolvedModel, provider } = resolveModelInputOrThrow(model);
 		const apiKey = await resolveProviderApiKey(app, provider);
 		if (settings?.assignToVariable) assertAssignableVariableName(settings.assignToVariable);
@@ -45,15 +44,11 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 			modelOptions: settings?.modelOptions ?? {},
 			outputVariableName: settings?.assignToVariable || settings?.variableName || "output",
 			showAssistantMessages: settings?.showAssistantMessages ?? true,
-			systemPrompt: settings?.systemPrompt ?? pluginSettings.ai.defaultSystemPrompt,
+			systemPrompt: settings?.systemPrompt ?? settingsStore.getState().ai.defaultSystemPrompt,
 		};
 	}
 
-	function finishPrompt(result: Awaited<ReturnType<typeof Prompt>>, settings: PromptSettings | undefined, context: string) {
-		if (!result) {
-			reportError(new Error("AI Assistant returned null"), context);
-			return {};
-		}
+	function finishPrompt(result: Awaited<ReturnType<typeof Prompt>>, settings: PromptSettings | undefined) {
 		if (settings?.shouldAssignVariables || settings?.assignToVariable) {
 			for (const [key, value] of Object.entries(result)) choiceExecutor.variables.set(key, value);
 		}
@@ -64,7 +59,7 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 		prompt: async (prompt: string, model: ScriptModelInput, settings?: PromptSettings) => {
 			const result = await Prompt(app, { ...await promptOptions(model, settings), prompt },
 				(text: string, variables?: Record<string, unknown>) => format(text, variables, false));
-			return finishPrompt(result, settings, "AI Prompt error");
+			return finishPrompt(result, settings);
 		},
 		chunkedPrompt: async (
 			text: string,
@@ -87,7 +82,7 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 				shouldMerge: settings?.shouldMerge ?? true,
 				maxChunkTokens: settings?.maxChunkTokens,
 			}, (input, variables) => format(input, { ...existingVariables, ...variables }, false));
-			return finishPrompt(result, settings, "Chunked AI Prompt error");
+			return finishPrompt(result, settings);
 		},
 		getModels: () => {
 			return getModelNames();
@@ -123,17 +118,15 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 			clearAIRequestLogEntries();
 		},
 		/**
-		 * Create a tool-calling Agent (#714). Construct once with model/system/
+		 * Create a tool-calling Agent. Construct once with model/system/
 		 * tools/budget, then run `agent.generate({ prompt })` (text + tools) or
 		 * `agent.generate({ prompt, schema })` (structured output).
 		 */
+		// The prompt is formatted like ai.prompt's, inside the variables of the run.
 		agent: (config: AgentConfig): Agent =>
-			new Agent(app, plugin, choiceExecutor, config),
+			new Agent(app, choiceExecutor, config, (input) => format(input, undefined, false)),
 		/** Declare a tool for an Agent's `tools` map. Pairs a JSON-Schema with a JS handler. */
-		tool: (def: ToolDefinitionInput): QATool => ({
-			...def,
-			__qaTool: true,
-		}),
+		tool: (def: ToolDefinitionInput): QATool => defineTool(def),
 		/** Stop condition: end the loop once it has taken `n` steps. */
 		stepCountIs:
 			(n: number): StopCondition =>
@@ -145,7 +138,7 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 				({ toolCallNames }) =>
 					toolCallNames.includes(name),
 		/**
-		 * Standard built-in tools (#714), opt-in. Spread a group into an Agent's
+		 * Standard built-in tools, opt-in. Spread a group into an Agent's
 		 * `tools` map, e.g. `tools: { ...quickAddApi.ai.tools.vault() }`. Each group
 		 * factory accepts { only, exclude, prefix, allowedRoots }. Read tools auto-run;
 		 * write tools require confirmation and are path-sanitized + symlink-guarded.

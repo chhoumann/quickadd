@@ -8,9 +8,11 @@ import type IMultiChoice from "../types/choices/IMultiChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
-import { isTemplateChoice, normalizeTemplateChoice } from "../migrations/helpers/normalizeTemplateFileExistsBehavior";
-import { coerceLegacyOpenFileInNewTab, createFileOpeningFromLegacy } from "../migrations/helpers/file-opening-legacy";
-import { walkChoiceTree } from "../migrations/helpers/choice-traversal";
+import { isTemplateChoice } from "../types/choices/choiceGuards";
+import { normalizeTemplateChoice } from "../migrations/helpers/normalizeTemplateFileExistsBehavior";
+import { fileOpeningFromLegacyFields } from "../migrations/helpers/file-opening-legacy";
+import { walkChoiceTree } from "../utils/choiceTraversal";
+import { findChoiceById } from "./choiceTree";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -33,10 +35,8 @@ import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecret
 import {
 	stripUserScriptSecretRefsFromCommand
 } from "../utils/userScriptSecrets";
+import { isObjectRecord } from "../utils/isRecord";
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-	return !!value && typeof value === "object" && !Array.isArray(value);
-}
 
 /**
  * Bring an imported Template or Capture to the shape the rest of QuickAdd
@@ -51,15 +51,13 @@ export function normalizeImportedChoice(choice: IChoice): void {
 	if (choice.type === "Capture" || choice.type === "Template") {
 		// As migrateFileOpeningSettings does for data.json.
 		const legacy = choice as IChoice & { fileOpening?: unknown; openFileInNewTab?: unknown; openFileInMode?: unknown };
-		const legacyTab = coerceLegacyOpenFileInNewTab(legacy.openFileInNewTab);
-		if (!legacy.fileOpening && legacyTab) {
-			legacy.fileOpening = createFileOpeningFromLegacy(legacyTab, legacy.openFileInMode);
-		}
+		const fromLegacy = legacy.fileOpening ? null : fileOpeningFromLegacyFields(legacy);
+		if (fromLegacy) legacy.fileOpening = fromLegacy;
 	}
-	// New Captures start with these on (#2007), but a package that leaves them
-	// out has always run with them off.
+	// New Captures start with these on, but a package that leaves them out has
+	// always run with them off.
 	const insertAfter = (choice as IChoice & { insertAfter?: unknown }).insertAfter;
-	if (choice.type === "Capture" && isPlainObject(insertAfter)) {
+	if (choice.type === "Capture" && isObjectRecord(insertAfter)) {
 		insertAfter.insertAtEnd ??= false;
 		insertAfter.createIfNotFound ??= false;
 	}
@@ -73,7 +71,7 @@ export function normalizeImportedChoice(choice: IChoice): void {
 		if (value === undefined) continue;
 		const current = target[key];
 		if (current === undefined) target[key] = value;
-		else if (isPlainObject(current) && isPlainObject(value)) target[key] = { ...value, ...current };
+		else if (isObjectRecord(current) && isObjectRecord(value)) target[key] = { ...value, ...current };
 	}
 	// As loading data.json does: a package exported by 2.29 or earlier can hold
 	// a switched-on but empty Capture format or File name.
@@ -193,23 +191,13 @@ function remapCommands(
 	}
 }
 
-export function findChoiceInTree(choices: IChoice[], id: string): IChoice | undefined {
-	for (const current of choices) {
-		if (!isChoiceLike(current)) continue;
-		if (current.id === id) return current;
-		const found = findChoiceInTree(childChoicesOf(current), id);
-		if (found) return found;
-	}
-	return undefined;
-}
-
 /** Whether `child` sits directly inside the folder `parentId`, wherever that folder is. */
 export function isDirectChildOf(
 	choices: IChoice[],
 	parentId: string,
 	childId: string,
 ): boolean {
-	const parent = findChoiceInTree(choices, parentId);
+	const parent = findChoiceById(choices, parentId);
 	return (
 		parent !== undefined &&
 		childChoicesOf(parent).some(
@@ -226,8 +214,8 @@ export function isDirectChildOf(
  * package go last. Nested folders merge the same way, including one the reader
  * had dragged out of this folder: the stray-copy pass detaches it before
  * placement, and `detached` hands what it held back to its incoming copy.
- * Entries that are not choices are carried over untouched, never repaired
- * (#1566), and a folder whose children cannot be read at all is left to the
+ * Entries that are not choices are carried over untouched, never repaired,
+ * and a folder whose children cannot be read at all is left to the
  * wholesale replace. `existing` is undefined when the folder is new to the
  * vault; only detached folders are folded in then.
  */
@@ -313,7 +301,7 @@ export function insertUnderParent(
 	for (const choice of choices) {
 		if (!isChoiceLike(choice)) continue;
 		if (choice.id === parentId && choice.type === "Multi") {
-			return insertIntoMulti(choice as IMultiChoice, child);
+			return upsertChildInMulti(choice as IMultiChoice, child);
 		}
 		if (insertUnderParent(childChoicesOf(choice), parentId, child)) {
 			return true;
@@ -323,12 +311,13 @@ export function insertUnderParent(
 }
 
 /**
- * Returns false when the parent's existing children could not be read: importing
- * INTO such a folder would replace whatever data.json still holds under it with
- * a one-element array. Callers fall back to a root append, so the imported
- * choice still lands somewhere rather than costing the user that value (#1566).
+ * Puts `child` in `parent` in place, replacing a child with the same id where it
+ * sits or appending it. Returns false when the parent's existing children could
+ * not be read: importing into such a folder would replace whatever data.json
+ * still holds under it. Callers fall back to a root append, so the imported
+ * choice still lands somewhere.
  */
-export function insertIntoMulti(parent: IMultiChoice, child: IChoice): boolean {
+export function upsertChildInMulti(parent: IMultiChoice, child: IChoice): boolean {
 	if (!Array.isArray(parent.choices)) {
 		if (hasUnreadableChildren(parent)) return false;
 		parent.choices = [];

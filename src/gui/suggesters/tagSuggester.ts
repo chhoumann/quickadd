@@ -1,9 +1,9 @@
 import type { App } from "obsidian";
 import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
-import { replaceRange } from "./utils";
+import { replaceInputRange } from "./utils";
 import { getQuickAddInstance } from "../../quickAddInstance";
-import { TagIndex } from "./TagIndex";
+import { TagIndex } from "../../utils/vaultIndex/TagIndex";
 
 function isTagInsideUnclosedWikilink(
 	inputBeforeCursor: string,
@@ -30,14 +30,11 @@ export class TagSuggester extends TextInputSuggest<string> {
 	) {
 		super(app, inputEl);
 
-		// Read from the shared, vault-wide tag index instead of building a
-		// per-instance Fuse index and registering a per-instance, plugin-lifetime
-		// metadataCache listener. The latter leaked one TagSuggester per opened
-		// prompt and amplified every 'resolved' event into a redundant rebuild.
+		// Read from the shared vault-wide tag index rather than a per-instance
+		// index and plugin-lifetime listener.
 		this.tagIndex = TagIndex.getInstance(app, getQuickAddInstance());
-		// Refresh on open so this prompt sees the current tags even if no
-		// 'resolved' event has fired since the vault's tags last changed -
-		// preserving the old per-prompt freshness, now with one shared listener.
+		// Refresh on open so this prompt sees current tags even if no 'resolved'
+		// event has fired since they changed.
 		if (options?.refreshIndex !== false) {
 			this.tagIndex.refresh();
 		}
@@ -79,7 +76,6 @@ export class TagSuggester extends TextInputSuggest<string> {
 			tag.replace(/^#/, "").toLowerCase().startsWith(tagInputLower)
 		).slice(0, 5);
 
-		// Then fuzzy matches
 		const fuzzyResults = this.tagIndex.search(tagInput)
 			.filter(result => result.score !== undefined && result.score < 0.8)
 			.map(result => result.item)
@@ -100,7 +96,6 @@ export class TagSuggester extends TextInputSuggest<string> {
 	}
 
 	renderSuggestion(item: string, el: HTMLElement): void {
-		// Use highlighting to show why this item matches
 		this.renderMatch(el, item, this.lastInput);
 	}
 
@@ -115,7 +110,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 		// Ensure exactly one '#' in replacement
 		const replacement = item.startsWith("#") ? item : `#${item}`;
 
-		replaceRange(input, tagStart, tagEnd, replacement, { fromCompletion: true });
+		replaceInputRange(input, tagStart, tagEnd, replacement, { fromCompletion: true });
 		this.close();
 	}
 }

@@ -1,6 +1,7 @@
 import type { CliData, CliFlags } from "obsidian";
+import { findProviderByKey } from "../ai/Provider";
 import { testProviderConnection } from "../ai/providerConnection";
-import type QuickAdd from "../main";
+import type { AppProvider } from "../types/pluginContext";
 import { settingsStore } from "../settingsStore";
 
 export const AI_TEST_CONNECTION_COMMAND = "quickadd:ai-test-connection";
@@ -15,7 +16,7 @@ export const AI_TEST_CONNECTION_FLAGS: CliFlags = {
  * the key, only whether one is linked.
  */
 export async function aiTestConnectionHandler(
-	plugin: QuickAdd,
+	plugin: AppProvider,
 	params: CliData,
 ): Promise<{ ok: boolean; [key: string]: unknown }> {
 	const selector = String(params.provider ?? "").trim();
@@ -27,10 +28,7 @@ export async function aiTestConnectionHandler(
 			providers: providers.map((p) => p.id ?? p.name),
 		};
 	}
-	const lowered = selector.toLowerCase();
-	const provider =
-		providers.find((p) => p.id === selector) ??
-		providers.find((p) => p.name.trim().toLowerCase() === lowered);
+	const provider = findProviderByKey(providers, selector);
 	if (!provider) {
 		return {
 			ok: false,

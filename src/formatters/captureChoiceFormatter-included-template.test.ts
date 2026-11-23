@@ -4,6 +4,7 @@ import { MarkdownView, TFile, type App } from "obsidian";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import type QuickAdd from "../main";
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const { prompt, datePrompt } = vi.hoisted(() => ({
 	prompt: vi.fn<() => Promise<string>>(),
@@ -71,7 +72,7 @@ function makeCapture(include: string, { selection = "", globalVariables = {} } =
 		},
 	} as unknown as QuickAdd;
 	const executor = createChoiceExecutor();
-	const formatter = new CaptureChoiceFormatter(app, plugin, executor);
+	const formatter = new CaptureChoiceFormatter(app, plugin, executor, testFormatterRuntime(app, plugin));
 	formatter.setDestinationSourcePath("Inbox/Target.md");
 	return { formatter, executor };
 }

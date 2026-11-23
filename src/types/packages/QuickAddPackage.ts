@@ -1,4 +1,5 @@
 import type IChoice from "../../types/choices/IChoice";
+import { isRecord } from "../../utils/isRecord";
 
 export const QUICKADD_PACKAGE_SCHEMA_VERSION = 1 as const;
 
@@ -30,9 +31,6 @@ export interface QuickAddPackage {
 	assets: QuickAddPackageAsset[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return !!value && typeof value === "object";
-}
 
 function isStringArray(value: unknown): value is string[] {
 	return Array.isArray(value) && value.every((entry) => typeof entry === "string");

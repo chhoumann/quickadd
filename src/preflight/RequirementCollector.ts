@@ -1,5 +1,4 @@
-import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
-import { unescapePipesInTokens } from "src/formatters/helpers/pipeEscapes";
+import { unescapePipesInTokens } from "src/utils/pipeEscapes";
 import { normalizeVaultPath } from "../utils/pathUtils";
 import type { App } from "obsidian";
 import {
@@ -19,7 +18,7 @@ import {
 	type PromptScopeKind,
 } from "src/formatters/promptScope";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import type QuickAdd from "src/main";
+import type { SettingsProvider } from "src/types/pluginContext";
 import { NLDParser } from "src/parsers/NLDParser";
 import {
 	parseValueToken,
@@ -39,6 +38,8 @@ import { getFileTokenFiles } from "src/utils/vaultQueries";
 
 export type { FieldRequirement, FieldGroup } from "./fieldRequirements";
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
+import { defaultDateVariableFormat, encodeDateToken } from "../utils/dateTokenCodec";
+import { uniqueKeyIgnoringCase } from "../utils/uniqueKeyIgnoringCase";
 
 const OPTION_LIST_LABEL_MAX = 30;
 
@@ -63,46 +64,29 @@ export class RequirementCollector extends Formatter {
 	public readonly requirements = new Map<string, FieldRequirement>();
 	public readonly templatesToScan = new Set<string>();
 	/**
-	 * Cross-branch memo for the template-inclusion walk: `<context>:<ref>`
-	 * (context = "path" | "content") → the shallowest depth the template was
-	 * fully scanned at during this collection. Requirements dedupe by id, so
-	 * re-scanning a template reachable through many distinct paths adds
-	 * nothing - without this memo a dense template DAG fans out as
-	 * branching^depth (~1M scans at 4×10), freezing the UI. Keyed per context
-	 * because a content-scanned template reached again from a path string
-	 * must be re-walked to taint its variables as path context (#1484).
+	 * `<context>:<ref>` → the shallowest depth the template was fully scanned at.
+	 * Requirements dedupe by id, so without this memo a dense template DAG fans
+	 * out exponentially. Keyed per context because a template reached again from
+	 * a path string must be re-walked to mark its variables as path context.
 	 */
 	public readonly scannedTemplateRefDepths = new Map<string, number>();
 
 	constructor(
 		protected app: App,
-		private plugin: QuickAdd,
+		protected plugin: SettingsProvider,
 		protected choiceExecutor?: IChoiceExecutor,
 	) {
 		super(app);
 		this.dateParser = NLDParser;
 		if (choiceExecutor) {
-			// Use a shallow copy to avoid mutating the executor's live variables
-			// during preflight scanning. This ensures unresolved detection works
-			// and the One Page Input modal is shown when needed.
+			// A copy, so preflight never mutates the executor's live variables.
 			this.variables = new Map(choiceExecutor.variables);
 		}
 	}
 
-	/**
-	 * Preflight is a SCAN, not the run. It walks the same strings the run is
-	 * about to format, so every authoring warning it produced arrived a second
-	 * time (twice, in fact - it parses each token in both a pre-pass and the main
-	 * pass) before the run reported the same mistake itself. With one-page inputs
-	 * on, a single `|case:` typo showed two Notices before the form even opened
-	 * and a third on submit. The run owns the warning; the scan stays quiet.
-	 * Issue #1558.
-	 */
+	/** The run owns authoring warnings; the scan walks the same strings and would repeat them. */
 	protected warn(): void {}
-	// Defence in depth: the scan's own format() never calls
-	// replaceTemplateInString (it records template paths for the caller to walk),
-	// so nothing routes here today. It stays so a future pass added to the scan
-	// cannot reintroduce a 15-second error Notice from a preflight walk.
+	// Nothing routes here today; kept quiet for the same reason as warn().
 	protected reportProblem(): void {}
 
 	/**
@@ -111,24 +95,19 @@ export class RequirementCollector extends Formatter {
 	 */
 	private scanningPathContext = false;
 	/**
-	 * What the string being scanned becomes, so the batched one-page form labels
-	 * the anonymous {{VALUE}} field the same way the sequential prompt titles it
-	 * (issue #1546). Falls back to the path/content split when a caller only
-	 * knows that much.
+	 * What the string being scanned becomes, so the one-page form labels the
+	 * anonymous {{VALUE}} field like the sequential prompt titles it.
 	 */
 	private scanningScope: PromptScopeKind = "generic";
 	/** Set while scanning a One entry per line Capture's format: its {{VALUE}} takes several lines. */
 	public valueTakesLines = false;
 	private scanningSoleValue = false;
 	/**
-	 * Where each field first appears in the string being scanned. Dates, named
-	 * values and files are recorded by the passes below before the formatter
-	 * pass records the rest, so without this the form would list fields by
-	 * token type instead of in the order the format reads (#1876).
+	 * Where each field first appears in the string being scanned, so the form
+	 * lists fields in the order the format reads rather than by token type.
 	 */
 	private scanPositions = new Map<string, number>();
 
-	// Entry points -------------------------------------------------------------
 	public async scanString(
 		input: string,
 		pathContext = false,
@@ -143,22 +122,16 @@ export class RequirementCollector extends Formatter {
 		const known = new Set(this.requirements.keys());
 		this.scanPositions = new Map();
 		try {
-			// Expand global variables first so we can detect inner requirements
 			const expanded = unescapePipesInTokens(
 				await this.replaceGlobalVarInString(input),
 			);
-			// Run a safe formatting pass that collects variables but avoids side-effects.
-			// Dates first, as the run replaces VDATEs before named VALUEs: a
+			// Dates first, as the run replaces VDATEs before named VALUEs, so a
 			// {{VALUE:<name>}} reuse of a VDATE answer keeps the field a date.
 			this.scanDateTokens(expanded);
 			this.scanVariableTokens(expanded);
 			this.scanFileTokens(expanded);
-			// Anonymous {{VALUE}}/{{NAME}} and {{MVALUE}} resolutions are
-			// cached, so their prompt hooks fire once per collector; a path
-			// string scanned AFTER a content string that already registered
-			// them must still taint them (named variables get per-occurrence
-			// marking in scanVariableTokens; these singleton tokens need this
-			// textual re-check).
+			// Anonymous VALUE/NAME and MVALUE resolve once per collector, so a
+			// path string scanned after a content string must still mark them.
 			if (pathContext) {
 				if (new RegExp(NAME_VALUE_REGEX.source, "i").test(expanded)) {
 					const anonymousValue = this.requirements.get("value");
@@ -216,36 +189,28 @@ export class RequirementCollector extends Formatter {
 	protected async format(input: string): Promise<string> {
 		let output = input;
 
-		// NOTE: Intentionally skip macros, inline js, templates content resolution
-		// We will only record the TEMPLATE references for later recursive scanning.
+		// Never resolves macros, inline JS or template content; template
+		// references are recorded for the caller to scan.
 
-		// Expand global variables early (text-only expansion)
 		output = await this.replaceGlobalVarInString(output);
 
-		// Dates/Times
 		output = this.replaceDateInString(output);
 		output = this.replaceTimeInString(output);
 
-		// VALUE & NAME
 		output = await this.replaceValueInString(output);
 
-		// Clipboard/Selected: keep inert
 		output = await this.replaceSelectedInString(output);
 		output = await this.replaceClipboardInString(output);
 
-		// VDATE + VALUE variables + FIELD
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceFileInString(output);
 
-		// Math value
 		output = await this.replaceMathValueInString(output);
 
-		// Random
 		output = this.replaceRandomInString(output);
 
-		// Record any template inclusions for callers to handle separately
 		{
 			const re = new RegExp(TEMPLATE_REGEX.source, "gi");
 			let m: RegExpExecArray | null;
@@ -258,11 +223,6 @@ export class RequirementCollector extends Formatter {
 		return output;
 	}
 
-	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
-	}
-
-	// Additional scanning for defaults/options in {{VALUE:...}} tokens
 	private scanVariableTokens(input: string) {
 		const re = new RegExp(VARIABLE_REGEX.source, "gi");
 		let match: RegExpExecArray | null;
@@ -305,9 +265,7 @@ export class RequirementCollector extends Formatter {
 			}
 
 			if (!this.requirements.has(requirementId)) {
-				// |type:checkbox renders a forced true/false dropdown and
-				// |type:number a numeric input, so the one-page form matches the
-				// runtime suggester/prompt (item #757).
+				// So the one-page form matches the runtime suggester/prompt.
 				const inputType = this.inputFieldType(parsed);
 				const req: FieldRequirement = {
 					id: requirementId,
@@ -328,23 +286,16 @@ export class RequirementCollector extends Formatter {
 			} else {
 				const existing = this.requirements.get(requirementId)!;
 				this.markScanContext(existing);
-				// Order-independent named reuse: when a later occurrence carries
-				// the option list ({{VALUE:a,b|name:x}}) but the requirement was
-				// first recorded option-less (a bare {{VALUE:x}} reuse seen
-				// earlier, in this or a prior scanned string), upgrade it in place
-				// so the one-page form renders the dropdown/suggester either way.
+				// A later occurrence with an option list upgrades a requirement
+				// first recorded option-less, so the form renders the picker
+				// regardless of order.
 				if (hasOptions && !this.hasOptionList(existing)) {
 					existing.type = this.optionFieldType(parsed);
 					existing.label = displayLabel;
 					this.applyOptionFields(existing, parsed);
-					// Drop a stale text-era default the upgraded control can't keep.
 					// A non-custom dropdown stores raw option values, so a default
-					// that isn't one (incl. a display label) would be normalized to
-					// the first option anyway — clear it for an honest empty start.
-					// The suggester/custom path accepts free text, so keep it.
-					// The original default was recorded option-less, so unwrap any
-					// quotes now (the option list is unquoted) before matching, so a
-					// quoted comma default like |default:"a, b" still pre-selects.
+					// that is not one would snap to the first option: clear it.
+					// Unquote first, since the default was recorded option-less.
 					if (existing.defaultValue !== undefined && !parsed.allowCustomInput) {
 						const unwrapped = unwrapQuotedValue(existing.defaultValue);
 						existing.defaultValue = parsed.suggestedValues.includes(
@@ -373,15 +324,9 @@ export class RequirementCollector extends Formatter {
 		key: string,
 		type: FieldType,
 	): FieldRequirement | undefined {
-		const exact = this.requirements.get(key);
-		if (exact) return exact.type === type ? exact : undefined;
-		const lower = key.toLowerCase();
-		const matches = [...this.requirements.values()].filter(
-			(req) => req.id.toLowerCase() === lower,
-		);
-		return matches.length === 1 && matches[0].type === type
-			? matches[0]
-			: undefined;
+		const id = uniqueKeyIgnoringCase(this.requirements.keys(), key);
+		const requirement = id === undefined ? undefined : this.requirements.get(id);
+		return requirement?.type === type ? requirement : undefined;
 	}
 
 	private inputFieldType(context?: Pick<PromptContext, "inputTypeOverride">): FieldType {
@@ -422,9 +367,7 @@ export class RequirementCollector extends Formatter {
 		if (parsed.displayValues) req.displayOptions = parsed.displayValues;
 		if (parsed.multiSelect) req.multiEmit = parsed.multiEmit ?? "text";
 		else delete req.multiEmit;
-		// A suggesterConfig is needed for EITHER a custom-input OR a multi-select
-		// token (the two are independent — |multi without |custom must still
-		// enable multiSelect on the one-page picker).
+		// |multi without |custom still needs a suggesterConfig.
 		if (parsed.allowCustomInput || parsed.multiSelect) {
 			req.suggesterConfig = {
 				allowCustomInput: parsed.allowCustomInput,
@@ -437,11 +380,8 @@ export class RequirementCollector extends Formatter {
 	}
 
 	/**
-	 * Textual VDATE scan, mirroring scanVariableTokens. The inherited
-	 * replaceDateVariableInString prompts (and therefore records) only once
-	 * per variable, so per-occurrence |optional flags would never reach the
-	 * promptForVariable hook — this scan records them all and applies the
-	 * same AND rule across occurrences and across scanned strings.
+	 * Textual VDATE scan. The inherited prompt hook fires once per variable, so
+	 * per-occurrence |optional flags need this to apply the AND rule.
 	 */
 	private scanDateTokens(input: string) {
 		const re = new RegExp(DATE_VARIABLE_REGEX.source, "gi");
@@ -455,7 +395,7 @@ export class RequirementCollector extends Formatter {
 				match[3],
 			);
 			const dateFormat =
-				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
+				match[2]?.trim() || defaultDateVariableFormat(withTime);
 
 			// A VDATE finds an earlier answer by its exact name at run time.
 			const existing = this.requirements.get(variableName);
@@ -501,7 +441,6 @@ export class RequirementCollector extends Formatter {
 		}
 	}
 
-	// Formatter hooks ----------------------------------------------------------
 	protected async promptForValue(header?: string): Promise<string> {
 		const key = "value";
 		if (!this.requirements.has(key)) {
@@ -530,13 +469,10 @@ export class RequirementCollector extends Formatter {
 				optional: this.valuePromptContext?.optional,
 			});
 		}
-		// This hook fires once per collector ({{VALUE}} resolution is cached),
-		// but path strings are always scanned before content strings by the
-		// per-choice collectors, so a dual-use anonymous VALUE is first seen -
-		// and marked - in path context. The sticky mark below also covers the
-		// already-registered case for safety.
+		// Fires once per collector, but path strings are scanned before content
+		// strings, so a dual-use VALUE is marked in path context.
 		this.markScanContext(this.requirements.get(key)!);
-		return ""; // return inert value to keep scanning
+		return "";
 	}
 
 	protected async promptForVariable(
@@ -546,20 +482,14 @@ export class RequirementCollector extends Formatter {
 		if (!variableName) return "";
 		const key = context?.variableKey ?? variableName;
 
-		// VDATE variables: requirements are recorded by scanDateTokens, which
-		// sees every textual occurrence (this hook fires at most once per
-		// variable and would record first-occurrence flags without the AND
-		// rule). Just return an inert value to keep scanning.
+		// scanDateTokens records VDATE requirements from every occurrence.
 		if (context?.type === "VDATE") {
-			return context.defaultValue ?? "@date:1970-01-01T00:00:00.000Z";
+			return context.defaultValue ?? encodeDateToken("1970-01-01T00:00:00.000Z");
 		}
 
-		// Generic named variables
 		if (!this.requirements.has(key)) {
-			// Detect comma-separated option lists, honoring quoted commas the same
-			// way parseValueToken does so this fallback can never disagree with the
-			// runtime split (e.g. a single quoted option stays one value, not a
-			// bogus dropdown).
+			// Split like parseValueToken, honoring quoted commas, so this cannot
+			// disagree with the runtime split.
 			const optionValues = splitQuotedCommaList(variableName)
 				.map((s) => s.trim())
 				.filter(Boolean);
@@ -596,17 +526,14 @@ export class RequirementCollector extends Formatter {
 				placeholder: "e.g., 2+2*3",
 			});
 		}
-		// {{MVALUE}} is legal in path strings too; taint like the VALUE hooks
-		// so its free-text field never offers image paste there (#1484). This
-		// hook fires once per collector, but path strings are scanned first.
+		// {{MVALUE}} is legal in path strings too, so mark it like the VALUE hooks.
 		this.markScanContext(this.requirements.get(key)!);
 		return "";
 	}
 
 	protected async suggestForField(variableName: string): Promise<string> {
-		// Key the requirement with the runtime "FIELD:" prefix so values entered
-		// in the one-page form land where replaceFieldVarInString looks them up
-		// (issue #1184). Actual suggestions are provided by the UI.
+		// Keyed with the runtime "FIELD:" prefix so one-page answers land where
+		// replaceFieldVarInString looks them up.
 		const parsed = FieldSuggestionParser.parse(variableName);
 		const key = this.fieldRequirementId(variableName);
 		// A named FIELD asks before a {{VALUE:<name>}} of the same text, so its
@@ -624,22 +551,17 @@ export class RequirementCollector extends Formatter {
 				runtimeOnly: parsed.multiSelect,
 				fieldSpecifier: variableName,
 			};
-			// Single-select |default-from:active (issue #1429): resolve the active
-			// note's current value so the one-page form prefills it (OnePageInputModal
-			// reads req.defaultValue as the starting value). Gate strictly on "active".
-			// Multi FIELD is runtimeOnly — it bypasses the one-page form and preselects
-			// at runtime in the MultiSuggester instead, so it sets no defaultValue here.
+			// Single-select |default-from:active prefills the form with the active
+			// note's value. Multi FIELD is runtime-only and preselects in the
+			// MultiSuggester instead.
 			if (!parsed.multiSelect && parsed.filters.defaultFrom === "active") {
 				const resolved = resolveActiveNoteFieldDefault(
 					this.app,
 					this.choiceExecutor?.triggerContext?.activeFile ?? null,
 					parsed.fieldName,
 				);
-				// The active value wins; when it resolves nothing (no active note,
-				// missing/empty property) fall back to the literal |default: so the
-				// one-page form matches the runtime path, which still prepends that
-				// default. `{{FIELD:x|default:Inbox|default-from:active}}` therefore
-				// prefills Inbox instead of an empty field.
+				// Fall back to the literal |default: when the active value resolves
+				// nothing, as the runtime path does.
 				const effectiveDefault =
 					(typeof resolved === "string" ? resolved : undefined) ??
 					parsed.filters.defaultValue;
@@ -661,12 +583,9 @@ export class RequirementCollector extends Formatter {
 	}
 
 	/**
-	 * Records {{FILE:...}} requirements so they're visible up front (one-page form
-	 * + non-interactive CLI) instead of ambushing with a runtime picker. Like
-	 * scanVariableTokens/scanDateTokens, this scans EVERY occurrence — the
-	 * inherited replaceFileInString prompt hook fires at most once per key (it
-	 * caches the first inert answer), so per-occurrence flags such as |optional
-	 * would otherwise never be merged.
+	 * Records {{FILE:...}} requirements from every occurrence so they show up
+	 * front. The inherited prompt hook fires once per key and would not merge
+	 * per-occurrence flags.
 	 */
 	private scanFileTokens(input: string) {
 		const re = new RegExp(FILE_REGEX.source, "gi");
@@ -683,9 +602,7 @@ export class RequirementCollector extends Formatter {
 		const key = parsed.variableKey;
 		const existing = this.requirements.get(key);
 		if (existing) {
-			// A repeated key (same identity, or a shared |name:). Apply the same
-			// AND rule as VALUE/VDATE: optional only if EVERY occurrence is
-			// optional, so a later required use still prompts.
+			// Same AND rule as VALUE/VDATE.
 			existing.optional = (existing.optional ?? false) && parsed.optional;
 			// Shared |name: occurrences collapse into one typed FILE picker. Merge
 			// capabilities order-independently so any |custom / |multi occurrence
@@ -713,11 +630,7 @@ export class RequirementCollector extends Formatter {
 			(file) => this.app.metadataCache.getFileCache(file),
 		);
 		const displayOptions = infos.map((info) => info.label);
-		// The dedicated picker keeps display labels separate from the encoded file
-		// paths, so both single and multi FILE tokens can search inline without the
-		// comma serialization that made multi-select runtime-only. Preserve the
-		// previous empty-folder one-page behavior by permitting a literal value when
-		// no real file options exist.
+		// Allow a literal value when the folder has no files to pick.
 		const allowCustomInput = parsed.allowCustomInput || options.length === 0;
 		// Disambiguate same-folder tokens that differ only by type or mode (e.g. an
 		// image and a PDF link from one folder) when no explicit |label.
@@ -754,14 +667,11 @@ export class RequirementCollector extends Formatter {
 		_allowCustomInput?: boolean,
 		_context?: { placeholder?: string; variableKey?: string },
 	): Promise<string> {
-		// No-op here because scanVariableTokens already records a requirement for
-		// anonymous option lists (e.g., {{VALUE:low,medium,high}}) under the exact
-		// token content as id, which the runtime formatter will look up.
+		// scanVariableTokens already records anonymous option lists.
 		return "";
 	}
 
 	protected getVariableValue(variableName: string): string {
-		// During collection, always resolve to empty string to continue scanning
 		return "";
 	}
 
@@ -790,6 +700,6 @@ export class RequirementCollector extends Formatter {
 	}
 
 	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false; // Requirement collector doesn't need structured YAML variable handling
+		return false;
 	}
 }

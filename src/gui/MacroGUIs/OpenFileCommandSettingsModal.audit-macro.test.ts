@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { testApp } from "../../../tests/helpers/settings/modalApp";
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { fireEvent } from "@testing-library/svelte";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
@@ -17,34 +17,35 @@ function getButton(
 	return button;
 }
 
-describe("OpenFileCommandSettingsModal dismissal semantics", () => {
-	beforeAll(() => {
-		const modalProto = Object.getPrototypeOf(
-			OpenFileCommandSettingsModal.prototype
-		) as { onClose?: () => void };
-		modalProto.onClose ??= function onClose() {};
-	});
+function editFilePath(modal: OpenFileCommandSettingsModal, value: string): Promise<boolean> {
+	const input = modal.contentEl.querySelector<HTMLInputElement>('input:not([type="checkbox"])');
+	if (!input) throw new Error("File path input not found");
+	return fireEvent.input(input, { target: { value } });
+}
 
-	it("discards edits (resolves null) when dismissed without Save (Esc/click-outside)", async () => {
+describe("OpenFileCommandSettingsModal dismissal semantics", () => {
+	it("keeps the command unchanged and resolves null when dismissed without Save", async () => {
 		const command = new OpenFileCommand("original.md");
 		const modal = new OpenFileCommandSettingsModal(testApp(), command);
 		const result = modal.waitForClose;
 
-		// Simulate Esc / click-outside / X: Obsidian calls close() which fires onClose().
+		await editFilePath(modal, "edited.md");
+		// Esc, click-outside and the X all reach close(), which fires onClose().
 		modal.close();
 
 		await expect(result).resolves.toBeNull();
+		expect(command).toMatchObject({ filePath: "original.md", name: "Open file: original.md" });
 	});
 
-	it("commits the working copy when Save is clicked", async () => {
+	it("resolves the edited working copy on Save", async () => {
 		const command = new OpenFileCommand("original.md");
 		const modal = new OpenFileCommandSettingsModal(testApp(), command);
 		const result = modal.waitForClose;
 
+		await editFilePath(modal, "edited.md");
 		await fireEvent.click(getButton(modal, "Save"));
 
-		const resolved = await result;
-		expect(resolved).not.toBeNull();
-		expect(resolved?.filePath).toBe("original.md");
+		await expect(result).resolves.toMatchObject({ filePath: "edited.md", name: "Open file: edited.md" });
+		expect(command.filePath).toBe("original.md");
 	});
 });

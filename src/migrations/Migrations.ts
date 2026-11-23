@@ -1,4 +1,4 @@
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
 import type { QuickAddSettings } from "src/settings";
 
 /**
@@ -16,7 +16,7 @@ export type MigrationResult = { complete: false };
 
 export type Migration = {
 	description: string;
-	migrate: (plugin: QuickAdd) => Promise<MigrationResult | void>;
+	migrate: (plugin: MigrationContext) => Promise<MigrationResult | void>;
 };
 
 export type Migrations = {

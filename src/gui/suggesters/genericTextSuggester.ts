@@ -4,7 +4,6 @@ import { TextInputSuggest } from "./suggest";
 import {
 	dispatchCompletion,
 	normalizeDisplayItem,
-	normalizeQuery,
 	renderHighlightRanges,
 	stripMdExtensionForDisplay,
 } from "./utils";
@@ -24,7 +23,7 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 	}
 
 	getSuggestions(inputStr: string): string[] {
-		const ranked = rankMatches(normalizeQuery(inputStr), this.items, (item) => item, {
+		const ranked = rankMatches(normalizeDisplayItem(inputStr), this.items, (item) => item, {
 			limit: this.maxSuggestions,
 		});
 		this.matchesByItem = new Map(ranked.map(({ item, matches }) => [item, matches]));

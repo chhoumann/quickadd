@@ -12,7 +12,7 @@ class FieldTitleFormatter extends FormatterStub {
 	protected async format(input: string): Promise<string> {
 		let output = input;
 		output = await this.replaceFieldVarInString(output);
-		output = this.replaceTitleInString(output);
+		output = this.replaceCurrentFileTokensInString(output, { title: true });
 		return output;
 	}
 

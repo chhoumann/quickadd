@@ -2,7 +2,8 @@ import type { App, MarkdownView, TFile } from "obsidian";
 import { getFrontMatterInfo, parseYaml } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
+import type { ChoiceRuntimePlugin } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "../formatters/formatterRuntime";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { getMarkdownEditorViewForFile, insertCaptureInBoundEditor } from "../utils/editorInsertion";
 import { templaterParseTemplate } from "../utils/templaterIntegration";
@@ -21,6 +22,7 @@ import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { isSetLikeObsidianProperty } from "../utils/obsidianPropertyTypes";
 import { restoreUserTextAt } from "../formatters/helpers/userText";
+import { deriveFolderMode } from "../utils/folderMode";
 
 export const templateInsertModes = [
 	{
@@ -64,16 +66,19 @@ export function moveOfferFolder(
 	choice: ITemplateChoice,
 ): { format: string } | "note" | null {
 	const folder = choice.folder;
-	if (!folder?.enabled) return "note";
-	if (folder.chooseWhenCreatingNote) return null;
-	if (folder.createInSameFolderAsActiveFile) return "note";
-	// chooseFromSubfolders only drives a runtime picker in "specified" mode (the
-	// engine gates its branch on
-	// !(chooseWhenCreatingNote || createInSameFolderAsActiveFile)). A stale flag
-	// left on an active-file-mode choice is inert there and must not suppress
-	// the move offer.
-	if (folder.chooseFromSubfolders || folder.folders.length !== 1) return null;
-	return { format: folder.folders[0] };
+	if (!folder) return "note";
+	switch (deriveFolderMode(folder)) {
+		case "obsidian-default":
+		case "active-file":
+			return "note";
+		case "prompt":
+			return null;
+		case "specified":
+			// chooseFromSubfolders drives a runtime picker only in this mode, so a
+			// stale flag on an active-file choice does not suppress the move offer.
+			if (folder.chooseFromSubfolders || folder.folders.length !== 1) return null;
+			return { format: folder.folders[0] };
+	}
 }
 
 /**
@@ -99,19 +104,10 @@ const TRAILING_BLANK_LINES = /(?:\r?\n[^\S\r\n]*)+$/;
 const LEADING_BLANK_LINES = /^(?:[^\S\r\n]*\r?\n)+/;
 
 /**
- * Inserts a template body into existing note content. "bottom" leaves exactly
- * one blank line between the note and the template, however the note ends, and
- * none above the template in an empty note (#1958). Callers drop the body's own
- * leading blank lines first (see insertTemplateIntoFile). "top" is
- * frontmatter-aware: the body lands below the note's frontmatter block, including
- * the blank line that separates that block from the body (issue #1538).
- *
- * The "top" branch reuses the shared, fence-safe `insertAtNoteBodyStartWithResult`
- * (src/utils/noteContentInsertion.ts). Appending a newline to the body expresses
- * the template-apply policy that the inserted block always ends on its own line —
- * leaving a blank-line separation from the existing content when the body itself
- * already ends in a newline. (Capture callers use the same primitive WITHOUT the
- * extra newline, for tight single-snippet insertion.)
+ * Inserts a template body into note content. "bottom" leaves exactly one blank
+ * line between note and template (none in an empty note); callers drop the
+ * body's leading blank lines first. "top" lands below the frontmatter and its
+ * separator line, and appends a newline so the block ends on its own line.
  */
 export function insertBodyIntoNoteContent(
 	noteContent: string,
@@ -178,23 +174,22 @@ function mergeSetLikeValues(
 }
 
 /**
- * Applies a template to an existing note (issue #526). Unlike
- * TemplateChoiceEngine, this never creates a file: it inserts, prepends,
- * appends, or replaces content in the target note. Top/bottom/cursor modes
- * merge the template's frontmatter properties into the note. Existing scalar
- * values win, while set-like Obsidian properties add distinct template values.
+ * Applies a template to an existing note; never creates a file. Top, bottom and
+ * cursor modes merge the template's frontmatter into the note: existing scalar
+ * values win, while set-like properties add distinct template values.
  */
 export class TemplateInsertEngine extends TemplateEngine {
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceRuntimePlugin,
+		runtime: FormatterExecutionRuntime,
 		private readonly targetFile: TFile,
 		private readonly templatePath: string,
 		private readonly mode: TemplateInsertModeId,
 		choiceExecutor?: IChoiceExecutor,
 		resolvedTemplatePath?: string,
 	) {
-		super(app, plugin, choiceExecutor);
+		super(app, plugin, runtime, choiceExecutor);
 		this.resolvedTemplatePath = resolvedTemplatePath ?? null;
 	}
 
@@ -211,11 +206,9 @@ export class TemplateInsertEngine extends TemplateEngine {
 	}
 
 	/**
-	 * Resolves the template path's format tokens (issue #620) once and memoizes
-	 * the result: apply() and computeChoiceTargetPath() run on the same engine
-	 * instance, and re-resolving would re-evaluate {{date}}/{{random}} (and
-	 * re-prompt). Exposed so applyTemplateToNote can re-validate the resolved
-	 * extension before applying.
+	 * Resolves the template path's format tokens once: apply() and
+	 * computeChoiceTargetPath() share this engine, and re-resolving would
+	 * re-evaluate {{date}}/{{random}} and re-prompt.
 	 */
 	public async getResolvedTemplatePath(): Promise<string> {
 		if (this.resolvedTemplatePath === null) {
@@ -278,10 +271,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 			// create the note in (the path just computed), matching what
 			// TemplateChoiceEngine produces.
 			this.formatter.setTargetFolderPath(folderPath);
-			// "generic": this computes where the choice WOULD have created the note
-			// so a move can be offered - nothing is created and nothing is opened,
-			// so no derived ask would be true here. Any prompt keeps the choice
-			// name as its title, as it does today.
+			// "generic": nothing is created or opened here, so no derived ask would
+			// be true.
 			const formattedName = await this.formatter.formatFileName(
 				choice.fileNameFormat.format,
 				"generic",
@@ -309,10 +300,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 		// basenames).
 		if (!fileName.slice(fileName.lastIndexOf("/") + 1).trim()) return null;
 
-		// Invariant: this engine is always constructed with the same choice's
-		// templatePath that callers pass here (see applyTemplateToNote), so the
-		// memoized resolved path matches `choice`. The extension therefore comes
-		// from the resolved source path (issue #620), consistent with apply().
+		// This engine is always built with the same choice's templatePath, so the
+		// memoized resolved path matches `choice` and supplies the extension.
 		return this.normalizeTemplateFilePath(
 			treatAsVaultRelativePath ? "" : folderPath,
 			fileName,

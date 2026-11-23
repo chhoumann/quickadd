@@ -60,6 +60,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 		ButtonComponent, DropdownComponent, Modal, Platform, Setting, TextAreaComponent, TextComponent, Scope,
 		Notice: class { constructor(message: string) { noticeMessages?.push(message); } },
 		debounce,
+		normalizePath: (await import("../../obsidian-stub")).normalizePath,
 	};
 }
 

@@ -1,19 +1,15 @@
 /**
- * The AI Agent (#714) — the Obsidian-bound glue around the pure tool loop.
- *
- * Constructed by `quickAddApi.ai.agent(config)`. Holds model/system/tools/budget
- * config; `generate({ prompt })` runs the bounded multi-step tool loop and
- * `generate({ prompt, schema })` adds JSON-schema-constrained structured output.
- * Stateless across calls (reuse = reuse the config); a per-run guard prevents
- * overlapping calls from racing the shared variables map / cursor.
+ * The AI agent: Obsidian-bound glue around the pure tool loop, built by
+ * `quickAddApi.ai.agent(config)`. Stateless across calls; a per-run guard keeps
+ * overlapping calls from racing the shared variables map and cursor.
  */
 import type { App } from "obsidian";
-import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { settingsStore } from "../../settingsStore";
-import { CompleteFormatter } from "../../formatters/completeFormatter";
-import { makeNoticeHandler } from "../makeNoticeHandler";
-import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
+import { makeNoticeHandler, type NoticeHandler } from "../makeNoticeHandler";
+import { assertOnlineFeaturesEnabled } from "../onlineFeatures";
+import { outputVariables } from "../promptProgress";
+import { ChoiceAbortError } from "../../errors/ChoiceAbortError";
 import { MacroAbortError } from "../../errors/MacroAbortError";
 import { resolveModelInputOrThrow } from "../aiHelpers";
 import type { AIProvider, Model } from "../Provider";
@@ -21,10 +17,8 @@ import { resolveProviderApiKey } from "../providerSecrets";
 import { classifyProviderError } from "../providerErrors";
 import { preventCursorChange } from "../preventCursorChange";
 import { reportError } from "../../utils/errorUtils";
-import {
-	chatRequest,
-	type CommonResponse,
-} from "../OpenAIRequest";
+import { chatRequest } from "../OpenAIRequest";
+import type { CommonResponse } from "../providerRequest";
 import type {
 	JSONSchema,
 	NormalizedChatRequest,
@@ -59,6 +53,8 @@ const MAX_STEPS_CEILING = 100;
 // (they would race the shared variables map). Read-only runs are unaffected.
 const statefulRunsInFlight = new WeakSet<object>();
 
+// MacroAbortError is the base of ChoiceAbortError and UserCancelError, so a
+// headless refusal or a dismissed prompt inside a tool kills the run too.
 function isAbortError(e: unknown): boolean {
 	return e instanceof MacroAbortError;
 }
@@ -91,20 +87,18 @@ export class Agent {
 
 	constructor(
 		private readonly app: App,
-		private readonly plugin: QuickAdd,
 		private readonly choiceExecutor: IChoiceExecutor,
 		private readonly config: AgentConfig,
+		/** Runs the prompt through the QuickAdd formatter. */
+		private readonly format: (input: string) => Promise<string>,
 	) {
 		// Validate the tool set once, at construction, so authoring errors fail fast.
-		const seen = new Set<string>();
 		for (const [name, tool] of Object.entries(config.tools ?? {})) {
 			if (!TOOL_NAME_RE.test(name)) {
 				throw new Error(
 					`Invalid tool name "${name}". Tool names must match ${TOOL_NAME_RE}.`,
 				);
 			}
-			if (seen.has(name)) throw new Error(`Duplicate tool name "${name}".`);
-			seen.add(name);
 			assertRegisterableSchema(tool.inputSchema, `tool "${name}".inputSchema`);
 		}
 	}
@@ -119,7 +113,7 @@ export class Agent {
 			typeof options.assignToVariable === "string" &&
 			options.assignToVariable.length > 0;
 		if (usesVariables) {
-			this.assertAssignableName(options.assignToVariable as string);
+			assertAssignableVariableName(options.assignToVariable as string);
 			if (statefulRunsInFlight.has(this.choiceExecutor)) {
 				throw new Error(
 					"Another AI run with assignToVariable is already in flight in this context — they would race the shared variables. Run them sequentially.",
@@ -150,19 +144,14 @@ export class Agent {
 		// Per-run state — "approve all this run" must NOT leak into a later generate()
 		// on a reused agent.
 		this.approveAllThisRun = false;
+		assertOnlineFeaturesEnabled();
 		const pluginSettings = settingsStore.getState();
-		if (pluginSettings.disableOnlineFeatures) {
-			throw new Error(
-				"Rejecting AI request: Online features are disabled in settings.",
-			);
-		}
 
 		const { model, provider: modelProvider } = resolveModelInputOrThrow(
 			this.config.model,
 		);
 		const apiKey = await resolveProviderApiKey(this.app, modelProvider);
 
-		// Build the seed request: [system?, user(formatted prompt)].
 		const messages = await this.buildSeedMessages(options);
 		const tools = this.buildToolDefinitions();
 		const registry = this.buildRegistry();
@@ -187,9 +176,8 @@ export class Agent {
 			Math.min(this.config.maxSteps ?? DEFAULT_MAX_STEPS, MAX_STEPS_CEILING),
 		);
 
-		// Mirror the legacy ai.prompt status surface (makeNoticeHandler): a single
-		// persistent Notice updated through the multi-step run, only when the
-		// "Show assistant messages" setting is on. No-op handler otherwise.
+		// One persistent Notice updated through the run, only with "Show assistant
+		// messages" on.
 		const notice = makeNoticeHandler(pluginSettings.ai.showAssistant);
 		notice.setMessage("starting", "QuickAdd is running the AI agent.");
 
@@ -201,7 +189,6 @@ export class Agent {
 					const turnReq = this.buildTurnRequest(req, ctx.isFinalStep, responseFormat);
 					try {
 						const cr = await chatRequest(
-							this.app,
 							apiKey,
 							model,
 							modelProvider,
@@ -249,11 +236,9 @@ export class Agent {
 				this.assignVariable(options.assignToVariable, result.text);
 			}
 
-			notice.setMessage(
-				"finished",
+			notice.finish(
 				`Ran ${result.steps.length} step${result.steps.length === 1 ? "" : "s"}.`,
 			);
-			window.setTimeout(() => notice.hide(), 5000);
 
 			return result;
 		} catch (error) {
@@ -262,9 +247,9 @@ export class Agent {
 		}
 	}
 
-	/** Emit a per-step progress Notice mirroring the legacy ai.prompt status surface. */
+	/** Emits a per-step progress Notice. */
 	private reportStep(
-		notice: { setMessage: (status: string, msg: string) => void },
+		notice: Pick<NoticeHandler, "setMessage">,
 		step: LoopStep,
 	): void {
 		const toolNames = step.toolCalls.map((c) => c.name);
@@ -288,13 +273,7 @@ export class Agent {
 		const prompt = options.prompt ?? "";
 		// The prompt is run through the QuickAdd formatter (like ai.prompt). Tool
 		// args, by contrast, are NEVER formatted (that would re-inject {{...}}).
-		const formatted = prompt
-			? await new CompleteFormatter(
-					this.app,
-					this.plugin,
-					this.choiceExecutor,
-			  ).formatFileContent(prompt)
-			: "";
+		const formatted = prompt ? await this.format(prompt) : "";
 		messages.push({ role: "user", content: formatted });
 		return messages;
 	}
@@ -386,11 +365,8 @@ export class Agent {
 		if (!needs) return true;
 		if (this.approveAllThisRun && !perToolFloor) return true;
 
-		// Non-interactive run (CLI without `ui`): nobody can approve this, and the
-		// modal would park forever - a plain `quickadd:run` of a Macro whose script
-		// calls `quickAddApi.ai.agent` with a non-readOnly tool simply never returned
-		// (`needsGlobalConfirmation` defaults to "destructive", so most tools ask).
-		// Refuse with the text that says how to make the choice runnable headlessly.
+		// Non-interactive run: nobody can approve, and the modal would park forever
+		// (most tools ask by default).
 		if (this.choiceExecutor.interactive === false) {
 			throw new ChoiceAbortError(
 				`'${call.name}' needs approval before it runs, but this run is non-interactive. ` +
@@ -429,10 +405,9 @@ export class Agent {
 	}
 
 	private needsGlobalConfirmation(tool: ToolEntry): boolean {
-		// Default to "destructive" when the persisted value is missing: main.ts
-		// shallow-merges loadedData, so an existing user's pre-`confirmToolCalls`
-		// `ai` object replaces DEFAULT_SETTINGS.ai wholesale and leaves this
-		// undefined. Without this floor a destructive author tool would auto-run.
+		// Default to "destructive" when missing: a shallow merge of an older saved
+		// `ai` object leaves this undefined, and a destructive tool would otherwise
+		// auto-run.
 		const global = settingsStore.getState().ai.confirmToolCalls ?? "destructive";
 		if (global === "always") return true;
 		if (global === "destructive") return tool.readOnly !== true;
@@ -490,13 +465,15 @@ export class Agent {
 			responseFormat: { schema, name: "response", strict: true },
 		};
 		try {
+			// The failure is swallowed below (the result just has no object), so it
+			// must not be reported as a failed run either.
 			const cr = await chatRequest(
-				this.app,
 				apiKey,
 				model,
 				modelProvider,
 				repairReq,
 				restoreCursor,
+				false,
 			);
 			const second = parseStructured(cr.content, schema);
 			return second.ok ? second.value : undefined;
@@ -533,17 +510,12 @@ export class Agent {
 	// --- variable bridge --------------------------------------------------
 
 	private assignVariable(name: string, text: string): void {
-		// Write the trimmed key: assertAssignableName validates the trimmed form,
+		// Write the trimmed key: assertAssignableVariableName validates the trimmed form,
 		// and the formatter trims `{{VALUE:...}}` token names — an untrimmed key
 		// (" summary ") would never resolve.
-		const key = name.trim();
-		const quoted = ("> " + text).replace(/\n/g, "\n> ");
-		this.choiceExecutor.variables.set(key, text);
-		this.choiceExecutor.variables.set(`${key}-quoted`, quoted);
-	}
-
-	private assertAssignableName(name: string): void {
-		assertAssignableVariableName(name);
+		for (const [key, value] of Object.entries(outputVariables(name.trim(), text))) {
+			this.choiceExecutor.variables.set(key, value);
+		}
 	}
 }
 

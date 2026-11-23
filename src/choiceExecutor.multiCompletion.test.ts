@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the heavy leaves of the executor's import graph (mirrors
@@ -31,8 +30,6 @@ const openMock = vi.fn();
 vi.mock("./gui/suggesters/choiceSuggester", () => ({
 	__esModule: true,
 	default: { Open: openMock },
-	emptyFolderNoticeText: (folder: { name: string }) =>
-		`Folder "${folder.name}" is empty.`,
 }));
 
 const { ChoiceExecutor } = await import("./choiceExecutor");

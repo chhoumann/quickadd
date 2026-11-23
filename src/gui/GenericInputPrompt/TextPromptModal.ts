@@ -265,7 +265,9 @@ export abstract class TextPromptModal<
 	 * Only reachable on optional prompts (the Skip button is the sole caller).
 	 */
 	protected skip() {
-		if (this.getPromptKind() === "multi" && this.didSubmit) return;
+		// A prompt that already submitted or closed has settled. Closing again
+		// would re-persist its draft as an empty submitted answer.
+		if (this.didSubmit || this.didClose) return;
 		this.input = "";
 		this.didSubmit = true;
 

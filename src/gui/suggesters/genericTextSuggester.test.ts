@@ -92,16 +92,17 @@ describe("ExclusiveSuggester", () => {
 		document.body.replaceChildren();
 	});
 
-	it("leaves out the items already chosen", () => {
+	it("leaves out the items chosen at query time", () => {
+		let chosen = ["Projects"];
 		const suggest = new ExclusiveSuggester(
 			createApp(),
 			createInput(),
 			["Projects", "Projects/Archive", "Scripts"],
-			["Projects"],
+			() => chosen,
 		);
 		expect(suggest.getSuggestions("proj")).toEqual(["Projects/Archive"]);
 
-		suggest.updateCurrentItems([]);
+		chosen = [];
 		expect(suggest.getSuggestions("proj")).toEqual(["Projects", "Projects/Archive"]);
 	});
 });

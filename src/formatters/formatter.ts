@@ -1,10 +1,10 @@
 import { ValueFormatter } from "./valueFormatter";
-import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
-export { findDateVariableFormat } from "./helpers/dateTokens";
-import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
+import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
+import { decodeDateToken, defaultDateVariableFormat } from "../utils/dateTokenCodec";
+import { findInlineScriptSpans } from "../utils/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
-import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
+import { FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX, MAX_TEMPLATE_INCLUSION_DEPTH } from "../constants";
 import {
 	decodeFileValue,
 	fileLinkNameFromPath,
@@ -15,13 +15,14 @@ import { renderStoredFileValue } from "./helpers/fileTokenRendering";
 import { getPeriodicNoteSettings, PERIODIC_NOTE_REGEX, type Period, periodicNoteLink, periodicNotePath } from "../utils/periodicNotes";
 import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
-import { log } from "../logger/logManager";
 import { escapeValueInsideQuotedYamlScalar } from "../utils/yamlScalarQuoting";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { resolveExistingVariableKey } from "../utils/valueSyntax";
-import { stringifyPropertyTokenValue } from "../engine/captureProperty";
+import { stringifyPropertyTokenValue } from "../utils/propertyCaptureFormat";
 import type { CompleteFormatter } from "./completeFormatter";
+import type { SettingsProvider } from "../types/pluginContext";
+import { expandGlobalVariables } from "./helpers/globalVariables";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 export { type PromptContext } from "./valueFormatter";
@@ -33,11 +34,9 @@ export interface TemplateInclusionState {
 	includer?: CompleteFormatter;
 }
 
-export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
-
-export { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./helpers/inlineScriptSpans";
-
 export abstract class Formatter extends ValueFormatter {
+	/** Where the {{GLOBAL_VAR:name}} snippets come from; each formatter declares its own. */
+	protected declare readonly plugin?: SettingsProvider;
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
 	// The folder the note is being created in, supplied by the engine before
@@ -53,6 +52,10 @@ export abstract class Formatter extends ValueFormatter {
 	}
 
 	protected abstract format(input: string): Promise<string>;
+
+	protected async replaceGlobalVarInString(input: string): Promise<string> {
+		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
+	}
 
 	public setTemplateInclusionState(state: TemplateInclusionState): void {
 		this.templateInclusion = state;
@@ -101,11 +104,8 @@ export abstract class Formatter extends ValueFormatter {
 		if (!SELECTED_REGEX.test(input)) return input;
 
 		const selectedText = await this.getSelectedText();
-		// Single global function-replacer pass (mirrors replaceClipboardInString):
-		// the inserted selection is arbitrary user text and may itself contain the
-		// literal "{{SELECTED}}" token, so a re-scanning while-loop would re-match
-		// it every iteration and grow without bound, hanging Obsidian (#1358-class).
-		// A function replacer inserts it literally and is never re-scanned.
+		// One function-replacer pass: the selection is user text that may contain
+		// "{{SELECTED}}", which a re-scanning loop would re-match forever.
 		const regex = new RegExp(SELECTED_REGEX.source, "gi");
 		const replacement = this.userText(selectedText);
 		return input.replace(regex, () => replacement);
@@ -121,51 +121,6 @@ export abstract class Formatter extends ValueFormatter {
 	}
 
 
-	/** Single-token compatibility entry point; production resolves contextual tokens together. */
-	protected async replaceLinkToCurrentFileInString(
-		input: string,
-	): Promise<string> {
-		if (!LINK_TO_CURRENT_FILE_REGEX.test(input)) return input;
-
-		const currentFilePathLink = this.getCurrentFileLink();
-		if (!currentFilePathLink) {
-			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error(this.missingCurrentNoteMessage("Unable to get current file path. Make sure you have a file open in the editor."));
-			}
-			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
-		}
-
-		const regex = new RegExp(LINK_TO_CURRENT_FILE_REGEX.source, "gi");
-		return input.replace(regex, () => currentFilePathLink ?? "");
-	}
-
-	/** Resolve the cursor heading link only when present, honoring required/optional behavior. */
-	protected replaceLinkToCurrentSectionInString(input: string): string {
-		if (!LINK_TO_CURRENT_SECTION_REGEX.test(input)) return input;
-
-		const sectionLink = this.getCurrentFileLinkToSection();
-
-		if (!sectionLink) {
-			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error(this.missingCurrentNoteMessage("Unable to get current file path. Make sure you have a file open in the editor."));
-			}
-			log.logMessage("Skipping {{LINKSECTION}} replacement because no active file is available.");
-		}
-
-		// Single global pass with a function replacer: the replacement is the
-		// generated link, which embeds the (user-controlled) heading text and so
-		// can itself contain "{{linksection}}" or "$"-sequences. A function
-		// replacer inserts it literally and is NOT re-scanned, avoiding both the
-		// $-pattern interpretation and the infinite re-match a while-loop would
-		// hit when a heading is literally named "{{linksection}}".
-		const regex = new RegExp(LINK_TO_CURRENT_SECTION_REGEX.source, "gi");
-		return input.replace(regex, () => sectionLink ?? "");
-	}
-
-	/** Resolve link tokens together so generated links containing tokens are never rescanned. */
-	protected replaceCurrentFileLinksInString(input: string): string {
-		return this.replaceCurrentFileTokensInString(input, { links: true });
-	}
 	/** Active-folder path tokens must never silently retarget a write to the vault root. */
 	protected replaceCurrentFileTokensInString(input: string, opts: CurrentFileTokenOptions): string {
 		return replaceCurrentFileTokens(input, opts, {
@@ -181,16 +136,6 @@ export abstract class Formatter extends ValueFormatter {
 	/** What a required current-note token says when there is no current note. */
 	protected missingCurrentNoteMessage(inApp: string): string {
 		return inApp;
-	}
-
-	protected async replaceCurrentFileNameInString(
-		input: string,
-	): Promise<string> {
-		// Routed through the combined single-pass resolver so a file literally
-		// named "{{filenamecurrent}}" can't loop (#1358). Kept for direct/legacy
-		// callers and unit tests; production resolves all tokens at once via the
-		// entry points in CompleteFormatter / the display formatters.
-		return this.replaceCurrentFileTokensInString(input, { fileName: true });
 	}
 
 	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
@@ -211,13 +156,6 @@ export abstract class Formatter extends ValueFormatter {
 		const trimmed = path.trim();
 		this.targetFolderPath =
 			trimmed === "/" ? "" : trimmed.replace(/^\/+/, "").replace(/\/+$/, "");
-	}
-
-	/** Resolve the target folder path or leaf; an unknown folder renders empty. */
-	protected replaceTargetFolderInString(input: string): string {
-		// Routed through the combined single-pass resolver (kept for direct/legacy
-		// callers and unit tests). See {@link replaceCurrentFileTokensInString}.
-		return this.replaceCurrentFileTokensInString(input, { folder: true });
 	}
 
 	protected abstract getCurrentFileLink(): string | null;
@@ -242,24 +180,17 @@ export abstract class Formatter extends ValueFormatter {
 		while ((match = regex.exec(input)) !== null) {
 			output += input.slice(lastIndex, match.index);
 
-			// match[1] contains the field name (and potentially the old filter syntax if no pipe is used)
-			// match[2] contains the filter part starting with |, if present
 			const fullMatch = match[1] + (match[2] || "");
 
 			if (fullMatch) {
 				const parsed = FieldSuggestionParser.parse(fullMatch, {
-					warnUnknown: true,
 					warn: this.warnSink,
 				});
 				const fieldVariableKey = await this.resolveFieldVariable(fullMatch, parsed);
 
-				// The FIELD key, not the bare specifier. `getVariableValue` is only
-				// reached when the suggester resolved `undefined` (a remote prompt
-				// provider can), and looking up `status|folder:Work` there both
-				// misses the value that WAS stored and cross-reads the {{VALUE}}
-				// namespace, so a `{{VALUE:status}}` answer could be served to a
-				// `{{FIELD:status}}` token - the separation FIELD_VARIABLE_PREFIX
-				// exists for. A FIELD shares its answer only by its own `|name:`.
+				// The FIELD key, not the bare specifier: the specifier would cross-read
+				// the {{VALUE}} namespace. A FIELD shares its answer only through its
+				// own `|name:`.
 				const rawValue = this.hasConcreteVariable(fieldVariableKey)
 					? this.variables.get(fieldVariableKey)
 					: this.getVariableValue(fieldVariableKey);
@@ -425,22 +356,12 @@ export abstract class Formatter extends ValueFormatter {
 	protected abstract promptForMathValue(): Promise<string>;
 
 	protected async replaceMathValueInString(input: string) {
-		// Build the output by scanning the current input once.
-		// This avoids infinite replacement loops when the provided math input contains {{MVALUE}}.
+		// One scan of the input, so math input that contains {{MVALUE}} cannot loop.
 		const regex = new RegExp(MATH_VALUE_REGEX.source, "gi");
 
-		// An already-collected answer wins, the way {{VALUE}} reads
-		// `this.variables` before prompting. `RequirementCollector` registers a
-		// requirement keyed "mvalue" for this token, so the one-page input form
-		// asks for a "Math expression" and the CLI advertises
-		// `value-mvalue=<value>` - and, without this, both answers were dropped:
-		// the form asked, then the run opened the math modal on top of it, and
-		// the CLI flag it had just recommended made no difference (#1607).
-		//
-		// READ, never write: leaving `promptForMathValue`'s answer unstored keeps
-		// the per-occurrence prompt that `{{MVALUE}} {{MVALUE}}` has always had.
-		// A single collected answer legitimately fills every occurrence, because
-		// the collector registers exactly one requirement for the token.
+		// An already-collected answer (one-page form, `value-mvalue=`) wins. Read,
+		// never write, so `{{MVALUE}} {{MVALUE}}` still prompts per occurrence when
+		// nothing was collected.
 		const collected = this.variables.get("mvalue");
 		const collectedValue =
 			typeof collected === "string" && collected.trim() ? collected : null;
@@ -489,11 +410,9 @@ export abstract class Formatter extends ValueFormatter {
 	}
 
 	/**
-	 * @param variableName the WHOLE `{{FIELD:...}}` specifier, filters included.
-	 *   It is what the runtime suggesters parse and what the variable is keyed on.
-	 * @param parsed the same specifier already parsed by the caller. The preview
-	 *   formatters need only `fieldName` from it, and passing it in is what keeps
-	 *   their placeholder from reading `status|folder:Work_field_value` (#1579).
+	 * `variableName` is the whole `{{FIELD:...}}` specifier, filters included, as
+	 * the runtime suggesters parse it. `parsed` is the same specifier parsed, so
+	 * previews can use just `fieldName`.
 	 */
 	protected abstract suggestForField(
 		variableName: string,
@@ -508,12 +427,9 @@ export abstract class Formatter extends ValueFormatter {
 
 	protected getValueTokenText(variableName: string): string {
 		const stored = this.variables.get(variableName);
+		const storedIso = decodeDateToken(stored);
 		// An unparseable @date: value prints as-is, as it always has.
-		if (
-			typeof stored === "string" &&
-			stored.startsWith("@date:") &&
-			window.moment?.(stored.slice(6)).isValid()
-		) {
+		if (typeof stored === "string" && storedIso !== null && window.moment?.(storedIso).isValid()) {
 			const dateFormat =
 				getDateVariableFormat(this.variables, variableName) ??
 				defaultDateVariableFormat(false);
@@ -558,32 +474,6 @@ export abstract class Formatter extends ValueFormatter {
 			}
 
 			output = this.replacer(output, TEMPLATE_REGEX, templateContent);
-		}
-
-		return output;
-	}
-
-	protected replaceLinebreakInString(input: string): string {
-		let output = "";
-
-		for (let i = 0; i < input.length; i++) {
-			const curr = input[i];
-			const next = input[i + 1];
-
-			if (curr == "\\") {
-				if (next == "n") {
-					output += "\n";
-					i++;
-				} else if (next == "\\") {
-					output += "\\";
-					i++;
-				} else {
-					// Invalid use of escape character, but we keep it anyway.
-					output += '\\';
-				}
-			} else {
-				output += curr;
-			}
 		}
 
 		return output;
@@ -695,13 +585,6 @@ export abstract class Formatter extends ValueFormatter {
 		return output;
 	}
 
-	protected replaceTitleInString(input: string): string {
-		// Routed through the combined single-pass resolver so a title literally
-		// equal to "{{title}}" can't loop (#1358). Kept for direct/legacy callers
-		// and unit tests. See {@link replaceCurrentFileTokensInString}.
-		return this.replaceCurrentFileTokensInString(input, { title: true });
-	}
-
 	/**
 	 * True when `replacePropertyInString` expanded `{{PROPERTY}}` during the
 	 * latest format pass. Cleared by {@link consumePropertyTokenExpanded}.
@@ -719,8 +602,8 @@ export abstract class Formatter extends ValueFormatter {
 
 	/**
 	 * Expands `{{PROPERTY}}` to the seeded `propertyValue` snapshot (property
-	 * Captures only). Outside that scope the token is a hard error so it cannot
-	 * leak as literal text into a note body (#1748).
+	 * Captures only). Elsewhere the token is a hard error so it cannot leak as
+	 * literal text into a note body.
 	 */
 	protected replacePropertyInString(input: string): string {
 		if (!PROPERTY_REGEX.test(input)) return input;

@@ -16,47 +16,30 @@ import type { ChoiceChain } from "./engine/choiceChain";
 export interface RunChoiceOptions {
 	/** The chain of the run that starts this one, as for {@link IChoiceExecutor.execute}. */
 	ancestry?: ChoiceChain;
-	/**
-	 * The trigger context of an outermost run whose caller named none, for a
-	 * run that works on a note other than the active one.
-	 */
+	/** Trigger context for an outermost run whose caller named none. */
 	triggerContext?: QuickAddTriggerContext;
 }
 
 export interface IChoiceExecutor {
 	/**
-	 * Runs `work` as a run of `choice`, handing it the run's chain. The run
-	 * first asks for the choice's inputs in the one-page form when that is on,
-	 * resolves its Which day, and sets the run's clocks, trigger context and
-	 * prompt-draft scope. {@link execute} runs a choice's own engine this way.
-	 * Anything else that asks on behalf of a choice, such as applying a
-	 * template to a note, starts here and never builds an engine on its own,
-	 * or the run ignores those settings (#2287).
+	 * Runs `work` as a run of `choice`: one-page inputs, Which day, clocks,
+	 * trigger context and prompt-draft scope. Anything that acts on behalf of a
+	 * choice starts here rather than building an engine, or those settings are
+	 * skipped.
 	 */
 	runChoice<T>(
 		choice: IChoice,
 		work: (chain: ChoiceChain) => Promise<T>,
 		options?: RunChoiceOptions,
 	): Promise<T>;
-	/**
-	 * Runs `choice`. A run started from inside another passes that run's chain
-	 * as `ancestry`, and the call fails with the cycle when `choice` is already
-	 * in it.
-	 */
+	/** Fails with the cycle when `choice` is already in `ancestry`. */
 	execute(choice: IChoice, ancestry?: ChoiceChain): Promise<void>;
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**
-	 * Executes a choice while reusing context captured before an intermediate UI
-	 * layer, such as a Multi-choice suggester, ran: the frontmatter property target
-	 * (DOM focus is stolen by the suggester) and the trigger-time
-	 * {@link QuickAddTriggerContext} (cleared when the outer Multi execute()
-	 * returns). Both are re-injected so the eventual leaf run uses the original
-	 * trigger note for `{{...|default-from:active}}`. Optional so existing stubs can
-	 * fall back to {@link execute}; `triggerContext` is optional so callers that only
-	 * carry a focused property need not pass it (the executor then reads it live).
-	 * `ancestry` is as for {@link execute}: the chain of the folder run whose
-	 * picker chose this choice.
+	 * Executes a choice with context captured before an intermediate UI (such as
+	 * a Multi suggester) stole focus or the outer run cleared it, so the leaf run
+	 * still sees the original property target and trigger note.
 	 */
 	executeWithFocusedProperty?(
 		choice: IChoice,
@@ -65,101 +48,62 @@ export interface IChoiceExecutor {
 		ancestry?: ChoiceChain,
 	): Promise<void>;
 	/**
-	 * Executes a Template/Capture choice and returns its structured outcome
-	 * (success with the affected file, error, or cancelled) instead of the void
-	 * {@link execute}. Callers that must report real success/failure — the URI
-	 * x-callback handler and the `quickadd:run-template` CLI — use this so a
-	 * swallowed engine failure can't masquerade as success. Optional so existing
-	 * stubs remain valid.
+	 * Like {@link execute}, but returns the structured outcome so callers that
+	 * report to an external caller cannot mistake a swallowed failure for success.
 	 */
 	executeWithOutcome?(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome>;
 	variables: Map<string, unknown>;
-	/**
-	 * Frozen wall clock and optional calendar origin for this outermost run.
-	 * `{{DATE}}` reads `date` (or `now`'s day). `{{TIME}}` reads `now`.
-	 */
+	/** Frozen wall clock and optional calendar origin for this outermost run. */
 	clocks?: RunClocks;
 	/**
-	 * Replaces the Which day of the next choice to resolve one: `"pick"` asks
-	 * even if it is set to Today, a date is that day. Choices it runs inherit
-	 * the result like any enclosing day. Set by `{name} (pick a day)`, Shift in
-	 * the menu, and `date=`.
+	 * Overrides the Which day of the next choice that resolves one: `"pick"`
+	 * asks even when it is set to Today. Choices it runs inherit the result.
 	 */
 	callerDay?: CallerDay;
 	/**
 	 * Sets {@link clocks} from the choice's Which day setting, asking when it is
-	 * Ask each time. A Template that searches existing notes calls this after its
-	 * note picker, and not at all when it only opens the selected note.
+	 * Ask each time.
 	 */
 	resolveDateOrigin?(choice: IChoice): Promise<void>;
 	/**
-	 * Whether this execution may open blocking interactive UI (suggesters/modals)
-	 * for inputs the requirement collector cannot pre-satisfy — e.g. the
-	 * "file already exists" prompt, the folder chooser, or the heading picker.
-	 * Defaults to interactive (`true`/`undefined`) so GUI runs are unchanged.
-	 * Non-interactive callers (the `quickadd:run`/`run-template` CLI without the
-	 * `ui` flag, and any headless automation) set this to `false`; engines then
-	 * abort such a prompt with a clear, actionable error instead of hanging forever
-	 * on an unanswerable modal.
+	 * False for headless callers: engines then fail a prompt the requirement
+	 * collector could not pre-satisfy instead of hanging on an unanswerable modal.
 	 */
 	interactive?: boolean;
 	/**
-	 * When set, runtime prompts a script raises (`quickAddApi.suggester` and, over
-	 * time, the rest of the prompt seam) are routed to this provider — a remote
-	 * interactive session driven by an external front end (Raycast) — instead of
-	 * opening an Obsidian modal. Absent means the normal in-app prompt behaviour.
-	 * Independent of {@link interactive}, which still gates engine-level prompts.
+	 * Routes runtime script prompts to a remote front end instead of an Obsidian
+	 * modal. Independent of {@link interactive}.
 	 */
 	promptProvider?: PromptProvider;
 	/**
-	 * Frontmatter property value focused when the outermost choice execution began.
-	 * Append Link uses this to avoid the stale CodeMirror cursor Obsidian reports
-	 * while a Properties field owns focus.
+	 * Property focused when the outermost run began. Obsidian reports a stale
+	 * CodeMirror cursor while a Properties field owns focus.
 	 */
 	focusedProperty?: FrontmatterPropertyTarget | null;
 	/**
-	 * Snapshot of the editor context (currently just the active file) taken when
-	 * the OUTERMOST choice execution began, before any QuickAdd UI opens or a
-	 * Template choice creates/opens a new note. `{{FIELD:<field>|default-from:active}}`
-	 * reads the active note's current property from this to default the prompt.
-	 * Optional so existing stubs and the legacy void {@link execute} path are
-	 * unaffected; absent/undefined means "no trigger-derived default".
+	 * Active file captured when the outermost run began, before any QuickAdd UI
+	 * or a newly created note changes it. Backs `|default-from:active`.
 	 */
 	triggerContext?: QuickAddTriggerContext | null;
 	/**
-	 * Records the structured outcome of the current execution so an orchestrator
-	 * (the URI x-callback handler, via {@link ChoiceExecutor.executeWithOutcome}) can
-	 * report success/failure/cancel to an external caller. Optional — engines call it
-	 * via `?.`, so existing stubs and the legacy void {@link execute} path are
-	 * unaffected. Record `success` at the content-commit point, before any cosmetic
-	 * step, so a later cosmetic failure cannot downgrade the outcome.
+	 * Record `success` at the content-commit point, before any cosmetic step, so
+	 * a later cosmetic failure cannot downgrade the outcome.
 	 */
 	recordExecutionResult?(result: ChoiceOutcome): void;
 	/**
-	 * Records that the most recent choice execution aborted so orchestrators can react.
-	 * Engines that handle cancellations without throwing should call this immediately after
+	 * Engines that handle a cancellation without throwing call this right after
 	 * {@link handleMacroAbort} returns true.
 	 */
 	signalAbort?(error: MacroAbortError): void;
-	/**
-	 * Returns and clears any pending abort signal. Callers should invoke this right after
-	 * awaiting {@link execute} to determine whether the child choice stopped early.
-	 */
+	/** Returns and clears the pending abort signal; call right after awaiting {@link execute}. */
 	consumeAbortSignal?(): MacroAbortError | null;
 	/**
-	 * User-script modules already loaded (and therefore already EXECUTED - loading
-	 * a CommonJS user script runs its top-level code) by a requirement-collection
-	 * pass, keyed by `getUserScriptPreloadKey` (`command.path ?? command.id` plus
-	 * any `::` member-drill suffix - stored values hold the DRILLED export plus the
-	 * module's settings definition, so keying by path alone would collide
-	 * different members of one file). MacroChoiceEngine
-	 * consumes an entry (delete-on-use) instead of re-loading the script, so
-	 * introspecting `quickadd.inputs` in the one-page preflight / non-interactive
-	 * CLI does not make a script's top-level side effects run twice per trigger.
-	 * Optional so existing stubs are unaffected; absent means "no preloaded
-	 * modules".
+	 * User scripts already loaded, and therefore already executed, by a
+	 * requirement-collection pass, keyed by `getUserScriptPreloadKey`. The macro
+	 * engine consumes an entry instead of reloading, so top-level side effects
+	 * run once per trigger.
 	 */
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
 }

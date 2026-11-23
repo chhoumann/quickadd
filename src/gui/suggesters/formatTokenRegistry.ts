@@ -70,14 +70,12 @@ const ALL: readonly FormatSuggestContext[] = ALL_FORMAT_SUGGEST_CONTEXTS;
 export interface FormatTokenSuggestion {
 	/** Exact text written into the field when this row is accepted. */
 	insert: string;
-	/** One-line, plain-English explanation rendered beside the token (#1542). */
+	/** One-line, plain-English explanation rendered beside the token. */
 	description: string;
 	/**
 	 * Where the caret lands after insertion, counted back from the end of
 	 * `insert`. 2 parks it between the closing braces of an empty argument
-	 * ("{{DATE:|}}"); 0 leaves it after the token. Explicit per row because
-	 * inferring it from the text used to mis-place the caret inside the token
-	 * word for the argument-less "{{TEMPLATE:" / "{{MACRO:" forms.
+	 * ("{{DATE:|}}"); 0 leaves it after the token.
 	 */
 	caretOffset: number;
 	/** Bare fragments (the `|case:` styles) render without token styling. */
@@ -129,15 +127,10 @@ function token(
 }
 
 /**
- * The canonical list, in the order it is offered. Ordering follows the docs'
- * quick reference (ask for input, dates, the note you ran from, the note being
- * created, other content) so the first row a new user meets, {{VALUE}}, is
- * the one that explains what format syntax is for.
- *
- * Casing matches the documentation (uppercase token, lowercase modifiers).
- * Every runtime regex carries /i, so this is a display convention, not a
- * behaviour change; previously the list mixed "{{date}}" with "{{DATE:}}" and
- * left users guessing whether the difference meant anything (#1542).
+ * The canonical list, in the order it is offered, following the docs' quick
+ * reference so the first row a new user meets, {{VALUE}}, explains what format
+ * syntax is for. Casing matches the documentation; every runtime regex is
+ * case-insensitive.
  */
 const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	// == Ask for input ==

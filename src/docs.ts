@@ -5,10 +5,9 @@ import { log } from "./logger/logManager";
  * Canonical documentation URLs.
  *
  * QuickAdd's power surface is syntax you have to learn ({{VALUE}}, {{DATE}},
- * capture targets, one-page inputs), so the manual has to be reachable from the
- * places where a user is actually stuck (issue #1541). `manifest.json`'s
- * `helpUrl` is NOT that entry point: Obsidian 1.13 does not surface it anywhere
- * in the UI. Keep `gettingStarted` byte-identical to it all the same.
+ * capture targets, one-page inputs), so the manual has to be reachable where a
+ * user is stuck. `manifest.json`'s `helpUrl` is not that entry point (Obsidian
+ * 1.13 does not surface it), but keep `gettingStarted` byte-identical to it.
  *
  * Trailing slashes are the canonical form the docs site serves (Astro
  * Starlight); omitting one costs a redirect hop.

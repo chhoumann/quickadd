@@ -2,7 +2,6 @@
 	import { filterFlatChoices, computeRootSelections, computeSummary } from "./exportSelection";
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
-	import type QuickAdd from "../../main";
 	import type IChoice from "../../types/choices/IChoice";
 
 	import {
@@ -18,15 +17,16 @@
 	} from "../../services/packageExportService";
 	import type { QuickAddPackageAssetKind } from "../../types/packages/QuickAddPackage";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import { confirmAction } from "../confirmAction";
 
 	let {
 		app,
-		plugin,
+		pluginVersion,
 		allChoices,
 		close,
 	}: {
 		app: App;
-		plugin: QuickAdd;
+		pluginVersion: string;
 		allChoices: IChoice[];
 		close: () => void;
 	} = $props();
@@ -126,7 +126,7 @@
 				choices: allChoices,
 				rootChoiceIds,
 				excludedChoiceIds: Array.from(excludedChoiceIds),
-				quickAddVersion: plugin.manifest.version,
+				quickAddVersion: pluginVersion,
 			});
 
 			exportWarnings = captureWarnings(result);
@@ -187,6 +187,14 @@
 				app,
 				buildResult.pkg,
 				trimmedPath,
+				{
+					confirmOverwrite: (path) =>
+						confirmAction(app, {
+							title: "Overwrite existing file?",
+							message: `A file already exists at '${path}'. Saving the package will overwrite it.`,
+							action: "Overwrite",
+						}),
+				},
 			);
 			const choiceCount = buildResult.pkg.choices.length;
 			const choiceLabel = `${choiceCount} choice${choiceCount === 1 ? "" : "s"}`;

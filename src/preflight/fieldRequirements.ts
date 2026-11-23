@@ -1,5 +1,5 @@
 import type { SearchMatches } from "obsidian";
-import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntax";
+import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntaxTypes";
 
 export type FieldType =
 	| "text"
@@ -25,11 +25,9 @@ export interface FieldRequirement {
 	options?: string[]; // for dropdowns and suggesters
 	displayOptions?: string[]; // visible labels for mapped VALUE lists
 	optionAliases?: string[][]; // file-picker: each option's note aliases, also matched
-	// Additional metadata
 	dateFormat?: string; // for VDATE
 	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
 	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]
-	filters?: string; // serialized filters for FIELD variables
 	/** field-suggest: the `{{FIELD:...}}` specifier, when `id` is the run variable its `|name:` names. */
 	fieldSpecifier?: string;
 	source?: "collected" | "script"; // provenance for UX badges
@@ -58,4 +56,17 @@ export interface FieldRequirement {
 export interface FieldGroup {
 	id: string;
 	label: string;
+}
+
+/**
+ * Folds another step's requirement into the field an earlier step already asks
+ * for. It stays optional only when every step leaves it optional, it is a path
+ * or runtime-only field when any step's is, and a text field several steps
+ * share gets the wider text area, which also takes one line.
+ */
+export function mergeRepeatedRequirement(existing: FieldRequirement, requirement: FieldRequirement): void {
+	existing.optional = Boolean(existing.optional && requirement.optional);
+	if (requirement.pathContext) existing.pathContext = true;
+	if (requirement.runtimeOnly) existing.runtimeOnly = true;
+	if (existing.type === "text" && requirement.type === "textarea") existing.type = "textarea";
 }

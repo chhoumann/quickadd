@@ -4,6 +4,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import { QuickAddApi } from "./quickAddApi";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
+import { testFormatterRuntime } from "../tests/helpers/formatterRuntime";
 import type { FieldRequirement } from "./preflight/fieldRequirements";
 
 vi.mock("./quickAddSettingsTab", () => ({
@@ -82,7 +83,7 @@ describe("QuickAddApi.requestInputs", () => {
 			"my-date": "@date:2025-12-10T15:41:11.393Z",
 		};
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "my-date", type: "date", dateFormat: "YYYY-MM-DD" },
 		]);
@@ -96,7 +97,7 @@ describe("QuickAddApi.requestInputs", () => {
 			"raw-date": "@date:2025-12-10T15:41:11.393Z",
 		};
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "raw-date", type: "date" },
 		]);
@@ -108,7 +109,7 @@ describe("QuickAddApi.requestInputs", () => {
 	it("joins multi-select picks with \", \" as before when no array is asked for", async () => {
 		formAnswers = { picks: { tags: ["#work", "#urgent"] } };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "tags", type: "suggester", options: ["#work", "#urgent"], suggesterConfig: { multiSelect: true } },
 			{ id: "note", type: "text" },
@@ -122,7 +123,7 @@ describe("QuickAddApi.requestInputs", () => {
 	it("returns comma-bearing picks as separate array items with returnArray (#2292)", async () => {
 		formAnswers = { picks: { tags: ["A string, with stuff after a comma", "Another string"] } };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([{
 			id: "tags",
 			type: "suggester",
@@ -137,7 +138,7 @@ describe("QuickAddApi.requestInputs", () => {
 	it("keeps typed comma-bearing entries whole", async () => {
 		formAnswers = { picks: { tags: ["A string, with stuff after a comma", "Another string"] } };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "tags", type: "suggester", suggesterConfig: { multiSelect: true, returnArray: true } },
 		]);
@@ -148,7 +149,7 @@ describe("QuickAddApi.requestInputs", () => {
 	it("joins picks with the field's separator", async () => {
 		formAnswers = { picks: { tags: ["A string, with stuff after a comma", "Another string"] } };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([{
 			id: "tags",
 			type: "suggester",
@@ -163,7 +164,7 @@ describe("QuickAddApi.requestInputs", () => {
 	it("shows displayOptions labels and returns the option values", async () => {
 		formAnswers = { chosen: { priority: "Low" }, picks: { flags: ["Urgent, today"] } };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "priority", type: "dropdown", options: ["hi", "lo"], displayOptions: ["High", "Low"] },
 			{
@@ -185,7 +186,7 @@ describe("QuickAddApi.requestInputs", () => {
 		const grace = { basename: "Grace" };
 		formAnswers = { chosen: { lead: "Grace" }, picks: { people: ["Grace", "Ada", "Somebody, new"] } };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "lead", type: "suggester", options: [ada, grace], displayOptions: (person) => person.basename },
 			{
@@ -210,7 +211,7 @@ describe("QuickAddApi.requestInputs", () => {
 	it("joins object picks by their labels when a separator is named", async () => {
 		formAnswers = { picks: { people: ["Grace", "Ada"] } };
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([{
 			id: "people",
 			type: "suggester",
@@ -224,7 +225,7 @@ describe("QuickAddApi.requestInputs", () => {
 
 	it("starts a multi-select with its array default picked", async () => {
 		const ada = { basename: "Ada" };
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		await api.requestInputs([{
 			id: "people",
 			type: "suggester",
@@ -246,7 +247,7 @@ describe("QuickAddApi.requestInputs", () => {
 		choiceExecutor.variables.set("lead", ada);
 		choiceExecutor.variables.set("people", [grace, ada]);
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "tags", type: "suggester", suggesterConfig: { multiSelect: true, returnArray: true } },
 			{ id: "joined", type: "suggester", suggesterConfig: { multiSelect: true } },
@@ -276,7 +277,7 @@ describe("QuickAddApi.requestInputs", () => {
 			requestInputs: providerRequestInputs,
 		} as unknown as IChoiceExecutor["promptProvider"];
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "lead", type: "suggester", options: [ada, grace], displayOptions: (person) => person.basename },
 			{
@@ -304,7 +305,7 @@ describe("QuickAddApi.requestInputs", () => {
 			requestInputs: providerRequestInputs,
 		} as unknown as IChoiceExecutor["promptProvider"];
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([
 			{ id: "rating", type: "suggester", options: ["10", "9", "8"] },
 		]);
@@ -325,7 +326,7 @@ describe("QuickAddApi.requestInputs", () => {
 			requestInputs: providerRequestInputs,
 		} as unknown as IChoiceExecutor["promptProvider"];
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		await api.requestInputs([{ id: "x", type: "text" }], {
 			title: "  Weekly review ",
 			description: " Answer what applies.\nSkip the rest. ",
@@ -346,7 +347,7 @@ describe("QuickAddApi.requestInputs", () => {
 			requestInputs: providerRequestInputs,
 		} as unknown as IChoiceExecutor["promptProvider"];
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		await api.requestInputs([{ id: "x", type: "text" }], options);
 
 		expect(providerRequestInputs).toHaveBeenCalledWith(
@@ -362,7 +363,7 @@ describe("QuickAddApi.requestInputs", () => {
 		} as unknown as IChoiceExecutor["promptProvider"];
 		choiceExecutor.variables.set("x", "preset");
 
-		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor, testFormatterRuntime());
 		const result = await api.requestInputs([{ id: "x", type: "text" }]);
 
 		expect(providerRequestInputs).not.toHaveBeenCalled();

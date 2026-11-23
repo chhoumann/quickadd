@@ -1,32 +1,27 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
-import { Platform } from "obsidian";
-import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
-import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
-import { refocusDragHandle } from "../shared/refocusDragHandle";
+import { type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
+import { baseDndOptions, createDropRecovery, keyedItems, replaceById, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
+import { moveByKeyboard } from "../shared/keyboardReorder";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
-import type { CommandListProps } from "./commandListProps.svelte";
-import StandardCommand from "./Components/StandardCommand.svelte";
+import type { CommandListProps } from "./commandListProps";
+import CommandRow from "./Components/CommandRow.svelte";
 import { CommandType } from "../../types/macros/CommandType";
 import WaitCommand from "./Components/WaitCommand.svelte";
-import NestedChoiceCommand from "./Components/NestedChoiceCommand.svelte";
 import { TemplateChoiceBuilder } from "../ChoiceBuilder/templateChoiceBuilder";
 import { CaptureChoiceBuilder } from "../ChoiceBuilder/captureChoiceBuilder";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type IChoice from "../../types/choices/IChoice";
-import UserScriptCommand from "./Components/UserScriptCommand.svelte";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 import { log } from "../../logger/logManager";
 import { isUserScriptLoadError, loadUserScript } from "src/utils/userScript";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
-import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
-import OpenFileCommand from "./Components/OpenFileCommand.svelte";
 import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
 import ConditionalCommand from "./Components/ConditionalCommand.svelte";
 import type { IWaitCommand } from "../../types/macros/QuickCommands/IWaitCommand";
@@ -44,90 +39,55 @@ let {
 	onEditElseBranch,
 }: CommandListProps = $props();
 
-// Everything rendered, handed to the dnd zone, or reordered is filtered to
-// entries that can actually be keyed: an object with a unique, non-empty string
-// id. svelte-dnd-action reads `.id` on every item and the keyed {#each} throws
-// `each_key_duplicate` on a repeat (#1451, #1593) — and on a POST-mount update
-// that throw escapes mountComponent's try entirely (see its doc comment), so
-// this has to be a $derived, not a one-off check at setup.
-//
-// CommandSequenceEditor normalizes the list before it ever gets here, so in
-// practice this filter is a no-op: an id-less or duplicate-id command has
-// already been given a fresh uuid and KEPT. That matters, because the persist
-// path below writes back the list this zone was seeded with — a filter that
-// silently dropped a real command would delete it from data.json on the first
-// reorder. The only thing it can still drop is a `null`/primitive hole, which
-// carries nothing.
-const renderable = $derived.by(() => {
-	const seen = new Set<string>();
-	if (!Array.isArray(commands)) return [];
-	return commands.filter((command) => {
-		if (typeof command !== "object" || command === null) return false;
-		const id = command.id;
-		if (typeof id !== "string" || id === "" || seen.has(id)) return false;
-		seen.add(id);
-		return true;
-	});
-});
+// Everything rendered, handed to the dnd zone, or reordered (see keyedItems).
+// CommandSequenceEditor normalizes the list first, so this only drops holes.
+const renderable = $derived(keyedItems<ICommand>(commands));
 
-// A drop-zone type unique to THIS list, so no two command lists are ever drop
-// targets for each other (#1613).
-//
-// They used to share `type: "command"`. The conditional-branch editor opens ON
-// TOP of the still-open macro builder, and svelte-dnd-action hit-tests every
-// registered zone of a type GEOMETRICALLY — a modal backdrop shields nothing — so
-// dragging a command a little too far down inside the branch editor dropped it
-// into the builder underneath, and both editors then rendered a list that
-// disagreed with the stored macro.
-//
-// The id comes from Svelte's own `$props.id()` (a runtime-wide uid counter,
-// already used by LabeledField), so no bespoke counter is needed.
-//
-// A unique type rather than `dropFromOthersDisabled`, which was tried first and
-// is worse: the target does refuse, but the library then runs its
-// "left for a zone that refuses" path, which re-dispatches the origin's items
-// twice — once with its shadow placeholder and once without — and our
-// stripShadow (#1244/#883) drops the placeholder the library goes on to measure,
-// so the drag ends in an uncaught TypeError with the command gone from the
-// source list. With a unique type the other zone is not a candidate at all, so
-// leaving this one is an ordinary "outside of any zone" drag: the command
-// springs back, which is the correct behaviour for a gesture QuickAdd does not
-// offer.
+// A drop-zone type unique to this list: svelte-dnd-action hit-tests every zone of
+// a type geometrically, through modal backdrops, so the branch editor would drop
+// into the builder underneath. Not `dropFromOthersDisabled`: its refuse path
+// re-dispatches the items with and without the placeholder, which stripShadow
+// breaks.
 const zoneId = $props.id();
 const zoneType = `command:${zoneId}`;
 
-const isMobile = Platform.isMobile;
-// Desktop: drag is armed by grabbing the handle (shared with the choices list; see
-// createDragArming for the click-swallow failsafe). Mobile: no handle — the whole row
-// is draggable by long-press (delayTouchStart), so drag stays enabled.
+// Desktop: drag is armed by grabbing the handle (see createDragArming). Mobile: the
+// whole row drags by long-press.
 const drag = createDragArming();
-const dragDisabled = $derived(!isMobile && !drag.armed);
+const dragDisabled = $derived(drag.disabled);
 
 let listEl: HTMLOListElement | undefined = $state();
 
 // Narrowing helpers: the {#each} discriminates on command.type, so each child
-// receives the matching subtype. Passed one-way — children report edits via the
+// receives the matching subtype. Passed one-way: children report edits via the
 // onUpdateCommand / onConfigure* callbacks, not via two-way binding.
 const asWait = (c: ICommand) => c as IWaitCommand;
-const asNested = (c: ICommand) => c as INestedChoiceCommand;
-const asUserScript = (c: ICommand) => c as IUserScript;
-const asAI = (c: ICommand) => c as IAIAssistantCommand;
-const asOpenFile = (c: ICommand) => c as IOpenFileCommand;
 const asConditional = (c: ICommand) => c as IConditionalCommand;
+
+// The settings button of a step whose type has something to configure.
+function configureHandler(command: ICommand): (() => void) | undefined {
+	switch (command.type) {
+		case CommandType.NestedChoice:
+			return () => configureChoice(command as INestedChoiceCommand);
+		case CommandType.UserScript:
+			return () => void configureScript(command as IUserScript);
+		case CommandType.AIAssistant:
+			return () => void configureAssistant(command as IAIAssistantCommand);
+		case CommandType.OpenFile:
+			return () => void configureOpenFile(command as IOpenFileCommand);
+		default:
+			return undefined;
+	}
+}
 
 /** Persist the current order/content to the host (plain, non-proxy snapshot). */
 function persist() {
 	saveCommands(snapshot(commands));
 }
 
-// The dragged command, reconstructed from the last placeholder-id shadow that
-// stripShadow discarded (see capturePlaceholderRecovery). A drop inside that
-// window (mobile long-press with little or no movement) would otherwise commit
-// the list without the dragged command (#1692, same window as ChoiceList's).
-// handleSort re-inserts the payload then, at the index the placeholder last
-// occupied — the first DRAGGED_ENTERED can already carry the user's intended
-// position, and a pre-drag-order restore would silently cancel it.
-let placeholderRecovery: PlaceholderRecovery<ICommand> | null = null;
+// Recovers the dragged command when a drop lands in the placeholder window
+// (mobile long-press with little or no movement).
+const dropRecovery = createDropRecovery<ICommand>();
 
 // A drag is underway: from its first consider until finalize (pointer) or a
 // DRAG_STOPPED consider (keyboard). Dragging the only command empties
@@ -137,28 +97,16 @@ let dragging = $state(false);
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
 	dragging = e.detail.info.trigger !== TRIGGERS.DRAG_STOPPED;
-	showDragPillOnStart(e as CustomEvent<DndEvent<ICommand>>, getCommandDisplayName);
-	const items = e.detail.items as ICommand[];
-	placeholderRecovery =
-		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
-	// Strip svelte-dnd-action's shadow placeholder so a command can't linger in
-	// state and vanish on reorder (ghost gap) — see [[svelte-dnd-action-shadow-placeholder]].
-	commands = stripShadow(items);
+	const event = e as CustomEvent<DndEvent<ICommand>>;
+	showDragPillOnStart(event, getCommandDisplayName);
+	// Strip the shadow placeholder so a command cannot linger in state and leave
+	// a ghost gap.
+	commands = dropRecovery.consider(event);
 }
 
 function handleSort(e: CustomEvent<DndEvent>) {
-	let next = stripShadow(e.detail.items as ICommand[]);
-	const draggedId = e.detail.info.id;
-	if (placeholderRecovery?.item.id === draggedId && !next.some((c) => c.id === draggedId)) {
-		// Dropped inside the placeholder window (see placeholderRecovery):
-		// committing `next` would delete the dragged command. Re-insert it
-		// where the stripped placeholder last stood.
-		next = [...next];
-		next.splice(Math.min(placeholderRecovery.index, next.length), 0, placeholderRecovery.item);
-	}
-	placeholderRecovery = null;
 	dragging = false;
-	commands = next;
+	commands = dropRecovery.finalize(e as CustomEvent<DndEvent<ICommand>>);
 
 	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
 	// Mobile: dragDisabled ignores `armed`, so this is a no-op.
@@ -172,29 +120,25 @@ function handleSort(e: CustomEvent<DndEvent>) {
 // Arm svelte-dnd-action's pointer drag (desktop handle). NO preventDefault here —
 // see DragHandle: preventDefault on pointerdown would suppress the compat mousedown
 // the library starts the drag from.
-let startDrag = () => {
-	drag.startDrag();
+let startDrag = (event: PointerEvent) => {
+	drag.startDrag(event);
 };
 
-// Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle): move the command one
-// step and persist via the same snapshot path as a pointer drag's finalize.
-function moveCommand(id: string, direction: -1 | 1) {
-	// `renderable`, not `commands`: stripShadow reads `item.id`, so the raw list
-	// would throw on the very hole the render filter exists to hide.
-	const label = document.activeElement?.getAttribute("aria-label");
-	const list = stripShadow(renderable);
-	const next = moveById(list, id, direction);
-	if (!next) return;
-	const target = next.findIndex((c) => c.id === id);
-	const moved = next[target];
-	commands = next;
-	persist();
-	// autoAriaDisabled silences the library's own move alerts, so announce the
-	// keyboard reorder ourselves.
-	alertToScreenReader(
-		`Moved ${getCommandDisplayName(moved)} to position ${target + 1} of ${next.length}`,
-	);
-	if (label) void refocusDragHandle(listEl, label);
+// Keyboard reorder: persists via the same snapshot path as a pointer drag's finalize.
+// `renderable`, not `commands`: stripShadow reads `item.id`, so the raw list would
+// throw on the very hole the render filter exists to hide.
+function moveCommand(id: string, delta: -1 | 1) {
+	moveByKeyboard({
+		listEl,
+		items: stripShadow(renderable),
+		id,
+		delta,
+		describe: getCommandDisplayName,
+		commit: (next) => {
+			commands = next;
+			persist();
+		},
+	});
 }
 
 function updateCommand(command: ICommand) {
@@ -258,8 +202,9 @@ async function configureScript(command: IUserScript) {
 
 	new UserScriptSettingsModal(
 		app,
+		plugin,
 		command,
-		scriptSettings as ConstructorParameters<typeof UserScriptSettingsModal>[2],
+		scriptSettings as ConstructorParameters<typeof UserScriptSettingsModal>[3],
 		() => persist(),
 	).open();
 }
@@ -269,7 +214,7 @@ async function configureAssistant(command: IAIAssistantCommand) {
 		.waitForClose;
 
 	if (newSettings) {
-		updateCommand(command);
+		updateCommand(newSettings);
 	}
 }
 
@@ -310,46 +255,6 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				onMoveUp={() => moveCommand(command.id, -1)}
 				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
-		{:else if command.type === CommandType.NestedChoice}
-			<NestedChoiceCommand
-				command={asNested(command)}
-				{dragDisabled}
-				{startDrag}
-				onDeleteCommand={deleteCommand}
-				onConfigureChoice={configureChoice}
-				onMoveUp={() => moveCommand(command.id, -1)}
-				onMoveDown={() => moveCommand(command.id, 1)}
-			/>
-		{:else if command.type === CommandType.UserScript}
-			<UserScriptCommand
-				command={asUserScript(command)}
-				{dragDisabled}
-				{startDrag}
-				onDeleteCommand={deleteCommand}
-				onConfigureScript={configureScript}
-				onMoveUp={() => moveCommand(command.id, -1)}
-				onMoveDown={() => moveCommand(command.id, 1)}
-			/>
-		{:else if command.type === CommandType.AIAssistant}
-			<AIAssistantCommand
-				command={asAI(command)}
-				{dragDisabled}
-				{startDrag}
-				onDeleteCommand={deleteCommand}
-				onConfigureAssistant={configureAssistant}
-				onMoveUp={() => moveCommand(command.id, -1)}
-				onMoveDown={() => moveCommand(command.id, 1)}
-			/>
-		{:else if command.type === CommandType.OpenFile}
-			<OpenFileCommand
-				command={asOpenFile(command)}
-				{dragDisabled}
-				{startDrag}
-				onDeleteCommand={deleteCommand}
-				onConfigureOpenFile={configureOpenFile}
-				onMoveUp={() => moveCommand(command.id, -1)}
-				onMoveDown={() => moveCommand(command.id, 1)}
-			/>
 		{:else if command.type === CommandType.Conditional}
 			<ConditionalCommand
 				command={asConditional(command)}
@@ -363,11 +268,12 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else}
-			<StandardCommand
+			<CommandRow
 				{command}
 				{dragDisabled}
 				{startDrag}
 				onDeleteCommand={deleteCommand}
+				onConfigure={configureHandler(command)}
 				onMoveUp={() => moveCommand(command.id, -1)}
 				onMoveDown={() => moveCommand(command.id, 1)}
 			/>

@@ -7,13 +7,6 @@ import SettingItem from "../../components/SettingItem.svelte";
  * the name, description and (optionally) the toggle that enables the field, with
  * the field itself on its own line beneath, in the same row, `<label for>`-bound
  * to the name.
- *
- * The builders used to hand-assemble this shape from three unrelated siblings: a
- * control-less SettingItem for the label, a preview row, and a bare full-width
- * input. Nothing tied the parts together, so every assembly drifted on its own —
- * which is how one field ended up described three ways (#1544), how the preview
- * ended up above the input it previews (#1543), and how the create-with-template
- * path input ended up with no visible label at all.
  */
 let {
 	name,

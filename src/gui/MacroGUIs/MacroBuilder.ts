@@ -1,9 +1,9 @@
 import type { IMacro } from "../../types/macros/IMacro";
 import type { App } from "obsidian";
-import { Setting, SettingGroup } from "obsidian";
+import { SettingGroup } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
-import type QuickAdd from "../../main";
+import type { ChoiceBuilderPlugin } from "../../types/pluginContext";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,
@@ -12,63 +12,24 @@ import type { IConditionalCommand } from "../../types/macros/Conditional/ICondit
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
 import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
 import { getConditionSummary } from "../../utils/conditionalHelpers";
-import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 import { BuilderPage, nameOrFallback } from "../ChoiceBuilder/builderPage";
-import {
-	childChoicesOf,
-	isChoiceLike,
-	rootChoicesOf,
-} from "../../utils/choiceUtils";
+import { flattenChoices } from "../../utils/choiceUtils";
 import {
 	isMacroObject,
 	macroCommandsValueOf,
 } from "../../utils/macroUtils";
 import type { ICommand } from "../../types/macros/ICommand";
 import { uuidv4 } from "../../utils/uuid";
-import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../types/dateOrigin";
-import {
-	COMMAND_SETTING_DESC,
-	COMMAND_SETTING_NAME,
-	PICK_DAY_SETTING_DESC,
-	canOfferPickDayCommand,
-	pickDaySettingName,
-} from "../../types/choiceCommands";
-import {
-	ASK_DEFAULT_SETTING_DESC,
-	ASK_DEFAULT_SETTING_NAME,
-	CUSTOM_OFFSET_SETTING_DESC,
-	CUSTOM_OFFSET_SETTING_NAME,
-	DATE_ORIGIN_PRESET_OPTIONS,
-	DATE_ORIGIN_SETTING_DESC,
-	DATE_ORIGIN_SETTING_NAME,
-	VARIABLE_SETTING_DESC,
-	VARIABLE_SETTING_NAME,
-	askDefaultFromPresetId,
-	askDefaultOptions,
-	askDefaultToPresetId,
-	dateOriginFromPreset,
-	dateOriginToPreset,
-	isDateOriginPreset,
-} from "../../types/dateOriginPresets";
+import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import { snapshot } from "../svelte/persist.svelte";
+import { reactiveProps } from "../svelte/reactiveProps.svelte";
+import MacroBehaviorSettings from "./MacroBehaviorSettings.svelte";
+import type { MacroBehavior } from "./macroBehavior";
 
-/** Exported for the malformed-tree sweep (src/utils/malformedChoices.entrypoints.test.ts). */
-export function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
-	const arr: IChoice[] = [];
-
-	const recursive = (choices: IChoice[]) => {
-		choices.forEach((choice) => {
-			if (!isChoiceLike(choice)) return;
-			if (choice.type === "Multi") {
-				recursive(childChoicesOf(choice));
-			} else {
-				arr.push(choice);
-			}
-		});
-	};
-
-	recursive(rootChoicesOf(nestedChoices));
-
-	return arr;
+interface MacroBehaviorProps {
+	behavior: MacroBehavior;
+	name: string;
+	app: App;
 }
 
 export class MacroBuilder extends BuilderPage<IMacroChoice> {
@@ -76,13 +37,15 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	public macro: IMacro;
 	private readonly choices: IChoice[] = [];
 	private commandEditor: CommandSequenceEditor | null = null;
-	private plugin: QuickAdd;
+	private plugin: ChoiceBuilderPlugin;
 	private readonly openedName: string;
-	private pickDaySetting: Setting | null = null;
+	private behaviorHandle: MountHandle | null = null;
+	/** The Behavior group's edits, which `result()` commits to the choice. */
+	private behaviorProps: MacroBehaviorProps | null = null;
 
 	constructor(
 		app: App,
-		plugin: QuickAdd,
+		plugin: ChoiceBuilderPlugin,
 		choice: IMacroChoice,
 		choices: IChoice[],
 		onSave: (choice: IMacroChoice) => void,
@@ -91,7 +54,10 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		this.choice = choice;
 		this.macro = choice.macro;
 		this.openedName = choice.name;
-		this.choices = getChoicesAsList(choices).filter((c) => c.id !== choice.id);
+		// Every runnable choice but this one; folders cannot be a macro step.
+		this.choices = flattenChoices(choices).filter(
+			(c) => c.type !== "Multi" && c.id !== choice.id,
+		);
 		this.plugin = plugin;
 		this.containerEl.addClass("macroBuilder");
 	}
@@ -100,12 +66,15 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		const name = nameOrFallback(this.choice.name, this.openedName);
 		this.choice.name = name;
 		if (isMacroObject(this.macro)) this.macro.name = name;
+		if (this.behaviorProps) Object.assign(this.choice, snapshot(this.behaviorProps.behavior));
 		return this.choice;
 	}
 
 	protected destroy(): void {
 		this.commandEditor?.destroy();
 		this.commandEditor = null;
+		this.behaviorHandle?.destroy();
+		this.behaviorHandle = null;
 	}
 
 	protected render(containerEl: HTMLElement) {
@@ -115,15 +84,10 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 			// to work, so only sync a macro that is there.
 			this.choice.name = name;
 			if (isMacroObject(this.macro)) this.macro.name = name;
-			this.pickDaySetting?.setName(pickDaySettingName(name.trim() || this.openedName));
+			if (this.behaviorProps) this.behaviorProps.name = name.trim() || this.openedName;
 		});
 		this.addCommandEditor(this.addGroup(containerEl, "Commands"));
-		const behavior = this.addGroup(containerEl, "Behavior");
-		this.addOnePageInputSetting(behavior);
-		this.addDateOriginSetting(behavior);
-		this.addRunOnStartupSetting(behavior);
-		this.addCommandPaletteSettings(behavior);
-		this.addIconSetting(behavior);
+		this.addBehaviorSettings(this.addGroup(containerEl, "Behavior"));
 	}
 
 	/** An Obsidian setting group; returns the element its settings go in. */
@@ -131,179 +95,25 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		return new SettingGroup(containerEl).setHeading(heading).listEl;
 	}
 
-	private addOnePageInputSetting(parent: HTMLElement): void {
-		new Setting(parent)
-			.setName("One-page input override")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("", "Follow global setting")
-					.addOption("always", "Always")
-					.addOption("never", "Never")
-					.setValue(this.choice.onePageInput ?? "")
-					.onChange((value) => {
-						this.choice.onePageInput =
-							value === "always" || value === "never" ? value : undefined;
-					});
-			});
-	}
-
-	private addDateOriginSetting(parent: HTMLElement): void {
-		const current = this.choice.dateOrigin;
-		const preset = dateOriginToPreset(current);
-
-		new Setting(parent)
-			.setName(DATE_ORIGIN_SETTING_NAME)
-			.setDesc(DATE_ORIGIN_SETTING_DESC)
-			.addDropdown((dropdown) => {
-				for (const option of DATE_ORIGIN_PRESET_OPTIONS) {
-					dropdown.addOption(option.value, option.label);
-				}
-				dropdown.setValue(preset);
-				dropdown.onChange((value) => {
-					if (!isDateOriginPreset(value)) return;
-					this.choice.dateOrigin = dateOriginFromPreset({
-						preset: value,
-						previous: this.choice.dateOrigin,
-					});
-					this.reload();
-				});
-			});
-
-		if (preset === "ask") {
-			const defaultValue =
-				current?.kind === "ask" ? current.defaultValue : undefined;
-			new Setting(parent)
-				.setName(ASK_DEFAULT_SETTING_NAME)
-				.setDesc(ASK_DEFAULT_SETTING_DESC)
-				.addDropdown((dropdown) => {
-					for (const option of askDefaultOptions(defaultValue)) {
-						dropdown.addOption(option.value, option.label);
-					}
-					dropdown.setValue(askDefaultToPresetId(defaultValue));
-					dropdown.onChange((value) => {
-						const next = askDefaultFromPresetId(value, defaultValue);
-						this.choice.dateOrigin = next
-							? { kind: "ask", defaultValue: next }
-							: { kind: "ask" };
-					});
-				});
-		}
-
-		if (preset === "custom" && current?.kind === "relative") {
-			new Setting(parent)
-				.setName(CUSTOM_OFFSET_SETTING_NAME)
-				.setDesc(CUSTOM_OFFSET_SETTING_DESC)
-				.addText((text) => {
-					text.setValue(String(current.offset));
-					text.setPlaceholder("-2");
-					text.onChange((value) => {
-						const origin = this.choice.dateOrigin;
-						if (origin?.kind !== "relative") return;
-						const trimmed = value.trim();
-						if (!/^[+-]?\d+$/.test(trimmed)) return;
-						this.choice.dateOrigin = {
-							...origin,
-							offset: Number(trimmed),
-						};
-					});
-				})
-				.addDropdown((dropdown) => {
-					for (const unit of DATE_ORIGIN_UNITS) {
-						dropdown.addOption(unit, unit);
-					}
-					dropdown.setValue(current.unit);
-					dropdown.onChange((value) => {
-						const origin = this.choice.dateOrigin;
-						if (origin?.kind !== "relative") return;
-						if (!isDateOriginUnit(value)) return;
-						this.choice.dateOrigin = { ...origin, unit: value };
-					});
-				});
-		}
-
-		if (preset === "variable") {
-			const name = current?.kind === "variable" ? current.name : "";
-			new Setting(parent)
-				.setName(VARIABLE_SETTING_NAME)
-				.setDesc(VARIABLE_SETTING_DESC)
-				.addText((text) => {
-					text.setValue(name);
-					text.setPlaceholder("day");
-					text.onChange((value) => {
-						this.choice.dateOrigin = { kind: "variable", name: value };
-					});
-				});
-		}
-	}
-
-	private addCommandPaletteSettings(parent: HTMLElement): void {
-		new Setting(parent)
-			.setName(COMMAND_SETTING_NAME)
-			.setDesc(COMMAND_SETTING_DESC)
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.command).onChange((value) => {
-					this.choice.command = value;
-					this.reload();
-				});
-			});
-
-		this.pickDaySetting = null;
-		if (
-			this.choice.command &&
-			canOfferPickDayCommand(this.choice.dateOrigin)
-		) {
-			this.pickDaySetting = new Setting(parent)
-				.setName(pickDaySettingName(this.choice.name))
-				.setDesc(PICK_DAY_SETTING_DESC)
-				.addToggle((toggle) => {
-					toggle
-						.setValue(this.choice.pickDayCommand ?? false)
-						.onChange((value) => {
-							this.choice.pickDayCommand = value;
-						});
-				});
-		}
-	}
-
-	private addRunOnStartupSetting(parent: HTMLElement): void {
-		new Setting(parent)
-			.setName("Run on startup")
-			.setDesc("Execute this macro when Obsidian starts")
-			.addToggle(toggle => toggle
-				.setValue(this.choice.runOnStartup)
-				.onChange(value => {
-					this.choice.runOnStartup = value;
-				})
-			);
-	}
-
-	private addIconSetting(parent: HTMLElement): void {
-		addChoiceIconSetting(this.app, parent, this.choice, (icon) => {
-			this.choice.icon = icon;
+	private addBehaviorSettings(parent: HTMLElement): void {
+		const { onePageInput, dateOrigin, runOnStartup, command, pickDayCommand, icon } = this.choice;
+		const props = reactiveProps<MacroBehaviorProps>({
+			behavior: snapshot({ onePageInput, dateOrigin, runOnStartup, command, pickDayCommand, icon }),
+			name: this.choice.name,
+			app: this.app,
 		});
-	}
-
-	/** Re-render the page, for settings that add or remove rows. */
-	private reload() {
-		this.destroy();
-		this.containerEl.empty();
-		this.render(this.containerEl);
+		this.behaviorHandle = mountComponent(parent, MacroBehaviorSettings, props, {
+			what: "the macro's settings",
+		});
+		// Unseen settings must not replace the choice's own on close.
+		if (this.behaviorHandle.ok) this.behaviorProps = props;
 	}
 
 	/**
-	 * The value to show as this macro's command list.
-	 *
-	 * `choice.macro` is untrusted too, and a Macro choice whose `macro` key is
-	 * missing entirely used to make "Configure" do nothing at all: the builder
-	 * threw while it rendered.
-	 *
-	 * Three cases, and `macro` being an ARRAY is the one worth naming: `[]` and
-	 * `[{...}]` are both objects, but writing `macro.commands` onto an Array sets
-	 * a non-index property that `JSON.stringify` drops, so the user's edits would
-	 * vanish on every save while the editor happily showed them. Handing the array
-	 * itself over as the command list instead means its entries render as the
-	 * commands they probably are, and `setMacroCommands` materializes a real macro
-	 * object around them on the first edit - nothing lost either way.
+	 * The value to show as this macro's command list. An array-valued `macro` is
+	 * handed over as the list itself: writing `.commands` onto an Array would be
+	 * dropped by JSON.stringify, and setMacroCommands materializes a real macro
+	 * object around the entries on the first edit.
 	 */
 	private macroCommandsValue(): unknown {
 		return macroCommandsValueOf(this.macro);

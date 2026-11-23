@@ -37,7 +37,6 @@ vi.mock("../formatters/completeFormatter", () => {
 
 vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
 	...(await importOriginal<object>()),
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(
 			async (_app: unknown, content: string) => content,
@@ -48,6 +47,7 @@ import { TFile, type App } from "obsidian";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const TEMPLATE_PATH = "templates/tpl.md";
 
@@ -102,6 +102,7 @@ function makeEngine(file: TFile): TemplateInsertEngine {
 	return new TemplateInsertEngine(
 		makeApp(),
 		{} as QuickAdd,
+		testFormatterRuntime(),
 		file,
 		TEMPLATE_PATH,
 		"replace",

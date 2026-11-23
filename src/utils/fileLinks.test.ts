@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { Notice, TFile } from "obsidian";
@@ -13,6 +12,7 @@ import {
 } from "./fileLinks";
 import type { AppendLinkOptions, LinkPlacement } from "../types/linkPlacement";
 import { mapEditorCursorPlacement, type EditorTextMutation } from "./editorCursorPlacement";
+import { log } from "../logger/logManager";
 
 type NoticeTestClass = typeof Notice & {
 	instances: Array<{ message: string; timeout?: number }>;
@@ -279,10 +279,20 @@ describe("file link helpers", () => {
 		});
 	});
 
-	it("returns false when clipboard writes are unavailable", async () => {
-		vi.stubGlobal("navigator", {});
+	// The caller shows the one failure notice. A logged warning would surface as
+	// a second notice through the GUI logger.
+	it.each([
+		["the clipboard API is unavailable", {}],
+		["the clipboard write is rejected", { clipboard: { writeText: () => Promise.reject(new Error("denied")) } }],
+	])("returns false without warning when %s", async (_case, navigator) => {
+		const logWarning = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		vi.stubGlobal("navigator", navigator);
 
 		await expect(writeTextToClipboard("[[Created Note]]")).resolves.toBe(false);
+
+		expect(logWarning).not.toHaveBeenCalled();
+		expect(noticeClass.instances).toHaveLength(0);
+		logWarning.mockRestore();
 	});
 
 	it("copies file links and reports success", async () => {

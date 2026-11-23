@@ -6,10 +6,11 @@ import { TemplateEngine } from "src/engine/TemplateEngine";
 import { SingleTemplateEngine } from "src/engine/SingleTemplateEngine";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
 import { createChoiceExecutor } from "../createChoiceExecutor";
+import { testFormatterRuntime } from "../formatterRuntime";
 
 class TemplateProbe extends TemplateEngine {
 	constructor(app: App, plugin: QuickAdd, executor: ReturnType<typeof createChoiceExecutor>) {
-		super(app, plugin, executor);
+		super(app, plugin, testFormatterRuntime(app, plugin), executor);
 	}
 	async run() { }
 	get bodyFormatter() { return this.formatter; }
@@ -17,7 +18,6 @@ class TemplateProbe extends TemplateEngine {
 	normalizePath = this.normalizeTemplateFilePath.bind(this);
 	create = this.createFileWithTemplate.bind(this);
 	overwrite = this.overwriteFileWithTemplate.bind(this);
-	append = this.appendToFileWithTemplate.bind(this);
 }
 
 export function templateHarness(enabled = true) {
@@ -83,6 +83,6 @@ export function templateHarness(enabled = true) {
 	return {
 		app, plugin, executor, engine, formatter, file, vault, contents, events,
 		frontmatter, processFrontMatter,
-		single: (path: string) => new SingleTemplateEngine(app, plugin, path, executor),
+		single: (path: string) => new SingleTemplateEngine(app, plugin, testFormatterRuntime(app, plugin), path, executor),
 	};
 }

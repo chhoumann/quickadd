@@ -1,3 +1,4 @@
+import { uniqueKeyIgnoringCase } from "./uniqueKeyIgnoringCase";
 import { parseOptions, extractBareValueFlags } from "./valueOptions";
 import { resolveNumericInput } from "./valueNumeric";
 import { splitQuotedCommaList, unwrapQuotedValue } from "./valueQuotedList";
@@ -7,28 +8,15 @@ import { splitPipeParts, stripLeadingPipe } from "./pipeSyntax";
 import { isSupportedCaseStyle, SUPPORTED_CASE_STYLES } from "./caseTransform";
 import type { MultiValueFormat } from "./multiValueFormat";
 import { NOTICE_WARN, type WarnSink } from "./warnSink";
+import type {
+	MultiEmit,
+	NumericInputConfig,
+	SliderConfig,
+	ValueInputType,
+} from "./valueSyntaxTypes";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 const VALUE_LABEL_KEY_DELIMITER = "\u001F";
-
-export type ValueInputType =
-	| "multiline"
-	| "number"
-	| "slider"
-	| "checkbox"
-	| "text";
-
-export type NumericInputConfig = {
-	min?: number;
-	max?: number;
-	step?: number;
-};
-
-export type SliderConfig = {
-	min: number;
-	max: number;
-	step: number;
-};
 
 // Types that render a different input widget but are meaningless alongside a
 // comma option-list or |custom (those already pick from a fixed/free set).
@@ -39,8 +27,6 @@ const OPTION_INCOMPATIBLE_TYPES = new Set<ValueInputType>([
 	"checkbox",
 	"text",
 ]);
-
-export type MultiEmit = "text" | "linklist";
 
 // Variable keys QuickAdd populates itself; a `|name:` alias must not hijack them.
 export const RESERVED_VALUE_NAMES = new Set(["value", "title"]);
@@ -88,23 +74,6 @@ export function getValueVariableBaseName(variableKey: string): string {
 	return variableKey.slice(0, delimiterIndex);
 }
 
-function findCaseInsensitiveMatch(
-	vars: Map<string, unknown>,
-	candidate: string,
-): string | null {
-	const lower = candidate.toLowerCase();
-	let match: string | null = null;
-
-	for (const key of vars.keys()) {
-		if (key.toLowerCase() !== lower) continue;
-		if (vars.get(key) === undefined) continue;
-		if (match) return null;
-		match = key;
-	}
-
-	return match;
-}
-
 export function resolveExistingVariableKey(
 	vars: Map<string, unknown>,
 	variableKey: string,
@@ -115,12 +84,16 @@ export function resolveExistingVariableKey(
 	const baseKey = getValueVariableBaseName(variableKey);
 	if (baseKey !== variableKey) candidates.push(baseKey);
 
+	let definedKeys: string[] | undefined;
 	for (const candidate of candidates) {
 		if (vars.has(candidate) && vars.get(candidate) !== undefined) {
 			return candidate;
 		}
 
-		const match = findCaseInsensitiveMatch(vars, candidate);
+		definedKeys ??= [...vars.entries()]
+			.filter(([, value]) => value !== undefined)
+			.map(([key]) => key);
+		const match = uniqueKeyIgnoringCase(definedKeys, candidate);
 		if (match) return match;
 	}
 

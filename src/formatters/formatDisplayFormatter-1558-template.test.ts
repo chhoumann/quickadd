@@ -21,6 +21,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		constructor(
 			_app: unknown,
 			_plugin: unknown,
+			_runtime: unknown,
 			public templatePath: string,
 		) {}
 		run(): Promise<string> {
@@ -35,9 +36,6 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 		runAndGetOutput(name: string): Promise<string> {
 			spies.macroEngineRuns.push(name);
 			return Promise.resolve("MACRO RAN");
-		}
-		getVariables() {
-			return new Map();
 		}
 	},
 }));

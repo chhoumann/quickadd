@@ -1,32 +1,25 @@
-import type QuickAdd from "src/main";
+import type { MigrationContext } from "../types/pluginContext";
+import type { QuickAddSettings } from "../settings";
 import { deepClone } from "src/utils/deepClone";
-import {
-	isTemplateChoice,
-	normalizeTemplateChoice,
-} from "./helpers/normalizeTemplateFileExistsBehavior";
+import { isTemplateChoice } from "src/types/choices/choiceGuards";
+import { normalizeTemplateChoice } from "./helpers/normalizeTemplateFileExistsBehavior";
 import {
 	settingsTreeHasUnreadableData,
-	walkAllChoices,
-} from "./helpers/choice-traversal";
+	walkChoicesInSettings,
+} from "src/utils/choiceTraversal";
 import type { Migration, MigrationResult } from "./Migrations";
 import type { IMacro } from "src/types/macros/IMacro";
 
-type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
+type SettingsWithLegacyMacros = QuickAddSettings & { macros?: IMacro[] };
 
 const consolidateFileExistsBehavior: Migration = {
 	description:
 		"Re-run template file collision normalization for users with older migration state",
 
-	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
+	migrate: async (plugin: MigrationContext): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
-		// Only re-clone a real array. Substituting [] for a corrupt root would
-		// persist that [] on the next save and destroy whatever is still in
-		// data.json, which is the opposite of what a migration should do (#1566).
-		// When it is unreadable the walk below covers nothing, so stay pending and
-		// re-run once the user has repaired the file.
-		// This migration walks with `walkAllChoices`, so it must ask the WIDE
-		// question - a nested choice hidden behind an unreadable `macro.commands`
-		// is one this visitor would have normalized (#1610).
+		// Never rewrite a corrupt root with [], and stay pending while the walk
+		// cannot see every choice, so a vault repaired by hand still migrates.
 		const treeReadable = !settingsTreeHasUnreadableData(settings);
 		if (Array.isArray(plugin.settings.choices)) {
 			plugin.settings.choices = deepClone(plugin.settings.choices);
@@ -35,7 +28,7 @@ const consolidateFileExistsBehavior: Migration = {
 			settings.macros = deepClone(settings.macros);
 		}
 
-		walkAllChoices(plugin, (choice) => {
+		walkChoicesInSettings(plugin.settings, (choice) => {
 			if (isTemplateChoice(choice)) {
 				normalizeTemplateChoice(choice);
 			}

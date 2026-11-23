@@ -2,6 +2,7 @@
 
 import { confirmReply, describeValue } from "./promptProtocol";
 import { formatISODate } from "../utils/dateParser";
+import { decodeDateToken, encodeDateToken, isDateToken } from "../utils/dateTokenCodec";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import type { OnePageFormHeader } from "../preflight/formHeader";
 import {
@@ -17,7 +18,7 @@ import {
 const SUGGESTER_INDEX_PREFIX = "\u0000qa-idx:";
 
 /** Decode selected wire tokens without stringifying the original item. */
-function selectedValue(answer: unknown, actualItems: string[]): string {
+function selectedValue<T>(answer: unknown, actualItems: T[]): T | string {
 	const raw = String(answer);
 	if (raw.startsWith(SUGGESTER_INDEX_PREFIX)) {
 		const index = Number(raw.slice(SUGGESTER_INDEX_PREFIX.length));
@@ -37,14 +38,19 @@ export interface PromptProvider {
 		fields: FieldRequirement[],
 		options?: OnePageFormHeader,
 	): Promise<Record<string, FormAnswer>>;
-	suggester(
+	/**
+	 * Single pick over `actualItems`. Resolves to the picked entry itself (object
+	 * identity preserved), or to the text the client typed instead: a custom
+	 * value, or "" for no answer.
+	 */
+	suggester<T = string>(
 		displayItems:
 			| string[]
-			| ((value: string, index?: number, arr?: string[]) => string),
-		actualItems: string[],
+			| ((value: T, index?: number, arr?: T[]) => string),
+		actualItems: T[],
 		placeholder?: string,
 		allowCustomInput?: boolean,
-	): Promise<unknown>;
+	): Promise<T | string>;
 	/**
 	 * Multi-select over a fixed list (`{{VALUE:a,b|multi}}`, `{{FIELD|multi}}`,
 	 * `{{FILE|multi}}`). Returns the selected `actualItems` entries in list order.
@@ -95,14 +101,14 @@ export class RemotePromptProvider implements PromptProvider {
 		private readonly server = interactivePromptServer,
 	) {}
 
-	async suggester(
+	async suggester<T = string>(
 		displayItems:
 			| string[]
-			| ((value: string, index?: number, arr?: string[]) => string),
-		actualItems: string[],
+			| ((value: T, index?: number, arr?: T[]) => string),
+		actualItems: T[],
 		placeholder?: string,
 		allowCustomInput = false,
-	): Promise<unknown> {
+	): Promise<T | string> {
 		const displays =
 			typeof displayItems === "function"
 				? actualItems.map((value, index, arr) =>
@@ -221,7 +227,7 @@ export class RemotePromptProvider implements PromptProvider {
 		const raw = String(answer ?? "");
 		if (!raw) return "";
 		// The client may send a bare ISO or an `@date:ISO`; normalize to the ISO.
-		const iso = raw.startsWith("@date:") ? raw.slice(6) : raw;
+		const iso = decodeDateToken(raw) ?? raw;
 		// Match QuickAddApi.datePrompt exactly: format with the requested format,
 		// else return the full ISO string (not just its date part).
 		const format = options?.dateFormat;
@@ -319,8 +325,8 @@ export class RemotePromptProvider implements PromptProvider {
 				continue;
 			}
 			let str = value == null ? "" : String(value);
-			if (str && dateFieldIds.has(key) && !str.startsWith("@date:")) {
-				str = `@date:${str}`;
+			if (str && dateFieldIds.has(key) && !isDateToken(str)) {
+				str = encodeDateToken(str);
 			}
 			result[key] = str;
 		}

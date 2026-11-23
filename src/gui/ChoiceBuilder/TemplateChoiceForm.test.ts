@@ -3,12 +3,13 @@ import { templateChoice } from "../../../tests/helpers/settings/choices";
 import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";
 
-import { App } from "obsidian";
-import { fireEvent, render } from "@testing-library/svelte";
+import { App, TFolder } from "obsidian";
+import { fireEvent, render, waitFor } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import type QuickAdd from "../../main";
 import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
-import { createTemplateChoiceFormProps } from "./templateChoiceFormProps.svelte";
+import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+import { createChoiceFormProps } from "./choiceFormProps.svelte";
 
 
 
@@ -28,7 +29,7 @@ const plugin = {
 } as unknown as QuickAdd;
 
 function mountForm() {
-	const props = createTemplateChoiceFormProps({
+	const props = createChoiceFormProps<ITemplateChoice>({
 		choice: templateChoice({ discoverExistingNotesBeforeCreate: false }),
 		app: new App(),
 		plugin,
@@ -148,7 +149,7 @@ describe("TemplateChoiceForm", () => {
 	});
 
 	it("opens a legacy choice on its derived mode", () => {
-		const props = createTemplateChoiceFormProps({
+		const props = createChoiceFormProps<ITemplateChoice>({
 			choice: {
 				...templateChoice({ discoverExistingNotesBeforeCreate: false }),
 				folder: {
@@ -171,7 +172,7 @@ describe("TemplateChoiceForm", () => {
 	});
 
 	it("writes the canonical booleans when a mode is selected", async () => {
-		const props = createTemplateChoiceFormProps({
+		const props = createChoiceFormProps<ITemplateChoice>({
 			choice: {
 				...templateChoice({ discoverExistingNotesBeforeCreate: false }),
 				folder: {
@@ -303,6 +304,37 @@ describe("TemplateChoiceForm", () => {
 		const { container } = mountForm();
 
 		expect(settingNames(container).at(-1)).toBe("Icon");
+	});
+
+	it("suggests a removed folder again when the form mounted in another location mode", async () => {
+		const app = new App();
+		app.vault.getAllLoadedFiles = () =>
+			["Archive", "Projects"].map((path) => Object.assign(new TFolder(), { path }));
+		Object.assign(app, { dom: { appContainerEl: document.body } });
+		const props = createChoiceFormProps<ITemplateChoice>({
+			choice: templateChoice({ discoverExistingNotesBeforeCreate: false }),
+			app,
+			plugin,
+		});
+		const { container } = render(TemplateChoiceForm, {
+			props: { choice: props.choice, app: props.app, plugin: props.plugin },
+		});
+		await fireEvent.change(locationDropdown(container), { target: { value: "specified" } });
+		flushSync();
+		const input = container.querySelector<HTMLInputElement>(".qa-folder-path-input")!;
+		await fireEvent.input(input, { target: { value: "Archive" } });
+		await fireEvent.keyPress(input, { key: "Enter" });
+		flushSync();
+		await fireEvent.click(container.querySelector('[aria-label="Remove folder Archive"]')!);
+		flushSync();
+		expect(props.choice.folder.folders).toEqual([]);
+
+		input.focus();
+		await fireEvent.input(input, { target: { value: "Arch" } });
+
+		await waitFor(() =>
+			expect([...document.querySelectorAll(".suggestion-item")].map((el) => el.textContent)).toEqual(["Archive"]),
+		);
 	});
 
 	// #1993: closing the builder used to drop a folder typed but never added.

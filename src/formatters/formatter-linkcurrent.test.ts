@@ -17,7 +17,7 @@ class StubFormatter extends FormatterStub {
   }
 
   public async process(input: string): Promise<string> {
-    return await this.replaceLinkToCurrentFileInString(input);
+    return this.replaceCurrentFileTokensInString(input, { links: true });
   }
 
   public setBehavior(behavior: Behavior) {

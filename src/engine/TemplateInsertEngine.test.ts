@@ -66,7 +66,6 @@ vi.mock("../formatters/completeFormatter", () => {
 
 vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
 	...(await importOriginal<object>()),
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(
 			async (_app: unknown, content: string) => content,
@@ -84,6 +83,7 @@ import {
 	splitTemplateFrontmatter,
 	type TemplateInsertModeId,
 } from "./TemplateInsertEngine";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const TEMPLATE_PATH = "templates/tpl.md";
 
@@ -221,6 +221,7 @@ function makeEngine(
 	return new TemplateInsertEngine(
 		harness.app,
 		{} as QuickAdd,
+		testFormatterRuntime(),
 		file,
 		TEMPLATE_PATH,
 		mode,

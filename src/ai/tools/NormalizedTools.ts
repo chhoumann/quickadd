@@ -1,11 +1,7 @@
 /**
- * Provider-neutral tool-calling types for QuickAdd's AI layer (#714).
- *
- * INTERFACE-ONLY — this module imports only the pure OpenAIModelParameters type (no
- * Obsidian, no settings), so the pure provider mappers and the execute loop that
- * consume it stay unit-testable under vitest/jsdom. The public, AI-SDK-shaped surface
- * (Agent / tool() / result) lives in `aiToolTypes.ts`; this file is the internal wire
- * representation that the per-provider build/parse functions map to and from.
+ * Provider-neutral tool-calling wire types that the per-provider build/parse
+ * functions map to and from. Interface-only so the mappers and the loop stay
+ * testable; the public, AI-SDK-shaped surface lives in `aiToolTypes.ts`.
  */
 import type { OpenAIModelParameters } from "../OpenAIModelParameters";
 
@@ -95,7 +91,7 @@ export type NormalizedToolChoice =
 	| { name: string };
 
 /** A JSON-schema-constrained output request (structured output). */
-export interface NormalizedResponseFormat {
+interface NormalizedResponseFormat {
 	schema?: JSONSchema;
 	name?: string;
 	strict?: boolean;

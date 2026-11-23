@@ -1,12 +1,10 @@
-import type { App, CachedMetadata, TFile } from "obsidian";
+import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
-import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter, hasFileFilter } from "./FieldSuggestionFileFilter";
 import type { FieldFilter } from "./FieldSuggestionParser";
 import type { ParsedFileToken } from "./fileSyntax";
-import {
-	normalizeFrontmatterTagValues,
-	normalizeTag,
-} from "./tagNormalizer";
+import { isPathWithinFolder } from "./pathUtils";
+import { noteTags } from "./tagNormalizer";
 
 export function getAllFolderPathsInVault(app: App): string[] {
 	return app.vault
@@ -22,53 +20,20 @@ export function isFolder(app: App, path: string): boolean {
 }
 
 export function getMarkdownFilesInFolder(app: App, folderPath: string): TFile[] {
-	// Anchor the match to a path-segment boundary so a folder scope never bleeds
-	// into prefix-sharing siblings (e.g. folder "Projects" must not match
-	// "ProjectsArchive/x.md" or "Projects.md"). A trailing slash is normalized
-	// away first so callers that pre-append "/" (CaptureChoiceEngine,
+	// Segment-bounded, so folder "Projects" never matches "ProjectsArchive/x.md"
+	// or "Projects.md". Callers that pre-append "/" (CaptureChoiceEngine,
 	// collectChoiceRequirements) and callers that pass a bare folder name (AI
-	// tools, AIAssistant) both scope identically. An empty path means the whole
-	// vault.
-	const normalized = folderPath.replace(/\/+$/, "");
-	if (normalized === "") {
-		return app.vault.getMarkdownFiles();
-	}
-	const prefix = `${normalized}/`;
+	// tools, AIAssistant) scope identically. An empty path means the whole vault.
 	return app.vault
 		.getMarkdownFiles()
-		.filter((f) => f.path === normalized || f.path.startsWith(prefix));
-}
-
-function getFrontmatterTags(fileCache: CachedMetadata): string[] {
-	return Object.entries(fileCache.frontmatter ?? {})
-		.filter(([key]) => ["tag", "tags"].includes(key.toLowerCase()))
-		.flatMap(([, value]) => normalizeFrontmatterTagValues(value))
-		.filter(Boolean);
-}
-
-function getFileTags(app: App, file: TFile): string[] {
-	const fileCache = app.metadataCache.getFileCache(file);
-	if (!fileCache) return [];
-
-	const tagsInFile: string[] = [];
-	if (fileCache.frontmatter) {
-		tagsInFile.push(...getFrontmatterTags(fileCache));
-	}
-
-	if (fileCache.tags && Array.isArray(fileCache.tags)) {
-		tagsInFile.push(...fileCache.tags.map((v) => normalizeTag(v.tag)));
-	}
-
-	return tagsInFile;
+		.filter((f) => isPathWithinFolder(f.path, folderPath));
 }
 
 export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 	const targetTag = tag.replace(/^#/, "");
 
 	return app.vault.getMarkdownFiles().filter((f: TFile) => {
-		const fileTags = getFileTags(app, f);
-
-		return fileTags.includes(targetTag);
+		return noteTags(app.metadataCache.getFileCache(f)).includes(targetTag);
 	});
 }
 
@@ -115,7 +80,7 @@ export function frontmatterValueMatches(raw: unknown, target: string): boolean {
 }
 
 /**
- * Markdown files whose frontmatter matches a property target (issue #466):
+ * Markdown files whose frontmatter matches a property target:
  *   - `value === undefined` → presence mode: the file HAS the field (any value,
  *     including an empty/`null` value — Obsidian stores an empty property as `null`).
  *   - otherwise → the field equals `value` (see {@link frontmatterValueMatches}).
@@ -148,14 +113,7 @@ export function getMarkdownFilesWithProperty(
 		return frontmatterValueMatches(entry[1], value);
 	});
 
-	const hasFilter =
-		!!filter &&
-		(!!filter.folder ||
-			!!filter.tags?.length ||
-			!!filter.excludeFolders?.length ||
-			!!filter.excludeTags?.length ||
-			!!filter.excludeFiles?.length);
-	if (hasFilter) {
+	if (filter && hasFileFilter(filter)) {
 		files = FieldSuggestionFileFilter.filterFiles(
 			files,
 			filter,

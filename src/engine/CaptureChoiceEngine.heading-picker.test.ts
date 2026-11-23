@@ -7,6 +7,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 // Capture the override the engine pushes into the formatter for the "Under heading…" path.
 const { setInsertAfterTargetOverrideMock } = vi.hoisted(() => ({
@@ -59,6 +60,9 @@ vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 vi.mock("./SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {
 		setLinkToCurrentFileBehavior() {}
+		setDestinationPath() {}
+		setPromptRunContext() {}
+		setKeepUserTextProtected() {}
 		async run() {
 			return "";
 		}
@@ -133,6 +137,7 @@ const buildEngine = (choice: ICaptureChoice, app = createApp()) =>
 	new CaptureChoiceEngine(
 		app,
 		{ settings: { useSelectionAsCaptureValue: false } } as any,
+		testFormatterRuntime(),
 		choice,
 		createExecutor(),
 	);
@@ -280,6 +285,7 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		const engine = new CaptureChoiceEngine(
 			createApp(),
 			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			testFormatterRuntime(),
 			createChoice(),
 			executor,
 		);

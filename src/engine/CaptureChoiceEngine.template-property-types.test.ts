@@ -6,6 +6,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { insertOnNewLineBelow } from "../utils/editorInsertion";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 vi.mock("../quickAddSettingsTab", () => {
 	const defaultSettings = {
@@ -95,7 +96,6 @@ vi.mock("src/gui/MathModal", () => ({
 vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	__esModule: true,
 	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
 		async runAndGetOutput() {
 			return "";
 		}
@@ -128,7 +128,6 @@ vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
 	waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
-	getTemplater: vi.fn(() => ({})),
 }));
 vi.mock("../utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn().mockResolvedValue([]),
@@ -272,7 +271,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			]),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 
 		await engine.run();
 
@@ -374,7 +373,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			variables: new Map<string, unknown>(),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 		const applyCapturePropertyVars = vi.fn(async () => {});
 		(engine as any).applyCapturePropertyVars = applyCapturePropertyVars;
 
@@ -460,7 +459,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 		await engine.run();
 
 		// The array is inlined as text (no data loss), not collected -> no placeholder, no processFrontMatter.
@@ -538,7 +537,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
 		};
 
-		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const engine = new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor);
 		await engine.run();
 
 		expect(written).toContain("cast: [[A]],[[B]]"); // inlined in the body

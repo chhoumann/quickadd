@@ -74,7 +74,6 @@ vi.mock("../utils/fileOpening", () => ({
 vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	getTemplater: vi.fn(() => ({})),
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 	withTemplaterFileCreationSuppressed: vi.fn(async (_app: unknown, _p: string, run: () => unknown) => await run()),
@@ -91,6 +90,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { settingsStore } from "../settingsStore";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 function createTestFile(path: string): TFile {
 	const file = new TFile();
@@ -170,7 +170,7 @@ function harness({ exists, existing }: { exists: boolean; existing: string }) {
 		choiceExecutor,
 		captureFile,
 		created,
-		engine: new CaptureChoiceEngine(app, plugin, choice, choiceExecutor),
+		engine: new CaptureChoiceEngine(app, plugin, testFormatterRuntime(app, plugin), choice, choiceExecutor),
 	};
 }
 

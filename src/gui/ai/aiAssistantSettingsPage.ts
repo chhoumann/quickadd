@@ -8,13 +8,11 @@ import type {
 import type { AIProvider } from "src/ai/Provider";
 import { settingsStore } from "src/settingsStore";
 import type { SettingsKey } from "../components/settingsDefinitions";
-import { confirmAction } from "../confirmAction";
 import { populateModelDropdown } from "../modelSelect";
 import { ProviderPickerModal } from "../ProviderPickerModal";
-import { AIProviderSettingPage } from "./AIProviderSettingPage";
+import { AIProviderSettingPage, deleteProviderAfterConfirm } from "./AIProviderSettingPage";
 import {
 	providerEntryNames,
-	removeProvider,
 	storedProviders,
 	updateAISettings,
 } from "./aiSettingsState";
@@ -46,10 +44,8 @@ export function aiPageSignature(providers: readonly AIProvider[]): string {
 }
 
 /**
- * Settings → QuickAdd → AI Assistant. Replaces the old modal stack (AI
- * Assistant settings → Edit providers → provider editor). Built from the
- * store's current state; the settings tab calls `update()` when
- * `aiPageSignature` changes, which rebuilds it.
+ * Settings → QuickAdd → AI Assistant, built from the store's current state. The
+ * settings tab calls `update()` when `aiPageSignature` changes, which rebuilds it.
  */
 export function createAIAssistantPage(app: App): SettingDefinitionPage<SettingsKey> {
 	return {
@@ -71,7 +67,10 @@ function createProvidersList(app: App): SettingDefinitionList<SettingsKey> {
 		heading: "Providers",
 		emptyState: "No providers yet. Add one to use AI commands.",
 		addItem: { name: "Add provider", action: () => void addProvider(app) },
-		onDelete: (index) => void confirmRemoveProvider(app, providers[index]),
+		onDelete: (index) => {
+			const provider = providers[index];
+			if (provider?.id) void deleteProviderAfterConfirm(app, provider.id, provider.name);
+		},
 		items: providers.map((provider, index) => ({
 			type: "page",
 			name: names[index],
@@ -99,19 +98,6 @@ async function addProvider(app: App): Promise<void> {
 	settingsStore.setState((state) => ({
 		ai: { ...state.ai, providers: [...storedProviders(state), ...added] },
 	}));
-}
-
-async function confirmRemoveProvider(
-	app: App,
-	provider: AIProvider | undefined,
-): Promise<void> {
-	if (!provider?.id) return;
-	const confirmed = await confirmAction(app, {
-		title: `Delete ${provider.name.trim() || "this provider"}?`,
-		message: "Commands that use its models will need another model.",
-		action: "Delete",
-	});
-	if (confirmed) removeProvider(provider.id);
 }
 
 function createDefaultsGroup(): SettingDefinitionGroup<SettingsKey> {

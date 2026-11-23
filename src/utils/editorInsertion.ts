@@ -13,8 +13,9 @@ import { buildFileLinkText } from "./fileLinks";
 import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPropertyLinks";
 import { processNoteFrontMatter } from "./noteContent";
 import { appendLinkLineToNote } from "./fileLinks";
-import type { CapturePlacementResult } from "../formatters/helpers/capturePlacement";
+import type { CapturePlacementResult } from "./capturePlacement";
 import type { EditorCursorPlacement, EditorTextMutationObserver } from "./editorCursorPlacement";
+import { toLF } from "./toLF";
 
 export function insertCaptureInEditor(
 	payload: CapturePlacementResult,
@@ -33,8 +34,8 @@ export function insertCaptureInBoundEditor(
 	action: string,
 ): EditorCursorPlacement | null {
 	if (payload.cursor.kind === "none") return null;
-	const content = payload.content.replace(/\r\n?/g, "\n");
-	const cursorOffset = payload.content.slice(0, payload.cursor.value).replace(/\r\n?/g, "\n").length;
+	const content = toLF(payload.content);
+	const cursorOffset = toLF(payload.content.slice(0, payload.cursor.value)).length;
 	const at = (pos: EditorPosition) => editor.posToOffset(pos);
 	const cursor = editor.getCursor();
 	let edits: { from: EditorPosition; to?: EditorPosition; text: string; cursor: number }[];
@@ -83,9 +84,8 @@ export function getMarkdownEditorViewForFile(
 }
 
 /**
- * @returns true if the text was inserted, false if the active Markdown editor
- * does not show `file` (or insertion threw). Callers that need to know whether
- * the capture actually landed (e.g. the URI x-callback handler) must check this.
+ * @returns false if the active Markdown editor does not show `file` or the
+ * insertion threw. Callers that report outcomes must check it.
  */
 export function appendToCurrentLine(toAppend: string, app: App, file: TFile): boolean {
 	try {
@@ -122,15 +122,11 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 		const lastInsertedLineLength =
 			insertedLines[insertedLineCount - 1]?.length ?? 0;
 		if (direction === "above") {
-			// Insert at the beginning of the current line, add content + newline
 			editor.replaceRange(toInsert + "\n", { line: lineNumber, ch: 0 });
-			// Move cursor to end of inserted content (before the newline)
 			editor.setCursor({ line: lineNumber + insertedLineCount - 1, ch: lastInsertedLineLength });
 		} else {
-			// Insert at the end of the current line, add newline + content
 			const currentLine = editor.getLine(lineNumber);
 			editor.replaceRange("\n" + toInsert, { line: lineNumber, ch: currentLine.length });
-			// Move cursor to end of inserted content
 			editor.setCursor({ line: lineNumber + insertedLineCount, ch: lastInsertedLineLength });
 		}
 		return true;
@@ -149,12 +145,9 @@ export function insertOnNewLineBelow(toInsert: string, app: App, file: TFile): b
 }
 
 /**
- * Applies one text per selection in a single atomic transaction (one undo
- * step). replaceSelection collapses each cursor after its inserted text —
- * matching editor.replaceSelection — because CodeMirror's default change
- * mapping would otherwise leave the inserted text selected and the next
- * keystroke would destroy it. afterSelection keeps the default mapping,
- * matching the plain replaceRange path.
+ * Applies one text per selection in a single transaction (one undo step).
+ * replaceSelection collapses each cursor after its text, since CodeMirror's
+ * default mapping would leave it selected for the next keystroke to destroy.
  */
 function insertPerSelection(
 	editor: Editor,
@@ -204,13 +197,8 @@ function insertPerSelection(
 }
 
 /**
- * Core routine that inserts a link (or any text) in the active markdown
- * editor according to the chosen placement mode.
- *
- * – Works with any number of cursors / selections.
- * – Falls back gracefully if no markdown editor is focused.
- * – Keeps the editor's undo history clean by performing a single
- *   CodeMirror transaction.
+ * Inserts text in the active Markdown editor at the chosen placement, across
+ * all cursors, as a single CodeMirror transaction.
  */
 export async function insertLinkWithPlacement(
 	app: App,
@@ -317,21 +305,14 @@ export async function insertLinkWithPlacement(
 	}
 
 
-	/**
-		* Helper that converts a {line, ch} position to a monotonically
-		* increasing index so we can sort selections bottom-to-top.
-		* Sorting bottom-to-top prevents indices from becoming stale while
-		* we insert (because later lines are modified first).
-		*/
+	// Bottom-to-top, so earlier positions stay valid while inserting.
 	const asIndex = ({ line, ch }: { line: number; ch: number; }) =>
 		editor.posToOffset({ line, ch });
 
-	// Sort selections by document position (descending)
 	const ordered = selections.sort(
 		(a, b) => asIndex(b.head) - asIndex(a.head),
 	);
 
-	// Perform all insertions sequentially for simplicity
 	for (const sel of ordered) {
 		const head =
 			asIndex(sel.anchor) > asIndex(sel.head) ? sel.anchor : sel.head;
@@ -359,8 +340,6 @@ export async function insertLinkWithPlacement(
  * respecting Obsidian's "New link format" setting. When the active editor shows
  * that note the link lands at the configured placement; otherwise it is written
  * through the vault, into the frontmatter property or as a new last line.
- *
- * @returns True if the link was inserted, false otherwise
  */
 export async function insertFileLinkToCurrentNote(
 	app: App,
@@ -473,8 +452,8 @@ export function setMarkdownCursorsAtOffsets(
 		const content = editor.getValue();
 		let editorOffsets = offsets;
 		if (content !== expectedContent) {
-			if (content !== expectedContent.replace(/\r\n?/g, "\n")) return false;
-			editorOffsets = offsets.map(offset => expectedContent.slice(0, offset).replace(/\r\n?/g, "\n").length);
+			if (content !== toLF(expectedContent)) return false;
+			editorOffsets = offsets.map(offset => toLF(expectedContent.slice(0, offset)).length);
 		}
 
 		if (editorOffsets.length === 1) editor.setCursor(editor.offsetToPos(editorOffsets[0]));

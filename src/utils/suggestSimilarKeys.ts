@@ -1,10 +1,6 @@
 /**
- * "Did you mean" for a closed vocabulary of option keys.
- *
- * Written for the `{{FIELD:...|key:value}}` filter list (issue #1564), where the
- * alternative - printing all thirteen keys and letting the reader find the one
- * they meant - produced a 256-character warning that is unreadable as a Notice
- * and needs a three-line clamp inline under a settings field.
+ * "Did you mean" for a closed vocabulary of option keys, so a warning names the
+ * likely key instead of listing all of them.
  *
  * Three rules, in order, because they catch different mistakes:
  *

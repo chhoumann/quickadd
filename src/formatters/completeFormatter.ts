@@ -1,10 +1,9 @@
-import { stripCursorMarkers } from "./helpers/capturePlacement";
+import { stripCursorMarkers } from "../utils/capturePlacement";
 import { protectUserText, restoreUserText } from "./helpers/userText";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
-import { expandGlobalVariables } from "./helpers/globalVariables";
-import { unescapePipesInTokens } from "./helpers/pipeEscapes";
-import { findNextInlineScript, inlineScriptRescanFrom } from "./helpers/inlineScriptSpans";
+import { unescapePipesInTokens } from "../utils/pipeEscapes";
+import { findNextInlineScript, inlineScriptRescanFrom } from "../utils/inlineScriptSpans";
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -15,14 +14,13 @@ import { findDateVariableFormat } from "./helpers/dateTokens";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
-import type QuickAdd from "../main";
+import type { FormatterPluginContext } from "../types/pluginContext";
+import type { FormatterExecutionRuntime } from "./formatterRuntime";
 import type { IDateParser } from "../parsers/IDateParser";
 import type { InputPromptOptions } from "../types/inputPrompt";
 import { NLDParser } from "../parsers/NLDParser";
-import { type FieldFilter } from "../utils/FieldSuggestionParser";
 import { type ParsedFileToken } from "../utils/fileSyntax";
 import { normalizeNumericValue } from "../utils/valueSyntax";
-import { collectFieldValuesRaw, generateFieldCacheKey } from "../utils/FieldValueCollector";
 import { currentFile, currentSelection, missingCurrentNoteMessage } from "../utils/currentFile";
 import { Formatter, type PromptContext } from "./formatter";
 import {
@@ -36,17 +34,15 @@ import {
 	buildSectionSubpath,
 	extractHeadingsFromLines,
 	sanitizeHeadingForSubpath,
-} from "./helpers/sectionLink";
-import { UserCancelError } from "../errors/UserCancelError";
+} from "../utils/sectionLink";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { isCancellationError } from "../utils/errorUtils";
+import { promptOrCancel } from "./helpers/promptOrCancel";
 
 export class CompleteFormatter extends Formatter {
 	/**
-	 * True only while formatFileContent's format() pass runs. Value prompts
-	 * opened during that window accept clipboard-image paste; prompts opened
-	 * from path passes (file name, folder, template path, location targets)
-	 * never do — an embed link in a path would corrupt it (issue #1484).
+	 * True only while formatFileContent's format() pass runs. Value prompts opened
+	 * then accept clipboard-image paste; path passes never do, since an embed link
+	 * would corrupt a path.
 	 */
 	private contentValuePromptsAcceptImagePaste = false;
 	private preserveTemplateCursorMarkers = false;
@@ -55,10 +51,15 @@ export class CompleteFormatter extends Formatter {
 	/** The run this formatter formats for; its `{{MACRO:}}`s and inline scripts run inside it. */
 	public choiceChain: ChoiceChain = [];
 
+	/**
+	 * `runtime` runs the `{{MACRO:}}`s, `{{TEMPLATE:}}`s and inline scripts in
+	 * the text. Without one, formatting text that holds any of them throws.
+	 */
 	constructor(
 		protected app: App,
-		private plugin: QuickAdd,
+		protected plugin: FormatterPluginContext,
 		protected choiceExecutor?: IChoiceExecutor,
+		private readonly runtime?: FormatterExecutionRuntime,
 		dateParser?: IDateParser,
 	) {
 		super(app);
@@ -128,7 +129,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
 		// PROPERTY last so seeded property text is never re-scanned as format
-		// tokens (#1748). Scripts/macros/globals above can still inject the token.
+		// tokens. Scripts, macros and globals above can still inject the token.
 		if (!this.defersPropertyExpansion()) {
 			output = this.replacePropertyInString(output);
 		}
@@ -138,20 +139,15 @@ export class CompleteFormatter extends Formatter {
 			? output : stripCursorMarkers(output);
 	}
 
-	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
-	}
-
 	/**
-	 * Formats a file path. `scope` says WHAT the path is, so a `{{VALUE}}` inside
-	 * it can name itself at prompt time (issue #1546): the same entry point
-	 * produces Template note titles, Capture targets and a macro's file-to-open.
+	 * Formats a file path. `scope` says what the path is, so a `{{VALUE}}` inside
+	 * it can name itself at prompt time.
 	 */
 	async formatFileName(
 		input: string,
 		scope: PromptScopeKind = "generic",
 	): Promise<string> {
-		// Check for {{title}} usage in filename which would cause infinite recursion
+		// {{title}} in a file name would recurse.
 		if (TITLE_REGEX.test(input)) {
 			throw new Error(
 				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
@@ -237,9 +233,8 @@ export class CompleteFormatter extends Formatter {
 	async formatPropertyValue(input: string, options: { listItems?: boolean } = {}): Promise<unknown> {
 		const value = await this.preserveSingleTokenValue(input, () =>
 			this.withPromptScope("propertyValue", input, async () => {
-				// Author tokens (VALUE/DATE/…) and current-file tokens run first.
-				// PROPERTY expands last so the seeded snapshot is inserted as
-				// literal text and cannot be re-scanned (#1748 CodeRabbit).
+				// Author and current-file tokens run first; PROPERTY expands last
+				// so the seeded snapshot is literal text that is never re-scanned.
 				this.skipPropertyExpansion = true;
 				this.listPicksAsLines = options.listItems ?? false;
 				let output: string;
@@ -298,7 +293,6 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
-		// Check for {{title}} usage in folder path which would cause issues
 		if (TITLE_REGEX.test(folderName)) {
 			throw new Error(
 				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
@@ -324,8 +318,10 @@ export class CompleteFormatter extends Formatter {
 		return restoreUserText(resolved).replace(/^\/+/, "");
 	}
 
-	/** Resolve source paths once, without executable tokens or inclusions.
- * The resolved path must supply both the source content and the target extension. */
+	/**
+	 * Resolves a template source path once, without executable tokens or
+	 * includes. The resolved path supplies both the content and the extension.
+	 */
 	async formatTemplateFilePath(input: string): Promise<string> {
 		if (TITLE_REGEX.test(input)) {
 			throw new Error(
@@ -344,7 +340,6 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
-		// Use the shared scalar pass with the original input declaring the source-path prompt scope.
 		output = await this.withPromptScope("templatePath", input, () =>
 			this.formatScalarTokens(output),
 		);
@@ -464,10 +459,9 @@ export class CompleteFormatter extends Formatter {
 			cache && cached.every((c) => parsedByLine.get(c.line) === key(c));
 		if (!fresh) return buildSectionSubpath(parsed, cursor.line);
 
-		// A heading added just before the save isn't cached yet (#2030), so add
-		// the parsed headings the cache lacks, except those inside a block
-		// Obsidian doesn't read headings from (an HTML block the parser can't
-		// detect).
+		// A heading added just before the save is not cached yet, so add the parsed
+		// headings the cache lacks, except inside blocks Obsidian reads no headings
+		// from.
 		const cachedLines = new Set(cached.map((c) => c.line));
 		const opaque = (cache.sections ?? []).filter(
 			(section) => section.type === "html" || section.type === "comment" || section.type === "math",
@@ -554,8 +548,7 @@ export class CompleteFormatter extends Formatter {
 			// Anonymous {{VALUE|type:checkbox}} gets the same forced true/false
 			// picker as the named form (resolved before the InputPrompt factory).
 			if (this.valuePromptContext?.inputTypeOverride === "checkbox") {
-				// Route to a remote interactive session (Raycast) when one is driving,
-				// mirroring promptForVariable's named {{VALUE:x|type:checkbox}} path.
+				// Route to a remote interactive session when one is driving.
 				const checkboxProvider = this.choiceExecutor?.promptProvider;
 				if (checkboxProvider) {
 					this.value = String(
@@ -568,24 +561,19 @@ export class CompleteFormatter extends Formatter {
 					);
 					return this.value;
 				}
-				try {
+				return await promptOrCancel(async () => {
 					this.value = await GenericSuggester.Suggest(
 						this.app,
 						["true", "false"],
 						["true", "false"],
 						this.describeAnonymousValuePrompt().title,
 						undefined,
-						this.valuePromptContext.optional
+						this.valuePromptContext?.optional
 							? { skippable: true }
 							: undefined,
 					);
 					return this.value;
-				} catch (error) {
-					if (isCancellationError(error)) {
-						throw new UserCancelError("Input cancelled by user");
-					}
-					throw error;
-				}
+				});
 			}
 			const prompt = this.describeAnonymousValuePrompt();
 			// Remote prompts lack a context-line channel, so include context in their header.
@@ -600,7 +588,7 @@ export class CompleteFormatter extends Formatter {
 				);
 				return this.value;
 			}
-			try {
+			await promptOrCancel(async () => {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
 					this.valuePromptContext?.inputTypeOverride ?? this.defaultValueInputType,
@@ -621,12 +609,7 @@ export class CompleteFormatter extends Formatter {
 					undefined,
 					{ ...promptOptions, linkSourcePath: linkSourcePath || undefined },
 				);
-			} catch (error) {
-				if (isCancellationError(error)) {
-					throw new UserCancelError("Input cancelled by user");
-				}
-				throw error;
-			}
+			});
 		}
 
 		return this.value;
@@ -704,18 +687,8 @@ export class CompleteFormatter extends Formatter {
 		if (provider) {
 			return await provider.inputPrompt("Enter a math expression");
 		}
-		// The token is {{MVALUE}} (MATH_VALUE_REGEX). "a {{MATH}} expression"
-		// named a token QuickAdd has never had, in the one message whose whole
-		// job is to tell a non-interactive caller which flag to pass (#1587).
 		this.assertInteractivePrompt("a {{MVALUE}} math expression");
-		try {
-			return await MathModal.Prompt();
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		return await promptOrCancel(() => MathModal.Prompt());
 	}
 	protected async suggestForValue(suggestedValues: string[],
 	allowCustomInput = false,
@@ -742,9 +715,6 @@ export class CompleteFormatter extends Formatter {
 		return suggestForField({ app: this.app, executor: this.choiceExecutor, getSourcePath: () => this.getLinkSourcePath() }, fieldInput);
 	}
 
-	private generateCacheKey(filters: FieldFilter): string {
-		return generateFieldCacheKey(filters);
-	}
 	protected async suggestForFile(parsed: ParsedFileToken): Promise<string | string[]> {
 		this.assertInteractivePrompt(
 			`{{FILE}} (pick a file from ${parsed.folderPath})`,
@@ -756,73 +726,52 @@ export class CompleteFormatter extends Formatter {
 		macroName: string,
 		context?: { label?: string },
 	): Promise<string> {
-		// Imported lazily: a static import would re-create the
-		// completeFormatter ⇄ engine circular dependency (#1249).
-		const { SingleMacroEngine } = await import(
-			"../engine/SingleMacroEngine"
-		);
-		const macroEngine = new SingleMacroEngine(
-			this.app,
-			this.plugin,
-			this.plugin.settings.choices,
-			//@ts-ignore
-			this.choiceExecutor,
-			this.variables,
-		);
-		const macroOutput =
-			(await macroEngine.runAndGetOutput(macroName, context, this.choiceChain)) ?? "";
-
-		// Copy variables from macro execution
-		macroEngine.getVariables().forEach((value, key) => {
-			this.variables.set(key, value);
+		return this.requireRuntime(`{{MACRO:${macroName}}}`).runMacro({
+			macroName,
+			label: context?.label,
+			choiceExecutor: this.requireChoiceExecutor(`{{MACRO:${macroName}}}`),
+			variables: this.variables,
+			choiceChain: this.choiceChain,
 		});
-
-		return macroOutput;
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
-		const { SingleTemplateEngine } = await import(
-			"../engine/SingleTemplateEngine"
-		);
 		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
-		const childInclusion = {
-			visited: this.templateInclusion.visited,
-			depth: this.templateInclusion.depth + 1,
-			includer: this,
-		};
-		const childEngine = new SingleTemplateEngine(
-			this.app,
-			this.plugin,
+		const { content, templatePropertyVars } = await this.requireRuntime(
+			`{{TEMPLATE:${templatePath}}}`,
+		).runTemplate({
 			templatePath,
-			this.choiceExecutor,
-			childInclusion,
-		);
-		// Propagate the target folder so {{FOLDER}} resolves inside included
-		// templates ({{TEMPLATE:...}}), which render via this child engine's own
-		// formatter.
-		childEngine.setTargetFolderPath(this.targetFolderPath);
-		childEngine.choiceChain = this.choiceChain;
-		if (this.preserveTemplateCursorMarkers && this.promptScope === "noteBody") {
-			childEngine.setPreserveCursorMarkers(true);
-		}
-		// An include spliced into a path is part of that path: keep the caller's
-		// scope so its prompts do not claim to be asking for note content.
-		if (this.promptScope !== "generic") {
-			childEngine.setPromptScope(this.promptScope);
-		}
-		// Propagate run context but give included templates distinct draft keys to avoid reusing parent answers.
-		if (this.promptRunContext) {
-			childEngine.setPromptRunContext({
+			choiceExecutor: this.choiceExecutor,
+			inclusion: {
+				visited: this.templateInclusion.visited,
+				depth: this.templateInclusion.depth + 1,
+				includer: this,
+			},
+			targetFolderPath: this.targetFolderPath,
+			choiceChain: this.choiceChain,
+			preserveCursorMarkers:
+				this.preserveTemplateCursorMarkers && this.promptScope === "noteBody",
+			// An include spliced into a path is part of that path: keep the caller's
+			// scope so its prompts do not claim to be asking for note content.
+			promptScope: this.promptScope !== "generic" ? this.promptScope : undefined,
+			// Included templates get their own draft keys, so they never reuse the parent's answers.
+			promptRunContext: this.promptRunContext && {
 				...this.promptRunContext,
 				draftScopeId: `${this.promptRunContext.draftScopeId ?? ""}#${templatePath}`,
-			});
-		}
-		const content = await childEngine.run();
-		this.mergeTemplatePropertyVars(
-			childEngine.getAndClearTemplatePropertyVars(),
-		);
+			},
+		});
+		this.mergeTemplatePropertyVars(templatePropertyVars);
 		return content;
+	}
+
+	private requireRuntime(token: string): FormatterExecutionRuntime {
+		if (!this.runtime) throw new Error(`QuickAdd cannot run ${token} here.`);
+		return this.runtime;
+	}
+
+	private requireChoiceExecutor(token: string): IChoiceExecutor {
+		if (!this.choiceExecutor) throw new Error(`QuickAdd cannot run ${token} outside a choice.`);
+		return this.choiceExecutor;
 	}
 
 	protected async getSelectedText(): Promise<string> {
@@ -852,23 +801,13 @@ export class CompleteFormatter extends Formatter {
 			let replacement = "";
 
 			if (code) {
-				// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
-				const { SingleInlineScriptEngine } = await import(
-					"../engine/SingleInlineScriptEngine"
-				);
-				const executor = new SingleInlineScriptEngine(
-					this.app,
-					this.plugin,
-					//@ts-ignore
-					this.choiceExecutor,
-					this.variables,
-					this.choiceChain,
-				);
-				const outVal: unknown = await executor.runAndGetOutput(code);
-
-				for (const key in executor.params.variables) {
-					this.variables.set(key, executor.params.variables[key]);
-				}
+				const token = "an inline script";
+				const outVal = await this.requireRuntime(token).runInlineScript({
+					code,
+					choiceExecutor: this.requireChoiceExecutor(token),
+					variables: this.variables,
+					choiceChain: this.choiceChain,
+				});
 
 				if (typeof outVal === "string") {
 					// Keep string insertion byte-for-byte compatible, including the
@@ -904,12 +843,5 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		return output;
-	}
-
-	private async collectValuesManually(
-		fieldName: string,
-		filters: FieldFilter,
-	): Promise<Set<string>> {
-		return await collectFieldValuesRaw(this.app, fieldName, filters);
 	}
 }

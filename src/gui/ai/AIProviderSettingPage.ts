@@ -22,6 +22,26 @@ import {
 import { configureProviderSecret } from "./providerSettings";
 import { countModels, describeSyncStatus } from "./syncStatus";
 
+const DELETE_PROVIDER_CONSEQUENCE = "Commands that use its models will need another model.";
+
+/**
+ * Asks before deleting a provider, from its row in the providers list or from
+ * its own page, and deletes it when confirmed. Resolves whether it was deleted.
+ */
+export async function deleteProviderAfterConfirm(
+	app: App,
+	id: string,
+	name: string,
+): Promise<boolean> {
+	const confirmed = await confirmAction(app, {
+		title: `Delete ${name.trim() || "this provider"}?`,
+		message: DELETE_PROVIDER_CONSEQUENCE,
+		action: "Delete",
+	});
+	if (confirmed) removeProvider(id);
+	return confirmed;
+}
+
 function describeModelSource(provider: Pick<AIProvider, "modelSource">): string {
 	switch (provider.modelSource ?? "providerApi") {
 		case "modelsDev":
@@ -508,7 +528,7 @@ export class AIProviderSettingPage extends SettingPage {
 		new SettingGroup(this.containerEl).addSetting((setting) => {
 			setting
 				.setName("Delete provider")
-				.setDesc("Commands that use its models will need another model.")
+				.setDesc(DELETE_PROVIDER_CONSEQUENCE)
 				.addButton((button) => {
 					button
 						.setButtonText("Delete")
@@ -516,15 +536,12 @@ export class AIProviderSettingPage extends SettingPage {
 						.setCta()
 						.onClick(async () => {
 							const provider = this.provider;
-							if (!provider) return;
-							const confirmed = await confirmAction(this.app, {
-								title: `Delete ${provider.name.trim() || "this provider"}?`,
-								message: "Commands that use its models will need another model.",
-								action: "Delete",
-							});
-							if (!confirmed) return;
-							removeProvider(this.providerId);
-							this.close();
+							if (
+								provider &&
+								(await deleteProviderAfterConfirm(this.app, this.providerId, provider.name))
+							) {
+								this.close();
+							}
 						});
 				});
 		});

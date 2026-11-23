@@ -77,3 +77,98 @@ describe("removeMacroIndirection with an unreadable root (#1566)", () => {
 		expect(plugin.settings.choices[0].name).toBe("Legacy macro");
 	});
 });
+
+describe("removeMacroIndirection embedding", () => {
+	const migrate = async (settings: Record<string, unknown>) => {
+		const plugin = { settings } as unknown as QuickAdd;
+		await removeMacroIndirection.migrate(plugin);
+		return plugin.settings as unknown as {
+			choices: Array<Record<string, any>>;
+			macros?: unknown;
+		};
+	};
+
+	it("embeds a shared macro into every choice that references it", async () => {
+		const settings = await migrate({
+			choices: ["First", "Second", "Third"].map((name, i) => ({
+				id: `choice${i}`,
+				type: "Macro",
+				name,
+				macroId: "shared-macro",
+			})),
+			macros: [
+				{
+					id: "shared-macro",
+					name: "Shared Macro",
+					commands: [{ type: "UserScript", path: "test.js" }],
+					runOnStartup: true,
+				},
+			],
+		});
+
+		expect(settings.choices).toHaveLength(3);
+		for (const choice of settings.choices) {
+			expect(choice).not.toHaveProperty("macroId");
+			expect(choice.runOnStartup).toBe(true);
+			expect(choice.macro).toMatchObject({
+				id: "shared-macro",
+				name: "Shared Macro",
+				commands: [{ type: "UserScript", path: "test.js" }],
+			});
+		}
+		expect(settings.macros).toBeUndefined();
+	});
+
+	it("turns a macro no choice references into a new macro choice", async () => {
+		const settings = await migrate({
+			choices: [{ id: "choice1", type: "Template", name: "Some Template" }],
+			macros: [
+				{
+					id: "orphaned-macro",
+					name: "Orphaned Macro",
+					commands: [{ type: "UserScript", path: "orphaned.js" }],
+					runOnStartup: false,
+				},
+			],
+		});
+
+		expect(settings.choices).toHaveLength(2);
+		const created = settings.choices.find((c) => c.type === "Macro");
+		expect(created).toMatchObject({
+			name: "Orphaned Macro",
+			runOnStartup: false,
+			macro: { id: "orphaned-macro", commands: [{ type: "UserScript", path: "orphaned.js" }] },
+		});
+		expect(created).not.toHaveProperty("macroId");
+		expect(settings.macros).toBeUndefined();
+	});
+
+	it("drops a macroId that points at no macro", async () => {
+		const settings = await migrate({
+			choices: [{ id: "choice1", type: "Macro", name: "Orphaned Reference", macroId: "missing-macro" }],
+			macros: [],
+		});
+
+		expect(settings.choices[0]).not.toHaveProperty("macroId");
+		expect(settings.choices[0].macro).toBeUndefined();
+		expect(settings.macros).toBeUndefined();
+	});
+
+	it("leaves an already-embedded macro alone, keeping the choice's own runOnStartup", async () => {
+		const embedded = {
+			id: "choice1",
+			type: "Macro",
+			name: "Already Embedded",
+			macro: { id: "embedded-macro", name: "Embedded Macro", commands: [{ type: "UserScript", path: "embedded.js" }] },
+			runOnStartup: false,
+		};
+		const settings = await migrate({
+			choices: [structuredClone(embedded)],
+			// The legacy definition disagrees on runOnStartup; the user's choice wins.
+			macros: [{ ...embedded.macro, runOnStartup: true }],
+		});
+
+		expect(settings.choices).toEqual([embedded]);
+		expect(settings.macros).toBeUndefined();
+	});
+});

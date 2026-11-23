@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from "vitest";
 
@@ -56,6 +55,7 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { QuickAddApi } from "../quickAddApi";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 const getApiMock = QuickAddApi.GetApi as unknown as ReturnType<typeof vi.fn>;
 
@@ -116,6 +116,14 @@ function createEngine({
 	const plugin = {
 		getChoiceById,
 		getChoiceByName: vi.fn(),
+		// The real plugin's findChoiceById is getChoiceById without the throw.
+		findChoiceById: (id: string) => {
+			try {
+				return getChoiceById(id);
+			} catch {
+				return null;
+			}
+		},
 	} as unknown as any;
 
 	const macro: IMacro = {
@@ -136,6 +144,7 @@ function createEngine({
 	const engine = new MacroChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		choice,
 		choiceExecutor,
 		new Map<string, unknown>(Object.entries(variables))

@@ -1,6 +1,6 @@
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
-import { isCaptureChoice, isTemplateChoice } from "src/types/choices/choiceType";
+import { isCaptureChoice, isTemplateChoice } from "src/types/choices/choiceGuards";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
@@ -17,7 +17,7 @@ export type DeferralReason =
 	| "afterOpaqueStep"
 	| "runsUserCode";
 
-export type StepCollect =
+type StepCollect =
 	| { kind: "scanChoice"; choice: ITemplateChoice | ICaptureChoice }
 	| { kind: "scriptInputs"; command: IUserScript }
 	| { kind: "none" };

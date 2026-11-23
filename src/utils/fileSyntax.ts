@@ -1,27 +1,22 @@
 import { parseFrontMatterAliases, type CachedMetadata, type TFile } from "obsidian";
-import {
-	FieldSuggestionParser,
-	type FieldFilter,
-} from "./FieldSuggestionParser";
+import { parseFilterSegments, type FieldFilter } from "./FieldSuggestionParser";
 import {
 	extractBareFlagPart,
 	parsePipeKeyValue,
 	splitPipeParts,
 } from "./pipeSyntax";
 import type { MultiValueFormat } from "./multiValueFormat";
+import { normalizeVaultPathSeparators } from "./pathUtils";
 import type { WarnSink } from "./warnSink";
 
 // Namespaces FILE variable values in the variables map, separate from plain
 // VALUE/FIELD variables (parallel to FIELD_VARIABLE_PREFIX in constants.ts).
 export const FILE_VARIABLE_PREFIX = "FILE:";
 
-// Internal encoding for a resolved FILE variable value. A value chosen from the
-// folder list is stored as `@file:<vaultPath>`; a value typed via |custom is
-// stored as `@filecustom:<text>` so rendering NEVER resolves a typed string back
-// to a real file (which would let |custom bypass exclude-folder etc.). Mirrors
-// VDATE's `@date:` sentinel. An empty string means "answered, intentionally empty"
-// (optional skip). A value with neither prefix is treated as a raw path/name
-// (script-seeded or one-page legacy) and resolved best-effort.
+// A pick is stored as `@file:<vaultPath>`, |custom text as `@filecustom:<text>`,
+// so a typed string never resolves to a real file (which would bypass
+// exclude-folder). Empty means intentionally skipped; a value with neither
+// prefix is resolved best-effort as a raw path.
 export const FILE_PICK_PREFIX = "@file:";
 export const FILE_CUSTOM_PREFIX = "@filecustom:";
 
@@ -79,11 +74,6 @@ function getFileTypeExtensions(
 	);
 }
 
-/** Strip leading/trailing slashes, matching FieldSuggestionFileFilter. */
-function normalizeFolder(path: string): string {
-	return path.replace(/^\/+|\/+$/g, "");
-}
-
 /**
  * Serialize a filter list into a delimiter-safe, order-insensitive token. A
  * filter value can itself contain a comma (Obsidian folder/tag/file names may,
@@ -109,18 +99,18 @@ function buildFileScopeSignature(
 	filter: FieldFilter,
 	extensions: ParsedFileToken["extensions"],
 ): string {
-	const parts = [`folder=${normalizeFolder(folderPath)}`];
+	const parts = [`folder=${normalizeVaultPathSeparators(folderPath)}`];
 	if (extensions)
 		parts.push(
 			`types=${extensions === "any" ? "any" : encodeSignatureList([...extensions])}`,
 		);
 	if (filter.folders?.length)
-		parts.push(`folders=${encodeSignatureList(filter.folders, normalizeFolder)}`);
+		parts.push(`folders=${encodeSignatureList(filter.folders, normalizeVaultPathSeparators)}`);
 	if (filter.tags?.length)
 		parts.push(`tags=${encodeSignatureList(filter.tags)}`);
 	if (filter.excludeFolders?.length)
 		parts.push(
-			`xfolder=${encodeSignatureList(filter.excludeFolders, normalizeFolder)}`,
+			`xfolder=${encodeSignatureList(filter.excludeFolders, normalizeVaultPathSeparators)}`,
 		);
 	if (filter.excludeTags?.length)
 		parts.push(`xtag=${encodeSignatureList(filter.excludeTags)}`);
@@ -167,16 +157,10 @@ function buildFileSignature(parsed: {
 }
 
 /**
- * Parse the interior of a `{{FILE:<folder>|...}}` token.
- *
- * The first pipe-part is the (required) folder path. FILE-specific options are
- * peeled off here — the bare mode flags `name`/`link`/`path`, `optional`,
- * `custom`, and the key:value `label:` / `name:` / `type:` — then the remainder is handed
- * to {@link FieldSuggestionParser.parse} so the folder/tag/exclude-* filter
- * grammar can never diverge from {{FIELD}}. The folder (first segment) is the
- * picker SCOPE, so it is applied as `filter.folder` regardless of any `|folder:`.
- *
- * Returns `null` for an empty folder (the token is left literal by the caller).
+ * Parses the interior of `{{FILE:<folder>|...}}`. FILE-specific options are
+ * peeled off and the rest goes to {@link parseFilterSegments}, so the filter
+ * grammar matches FIELD's. The positional folder is the picker scope. Null for an
+ * empty folder.
  */
 export function parseFileToken(
 	raw: string,
@@ -188,7 +172,6 @@ export function parseFileToken(
 	const folderPath = (allParts.shift() ?? "").trim();
 	if (!folderPath) return null;
 
-	// Peel bare flags first.
 	let remaining = allParts;
 	const optionalResult = extractBareFlagPart(remaining, "optional");
 	remaining = optionalResult.remaining;
@@ -214,7 +197,7 @@ export function parseFileToken(
 	}
 
 	// Peel key:value options that are FILE-specific (label/name/type); everything
-	// else (tag/exclude-*) is parsed by FieldSuggestionParser below.
+	// else (tag/exclude-*) is parsed by parseFilterSegments below.
 	let label: string | undefined;
 	let aliasName: string | undefined;
 	const types: string[] = [];
@@ -229,11 +212,10 @@ export function parseFileToken(
 	}
 	const extensions = getFileTypeExtensions(types);
 
-	// Delegate filter parsing to the shared FIELD parser (it skips unknown keys
-	// like label/name and bare flags), then force the scope folder. The first
-	// segment is the folder, so any `|folder:` sub-option the parser picks up is
-	// intentionally discarded below (the positional folder always wins).
-	const fieldParsed = FieldSuggestionParser.parse(raw, {
+	// The shared grammar skips this grammar's own keys; the positional folder
+	// always wins over a `|folder:` sub-option.
+	const fieldParsed = parseFilterSegments(splitPipeParts(raw).slice(1), {
+		token: `{{FILE:${raw}}}`,
 		warn: options?.warn,
 	});
 	const multiSelect = bareMultiSelect || (fieldParsed.multiSelect ?? false);
@@ -315,12 +297,6 @@ export function decodeFileValue(stored: unknown): DecodedFileValue {
 	if (stored.startsWith(FILE_PICK_PREFIX))
 		return { kind: "file", path: stored.slice(FILE_PICK_PREFIX.length) };
 	return { kind: "raw", value: stored };
-}
-
-/** Basename of a vault path (drop folders + a trailing known extension). */
-export function fileBasenameFromPath(value: string): string {
-	const segment = value.split("/").pop() ?? value;
-	return segment.replace(/\.(md|canvas|base)$/i, "");
 }
 
 /** File name as Obsidian links it: notes drop `.md`, other files keep their extension. */
@@ -431,16 +407,4 @@ export function buildFileDisplayInfos(
 			aliases,
 		};
 	});
-}
-
-/**
- * Display labels for a folder's files: each note's name, with
- * the basename and parent folder folded in when needed so duplicate labels stay
- * distinguishable in plain-text suggesters.
- */
-export function buildFileDisplayLabels(
-	files: TFile[],
-	metadataCache?: (file: TFile) => CachedMetadata | null,
-): string[] {
-	return buildFileDisplayInfos(files, metadataCache).map((info) => info.label);
 }

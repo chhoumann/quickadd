@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -69,7 +68,6 @@ vi.mock("./promptForTemplateNoteDiscovery", async () => {
 });
 
 vi.mock("../utils/templaterIntegration", () => ({
-	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: async (_app: App, content: string) => content,
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
@@ -105,6 +103,7 @@ import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { promptCancelled } from "../errors/UserCancelError";
+import { testFormatterRuntime } from "../../tests/helpers/formatterRuntime";
 
 function file(path: string): TFile {
 	const tfile = new TFile();
@@ -194,6 +193,7 @@ function buildEngine(
 	const engine = new TemplateChoiceEngine(
 		app,
 		plugin,
+		testFormatterRuntime(app, plugin),
 		templateChoice,
 		choiceExecutor,
 	);

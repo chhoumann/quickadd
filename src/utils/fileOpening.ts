@@ -1,17 +1,11 @@
-import type { App, WorkspaceLeaf } from "obsidian";
-import { FileView, normalizePath, TFile, View } from "obsidian";
-import type {
-	OpenLocation as FileOpenLocation,
-	OpenFileOptions as FileOpenOptions,
-	FileViewMode2 as FileViewModeNew,
-} from "../types/fileOpening";
+import type { App, TFile, WorkspaceLeaf } from "obsidian";
+import { FileView, View } from "obsidian";
+import type { OpenFileOptions, OpenLocation } from "../types/fileOpening";
+import { normalizeVaultPathSeparators } from "./pathUtils";
+import { DEFAULT_FILE_OPENING } from "./fileOpeningDefaults";
+import { isTFileLike } from "./isTFileLike";
 
-// Re-export types for convenience
-export type OpenLocation = FileOpenLocation;
-export type FileViewMode2 = FileViewModeNew;
-export type OpenFileOptions = FileOpenOptions;
-
-export type OpenFileRuntimeOptions = FileOpenOptions & {
+export type OpenFileRuntimeOptions = OpenFileOptions & {
 	/**
 	 * Transient origin leaf captured before Obsidian creates a new tab.
 	 * This is intentionally not persisted in choice settings.
@@ -105,28 +99,10 @@ function findUnpinnedNavigableSibling(
 	return orderedLeaves.find((leaf) => candidates.includes(leaf)) ?? candidates[0];
 }
 
-function isTFileLike(file: unknown): file is TFile {
-	if (file instanceof TFile) return true;
-	// Duck-type cross-realm TFile instances (where `instanceof` fails across JS
-	// realms) by their shape, but REQUIRE a string `extension`. A TFolder also
-	// carries a string `path`, so a `path`-only check accepts folders and lets
-	// `getAbstractFileByPath("some/folder")` reach `leaf.openFile(folder)` instead
-	// of the intended "File not found". A TFolder has no `extension`, so this
-	// rejects it while still tolerating genuine cross-realm files.
-	return (
-		typeof file === "object" &&
-		file !== null &&
-		"path" in file &&
-		typeof file.path === "string" &&
-		"extension" in file &&
-		typeof file.extension === "string"
-	);
-}
-
 function resolveLeafForOpenFileLocation(
 	app: App,
-	location: FileOpenLocation,
-	direction: FileOpenOptions["direction"],
+	location: OpenLocation,
+	direction: OpenFileOptions["direction"],
 	originLeaf: WorkspaceLeaf | null,
 ): WorkspaceLeaf | null {
 	if (
@@ -158,40 +134,17 @@ function resolveLeafForOpenFileLocation(
 	}
 }
 
-/**
- * Open a file (by TFile or vault path) with precise control over location and mode.
- *
- * @example
- * // Open in a new tab
- * await openFile(app, "daily/2024-01-01.md", { location: "tab" });
- *
- * @example
- * // Split vertically in source mode
- * await openFile(app, file, {
- *   location: "split",
- *   direction: "vertical",
- *   mode: "source"
- * });
- *
- * @example
- * // Open in sidebar without focus
- * await openFile(app, file, {
- *   location: "right-sidebar",
- *   focus: false
- * });
- *
- * @returns The leaf it opened into.
- */
+/** Opens a file (by TFile or vault path) at a location and mode, and returns the leaf it opened into. */
 export async function openFile(
 	app: App,
 	fileOrPath: TFile | string,
 	options: OpenFileRuntimeOptions = {}
 ): Promise<WorkspaceLeaf> {
 	const {
-		location = "tab",
-		direction = "vertical",
+		location = DEFAULT_FILE_OPENING.location,
+		direction = DEFAULT_FILE_OPENING.direction,
 		mode,
-		focus = true,
+		focus = DEFAULT_FILE_OPENING.focus,
 		eState,
 		originLeaf,
 	} = options;
@@ -220,14 +173,12 @@ export async function openFile(
 		app.workspace.setActiveLeaf(activeLeaf, { focus: false });
 	}
 
-	// Open the file
 	if (focus) {
 		await leaf.openFile(file);
 	} else {
 		await leaf.openFile(file, { active: false });
 	}
 
-	// Optionally adjust view mode (Reading / Live Preview / Source)
 	if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
 		const vs = leaf.getViewState();
 		const next: Record<string, unknown> = { ...(vs.state ?? {}) };
@@ -242,12 +193,11 @@ export async function openFile(
 			next.mode = "source";
 			next.source = false; // Live Preview = source:false
 		} else if (typeof mode === "object" && mode.mode === "source") {
-			// advanced override
 			next.mode = "source";
 			next.source = mode.source;
 		}
 
-		// Fix eState usage - merge into state rather than passing as second param
+		// eState is merged into the view state.
 		await leaf.setViewState({
 			...vs,
 			...(!focus && { active: false }),
@@ -262,13 +212,8 @@ export async function openFile(
 	return leaf;
 }
 
-export function normalizeVaultFilePath(path: string): string {
-	const normalized = normalizePath(path).replace(/\/{2,}/g, "/");
-	return normalized.replace(/^\/+/, "");
-}
-
 export function areSameVaultFilePath(a: string, b: string): boolean {
-	return normalizeVaultFilePath(a) === normalizeVaultFilePath(b);
+	return normalizeVaultPathSeparators(a) === normalizeVaultPathSeparators(b);
 }
 
 /**

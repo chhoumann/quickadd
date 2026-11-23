@@ -1,11 +1,10 @@
 import { normalizePath } from 'obsidian';
 
-/**
- * Canonical vault-relative form of a user-supplied path: trimmed, backslashes
- * converted to '/', repeated slashes collapsed, leading and trailing slashes
- * removed, NFC (the form Obsidian stores vault paths in). A blank path, or one
- * of only slashes, yields '' - the vault root.
- */
+/** Paths come from settings and packages, where a malformed value may not be a string; treat those as empty. */
+function asPathString(path: unknown): string {
+  return typeof path === 'string' ? path : '';
+}
+
 /**
  * Separator normalization: backslashes to slashes, repeated and edge slashes
  * removed, NFC. Unlike {@link normalizeVaultPath} it keeps leading whitespace,
@@ -14,11 +13,6 @@ import { normalizePath } from 'obsidian';
  * a path IS something (a root, a destination); use the trimming form for
  * matching typed input against it.
  */
-/** Paths come from settings and packages, where a malformed value may not be a string; treat those as empty. */
-function asPathString(path: unknown): string {
-  return typeof path === 'string' ? path : '';
-}
-
 export function normalizeVaultPathSeparators(path: string): string {
   return asPathString(path)
     .replace(/^\s+(?=[\\/])/, '')
@@ -29,6 +23,12 @@ export function normalizeVaultPathSeparators(path: string): string {
     .normalize('NFC');
 }
 
+/**
+ * Canonical vault-relative form of a user-supplied path: trimmed, backslashes
+ * converted to '/', repeated slashes collapsed, leading and trailing slashes
+ * removed, NFC (the form Obsidian stores vault paths in). A blank path, or one
+ * of only slashes, yields '' - the vault root.
+ */
 export function normalizeVaultPath(path: string): string {
   return asPathString(path)
     .trim()
@@ -37,6 +37,23 @@ export function normalizeVaultPath(path: string): string {
     .normalize('NFC');
 }
 
+/**
+ * Whether `path` is `folder` or lies under it, on segment boundaries: `A` holds
+ * `A/x.md` but not `A2/x.md`. Both sides go through
+ * {@link normalizeVaultPathSeparators}, so a blank folder - the vault root -
+ * holds everything.
+ */
+export function isPathWithinFolder(path: string, folder: string): boolean {
+  const normalizedFolder = normalizeVaultPathSeparators(folder);
+  if (!normalizedFolder) return true;
+  const normalizedPath = normalizeVaultPathSeparators(path);
+  return (
+    normalizedPath === normalizedFolder ||
+    normalizedPath.startsWith(`${normalizedFolder}/`)
+  );
+}
+
+/** A vault path's last segment without a `.md`/`.canvas`/`.base` extension. */
 export function basenameWithoutMdOrCanvas(path: string): string {
   const normalized = normalizePath(path);
   const base = normalized.split('/').pop() ?? '';

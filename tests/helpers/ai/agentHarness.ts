@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { CommonResponse } from "src/ai/OpenAIRequest";
+import type { CommonResponse } from "src/ai/providerRequest";
 
 const chatRequestMock = vi.fn<(...args: unknown[]) => Promise<CommonResponse>>();
 vi.mock("src/ai/OpenAIRequest", () => ({
@@ -10,14 +10,6 @@ vi.mock("src/ai/OpenAIRequest", () => ({
 const confirmMock = vi.fn<() => Promise<string>>(async () => "allow");
 vi.mock("src/gui/AIToolConfirmModal", () => ({
 	default: { Prompt: () => confirmMock() },
-}));
-
-vi.mock("src/formatters/completeFormatter", () => ({
-	CompleteFormatter: class {
-		async formatFileContent(input: string) {
-			return input; // identity — formatting is exercised elsewhere
-		}
-	},
 }));
 
 vi.mock("src/ai/aiHelpers", () => ({
@@ -46,9 +38,9 @@ export function makeAgent(config: Partial<AgentConfig> = {}, vars = new Map<stri
 	const choiceExecutor = { variables: vars } as never;
 	return new Agent(
 		{} as never,
-		{} as never,
 		choiceExecutor,
 		{ model: "gpt-4o", ...config } as AgentConfig,
+		async (input) => input, // identity - formatting is exercised elsewhere
 	);
 }
 

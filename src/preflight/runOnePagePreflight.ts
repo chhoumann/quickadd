@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatter";
-import type QuickAdd from "src/main";
+import type { PreflightPlugin } from "./collectChoiceRequirements";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { MacroAbortError } from "src/errors/MacroAbortError";
@@ -23,6 +23,7 @@ import type { RunClocks } from "src/types/dateOrigin";
 import { dateOriginInput, planDateOrigin } from "src/utils/resolveDateOrigin";
 import { buildDiscoveryFormPlan, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
 import { hasActivePreparedChoiceInputs } from "./preparedChoiceInputs";
+import { optionValuesByLabel } from "./suggesterValueMapping";
 import { multiSelectSeparator, shouldReturnArray } from "src/api/requestInputOptions";
 
 /**
@@ -52,14 +53,10 @@ function previewRunClocks(
 }
 
 /**
- * Reconstruct the picked labels from the ", "-joined suggester string.
- *
- * A naive split on "," loses options whose value/label itself contains a comma
- * (from a quoted-comma option list, #239): "a, b, c, d" must round-trip to
- * ["a, b", "c, d"], not ["a","b","c","d"]. We greedily consume the longest known
- * display label at each position so comma-bearing options survive; anything that
- * doesn't match a known label (typed custom text) falls back to a "," split of
- * the remainder so custom-allowed tokens keep working.
+ * Reconstructs the picked labels from the ", "-joined suggester string. A split
+ * on "," would break quoted-comma options ("a, b, c, d" must give
+ * ["a, b", "c, d"]), so the longest known label is consumed at each position and
+ * unmatched custom text falls back to a "," split.
  */
 export function splitMultiSelectLabels(
 	joined: string,
@@ -120,7 +117,7 @@ export function orderOnePageFilePicks(
 
 export async function runOnePagePreflight(
 	app: App,
-	plugin: QuickAdd,
+	plugin: PreflightPlugin,
 	choiceExecutor: IChoiceExecutor,
 	choice: IChoice,
 ): Promise<boolean> {
@@ -142,7 +139,7 @@ export async function runOnePagePreflight(
 				preloadedUserScripts: choiceExecutor.preloadedUserScripts,
 			},
 		);
-		if (requirements.length === 0) return false; // Nothing to collect
+		if (requirements.length === 0) return false;
 
 		// Only prompt for unresolved inputs (variables missing or null). Empty string is intentional.
 		const unresolved = getUnresolvedRequirements(
@@ -157,64 +154,46 @@ export async function runOnePagePreflight(
 		);
 		if (modalRequirements.length === 0) return false;
 
-		// Show modal
 		// Optional live preview of a couple of key outputs (best-effort)
 		const computePreview = async (
 			values: Record<string, unknown>,
 		): Promise<PreviewRow[]> => {
 			try {
-				// FileNameDisplayFormatter, not FormatDisplayFormatter: this previews
-				// a FILE NAME. The content formatter expands `\n` escapes (not
-				// linebreaks in a path) and resolves {{LINKCURRENT}}/{{LINKSECTION}},
-				// both of which the run-time `formatFileName` deliberately leaves
-				// literal. It is also the class the builder's own file-name preview
-				// uses.
-				//
-				// It resolves {{TEMPLATE:}} the way the run does (#1563) - which
-				// matters most here, because the requirement scan behind this very
-				// modal already walks INTO the include (collectChoiceRequirements,
-				// scope "noteTitle"), so the form asks for variables it found inside
-				// the template. What stays literal in the preview is what the
-				// formatter has no inert stand-in for: inline `js quickadd` fences and
-				// macros, which the run really does execute inside an included body.
+				// FileNameDisplayFormatter, since this previews a file name: the
+				// content formatter expands `\n` and resolves link tokens that
+				// formatFileName leaves literal. {{TEMPLATE:}} resolves as at run
+				// time; inline scripts and macros stay literal.
 				const formatter = new FileNameDisplayFormatter(app, plugin);
 				formatter.setRunClocks(
 					previewRunClocks(choice, choiceExecutor, values),
 				);
 				const out: PreviewRow[] = [];
-				// File name preview for Template
 				if (choice.type === "Template") {
 					const tmpl = choice as ITemplateChoice;
 					if (tmpl.fileNameFormat?.enabled) {
-						// {{FOLDER}} previewed nothing at all here: nobody called
-						// setTargetFolderPath, so `Notes/{{FOLDER}}/x` rendered `Notes//x`
-						// plus an empty-segment error that the modal then discarded
-						// (#1590). The builder's own neutral placeholder is the fallback
-						// when the run has not decided the folder yet.
+						// Without a target folder `Notes/{{FOLDER}}/x` would preview
+						// `Notes//x`; use the builder's neutral placeholder until the run
+						// decides the folder.
 						formatter.setTargetFolderPath(
 							likelyTargetFolderPath(tmpl.folder) ?? "Folder/Name",
 						);
-						// Seed variables map-like into formatter
 						const linklistKeys = new Set(
 							modalRequirements
 								.filter((req) => req.multiEmit === "linklist")
 								.map((req) => req.id),
 						);
+						const seededValues: Record<string, unknown> = {};
 						for (const [k, v] of Object.entries(values)) {
-							formatter["variables"].set(
-								k,
-								linklistKeys.has(k) && Array.isArray(v)
-									? v.map((item) => toWikiLink(String(item)))
-									: v,
-							);
+							seededValues[k] = linklistKeys.has(k) && Array.isArray(v)
+								? v.map((item) => toWikiLink(String(item)))
+								: v;
 						}
+						formatter.seedAnswers(seededValues);
 						out.push({
 							label: "File name",
 							text: await formatter.format(tmpl.fileNameFormat.format),
-							// The channel #1558 added and #1563/#1578/#1588 fill with
-							// "this name would abort the run". This is the surface where
-							// it is worth the most: the user's REAL answers are seeded
-							// above, so the row shows the exact name about to fail.
+							// The user's real answers are seeded above, so this shows the
+							// exact name about to fail.
 							diagnostics: formatter.diagnostics.list(),
 						});
 					}
@@ -225,7 +204,7 @@ export async function runOnePagePreflight(
 			}
 		};
 
-		// A remote interactive session (Raycast) collects the batch form through the
+		// A remote interactive session collects the batch form through the
 		// provider instead of the Obsidian modal. Multi-select FILE answers stay as
 		// arrays across this internal boundary so display labels are never parsed.
 		const provider = choiceExecutor.promptProvider;
@@ -272,15 +251,9 @@ export async function runOnePagePreflight(
 		for (const req of modal?.activeRequirements ?? modalRequirements) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
 				const options = req.options ?? [];
-				const displayOptions = req.displayOptions ?? options;
 				fileInfoByKey.set(req.id, {
 					options,
-					displayToValue: new Map(
-						options.map((value, index) => [
-							(displayOptions[index] ?? value).trim(),
-							value,
-						]),
-					),
+					displayToValue: optionValuesByLabel(options, req.displayOptions, { trimLabels: true }),
 					allowCustom: req.suggesterConfig?.allowCustomInput ?? false,
 					multiSelect: req.suggesterConfig?.multiSelect ?? false,
 				});
@@ -290,16 +263,11 @@ export async function runOnePagePreflight(
 				!req.id.startsWith(FILE_VARIABLE_PREFIX)
 			) {
 				const options = req.options ?? [];
-				const displayOptions = req.displayOptions ?? options;
-				const displayToValue = new Map<string, string>();
-				options.forEach((value, i) => {
-					displayToValue.set((displayOptions[i] ?? value).trim(), value);
-				});
 				multiInfoByKey.set(req.id, {
 					emit: req.multiEmit ?? "text",
 					allowCustom: req.suggesterConfig.allowCustomInput ?? (req.source === "script"),
 					values: new Set(options),
-					displayToValue,
+					displayToValue: optionValuesByLabel(options, req.displayOptions, { trimLabels: true }),
 					joinWith: req.source === "script" && !shouldReturnArray({
 						type: "suggester",
 						options: req.options,
@@ -363,10 +331,9 @@ export async function runOnePagePreflight(
 
 		return true;
 	} catch (error) {
-		// Propagate an explicit cancellation/abort so the run stops instead of
-		// continuing with the inputs missing. Both the native modal and a remote
-		// provider signal a dismissal with UserCancelError, a MacroAbortError
-		// subclass (#1577), so one check covers both.
+		// Propagate a cancellation or abort so the run stops instead of continuing
+		// with the inputs missing. Both the native modal and a remote provider
+		// signal dismissal with UserCancelError, a MacroAbortError subclass.
 		if (error instanceof MacroAbortError) {
 			throw error;
 		}
