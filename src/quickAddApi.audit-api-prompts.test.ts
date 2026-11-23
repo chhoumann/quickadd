@@ -240,6 +240,22 @@ describe("script prompts in a non-interactive run", () => {
 		});
 	});
 
+	it.each([
+		["the custom form title", { title: " Weekly review " }, 'an input form "Weekly review"'],
+		["the field labels without a title", { title: " " }, 'an input form "Question, Mood"'],
+	])("requestInputs' abort names %s", async (_, options, named) => {
+		const executor = { ...makeChoiceExecutor(), interactive: false };
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+
+		await expect(api.requestInputs([
+			{ id: "q", label: "Question", type: "text" },
+			{ id: "mood", label: "Mood", type: "text" },
+		], options)).rejects.toMatchObject({
+			name: "MacroAbortError",
+			message: expect.stringContaining(`A script opened ${named}, but this run is non-interactive.`),
+		});
+	});
+
 	it("requestInputs still resolves from variables preset by the caller", async () => {
 		const executor = { ...makeChoiceExecutor(), interactive: false };
 		executor.variables.set("q", "preset");

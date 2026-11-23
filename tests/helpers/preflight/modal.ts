@@ -40,7 +40,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 		}
 		close() {}
 	}
-	const { ButtonComponent, DropdownComponent, Platform, Setting: BaseSetting, TextAreaComponent, TextComponent: BaseTextComponent } =
+	const { ButtonComponent, DropdownComponent, Platform, Setting: BaseSetting, TextAreaComponent, TextComponent: BaseTextComponent, debounce } =
 		await vi.importActual<typeof Obsidian>("obsidian");
 	class Setting extends BaseSetting {
 		constructor(container: HTMLElement) {
@@ -59,7 +59,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 	return {
 		ButtonComponent, DropdownComponent, Modal, Platform, Setting, TextAreaComponent, TextComponent, Scope,
 		Notice: class { constructor(message: string) { noticeMessages?.push(message); } },
-		debounce: <T extends (...args: unknown[]) => unknown>(fn: T): T => fn,
+		debounce,
 		normalizePath: (await import("../../obsidian-stub")).normalizePath,
 	};
 }

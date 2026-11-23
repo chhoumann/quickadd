@@ -140,6 +140,45 @@ describe("RemotePromptProvider form marshaling", () => {
 		});
 	});
 
+	it.each([
+		[
+			"sends a title and description",
+			{ title: "Weekly review", description: "Answer what applies.\nSkip the rest." },
+			{ type: "form", title: "Weekly review", description: "Answer what applies.\nSkip the rest.", fields: [{ id: "mood", label: "Mood", type: "text" }] },
+		],
+		["omits the header without options", undefined, { type: "form", fields: [{ id: "mood", label: "Mood", type: "text" }] }],
+		["omits empty header fields", { title: "", description: "" }, { type: "form", fields: [{ id: "mood", label: "Mood", type: "text" }] }],
+	])("%s on the form spec", async (_, options, expected) => {
+		let sentSpec: unknown;
+		const server = {
+			emitPrompt: vi.fn(async (_id: string, spec: unknown) => {
+				sentSpec = spec;
+				return {};
+			}),
+		} as unknown as ServerLike;
+		const provider = new RemotePromptProvider("s", server);
+
+		await provider.requestInputs([{ id: "mood", label: "Mood", type: "text" }], options);
+
+		expect(sentSpec).toStrictEqual({
+			...expected,
+			fields: expected.fields.map((field) => ({
+				placeholder: undefined,
+				defaultValue: undefined,
+				defaultValues: undefined,
+				description: undefined,
+				options: undefined,
+				displayOptions: undefined,
+				dateFormat: undefined,
+				optional: undefined,
+				numericConfig: undefined,
+				suggesterConfig: undefined,
+				picker: undefined,
+				...field,
+			})),
+		});
+	});
+
 	it("marks note pickers with picker: file and leaves other suggester lists unmarked", async () => {
 		let sentSpec: unknown;
 		const server = {

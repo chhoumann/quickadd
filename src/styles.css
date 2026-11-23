@@ -334,6 +334,21 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 
 .quickAddModal .qa-onepage-title {
 	text-align: center;
+	overflow-wrap: break-word;
+}
+
+.quickAddModal .qa-onepage-title:has(+ .qa-onepage-description) {
+	margin-bottom: 0.35rem;
+}
+
+.quickAddModal .qa-onepage-description {
+	margin: 0 0 1rem;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+	white-space: pre-line;
+	overflow-wrap: break-word;
 }
 
 .quickAddModal .qa-onepage-section {
@@ -398,7 +413,8 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	color: var(--text-muted);
 }
 
-.quickAddModal .qa-onepage-file-picker {
+.quickAddModal .qa-onepage-file-picker,
+.quickAddModal .qa-onepage-multi-suggester {
 	display: flex;
 	flex-direction: column;
 	gap: 0.375rem;
@@ -406,13 +422,15 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	min-width: 16rem;
 }
 
-.quickAddModal .qa-onepage-file-picker__selection {
+.quickAddModal .qa-onepage-file-picker__selection,
+.quickAddModal .qa-onepage-multi-suggester__selection {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.25rem;
 }
 
-.quickAddModal .qa-onepage-file-picker__chip {
+.quickAddModal .qa-onepage-file-picker__chip,
+.quickAddModal .qa-onepage-multi-suggester__chip {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.25rem;
@@ -426,15 +444,15 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	font-size: var(--font-ui-small);
 }
 
-/* A long name wraps rather than being cut: the chip is the only place the
-   picked note is named. */
-.quickAddModal .qa-onepage-file-picker__chip-label {
+.quickAddModal .qa-onepage-file-picker__chip-label,
+.quickAddModal .qa-onepage-multi-suggester__chip-label {
 	min-width: 0;
 	overflow-wrap: anywhere;
 	text-align: start;
 }
 
-.quickAddModal .qa-onepage-file-picker__remove {
+.quickAddModal .qa-onepage-file-picker__remove,
+.quickAddModal .qa-onepage-multi-suggester__remove {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -453,18 +471,22 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 
 /* On phones Obsidian stretches every button in a modal's setting control to
    full width with 10px padding, which leaves the note's name a few letters. */
-.is-phone .quickAddModal .setting-item-control button.qa-onepage-file-picker__remove {
+.is-phone .quickAddModal .setting-item-control button.qa-onepage-file-picker__remove,
+.is-phone .quickAddModal .setting-item-control button.qa-onepage-multi-suggester__remove {
 	width: 1.4rem;
 	padding: 0;
 }
 
 .quickAddModal .qa-onepage-file-picker__remove:hover,
-.quickAddModal .qa-onepage-file-picker__remove:focus-visible {
+.quickAddModal .qa-onepage-file-picker__remove:focus-visible,
+.quickAddModal .qa-onepage-multi-suggester__remove:hover,
+.quickAddModal .qa-onepage-multi-suggester__remove:focus-visible {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
-.quickAddModal .qa-onepage-file-picker__input {
+.quickAddModal .qa-onepage-file-picker__input,
+.quickAddModal .qa-onepage-multi-suggester__input {
 	width: 100%;
 }
 
@@ -520,18 +542,22 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	.quickAddModal .qa-onepage-slider-setting .setting-item-info,
 	.quickAddModal .qa-onepage-slider-setting .setting-item-control,
 	.quickAddModal .qa-onepage-file-picker-setting .setting-item-info,
-	.quickAddModal .qa-onepage-file-picker-setting .setting-item-control {
+	.quickAddModal .qa-onepage-file-picker-setting .setting-item-control,
+	.quickAddModal .qa-onepage-multi-suggester-setting .setting-item-info,
+	.quickAddModal .qa-onepage-multi-suggester-setting .setting-item-control {
 		width: 100%;
 		margin-inline-end: 0;
 	}
 
-	.quickAddModal .qa-onepage-file-picker-setting {
+	.quickAddModal .qa-onepage-file-picker-setting,
+	.quickAddModal .qa-onepage-multi-suggester-setting {
 		flex-direction: column;
 		align-items: stretch;
 		gap: 0.5rem;
 	}
 
-	.quickAddModal .qa-onepage-file-picker {
+	.quickAddModal .qa-onepage-file-picker,
+	.quickAddModal .qa-onepage-multi-suggester {
 		min-width: 0;
 	}
 
@@ -2709,7 +2735,8 @@ textarea.is-valid {
 
 .quickAddModal.qa-discovery-form .setting-item-control > input,
 .quickAddModal.qa-discovery-form .setting-item-control > textarea,
-.quickAddModal.qa-discovery-form .qa-onepage-file-picker {
+.quickAddModal.qa-discovery-form .qa-onepage-file-picker,
+.quickAddModal.qa-discovery-form .qa-onepage-multi-suggester {
 	width: 100%;
 	min-width: 0;
 }

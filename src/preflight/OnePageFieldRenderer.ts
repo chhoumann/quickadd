@@ -3,7 +3,13 @@ import { FIELD_VARIABLE_PREFIX } from "src/constants";
 import { attachCalendarToggle, createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { FilePickerInputSuggest, type FilePickerOption } from "src/gui/suggesters/FilePickerInputSuggest";
-import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
+import {
+	customSuggesterOption,
+	labelsMatch,
+	SuggesterInputSuggest,
+	type SuggesterOption,
+} from "src/gui/suggesters/SuggesterInputSuggest";
+import { normalizeDisplayItem } from "src/gui/suggesters/utils";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import { formatDateAliasInline, getOrderedDateAliases } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
@@ -11,7 +17,7 @@ import { normalizeNumericValue, normalizeSliderValue } from "src/utils/valueSynt
 import { decodeFileValue } from "src/utils/fileSyntax";
 import { basenameWithoutMdOrCanvas } from "src/utils/pathUtils";
 import type { FieldRequirement } from "./RequirementCollector";
-import { mapMappedSuggesterValue, optionValuesByLabel, resolveDropdownInitialValue } from "./suggesterValueMapping";
+import { resolveDropdownInitialValue } from "./suggesterValueMapping";
 import { decodeDateToken, encodeDateToken } from "../utils/dateTokenCodec";
 import { namesExistingNote } from "src/engine/helpers/captureTargetResolution";
 
@@ -26,6 +32,8 @@ export interface FieldControl {
 	dateParseError: boolean;
 	suggesters: Array<{ close(): void; destroy(): void }>;
 	dispose: Array<() => void>;
+	commitDraft?: () => void;
+	validate?: () => string | null;
 }
 
 interface FieldRendererHost {
@@ -79,7 +87,8 @@ export class OnePageFieldRenderer {
 			this.host.publish(control);
 			this.host.updatePreview();
 		};
-		const starting = this.host.initialValue(req.id) ?? req.defaultValue ?? "";
+		const providedStarting = this.host.initialValue(req.id) ?? req.defaultValue;
+		const starting = providedStarting ?? "";
 		control.value = starting;
 
 		switch (req.type) {
@@ -364,59 +373,8 @@ export class OnePageFieldRenderer {
 				break;
 			}
 			case "suggester": {
-				const setting = this.setting(req);
-				const options = req.options ?? [];
-				const displayOptions = req.displayOptions ?? options;
-				const displayToValue = optionValuesByLabel(options, displayOptions);
-				const valueToDisplay = new Map<string, string>();
-				options.forEach((value, index) => {
-					if (!valueToDisplay.has(value)) {
-						valueToDisplay.set(value, displayOptions[index] ?? value);
-					}
-				});
-				const startingDisplay = valueToDisplay.get(starting) ?? starting;
-				const input = new TextComponent(setting.controlEl);
-				input
-					.setPlaceholder(req.placeholder ?? "Type to search...")
-					.setValue(startingDisplay)
-					.onChange((v) => setValue(req.id, v));
-				input.inputEl.addEventListener("input", (event) => {
-					const fromCompletion = Boolean(
-						(event as CompletionInputEvent).fromCompletion,
-					);
-					const rawInput = input.inputEl.value;
-					const storedValue = mapMappedSuggesterValue(
-						rawInput,
-						displayToValue,
-						fromCompletion,
-					);
-					if (storedValue !== rawInput || fromCompletion) {
-						setValue(req.id, storedValue);
-					}
-				});
-				if (displayOptions.length > 0) {
-					try {
-						const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;
-						const multiSelect = req.suggesterConfig?.multiSelect ?? false;
-						control.suggesters.push(new SuggesterInputSuggest(
-							this.app,
-							input.inputEl,
-							displayOptions,
-							caseSensitive,
-							multiSelect,
-							multiSelect
-								? (item) => {
-										const arr = control.multiSelections ?? [];
-										arr.push(item);
-										control.multiSelections = arr;
-										this.host.publish(control);
-									}
-								: undefined,
-						));
-					} catch {
-						// Non-fatal; falls back to plain text input
-					}
-				}
+				if (req.suggesterConfig?.multiSelect) this.renderMultiSuggesterField(req, control, setValue);
+				else this.renderSuggesterField(req, providedStarting, control, setValue);
 				break;
 			}
 			case "file-picker": {
@@ -451,6 +409,173 @@ export class OnePageFieldRenderer {
 			? (path: string) => !!this.app.vault.getAbstractFileByPath(path)
 			: undefined;
 		return (value) => namesExistingNote(value, names, pathExists);
+	}
+
+	private renderSuggesterField(
+		req: FieldRequirement,
+		starting: string | undefined,
+		control: FieldControl,
+		setValue: (id: string, value: string) => void,
+	): void {
+		const setting = this.setting(req);
+		const options = suggesterOptions(req);
+		const allowCustomInput = req.suggesterConfig?.allowCustomInput ?? true;
+		const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;
+		const input = new TextComponent(setting.controlEl);
+		input.setPlaceholder(req.placeholder ?? "Type to search...");
+
+		const startingOption = starting !== undefined ? options.find((option) => option.value === starting) : undefined;
+		const initialText = starting ?? "";
+		input.setValue(startingOption?.label ?? initialText);
+
+		if (allowCustomInput) {
+			setValue(req.id, startingOption?.value ?? initialText);
+			input.inputEl.addEventListener("input", (event) => {
+				if ((event as CompletionInputEvent).fromCompletion) return;
+				setValue(req.id, input.inputEl.value);
+			});
+			if (options.length === 0) return;
+			control.suggesters.push(new SuggesterInputSuggest(this.app, input.inputEl, {
+				getOptions: () => options,
+				onSelect: (option) => setValue(req.id, option.value),
+				caseSensitive,
+				renderOption: req.renderOption,
+			}));
+			return;
+		}
+
+		let pickedOption: SuggesterOption | undefined = startingOption;
+		let unmatched = false;
+		const matchTypedOption = (text: string) => {
+			pickedOption = text ? options.find((option) => labelsMatch(option.label, text, caseSensitive)) : undefined;
+			unmatched = text !== "" && !pickedOption;
+			setValue(req.id, pickedOption?.value ?? "");
+		};
+		if (startingOption) setValue(req.id, startingOption.value);
+		else matchTypedOption(initialText);
+
+		input.inputEl.addEventListener("input", (event) => {
+			if ((event as CompletionInputEvent).fromCompletion) return;
+			matchTypedOption(input.inputEl.value);
+		});
+		control.validate = () =>
+			unmatched || (!req.optional && !pickedOption)
+				? `QuickAdd: Choose an option for "${req.label}".`
+				: null;
+		if (options.length === 0) return;
+		control.suggesters.push(new SuggesterInputSuggest(this.app, input.inputEl, {
+			getOptions: () => options,
+			onSelect: (option) => {
+				pickedOption = option;
+				unmatched = false;
+				setValue(req.id, option.value);
+			},
+			caseSensitive,
+			renderOption: req.renderOption,
+		}));
+	}
+
+	private renderMultiSuggesterField(
+		req: FieldRequirement,
+		control: FieldControl,
+		setValue: (id: string, value: string) => void,
+	): void {
+		const setting = this.setting(req);
+		setting.settingEl.addClass("qa-onepage-multi-suggester-setting");
+		const options = suggesterOptions(req);
+		const allowCustomInput = req.suggesterConfig?.allowCustomInput ?? true;
+		const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;
+		const separator = req.suggesterConfig?.separator ?? ", ";
+		const selected: SuggesterOption[] = [];
+		const isSelected = (option: SuggesterOption) =>
+			option.isCustom
+				? selected.some((pick) => labelsMatch(pick.label, option.label, caseSensitive))
+				: selected.some((pick) => pick.key === option.key);
+		const add = (option: SuggesterOption) => {
+			if (!isSelected(option)) selected.push(option);
+		};
+
+		const seed = this.host.initialValue(req.id) ?? req.defaultValues ?? req.defaultValue;
+		for (const initialPick of resolveSeededMultiPicks(seed, options, {
+			allowCustomInput,
+			caseSensitive,
+			separator,
+		})) {
+			add(initialPick);
+		}
+
+		const container = setting.controlEl.createDiv({ cls: "qa-onepage-multi-suggester" });
+		const selectionEl = container.createDiv({ cls: "qa-onepage-multi-suggester__selection" });
+		selectionEl.setAttribute("aria-live", "polite");
+		const input = new TextComponent(container);
+		input.inputEl.addClass("qa-onepage-multi-suggester__input");
+		input.setPlaceholder(
+			req.placeholder ?? (allowCustomInput ? "Search or type to add..." : "Search and select..."),
+		);
+
+		let suggester: SuggesterInputSuggest | undefined;
+		const sync = () => {
+			const values = selected.map((option) => option.value);
+			control.multiSelections = values;
+			setValue(req.id, values.join(separator));
+
+			selectionEl.empty();
+			selectionEl.toggleClass("qa-hidden", selected.length === 0);
+			for (const option of selected) {
+				const chip = selectionEl.createDiv({ cls: "qa-onepage-multi-suggester__chip" });
+				chip.createSpan({ cls: "qa-onepage-multi-suggester__chip-label", text: option.label });
+				const remove = chip.createEl("button", { cls: "qa-onepage-multi-suggester__remove", text: "×" });
+				remove.type = "button";
+				remove.setAttribute("aria-label", `Remove ${option.label}`);
+				remove.addEventListener("click", () => {
+					selected.splice(selected.indexOf(option), 1);
+					sync();
+					input.inputEl.focus();
+					suggester?.refresh();
+				});
+			}
+		};
+
+		suggester = new SuggesterInputSuggest(this.app, input.inputEl, {
+			getOptions: () => options,
+			onSelect: (option) => {
+				add(option);
+				sync();
+			},
+			caseSensitive,
+			multiSelect: true,
+			allowCustomInput,
+			isSelected,
+			renderOption: req.renderOption,
+		});
+		control.suggesters.push(suggester);
+
+		input.inputEl.addEventListener("keydown", (event) => {
+			if (event.isComposing) return;
+			if (event.key === "Backspace" && input.inputEl.value === "" && selected.length > 0) {
+				event.preventDefault();
+				selected.pop();
+				sync();
+				suggester?.refresh();
+			}
+		});
+
+		control.commitDraft = () => {
+			const text = input.inputEl.value.trim();
+			if (!text) return;
+			const option =
+				options.find((candidate) => !isSelected(candidate) && labelsMatch(candidate.label, text, caseSensitive)) ??
+				options.find((candidate) => labelsMatch(candidate.label, text, caseSensitive));
+			if (option) add(option);
+			else if (!allowCustomInput) return;
+			else if (!selected.some((pick) => labelsMatch(pick.label, text, caseSensitive))) {
+				add(customSuggesterOption(text));
+			}
+			input.inputEl.value = "";
+			sync();
+		};
+
+		sync();
 	}
 
 	private renderFilePickerField(
@@ -610,4 +735,144 @@ export class OnePageFieldRenderer {
 		sync();
 	}
 
+}
+
+function suggesterOptions(req: FieldRequirement): SuggesterOption[] {
+	const labels = req.displayOptions ?? [];
+	return (req.options ?? []).map((value, index) => ({
+		key: `opt:${index}`,
+		value,
+		label: normalizeDisplayItem(labels[index] ?? value),
+	}));
+}
+
+function resolveSeededMultiPicks(
+	seed: string | readonly string[] | undefined,
+	options: readonly SuggesterOption[],
+	config: { allowCustomInput: boolean; caseSensitive: boolean; separator: string },
+): SuggesterOption[] {
+	if (seed === undefined) return [];
+	const findOption = (text: string) =>
+		options.find((option) => option.value === text) ??
+		options.find((option) => labelsMatch(option.label, text, config.caseSensitive));
+
+	if (typeof seed !== "string") {
+		const picks: SuggesterOption[] = [];
+		for (const value of seed) {
+			const option = findOption(value);
+			if (option) picks.push(option);
+			else if (config.allowCustomInput && value.trim()) picks.push(customSuggesterOption(value.trim()));
+		}
+		return picks;
+	}
+
+	const rawExact = options.find((option) => option.value === seed);
+	if (rawExact) return [rawExact];
+
+	const trimmed = seed.trim();
+	if (!trimmed) return [];
+	const whole = findOption(trimmed);
+	if (whole) return [whole];
+
+	if (config.separator) {
+		const candidates = joinCandidates(options);
+		const matched = matchJoinedOptions(trimmed, candidates, config);
+		if (matched) return matched;
+		if (!config.allowCustomInput) {
+			return extractKnownJoinedOptions(trimmed, candidates, config);
+		}
+	}
+
+	return config.allowCustomInput ? [customSuggesterOption(trimmed)] : [];
+}
+
+type JoinCandidate = { text: string; option: SuggesterOption };
+
+function joinCandidates(options: readonly SuggesterOption[]): JoinCandidate[] {
+	return options
+		.flatMap((option) =>
+			option.value === option.label
+				? [{ text: option.label, option }]
+				: [{ text: option.value, option }, { text: option.label, option }],
+		)
+		.filter(({ text }) => text.length > 0)
+		.sort((a, b) => b.text.length - a.text.length);
+}
+
+function advancePastSeparator(text: string, end: number, separator: string): number {
+	if (end === text.length) return end;
+	if (separator === ", ") {
+		if (text[end] !== ",") return -1;
+		let next = end + 1;
+		while (next < text.length && /\s/.test(text[next])) next++;
+		return next;
+	}
+	if (!text.startsWith(separator, end)) return -1;
+	let next = end + separator.length;
+	while (next < text.length && /\s/.test(text[next])) next++;
+	return next;
+}
+
+function skipUnmatchedSegment(text: string, pos: number, separator: string): number {
+	const delimiter = separator === ", " ? "," : separator;
+	const index = text.indexOf(delimiter, pos);
+	if (index < 0) return text.length;
+	let next = index + delimiter.length;
+	while (next < text.length && /\s/.test(text[next])) next++;
+	return next;
+}
+
+function matchJoinedOptions(
+	text: string,
+	candidates: readonly JoinCandidate[],
+	config: { caseSensitive: boolean; separator: string },
+): SuggesterOption[] | null {
+	const failed = new Set<number>();
+	const solve = (pos: number): SuggesterOption[] | null => {
+		if (pos === text.length) return [];
+		if (failed.has(pos)) return null;
+		for (const candidate of candidates) {
+			const end = pos + candidate.text.length;
+			if (end > text.length) continue;
+			if (!labelsMatch(text.slice(pos, end), candidate.text, config.caseSensitive)) continue;
+			const next = advancePastSeparator(text, end, config.separator);
+			if (next < 0) continue;
+			const tail = solve(next);
+			if (tail) return [candidate.option, ...tail];
+		}
+		failed.add(pos);
+		return null;
+	};
+	const matched = solve(0);
+	return matched && matched.length > 0 ? matched : null;
+}
+
+function extractKnownJoinedOptions(
+	text: string,
+	candidates: readonly JoinCandidate[],
+	config: { caseSensitive: boolean; separator: string },
+): SuggesterOption[] {
+	const memo = new Map<number, { score: number; picks: SuggesterOption[] }>();
+	const best = (pos: number): { score: number; picks: SuggesterOption[] } => {
+		if (pos === text.length) return { score: 0, picks: [] };
+		const cached = memo.get(pos);
+		if (cached) return cached;
+
+		let winner = best(skipUnmatchedSegment(text, pos, config.separator));
+		for (const candidate of candidates) {
+			const end = pos + candidate.text.length;
+			if (end > text.length) continue;
+			if (!labelsMatch(text.slice(pos, end), candidate.text, config.caseSensitive)) continue;
+			const next = advancePastSeparator(text, end, config.separator);
+			if (next < 0) continue;
+			const tail = best(next);
+			const score = candidate.text.length + tail.score;
+			if (score > winner.score) {
+				winner = { score, picks: [candidate.option, ...tail.picks] };
+			}
+		}
+		memo.set(pos, winner);
+		return winner;
+	};
+	return best(0).picks;
 }

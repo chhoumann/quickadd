@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Platform } from "obsidian";
 import type QuickAdd from "../main";
 import { setQuickAddInstance } from "../quickAddInstance";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -136,6 +137,27 @@ describe("OnePageInputModal peek", () => {
 		findButton(chip, "Cancel").click();
 
 		await expect(modal.waitForClose).rejects.toBeInstanceOf(UserCancelError);
+	});
+
+	it.each([
+		{ device: "desktop", phone: false, slot: ".qa-peek-chip-subtitle" },
+		{ device: "phone", phone: true, slot: ".qa-peek-chip-title" },
+	])("names a custom form title in the $device peek chip", async ({ phone, slot }) => {
+		const platform = Platform as unknown as { isPhone: boolean };
+		const original = platform.isPhone;
+		platform.isPhone = phone;
+		try {
+			const modal = new OnePageInputModal(fakeApp as never, [
+				{ id: "title", label: "Title", type: "text" },
+			], undefined, { title: "Weekly review" });
+			findButton(modal.modalEl, "Peek").click();
+
+			expect(document.querySelector(`.qa-peek-chip ${slot}`)?.textContent).toBe("Weekly review");
+			modal.close();
+			await expect(modal.waitForClose).rejects.toBeInstanceOf(UserCancelError);
+		} finally {
+			platform.isPhone = original;
+		}
 	});
 
 	it("opens Peek from the modal shortcut", async () => {

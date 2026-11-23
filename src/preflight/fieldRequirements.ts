@@ -1,3 +1,4 @@
+import type { SearchMatches } from "obsidian";
 import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntaxTypes";
 
 export type FieldType =
@@ -18,6 +19,7 @@ export interface FieldRequirement {
 	description?: string;
 	placeholder?: string;
 	defaultValue?: string;
+	defaultValues?: string[];
 	numericConfig?: NumericInputConfig;
 	sliderConfig?: SliderConfig;
 	options?: string[]; // for dropdowns and suggesters
@@ -44,7 +46,10 @@ export interface FieldRequirement {
 		allowCustomInput?: boolean;
 		caseSensitive?: boolean;
 		multiSelect?: boolean;
+		returnArray?: boolean;
+		separator?: string;
 	};
+	renderOption?: (value: string, el: HTMLElement, matches: SearchMatches) => void;
 	group?: FieldGroup;
 }
 

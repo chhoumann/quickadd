@@ -46,9 +46,7 @@ const mocks = vi.hoisted(() => ({
 	} as { disableOnlineFeatures: boolean; ai: { defaultSystemPrompt: string } },
 }));
 
-// Capture constructor args passed to OnePageInputModal so tests can assert what
-// the API forwarded (app, missing requirements, the live variables map).
-const onePageModalCalls: Array<{ app: unknown; missing: unknown; variables: unknown }> = [];
+const onePageModalCalls: Array<{ app: unknown; missing: unknown; variables: unknown; options: unknown }> = [];
 
 vi.mock("./gui/GenericInputPrompt/GenericInputPrompt", () => ({
 	default: { Prompt: mocks.genericInputPrompt },
@@ -77,8 +75,9 @@ vi.mock("./gui/VDateInputPrompt/VDateInputPrompt", () => ({
 vi.mock("./preflight/OnePageInputModal", () => ({
 	OnePageInputModal: class {
 		waitForClose: Promise<Record<string, string>>;
-		constructor(app: unknown, missing: unknown, variables: unknown) {
-			onePageModalCalls.push({ app, missing, variables });
+		multiSelections = new Map<string, string[]>();
+		constructor(app: unknown, missing: unknown, variables: unknown, options?: unknown) {
+			onePageModalCalls.push({ app, missing, variables, options });
 			this.waitForClose = mocks.onePageModalWaitForClose();
 		}
 	},
@@ -1134,6 +1133,25 @@ describe("requestInputs", () => {
 		});
 		// Raw values are written back to the live variable map.
 		expect(executor.variables.get("name")).toBe("Alice");
+	});
+
+	it.each([
+		[
+			"trims a title and description",
+			{ title: "  Weekly review ", description: " Answer what applies.\n" },
+			{ title: "Weekly review", description: "Answer what applies." },
+		],
+		["drops a non-string description", { title: "Weekly review", description: 3 }, { title: "Weekly review" }],
+		["forwards no header for blank strings", { title: "  ", description: "" }, undefined],
+		["forwards no header for non-string values", { title: 42, description: ["x"] }, undefined],
+		["forwards no header without options", undefined, undefined],
+	])("%s on the one-page modal", async (_, options, expected) => {
+		mocks.onePageModalWaitForClose.mockResolvedValue({ mood: "calm" });
+		const { api } = getApi();
+
+		await api.requestInputs([{ id: "mood", type: "text" }], options as never);
+
+		expect(onePageModalCalls[0].options).toEqual(expected);
 	});
 
 	it("defaults a missing label to the field id", async () => {

@@ -20,7 +20,7 @@ type PreviewRow = {
 
 /** Captures the `computePreview` callback the modal is constructed with. */
 let computePreview:
-	| ((values: Record<string, string>) => Promise<PreviewRow[]>)
+	| ((values: Record<string, unknown>) => Promise<PreviewRow[]>)
 	| null = null;
 
 vi.mock("./OnePageInputModal", () => ({
@@ -29,9 +29,11 @@ vi.mock("./OnePageInputModal", () => ({
 			_app: unknown,
 			_requirements: unknown,
 			_variables: unknown,
-			preview: (values: Record<string, string>) => Promise<PreviewRow[]>,
+			options: {
+				computePreview: (values: Record<string, unknown>) => Promise<PreviewRow[]>;
+			},
 		) {
-			computePreview = preview;
+			computePreview = options.computePreview;
 		}
 		get waitForClose() {
 			return Promise.resolve({ title: "My Note" });
@@ -357,5 +359,13 @@ describe("the one-page preview follows the choice's Which day", () => {
 
 		const out = await computePreview!({ title: "Standup" });
 		expect(out[0].text).toBe("Daily/2026-03-01 Standup");
+	});
+
+	it("wraps multi:linklist picks as wiki links in the filename preview", async () => {
+		const choice = createChoice("{{VALUE:North,South|multi:linklist|name:regions}}");
+		await runOnePagePreflight(createApp(), createPlugin(), createExecutor(), choice);
+
+		const out = await computePreview!({ regions: ["North", "South"] });
+		expect(out[0].text).toBe("[[North]],[[South]]");
 	});
 });

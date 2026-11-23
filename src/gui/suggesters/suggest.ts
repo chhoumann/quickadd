@@ -362,7 +362,16 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		this.debouncedOnInputChanged = debounce(this.onInputChanged.bind(this), 50);
 		
-		this.inputEventListener = (event: Event) => this.debouncedOnInputChanged(event);
+		this.inputEventListener = (event: Event) => {
+			const completion = event as CompletionInputEvent;
+			if (completion.fromCompletion && completion.keepOpen) {
+				this.listQuery = null;
+				this.debouncedOnInputChanged.cancel();
+				void this.onInputChanged(completion);
+				return;
+			}
+			this.debouncedOnInputChanged(event);
+		};
 		this.focusEventListener = () => this.debouncedOnInputChanged();
 		this.inputBlurListener = this.close.bind(this);
 
@@ -558,6 +567,19 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 	protected getCurrentQuery(): string {
 		return this.currentQuery;
+	}
+
+	protected isPopupOpen(): boolean {
+		return this.isOpen;
+	}
+
+	public refresh(): void {
+		if (!this.isOpen || this.destroyed) return;
+		this.listQuery = null;
+		this.debouncedOnInputChanged.cancel();
+		void this.onInputChanged(
+			Object.assign(new Event("input"), { fromCompletion: true, keepOpen: true }),
+		);
 	}
 
 

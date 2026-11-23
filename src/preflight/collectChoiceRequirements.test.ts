@@ -733,6 +733,63 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		});
 	});
 
+	it("forwards a script suggester's labels, multi-select config and array default", async () => {
+		getUserScriptMock.mockResolvedValue({
+			quickadd: {
+				inputs: [
+					{
+						id: "tags",
+						type: "suggester",
+						options: ["a, b", "c"],
+						displayOptions: (value: string, index: number) => `${index + 1}: ${value}`,
+						defaultValue: ["a, b", "Typed, custom"],
+						suggesterConfig: { multiSelect: true, allowCustomInput: false, returnArray: true, separator: " | " },
+					},
+					{ id: "priority", type: "dropdown", options: ["hi", "lo"], displayOptions: ["High"] },
+				],
+			},
+		});
+
+		const requirements = await collect(createMacroChoice(scriptCommand), choiceExecutor);
+
+		expectCollectedFields(requirements, {
+			id: "tags",
+			options: ["a, b", "c"],
+			displayOptions: ["1: a, b", "2: c"],
+			defaultValues: ["a, b", "Typed, custom"],
+			suggesterConfig: {
+				multiSelect: true,
+				allowCustomInput: false,
+				caseSensitive: undefined,
+				returnArray: true,
+				separator: " | ",
+			},
+		}, {
+			id: "priority",
+			displayOptions: ["High", "lo"],
+		});
+	});
+
+	it("leaves a script input with non-string options to its runtime prompt without running displayOptions", async () => {
+		const displayOptions = vi.fn((option: { name: string }) => {
+			if (typeof option === "string") throw new Error("expected object option");
+			return option.name;
+		});
+		getUserScriptMock.mockResolvedValue({
+			quickadd: {
+				inputs: [
+					{ id: "person", type: "suggester", options: ["Ada", { name: "Grace" }], displayOptions },
+					{ id: "title", type: "text" },
+				],
+			},
+		});
+
+		const requirements = await collect(createMacroChoice(scriptCommand), choiceExecutor);
+
+		expectCollectedFields(requirements, { id: "person", runtimeOnly: true }, { id: "title" });
+		expect(displayOptions).not.toHaveBeenCalled();
+	});
+
 	it("downgrades script-declared sliders with invalid config to number", async () => {
 		getUserScriptMock.mockResolvedValue({
 			quickadd: {

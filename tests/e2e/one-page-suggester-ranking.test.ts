@@ -86,15 +86,18 @@ describe("one-page suggester ranking", () => {
 		)).toBe('Aqua <mark class="qa-highlight">Carp</mark>atica');
 	});
 
-	it("ranks the term after the last comma in a multi-select", async () => {
+	it("ranks a multi-select's search and leaves picked options out", async () => {
 		await openForm();
 
 		await typeInto(getContext().obsidian, TAGS_INPUT, "c");
-		await expectSuggestions(["client", "conference", "prospect"]);
+		await expectSuggestions(["client", "conference", "prospect", "Add “c”"]);
 		await pressKey(getContext().obsidian, "Enter");
-		await expect.poll(() => inputValue(TAGS_INPUT), POLL_OPTS).toBe("client, ");
+		await expect.poll(() => inputValue(TAGS_INPUT), POLL_OPTS).toBe("");
+		expect(await getContext().obsidian.dev.evalJson<string[]>(
+			`Array.from(document.querySelectorAll("${FORM} .qa-onepage-multi-suggester__chip-label"), (chip) => chip.textContent)`,
+		)).toEqual(["client"]);
 
-		await typeInto(getContext().obsidian, TAGS_INPUT, "client, p");
-		await expectSuggestions(["prospect", "vip"]);
+		await typeInto(getContext().obsidian, TAGS_INPUT, "p");
+		await expectSuggestions(["prospect", "vip", "Add “p”"]);
 	});
 });

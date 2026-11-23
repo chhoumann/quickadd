@@ -57,13 +57,35 @@ tR += result;
 
 ## User Input Methods
 
-### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider"; placeholder?: string; defaultValue?: string; numericConfig?: { min?: number; max?: number; step?: number }; sliderConfig?: { min: number; max: number; step?: number }; options?: string[]; dateFormat?: string; description?: string; optional?: boolean; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
+### `requestInputs(inputs: RequestInputSpec[], options?: { title?: string; description?: string }): Promise<Record<string, any>>` {#requestinputs}
 Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
 
 **Behavior:**
 - Uses existing values for any ids that already exist in `variables` (including empty strings).
 - Prompts only for missing (`undefined`/`null`) inputs.
 - If the user closes the modal without submitting, the promise rejects with `MacroAbortError("Input cancelled by user")`.
+
+**Options:**
+- `title`: The form heading. Defaults to "Provide inputs" when omitted or blank.
+- `description`: Guidance shown below the heading. Line breaks are kept. A blank description shows nothing.
+
+**Input fields:**
+- `id` (string, required): the variable that holds the answer.
+- `label` (string): the field's name in the form. Defaults to `id`.
+- `type`: `"text"`, `"number"`, `"textarea"`, `"dropdown"`, `"date"`, `"field-suggest"`, `"suggester"`, or `"slider"`.
+- `placeholder` and `description` (string).
+- `defaultValue`: the starting answer. For a `dropdown` or `suggester`, it can be one of `options`. For a multi-select `suggester`, it can be an array of picks.
+- `options` (array): the choices of a `dropdown` or `suggester`. Options can be strings or other values, such as `TFile` objects.
+- `displayOptions` (`string[]` or `(value, index, options) => string`): the text shown for each option, like the `displayItems` of `suggester()`. An option without a display text shows the option itself.
+- `numericConfig` (`{ min?: number; max?: number; step?: number }`), `sliderConfig` (`{ min: number; max: number; step?: number }`), and `dateFormat` (string).
+- `optional` (boolean): the field may be left empty.
+- `suggesterConfig` (object, for `suggester`):
+  - `allowCustomInput` (boolean): accept text that is not one of `options`. Defaults to `true`.
+  - `caseSensitive` (boolean): match options in the same case only.
+  - `multiSelect` (boolean): pick several options.
+  - `returnArray` (boolean): return a multi-select's picks as an array.
+  - `separator` (string): the text between a multi-select's picks when they are returned as one string. Defaults to `", "`.
+  - `renderItem` (`(value, el) => void`): draws an option's row in the list. `value` is the option itself.
 
 **Field Types:**
 - `text`: Single-line text input
@@ -73,10 +95,13 @@ Opens a one-page modal to collect multiple inputs in one go. Values already pres
 - `date`: Date input with natural language support (short aliases like `t`, `tm`, `yd` are supported and configurable in settings)
 - `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
 - `slider`: Bounded numeric input with a slider and editable number field. Requires `sliderConfig.min` and `sliderConfig.max`; `sliderConfig.step` defaults to `1`. Invalid slider configs fall back to `number`.
-- `suggester`: **NEW** - Searchable autocomplete with custom options (allows custom input)
-  - Supports multi-select mode via `suggesterConfig.multiSelect: true` for comma-separated selections
+- `suggester`: Searchable autocomplete over `options`
+  - With `multiSelect: true`, each pick shows as a chip above the search box. See [Multi-select suggester](#multi-select-suggester).
 
-`requestInputs` always returns text values in a `Record<string, string>`. For a multi-select suggester input, the selected items are stored as one comma-separated string, not as selected record objects.
+**Return values:**
+- A `dropdown` or `suggester` returns the picked option itself, so an object option comes back as the same object. Text the user typed comes back as a string.
+- A multi-select `suggester` returns its picks as one string joined with `separator`. With `returnArray: true`, it returns an array of picks instead. It also returns an array when `options` holds values that are not strings and no `separator` is set.
+- Every other field returns a string.
 
 **Example:**
 ```javascript
@@ -94,6 +119,20 @@ const values = await quickAddApi.requestInputs([
     suggesterConfig: { caseSensitive: false }
   }
 ]);
+```
+
+**Form title and description:**
+```javascript
+const values = await quickAddApi.requestInputs(
+  [
+    { id: "wins", label: "Wins", type: "textarea" },
+    { id: "energy", label: "Energy", type: "slider", sliderConfig: { min: 1, max: 5 } },
+  ],
+  {
+    title: "Weekly review",
+    description: "Answer what applies. Leave the rest blank.",
+  }
+);
 ```
 
 **Suggester with Dynamic Options (e.g., from Dataview):**
@@ -116,27 +155,84 @@ const values = await quickAddApi.requestInputs([
 ]);
 ```
 
-**Multi-Select Suggester:**
+#### Multi-select suggester
+
+Each pick shows as a chip above the search box, so an option or typed entry with a comma in it stays one pick.
+
+- Enter adds the highlighted row. When nothing matches the typed text, that row is **Add “text”**, which adds the text as a custom pick.
+- Backspace in an empty search box removes the last chip. A chip's **×** button removes that chip.
+- Text left in the search box when you submit is added as a pick.
+- With `allowCustomInput: false`, only `options` can be picked.
+
+Set `returnArray: true` to get the picks as an array:
+
 ```javascript
-// Select multiple tags, comma-separated
 const values = await quickAddApi.requestInputs([
   {
-    id: "tags",
-    label: "Select Tags",
+    id: "topics",
+    label: "Topics",
     type: "suggester",
-    options: ["#work", "#personal", "#project", "#urgent", "#review"],
-    suggesterConfig: {
-      multiSelect: true,
-      caseSensitive: false
-    },
-    placeholder: "Type or select multiple tags..."
-  }
+    options: ["A string, with stuff after a comma", "Another string"],
+    suggesterConfig: { multiSelect: true, returnArray: true },
+  },
 ]);
 
-// Result: values.tags = "#work, #project, #urgent"
-// Split into array if needed:
-const tagArray = values.tags.split(', ').filter(Boolean);
+// values.topics = ["A string, with stuff after a comma", "Another string"]
 ```
+
+The variable holds the same array. A template step after this script that writes `topics: {{VALUE:topics}}` in its frontmatter gets a YAML list:
+
+```yaml
+topics:
+  - A string, with stuff after a comma
+  - Another string
+```
+
+Without `returnArray`, the picks come back as one string, joined with `", "` or with `separator`:
+
+```javascript
+const values = await quickAddApi.requestInputs([
+  {
+    id: "topics",
+    label: "Topics",
+    type: "suggester",
+    options: ["A string, with stuff after a comma", "Another string"],
+    suggesterConfig: { multiSelect: true, separator: "; " },
+  },
+]);
+
+// values.topics = "A string, with stuff after a comma; Another string"
+```
+
+**Options that are not strings:**
+
+```javascript
+const people = app.vault.getMarkdownFiles()
+  .filter((file) => file.path.startsWith("People/"));
+
+const { lead, attendees } = await quickAddApi.requestInputs([
+  {
+    id: "lead",
+    label: "Lead",
+    type: "suggester",
+    options: people,
+    displayOptions: (file) => file.basename,
+  },
+  {
+    id: "attendees",
+    label: "Attendees",
+    type: "suggester",
+    options: people,
+    displayOptions: (file) => file.basename,
+    suggesterConfig: { multiSelect: true },
+  },
+]);
+
+// lead is the picked TFile, or the typed text.
+// attendees is an array of the picked TFiles and any typed names.
+```
+
+In a note body, a `{{VALUE}}` token writes an object answer with `String()`. In YAML frontmatter, objects with circular references such as `TFile` fail property serialization and write empty values. When a template uses the answer, pass strings as `options` and use `displayOptions` for the labels.
 
 ### `inputPrompt(header: string, placeholder?: string, value?: string, options?: { cursorAtEnd?: boolean, imagePaste?: { sourcePath?: string } }): Promise<string>`
 Opens a prompt that asks for text input.
@@ -231,7 +327,7 @@ await quickAddApi.infoDialog(
 ### `suggester(displayItems: string[] | Function, actualItems: any[], placeholder?: string, allowCustomInput?: boolean, options?: { renderItem?: (value: any, el: HTMLElement) => void }): Promise<any>`
 Opens a single-selection prompt with searchable options. Can optionally allow custom input not in the predefined list.
 
-`quickAddApi.suggester(...)` is single-select only. It returns one selected `actualItems` value, or a custom string when `allowCustomInput` is enabled. For multiple selections, use `checkboxPrompt(...)` for a list of string options, or `requestInputs(...)` with a `type: "suggester"` input and `suggesterConfig.multiSelect: true`. Those multi-select alternatives return strings/text values rather than the selected record objects that `quickAddApi.suggester(...)` can return, so map the returned strings back to your records if needed.
+`quickAddApi.suggester(...)` is single-select only. It returns one selected `actualItems` value, or a custom string when `allowCustomInput` is enabled. For multiple selections, use `checkboxPrompt(...)` for a list of string options, or [`requestInputs(...)`](#multi-select-suggester) with a `type: "suggester"` input and `suggesterConfig.multiSelect: true`. `requestInputs` also takes `displayOptions` and options that are not strings, and returns the picked values themselves.
 
 **Parameters:**
 - `displayItems`: Array of display strings OR a map function

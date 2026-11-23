@@ -2,6 +2,7 @@ import type { FieldType, FieldRequirement } from "./fieldRequirements";
 import type { NumericInputConfig, ParsedOptions, SliderConfig } from "src/utils/valueSyntaxTypes";
 import { resolveNumericInput } from "src/utils/valueNumeric";
 import { SILENT_WARN } from "src/utils/warnSink";
+import { hasNonStringOptions } from "src/api/requestInputOptions";
 
 const VALID_FIELD_TYPES: FieldType[] = [
 	"text",
@@ -32,6 +33,12 @@ export function toFieldRequirement(input: unknown): FieldRequirement | null {
 	const numericConfig = parseNumericConfig(value.numericConfig);
 	const sliderConfig = parseSliderConfig(value.sliderConfig);
 	const fieldType = type === "slider" && !sliderConfig ? "number" : type;
+	const options = Array.isArray(value.options) ? (value.options as unknown[]) : undefined;
+	const runtimeOnly = hasNonStringOptions(options);
+	const stringOptions = runtimeOnly ? undefined : (options as string[] | undefined);
+	const defaultValue = value.defaultValue;
+	const suggesterConfig = parseSuggesterConfig(value.suggesterConfig);
+	const renderItem = (value.suggesterConfig as { renderItem?: unknown } | undefined)?.renderItem;
 
 	return {
 		id,
@@ -39,13 +46,19 @@ export function toFieldRequirement(input: unknown): FieldRequirement | null {
 		type: fieldType,
 		placeholder:
 			typeof value.placeholder === "string" ? value.placeholder : undefined,
-		defaultValue:
-			typeof value.defaultValue === "string" ? value.defaultValue : undefined,
+		defaultValue: typeof defaultValue === "string" ? defaultValue : undefined,
+		defaultValues: Array.isArray(defaultValue)
+			? defaultValue.filter((entry): entry is string => typeof entry === "string")
+			: undefined,
 		numericConfig: sliderConfig ?? numericConfig,
 		sliderConfig,
-		options: Array.isArray(value.options)
-			? value.options.filter((entry): entry is string => typeof entry === "string")
+		options: stringOptions,
+		displayOptions: stringOptions && parseDisplayOptions(value.displayOptions, stringOptions),
+		suggesterConfig,
+		renderOption: !runtimeOnly && typeof renderItem === "function"
+			? (option, el) => (renderItem as (value: string, el: HTMLElement) => void)(option, el)
 			: undefined,
+		runtimeOnly: runtimeOnly ? true : undefined,
 		dateFormat:
 			typeof value.dateFormat === "string" ? value.dateFormat : undefined,
 		description:
@@ -70,6 +83,28 @@ function numericOptions(value: unknown): ParsedOptions {
 		minRaw: asRaw(raw.min),
 		maxRaw: asRaw(raw.max),
 		stepRaw: raw.step === undefined ? undefined : asRaw(raw.step) ?? "",
+	};
+}
+
+function parseDisplayOptions(value: unknown, options: string[]): string[] | undefined {
+	if (typeof value === "function") {
+		return options.map((option, index) => String(value(option, index, options)));
+	}
+	return Array.isArray(value)
+		? options.map((option, index) => (typeof value[index] === "string" ? value[index] : option))
+		: undefined;
+}
+
+function parseSuggesterConfig(value: unknown): FieldRequirement["suggesterConfig"] {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	const flag = (key: string) => (typeof raw[key] === "boolean" ? raw[key] : undefined);
+	return {
+		allowCustomInput: flag("allowCustomInput"),
+		caseSensitive: flag("caseSensitive"),
+		multiSelect: flag("multiSelect"),
+		returnArray: flag("returnArray"),
+		separator: typeof raw.separator === "string" ? raw.separator : undefined,
 	};
 }
 

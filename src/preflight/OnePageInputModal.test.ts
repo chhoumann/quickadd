@@ -8,6 +8,8 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
 import { TemplateChoice } from "src/types/choices/TemplateChoice";
 import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
+import type * as SuggesterModule from "src/gui/suggesters/SuggesterInputSuggest";
+import type { SuggesterInputSuggestConfig } from "src/gui/suggesters/SuggesterInputSuggest";
 
 const { attachImagePasteHandlerMock } = vi.hoisted(() => ({
 	attachImagePasteHandlerMock: vi.fn(() => ({
@@ -77,9 +79,10 @@ vi.mock("src/gui/promptPeek/stylePeekButton", () => ({
 
 const { noticeMessages } = vi.hoisted(() => ({ noticeMessages: [] as string[] }));
 
-vi.mock("obsidian", async () => {
+vi.mock("obsidian", async (importOriginal) => {
 	const { modalObsidianStub } = await import("../../tests/helpers/preflight/modal");
 	return {
+		...(await importOriginal<object>()),
 		...(await modalObsidianStub()),
 		Notice: class { constructor(message: string) { noticeMessages.push(message); } },
 	};
@@ -104,9 +107,27 @@ vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
 	},
 }));
 
-vi.mock("src/gui/suggesters/SuggesterInputSuggest", () => ({
-	SuggesterInputSuggest: class { close = vi.fn(); destroy = vi.fn(); },
+const { suggesterConfigs } = vi.hoisted(() => ({
+	suggesterConfigs: [] as SuggesterInputSuggestConfig[],
 }));
+
+vi.mock("src/gui/suggesters/SuggesterInputSuggest", async (importOriginal) => {
+	const actual = await importOriginal<typeof SuggesterModule>();
+	return {
+		...actual,
+		SuggesterInputSuggest: class extends actual.SuggesterInputSuggest {
+			constructor(app: App, input: HTMLInputElement, config: SuggesterInputSuggestConfig) {
+				super(app, input, config);
+				suggesterConfigs.push(config);
+			}
+		},
+	};
+});
+
+const suggestApp = {
+	dom: { appContainerEl: document.body },
+	keymap: { pushScope: () => {}, popScope: () => {} },
+} as unknown as App;
 
 vi.mock("src/gui/suggesters/FilePickerInputSuggest", () => ({
 	FilePickerInputSuggest: class {
@@ -140,17 +161,18 @@ vi.mock("src/settingsStore", () => ({
 function discoveryModal(create: FieldRequirement, existing: FieldRequirement) {
 	return new OnePageInputModal({} as App, [
 		{ id: "note", label: "Note", type: "text" }, create,
-	], undefined, undefined, {
+	], undefined, { discoveryForm: {
 		notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 		visibleForNotes: new Map([[create.id, [{ noteId: "note", includeExisting: true }]]]),
 		fieldUsages: new Map([[create.id, [{ kind: "note", noteId: "note", create, existing }]]]),
-	});
+	} });
 }
 
 describe("OnePageInputModal", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
 		filePickerSuggesters.length = 0;
+		suggesterConfigs.length = 0;
 		noticeMessages.length = 0;
 		noteSelections.length = 0;
 		noteSuggesterSetup.mockReset();
@@ -254,11 +276,11 @@ describe("OnePageInputModal", () => {
 			{ id: "owner", label: "Owner", type: "text" },
 			{ id: "update", label: "Update", type: "textarea" },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, requirements, undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["owner", [{ noteId: "note", includeExisting: false }]]]),
-		});
+		} });
 		const owner = modal.contentEl.querySelectorAll<HTMLInputElement>("input")[1];
 		const ownerRow = owner.closest<HTMLElement>(".setting-item")!;
 		expect(ownerRow.hidden).toBe(true);
@@ -287,7 +309,7 @@ describe("OnePageInputModal", () => {
 			{ id: "detail", label: "Detail", type: "text", pathContext: true },
 			{ id: "folder", label: "Folder", type: "text", pathContext: true },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, requirements, undefined, { discoveryForm: {
 			notes: [{ id: "note", choice, group: { id: "project", label: "Project" } }],
 			visibleForNotes: new Map([
 				["detail", [{ noteId: "note", includeExisting: true }]],
@@ -298,7 +320,7 @@ describe("OnePageInputModal", () => {
 				create: { id: "detail", label: "Detail", type: "text", optional: false, pathContext: true },
 				existing: { id: "detail", label: "Detail", type: "text", optional: true, pathContext: false },
 			}]]]),
-		});
+		} });
 		const [, detail, folder] = modal.contentEl.querySelectorAll("input");
 		const detailRow = detail.closest<HTMLElement>(".setting-item")!;
 		const folderRow = folder.closest<HTMLElement>(".setting-item")!;
@@ -339,11 +361,11 @@ describe("OnePageInputModal", () => {
 			{ id: "second", label: "Second", type: "text" },
 			{ id: "owner", label: "Owner", type: "text" },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, requirements, undefined, { discoveryForm: {
 			notes: ["first", "second"].map((id) => ({ id, choice: new TemplateChoice(id), group: { id, label: id } })),
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["owner", ["first", "second"].map((noteId) => ({ noteId, includeExisting: false }))]]),
-		});
+		} });
 		void modal.waitForClose.catch(() => {});
 		const ownerRow = modal.contentEl.querySelectorAll("input")[2].closest<HTMLElement>(".setting-item")!;
 		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
@@ -355,11 +377,11 @@ describe("OnePageInputModal", () => {
 	});
 
 	it("accepts a pending new title on submit", async () => {
-		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map(),
-		});
+		} });
 		modal.contentEl.querySelector("input")!.value = "Project At";
 		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({});
@@ -370,11 +392,11 @@ describe("OnePageInputModal", () => {
 		const modal = new OnePageInputModal({} as App, [
 			{ id: "note", label: "Note", type: "text" },
 			{ id: "detail", label: "Detail", type: "text", optional: true },
-		], undefined, undefined, {
+		], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			visibleForNotes: new Map([["detail", [{ noteId: "note", includeExisting: false }]]]),
 			fieldUsages: new Map([["detail", [{ kind: "note", noteId: "note", create: { id: "detail", label: "Description", type: "textarea" }, existing: null }]]]),
-		});
+		} });
 		document.body.appendChild(modal.containerEl);
 		modal.contentEl.querySelector("input")!.value = "New project";
 		const submitted = vi.fn();
@@ -396,11 +418,11 @@ describe("OnePageInputModal", () => {
 		const modal = new OnePageInputModal({} as App, [
 			{ id: "note", label: "Note", type: "text" },
 			{ id: "owner", label: "Owner", type: "text" },
-		], undefined, undefined, {
+		], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["owner", [{ noteId: "note", includeExisting: false }]]]),
-		});
+		} });
 		document.body.appendChild(modal.containerEl);
 		const [note, owner] = modal.contentEl.querySelectorAll("input");
 		note.value = "Project At";
@@ -423,11 +445,11 @@ describe("OnePageInputModal", () => {
 		const modal = new OnePageInputModal({} as App, [
 			{ id: "note", label: "Note", type: "text" },
 			{ id: "FILE:people", label: "Owner", type: "file-picker", options: ["@file:People/Ada.md"], displayOptions: ["Ada"] },
-		], undefined, undefined, {
+		], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map([["FILE:people", [{ noteId: "note", includeExisting: false }]]]),
-		});
+		} });
 		document.body.appendChild(modal.containerEl);
 		modal.contentEl.querySelector("input")!.value = "Project At";
 		const submitted = vi.fn();
@@ -445,11 +467,11 @@ describe("OnePageInputModal", () => {
 
 	it("keeps fallback title entry usable when note search cannot be constructed", async () => {
 		noteSuggesterSetup.mockImplementation(() => { throw new Error("Metadata unavailable"); });
-		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, { discoveryForm: {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
 			fieldUsages: new Map(),
 			visibleForNotes: new Map(),
-		});
+		} });
 		const input = modal.contentEl.querySelector("input")!;
 		const submit = modalButton(modal);
 		input.value = "../outside";
@@ -466,8 +488,9 @@ describe("OnePageInputModal", () => {
 			{ id: "update", label: "Update", type: "text", group: { id: "update", label: "Update" } },
 			{ id: "meeting", label: "Next meeting", type: "text", group: { id: "meeting", label: "Next meeting" } },
 		];
-		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined,
-			discovery ? { notes: [], visibleForNotes: new Map(), fieldUsages: new Map() } : undefined);
+		const modal = new OnePageInputModal({} as App, requirements, undefined, {
+			discoveryForm: discovery ? { notes: [], visibleForNotes: new Map(), fieldUsages: new Map() } : undefined,
+		});
 		void modal.waitForClose.catch(() => {});
 		expect(modal.contentEl.querySelectorAll(".qa-onepage-section")).toHaveLength(discovery ? 0 : 2);
 		modal.onClose();
@@ -702,6 +725,383 @@ describe("OnePageInputModal", () => {
 		search.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
 
 		expect(modal.fileSelections.get(id)).toEqual([]);
+	});
+
+	describe("multi-select suggester", () => {
+		const id = "tags";
+		const tags = (extra: Partial<FieldRequirement> = {}): FieldRequirement => ({
+			id,
+			label: "Tags",
+			type: "suggester",
+			options: ["client", "A string, with stuff after a comma", "vip"],
+			...extra,
+			suggesterConfig: { multiSelect: true, ...extra.suggesterConfig },
+		});
+		const chips = (modal: OnePageInputModal) =>
+			Array.from(modal.contentEl.querySelectorAll(".qa-onepage-multi-suggester__chip-label"), (el) => el.textContent);
+		const search = (modal: OnePageInputModal) =>
+			modal.contentEl.querySelector<HTMLInputElement>(".qa-onepage-multi-suggester__input")!;
+		const pick = (label: string) => {
+			const config = suggesterConfigs[0];
+			const option = config.getOptions().find((candidate) => candidate.label === label);
+			if (!option) throw new Error(`no option ${label}`);
+			config.onSelect(option);
+		};
+		const type = (modal: OnePageInputModal, text: string, key?: string) => {
+			search(modal).value = text;
+			search(modal).dispatchEvent(new Event("input"));
+			if (key) search(modal).dispatchEvent(new KeyboardEvent("keydown", { key, cancelable: true }));
+		};
+
+		it("keeps comma-bearing picks whole, as chips in pick order", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			pick("vip");
+			pick("A string, with stuff after a comma");
+
+			expect(chips(modal)).toEqual(["vip", "A string, with stuff after a comma"]);
+			expect(search(modal).value).toBe("");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "vip, A string, with stuff after a comma" });
+			expect(modal.multiSelections.get(id)).toEqual(["vip", "A string, with stuff after a comma"]);
+		});
+
+		it("adds typed comma-bearing entries as single chips with Enter, before the list opens", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({ options: [] })], new Map());
+			type(modal, "Another, custom string", "Enter");
+			type(modal, "Another string", "Enter");
+
+			expect(chips(modal)).toEqual(["Another, custom string", "Another string"]);
+			expect(modal.multiSelections.get(id)).toEqual(["Another, custom string", "Another string"]);
+			expect(search(modal).value).toBe("");
+		});
+
+		it("leaves Enter to the open list", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			modal.waitForClose.catch(() => {});
+			document.body.append(modal.containerEl);
+			try {
+				search(modal).focus();
+				search(modal).value = "cl";
+				await (modal as unknown as {
+					fieldControls: Map<FieldRequirement, { suggesters: Array<{ onInputChanged(): Promise<void> }> }>;
+				}).fieldControls.values().next().value!.suggesters[0].onInputChanged();
+				const event = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+				search(modal).dispatchEvent(event);
+
+				expect(event.defaultPrevented).toBe(false);
+				expect(chips(modal)).toEqual([]);
+				expect(search(modal).value).toBe("cl");
+			} finally {
+				modal.onClose();
+				modal.containerEl.remove();
+			}
+		});
+
+		it("adds the text left in the search box on Submit", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			pick("client");
+			type(modal, "Draft, entry");
+			modalButton(modal).click();
+
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "client, Draft, entry" });
+			expect(modal.multiSelections.get(id)).toEqual(["client", "Draft, entry"]);
+		});
+
+		it("removes the last chip with Backspace and any chip with its button", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			pick("client");
+			pick("A string, with stuff after a comma");
+			pick("vip");
+
+			type(modal, "", "Backspace");
+			expect(chips(modal)).toEqual(["client", "A string, with stuff after a comma"]);
+
+			modal.contentEl.querySelector<HTMLButtonElement>('[aria-label="Remove client"]')?.click();
+			expect(chips(modal)).toEqual(["A string, with stuff after a comma"]);
+			expect(modal.multiSelections.get(id)).toEqual(["A string, with stuff after a comma"]);
+		});
+
+		it("picks the best match with Enter before the list opens", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			type(modal, "cli", "Enter");
+			expect(chips(modal)).toEqual(["client"]);
+		});
+
+		it("adds only options when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({ suggesterConfig: { allowCustomInput: false } })], new Map());
+			type(modal, "nope", "Enter");
+			expect(chips(modal)).toEqual([]);
+			expect(search(modal).value).toBe("nope");
+
+			type(modal, "VIP", "Enter");
+			expect(chips(modal)).toEqual(["vip"]);
+
+			type(modal, "stray");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "vip" });
+		});
+
+		it("shows display labels and keeps option values", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["hi", "lo"],
+				displayOptions: ["High, urgent", "Low"],
+				suggesterConfig: { separator: " | " },
+			})], new Map());
+			pick("Low");
+			pick("High, urgent");
+
+			expect(chips(modal)).toEqual(["Low", "High, urgent"]);
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "lo | hi" });
+			expect(modal.multiSelections.get(id)).toEqual(["lo", "hi"]);
+		});
+
+		it("starts with its default picks and focuses the search, not a chip's remove button", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				defaultValues: ["A string, with stuff after a comma", "Someone, new"],
+			})], new Map());
+			modal.waitForClose.catch(() => {});
+			document.body.append(modal.containerEl);
+			try {
+				expect(chips(modal)).toEqual(["A string, with stuff after a comma", "Someone, new"]);
+				modal.contentEl.querySelector<HTMLButtonElement>(".qa-onepage-multi-suggester__remove")?.focus();
+				modal.open();
+				expect(document.activeElement).toBe(search(modal));
+			} finally {
+				modal.onClose();
+				modal.containerEl.remove();
+			}
+		});
+
+		it.each([
+			{ name: "an option", defaultValue: "A string, with stuff after a comma", picks: ["A string, with stuff after a comma"] },
+			{ name: "options joined by the separator", defaultValue: "client, vip", picks: ["client", "vip"] },
+			{ name: "options joined by a bare comma", defaultValue: "client,vip", picks: ["client", "vip"] },
+			{ name: "comma-bearing options joined by the separator", defaultValue: "A string, with stuff after a comma, vip", picks: ["A string, with stuff after a comma", "vip"] },
+			{ name: "custom text with a comma", defaultValue: "Someone, new", picks: ["Someone, new"] },
+		])("starts with a string default naming $name", ({ defaultValue, picks }) => {
+			const modal = new OnePageInputModal(suggestApp, [tags({ defaultValue })], new Map());
+			expect(modal.multiSelections.get(id)).toEqual(picks);
+		});
+
+		it("does not split a string default into characters when separator is empty", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				defaultValue: "custom",
+				suggesterConfig: { separator: "" },
+			})], new Map());
+			expect(modal.multiSelections.get(id)).toEqual(["custom"]);
+		});
+
+		it("deduplicates custom chips according to caseSensitive", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			type(modal, "Hello, world", "Enter");
+			type(modal, "hello, world", "Enter");
+			expect(chips(modal)).toEqual(["Hello, world"]);
+
+			const sensitive = new OnePageInputModal(suggestApp, [tags({ suggesterConfig: { caseSensitive: true } })], new Map());
+			type(sensitive, "Hello, world", "Enter");
+			type(sensitive, "hello, world", "Enter");
+			expect(chips(sensitive)).toEqual(["Hello, world", "hello, world"]);
+		});
+
+		it("lets Mod+Enter pass through when the dropdown is closed", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags()], new Map());
+			search(modal).value = "Draft, entry";
+			const event = new KeyboardEvent("keydown", { key: "Enter", metaKey: true, cancelable: true });
+			search(modal).dispatchEvent(event);
+			expect(event.defaultPrevented).toBe(false);
+			expect(chips(modal)).toEqual([]);
+		});
+
+		it("drops unknown entries from array defaults when custom input is off", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["current"],
+				defaultValues: ["current", "retired"],
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+
+			expect(chips(modal)).toEqual(["current"]);
+			expect(modal.multiSelections.get(id)).toEqual(["current"]);
+		});
+
+		it("backtracks when a legacy joined default has an overlapping longer prefix", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["A, B, C", "A, B", "C, D"],
+				defaultValue: "A, B, C, D",
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+
+			expect(modal.multiSelections.get(id)).toEqual(["A, B", "C, D"]);
+		});
+
+		it("keeps comma-bearing options whole when an unknown segment is dropped with custom input off", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["A", "A, B", "C"],
+				defaultValue: "A, B, unknown",
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+
+			expect(modal.multiSelections.get(id)).toEqual(["A, B"]);
+		});
+
+		it("matches a scalar default against raw option values before trimming", () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: [" A "],
+				displayOptions: ["Alpha"],
+				defaultValue: " A ",
+				suggesterConfig: { caseSensitive: true, allowCustomInput: false },
+			})], new Map());
+
+			expect(chips(modal)).toEqual(["Alpha"]);
+			expect(modal.multiSelections.get(id)).toEqual([" A "]);
+		});
+
+		it("refreshes the open suggestion list when Backspace removes a chip", async () => {
+			const modal = new OnePageInputModal(suggestApp, [tags({
+				options: ["Alpha", "Beta", "Gamma"],
+			})], new Map());
+			modal.waitForClose.catch(() => {});
+			document.body.append(modal.containerEl);
+			try {
+				search(modal).focus();
+				const suggester = (modal as unknown as {
+					fieldControls: Map<FieldRequirement, { suggesters: Array<{ onInputChanged(): Promise<void> }> }>;
+				}).fieldControls.values().next().value!.suggesters[0];
+				await suggester.onInputChanged();
+				pick("Alpha");
+				await suggester.onInputChanged();
+				expect(Array.from(document.querySelectorAll(".suggestion-item"), (el) => el.textContent)).toEqual([
+					"Beta",
+					"Gamma",
+				]);
+
+				search(modal).dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", cancelable: true }));
+				await Promise.resolve();
+				await Promise.resolve();
+
+				expect(chips(modal)).toEqual([]);
+				expect(Array.from(document.querySelectorAll(".suggestion-item"), (el) => el.textContent)).toEqual([
+					"Alpha",
+					"Beta",
+					"Gamma",
+				]);
+			} finally {
+				modal.onClose();
+				modal.containerEl.remove();
+			}
+		});
+	});
+
+	describe("single-select suggester", () => {
+		const id = "priority";
+		const priority = (extra: Partial<FieldRequirement> = {}): FieldRequirement => ({
+			id,
+			label: "Priority",
+			type: "suggester",
+			options: ["hi", "lo"],
+			displayOptions: ["High", "Low"],
+			...extra,
+		});
+		const input = (modal: OnePageInputModal) => modal.contentEl.querySelector<HTMLInputElement>("input")!;
+		const type = (modal: OnePageInputModal, text: string) => {
+			input(modal).value = text;
+			input(modal).dispatchEvent(new Event("input"));
+		};
+
+		it("stores a picked option's value", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority()], new Map());
+			const option = suggesterConfigs[0].getOptions()[1];
+			input(modal).value = option.label;
+			suggesterConfigs[0].onSelect(option);
+			input(modal).dispatchEvent(Object.assign(new Event("input"), { fromCompletion: true }));
+
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "lo" });
+		});
+
+		it("keeps typed text as typed where custom input is allowed", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority()], new Map());
+			type(modal, "High");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "High" });
+		});
+
+		it("shows a default option by its label", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({ defaultValue: "lo" })], new Map());
+			expect(input(modal).value).toBe("Low");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "lo" });
+		});
+
+		it("refuses Submit until the text names an option when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({ suggesterConfig: { allowCustomInput: false } })], new Map());
+			document.body.append(modal.containerEl);
+			try {
+				type(modal, "Urgent");
+				modalButton(modal).click();
+				expect(noticeMessages).toEqual(['QuickAdd: Choose an option for "Priority".']);
+				expect(document.activeElement).toBe(input(modal));
+
+				type(modal, "high");
+				modalButton(modal).click();
+				await expect(modal.waitForClose).resolves.toEqual({ [id]: "hi" });
+			} finally {
+				modal.containerEl.remove();
+			}
+		});
+
+		it("accepts a picked option whose stored value is empty when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({
+				options: ["", "hi"],
+				displayOptions: ["None", "High"],
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+			modalButton(modal).click();
+			expect(noticeMessages).toEqual(['QuickAdd: Choose an option for "Priority".']);
+			noticeMessages.length = 0;
+
+			const none = suggesterConfigs[0].getOptions()[0];
+			input(modal).value = none.label;
+			suggesterConfigs[0].onSelect(none);
+			input(modal).dispatchEvent(Object.assign(new Event("input"), { fromCompletion: true }));
+
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
+		});
+
+		it("accepts an explicitly seeded empty-string option when custom input is off", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({
+				options: ["", "hi"],
+				displayOptions: ["None", "High"],
+				defaultValue: "",
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+			expect(input(modal).value).toBe("None");
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
+		});
+
+		it("refuses Submit when custom input is off and options is empty", () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({
+				options: [],
+				displayOptions: [],
+				suggesterConfig: { allowCustomInput: false },
+			})], new Map());
+			modal.waitForClose.catch(() => {});
+			type(modal, "Anything");
+			modalButton(modal).click();
+			expect(noticeMessages).toEqual(['QuickAdd: Choose an option for "Priority".']);
+			modal.onClose();
+		});
+
+		it("lets an optional field without custom input submit empty", async () => {
+			const modal = new OnePageInputModal(suggestApp, [priority({ optional: true, suggesterConfig: { allowCustomInput: false } })], new Map());
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
+		});
 	});
 
 	it("returns a textarea field value verbatim, without doubling backslashes", async () => {
@@ -1120,6 +1520,44 @@ describe("OnePageInputModal section headings", () => {
 	});
 });
 
+describe("OnePageInputModal header", () => {
+	beforeEach(() => {
+		ensureObsidianDomPolyfills();
+	});
+
+	function renderHeader(options?: { title?: string; description?: string }) {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, options);
+		void modal.waitForClose.catch(() => {});
+		const title = modal.contentEl.querySelector("h2.qa-onepage-title");
+		const description = modal.contentEl.querySelector(".qa-onepage-description");
+		modal.onClose();
+		return { title: title?.textContent, description: description?.textContent ?? null };
+	}
+
+	it.each([
+		["no options", undefined, { title: "Provide inputs", description: null }],
+		["a custom title", { title: "  Weekly review  " }, { title: "Weekly review", description: null }],
+		["a blank title", { title: "   " }, { title: "Provide inputs", description: null }],
+		["a blank description", { title: "Weekly review", description: " \n " }, { title: "Weekly review", description: null }],
+		["only a description", { description: "Answer what applies." }, { title: "Provide inputs", description: "Answer what applies." }],
+	])("renders the header for %s", (_, options, expected) => {
+		expect(renderHeader(options)).toEqual(expected);
+	});
+
+	it("shows the description right below the title, keeping its line breaks", () => {
+		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, {
+			title: "Weekly review",
+			description: "  Answer what applies.\nSkip the rest.  ",
+			computePreview: () => [],
+		});
+		void modal.waitForClose.catch(() => {});
+		const description = modal.contentEl.querySelector("h2.qa-onepage-title")?.nextElementSibling;
+		expect(description?.matches("p.qa-onepage-description")).toBe(true);
+		expect(description?.textContent).toBe("Answer what applies.\nSkip the rest.");
+		modal.onClose();
+	});
+});
+
 describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
@@ -1243,7 +1681,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			undefined,
-			() => [
+			{ computePreview: () => [
 				{
 					label: "File name",
 					text: "Bad: My Note",
@@ -1251,7 +1689,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 						{ severity: "error", message: "refused", kind: "path" },
 					],
 				},
-			],
+			] },
 		);
 		await settle();
 
@@ -1276,9 +1714,9 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		const withDiagnostics = (
 			diagnostics: { severity: string; message: string; kind?: string }[],
 		) =>
-			new OnePageInputModal({} as App, requirement, undefined, () => [
+			new OnePageInputModal({} as App, requirement, undefined, { computePreview: () => [
 				{ label: "File name", text: "x", diagnostics } as never,
-			]);
+			] });
 
 		const clean = withDiagnostics([]);
 		await settle();
@@ -1317,7 +1755,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			undefined,
-			() => [],
+			{ computePreview: () => [] },
 		);
 		await settle();
 
@@ -1336,10 +1774,10 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			new Map([["title", "Prefilled"]]),
-			(values) => {
+			{ computePreview: (values) => {
 				calls.push({ ...values });
 				return [];
-			},
+			} },
 		);
 		await settle();
 
@@ -1359,10 +1797,10 @@ describe("OnePageInputModal preview block (#1590)", () => {
 				{ id: "due", label: "due", type: "date" },
 			],
 			undefined,
-			(values) => {
+			{ computePreview: (values) => {
 				calls.push({ ...values });
 				return [];
-			},
+			} },
 		);
 		await settle();
 
@@ -1376,10 +1814,10 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			[{ id: "due", label: "due", type: "date", optional: true }],
 			undefined,
-			(values) => {
+			{ computePreview: (values) => {
 				calls.push({ ...values });
 				return [];
-			},
+			} },
 		);
 		await settle();
 
@@ -1395,7 +1833,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			{} as App,
 			requirement,
 			undefined,
-			() => new Promise((resolve) => deferred.push(resolve as never)),
+			{ computePreview: () => new Promise((resolve) => deferred.push(resolve as never)) },
 		);
 		// Second pass starts while the first is still pending.
 		void (modal as any).updatePreviews();
