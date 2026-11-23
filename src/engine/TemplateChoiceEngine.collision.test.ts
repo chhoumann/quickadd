@@ -751,8 +751,9 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 	it.each([
 		{ mode: "doNothing", openFile: false, opens: true, notice: [] },
-		{ mode: "leaveUnchanged", openFile: false, opens: false, notice: ["'Test Template' already exists."] },
-		{ mode: "leaveUnchanged", openFile: true, opens: true, notice: [] },
+		{ mode: "doNothing", openFile: true, opens: true, notice: [] },
+		{ mode: "leaveClosed", openFile: false, opens: false, notice: ["'Test Template' already exists."] },
+		{ mode: "leaveClosed", openFile: true, opens: false, notice: ["'Test Template' already exists."] },
 	] as const)("$mode with openFile=$openFile opens the existing note: $opens", async ({ mode, openFile, opens, notice }) => {
 		const { app, engine } = createEngine();
 		const existingFile = createExistingFile("Test Template.md");

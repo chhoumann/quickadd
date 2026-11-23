@@ -7,6 +7,7 @@ type LegacyTemplateChoice = {
 	setFileExistsBehavior?: boolean;
 	fileExistsMode?: unknown;
 	fileExistsBehavior?: TemplateFileExistsBehavior;
+	openFile?: boolean;
 };
 
 export function isTemplateChoice(
@@ -24,6 +25,17 @@ function migrateFileExistsBehavior(
 	choice: LegacyTemplateChoice,
 ): TemplateFileExistsBehavior {
 	if (choice.fileExistsBehavior) {
+		// 2.33's leaveUnchanged opened the kept note only when Open was on, so it
+		// splits into the two keep modes with the same behavior.
+		if (
+			choice.fileExistsBehavior.kind === "apply" &&
+			(choice.fileExistsBehavior.mode as string) === "leaveUnchanged"
+		) {
+			return {
+				kind: "apply",
+				mode: choice.openFile ? "doNothing" : "leaveClosed",
+			};
+		}
 		return choice.fileExistsBehavior;
 	}
 
