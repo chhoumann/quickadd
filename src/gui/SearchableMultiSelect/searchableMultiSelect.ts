@@ -12,6 +12,8 @@ export interface SearchableMultiSelectItem<T> {
 	 * one shows that name over its label, as Obsidian's quick switcher does.
 	 */
 	aliases?: readonly string[];
+	/** Extra class for the label, such as `is-unresolved` on a link to a missing note. */
+	labelCls?: string;
 }
 
 interface SearchableMultiSelectOptions<T> {
@@ -209,7 +211,8 @@ export default class SearchableMultiSelect<T> {
 		const { item, index, alias } = indexed;
 		const row = this.listEl.createEl("label", { cls: "qa-searchable-multi-select__option" });
 		const text = row.createSpan({ cls: "qa-searchable-multi-select__option-text" });
-		text.createSpan({ cls: "qa-searchable-multi-select__option-label", text: alias ?? item.label });
+		const label = text.createSpan({ cls: "qa-searchable-multi-select__option-label", text: alias ?? item.label });
+		if (item.labelCls) label.addClass(item.labelCls);
 		if (alias !== undefined) {
 			// As in the quick switcher: the alias that matched, the item beneath.
 			text.createSpan({ cls: "qa-searchable-multi-select__option-note", text: item.label });

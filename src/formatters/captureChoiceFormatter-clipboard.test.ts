@@ -18,6 +18,7 @@ vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
 
 vi.mock("src/gui/InputSuggester/inputSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
 
+vi.mock("src/gui/FieldLinkSuggester/fieldLinkSuggester", () => ({ FieldLinkSuggester: {} }));
 vi.mock("src/gui/MultiSuggester/multiSuggester", () => ({
 	__esModule: true,
 	default: { Suggest: vi.fn().mockResolvedValue([]) },

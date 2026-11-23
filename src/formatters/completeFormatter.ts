@@ -376,7 +376,10 @@ export class CompleteFormatter extends Formatter {
 
 	// CaptureChoiceFormatter overrides this with the capture destination.
 	protected getLinkSourcePath(): string | null {
-		return this.includer?.getLinkSourcePath() ?? null;
+		if (this.includer) return this.includer.getLinkSourcePath();
+		return this.promptRunContext?.destinationKind === "file"
+			? (this.promptRunContext.destination ?? null)
+			: null;
 	}
 
 	protected getCurrentFileLink(): string | null {
@@ -737,9 +740,16 @@ export class CompleteFormatter extends Formatter {
 		}): Promise<string[]> {
 		return suggestForValueMulti(this.promptRuntime(), suggestedValues, allowCustomInput, context);
 	}
-	protected async suggestForField(fieldInput: string): Promise<string | string[]> {
+	protected async suggestForField(
+		fieldInput: string,
+		_parsed?: { fieldName: string },
+		onLinkTarget?: (targets: string | string[]) => void,
+	): Promise<string | string[]> {
 		this.assertInteractivePrompt(`{{FIELD:${fieldInput}}}`);
-		return suggestForField({ app: this.app, executor: this.choiceExecutor, getSourcePath: () => this.getLinkSourcePath() }, fieldInput);
+		return suggestForField(
+			{ app: this.app, executor: this.choiceExecutor, getSourcePath: () => this.getLinkSourcePath(), onLinkTarget },
+			fieldInput,
+		);
 	}
 
 	private generateCacheKey(filters: FieldFilter): string {

@@ -35,13 +35,14 @@ const SUGGESTIONS: Array<[typed: string, expected: string[]]> = [
 	["case", ["case-sensitive"]],
 	["inline-code", ["inline-code-blocks", "inline"]],
 	["multi-select", ["multi"]],
+	["lnik", ["link"]],
 	// Half-typed, which is most of what a live preview sees.
 	["fo", ["folder", "format"]],
 	["de", ["default", "default-from", "default-empty"]],
 	// Not a typo of anything: no guess, fall back to the vocabulary.
 	["filter", []],
 	["sortby", []],
-	["limit", []],
+	["limit", ["link"]],
 	["path", []],
 	["f", []],
 ];
@@ -87,7 +88,7 @@ describe("describeUnknownFieldFilter", () => {
 	it("keeps the full vocabulary when nothing is close", () => {
 		const message = describeUnknownFieldFilter("sortby", "status|sortby:x");
 		expect(message).toBe(
-			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi, format, label, name.',
+			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi, link, format, label, name.',
 		);
 	});
 
@@ -139,8 +140,9 @@ describe("FieldSuggestionParser warns through the new message", () => {
 		// supported filters contradicts itself; running it through the suggester
 		// answers it with a sibling key, because the suggester excludes the exact
 		// match from its own pool.
+		const BARE_FLAGS = new Set(["multi", "link"]);
 		for (const key of FIELD_FILTER_KEYS) {
-			if (key === "multi") continue; // the one legal bare flag
+			if (BARE_FLAGS.has(key)) continue;
 			const { warnings } = parse(`status|${key}`);
 			expect(warnings).toEqual([
 				`FIELD filter "${key}" needs a value - write "${key}:value". Ignored in {{FIELD:status|${key}}}.`,
@@ -160,7 +162,7 @@ describe("FieldSuggestionParser warns through the new message", () => {
 
 	it("stays silent for every recognised filter, bare flag included", () => {
 		const { warnings } = parse(
-			"status|folder:a|tag:b|inline:true|inline-code-blocks:c|exclude-folder:d|exclude-tag:e|exclude-file:f|default:g|default-from:active|default-empty:true|default-always:true|case-sensitive:true|label:h|multi",
+			"status|folder:a|tag:b|inline:true|inline-code-blocks:c|exclude-folder:d|exclude-tag:e|exclude-file:f|default:g|default-from:active|default-empty:true|default-always:true|case-sensitive:true|label:h|multi|link",
 		);
 		expect(warnings).toEqual([]);
 	});

@@ -187,6 +187,17 @@ describe("format token autocomplete context gating", () => {
 		}
 	});
 
+	it("offers a FIELD's |link where a link is content, not in a path (#2295)", async () => {
+		expect(await suggestInserts("{{fie", { context: "noteContent" })).toEqual(
+			expect.arrayContaining(["{{FIELD:<name>|link}}", "{{FIELD:<name>|multi|link}}"]),
+		);
+		for (const context of ["captureTarget", "fileName"] as const) {
+			const inserts = await suggestInserts("{{fie", { context });
+			expect(inserts).toContain("{{FIELD:}}");
+			expect(inserts).not.toContain("{{FIELD:<name>|link}}");
+		}
+	});
+
 	it("keeps {{FOLDERCURRENT}} where it does resolve", async () => {
 		expect(await suggestInserts("{{", { context: "captureTarget" })).toContain(
 			"{{FOLDERCURRENT}}",

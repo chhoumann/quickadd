@@ -212,6 +212,14 @@ const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 			"{{FIELD:}}",
 			"Suggests values a property already has in your vault, like {{FIELD:project}}",
 		),
+		// A link's brackets are invalid in a file name.
+		expansions: ({ context }) =>
+			PATH_CONTEXTS.includes(context)
+				? []
+				: [
+						token("{{FIELD:<name>|link}}", "Picks a note the property links to, or any note, and inserts a link"),
+						token("{{FIELD:<name>|multi|link}}", "Same, but picks several notes as a list of links"),
+					],
 	},
 	{
 		regex: PROPERTY_SYNTAX_SUGGEST_REGEX,

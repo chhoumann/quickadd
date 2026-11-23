@@ -2,6 +2,7 @@ import type { App, TFile } from "obsidian";
 import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import type { FieldFilter } from "./FieldSuggestionParser";
+import { isRelativeLinkTarget, linkTargetOf } from "./fieldLinkValues";
 import { FieldValueProcessor } from "./FieldValueProcessor";
 import { InlineFieldParser } from "./InlineFieldParser";
 
@@ -27,6 +28,103 @@ export function generateFieldCacheKey(filters: FieldFilter): string {
 	if (filters.defaultEmpty) parts.push("default-empty:true");
 	if (filters.defaultAlways) parts.push("default-always:true");
 	return parts.join("|");
+}
+
+export interface SourcedFieldValue {
+	value: string;
+	sourcePath?: string;
+}
+
+const sourcedFieldCaches = new WeakMap<
+	App,
+	{ revision: number; entries: Map<string, SourcedFieldValue[]> }
+>();
+
+export async function collectFieldValuesWithSource(
+	app: App,
+	fieldName: string,
+	filters: FieldFilter,
+): Promise<{ values: SourcedFieldValue[]; hasDefaultValue: boolean }> {
+	const rawEntries = await collectFieldValuesWithSourceCached(app, fieldName, filters);
+	const entries = rawEntries.filter(
+		(entry) => !FieldValueProcessor.isUnresolvedFieldToken(entry.value),
+	);
+	return applySourcedDefaultValue(entries, filters);
+}
+
+async function collectFieldValuesWithSourceCached(
+	app: App,
+	fieldName: string,
+	filters: FieldFilter,
+): Promise<SourcedFieldValue[]> {
+	const cache = FieldSuggestionCache.getInstance();
+	const revision = cache.getRevision();
+	const key = JSON.stringify([fieldName, generateFieldCacheKey(filters) || null]);
+	const appCache = sourcedFieldCaches.get(app);
+	if (appCache && appCache.revision === revision) {
+		const hit = appCache.entries.get(key);
+		if (hit) return [...hit];
+	}
+
+	const entries = await collectFieldValuesWithSourceRaw(app, fieldName, filters);
+	if (cache.getRevision() === revision) {
+		let current = sourcedFieldCaches.get(app);
+		if (!current || current.revision !== revision) {
+			current = { revision, entries: new Map() };
+			sourcedFieldCaches.set(app, current);
+		}
+		current.entries.set(key, entries);
+	}
+	return [...entries];
+}
+
+async function collectFieldValuesWithSourceRaw(
+	app: App,
+	fieldName: string,
+	filters: FieldFilter,
+): Promise<SourcedFieldValue[]> {
+	const normalizedFieldName = fieldName.trim().toLowerCase();
+	if (normalizedFieldName === "tags" || normalizedFieldName === "tag") {
+		const tagEntries = await collectEntriesFromFiles(app, filters, (file, values) => {
+			collectFileTagValues(app, file, values);
+		});
+		if (tagEntries.length > 0) return tagEntries;
+	}
+
+	return await collectEntriesFromFiles(app, filters, (file, values) =>
+		collectFileFieldValues(app, file, fieldName, filters, values),
+	);
+}
+
+function applySourcedDefaultValue(
+	entries: SourcedFieldValue[],
+	filters: FieldFilter,
+): { values: SourcedFieldValue[]; hasDefaultValue: boolean } {
+	if (!filters.defaultValue) {
+		return { values: entries, hasDefaultValue: false };
+	}
+
+	const defaultEntry: SourcedFieldValue = { value: filters.defaultValue };
+	const relativeDefault = isRelativeLinkTarget(linkTargetOf(defaultEntry.value));
+	const isPresent = (entry: SourcedFieldValue): boolean =>
+		FieldValueProcessor.valuesMatch(entry.value, defaultEntry.value, filters.caseSensitive) &&
+		(!relativeDefault || entry.sourcePath === undefined);
+
+	if (filters.defaultAlways) {
+		return {
+			values: [defaultEntry, ...entries],
+			hasDefaultValue: true,
+		};
+	}
+	if (filters.defaultEmpty) {
+		return entries.length === 0
+			? { values: [defaultEntry], hasDefaultValue: true }
+			: { values: entries, hasDefaultValue: false };
+	}
+	if (!entries.some(isPresent)) {
+		return { values: [defaultEntry, ...entries], hasDefaultValue: true };
+	}
+	return { values: entries, hasDefaultValue: false };
 }
 
 export async function collectFieldValuesProcessed(
@@ -132,12 +230,12 @@ function addValues(values: Set<string>, source: unknown): void {
 	}
 }
 
-async function collectFromFiles(
+async function collectEntriesFromFiles(
 	app: App,
 	filters: FieldFilter,
 	collect: (file: TFile, values: Set<string>) => Promise<void> | void,
-): Promise<Set<string>> {
-	const values = new Set<string>();
+): Promise<SourcedFieldValue[]> {
+	const entries: SourcedFieldValue[] = [];
 	const files = FieldSuggestionFileFilter.filterFiles(
 		app.vault.getMarkdownFiles(), filters,
 		(file) => app.metadataCache.getFileCache(file),
@@ -151,13 +249,53 @@ async function collectFromFiles(
 			} catch {
 				// Preserve values collected before an unreadable field or file.
 			}
-			return collected;
+			return { sourcePath: file.path, collected };
 		}));
-		for (const collected of results) {
-			for (const value of collected) values.add(value);
+		for (const { sourcePath, collected } of results) {
+			for (const value of collected) entries.push({ value, sourcePath });
 		}
 	}
-	return values;
+	return entries;
+}
+
+async function collectFromFiles(
+	app: App,
+	filters: FieldFilter,
+	collect: (file: TFile, values: Set<string>) => Promise<void> | void,
+): Promise<Set<string>> {
+	const entries = await collectEntriesFromFiles(app, filters, collect);
+	return new Set(entries.map((entry) => entry.value));
+}
+
+function collectFileTagValues(app: App, file: TFile, values: Set<string>): void {
+	const metadata = app.metadataCache.getFileCache(file);
+	addValues(values, metadata?.frontmatter?.tags);
+	addValues(values, metadata?.frontmatter?.tag);
+	for (const entry of metadata?.tags ?? []) {
+		const tag = String(entry.tag ?? "").trim().replace(/^#/, "");
+		if (tag) values.add(tag);
+	}
+}
+
+async function collectFileFieldValues(
+	app: App,
+	file: TFile,
+	fieldName: string,
+	filters: FieldFilter,
+	values: Set<string>,
+): Promise<void> {
+	const field: unknown = app.metadataCache.getFileCache(file)?.frontmatter?.[fieldName];
+	if (Array.isArray(field)) {
+		field.forEach(value => addValues(values, [value]));
+	} else if (typeof field !== "object") {
+		addValues(values, field);
+	}
+	if (filters.inline) {
+		const content = await app.vault.cachedRead(file);
+		addValues(values, [...InlineFieldParser.getFieldValues(content, fieldName, {
+			includeCodeBlocks: filters.inlineCodeBlocks,
+		})]);
+	}
 }
 
 async function collectTagValuesFromFiles(
@@ -165,13 +303,7 @@ async function collectTagValuesFromFiles(
 	filters: FieldFilter,
 ): Promise<Set<string>> {
 	return collectFromFiles(app, filters, (file, values) => {
-		const metadata = app.metadataCache.getFileCache(file);
-		addValues(values, metadata?.frontmatter?.tags);
-		addValues(values, metadata?.frontmatter?.tag);
-		for (const entry of metadata?.tags ?? []) {
-			const tag = String(entry.tag ?? "").trim().replace(/^#/, "");
-			if (tag) values.add(tag);
-		}
+		collectFileTagValues(app, file, values);
 	});
 }
 
@@ -180,18 +312,7 @@ async function collectFieldValuesManually(
 	fieldName: string,
 	filters: FieldFilter,
 ): Promise<Set<string>> {
-	return collectFromFiles(app, filters, async (file, values) => {
-		const field: unknown = app.metadataCache.getFileCache(file)?.frontmatter?.[fieldName];
-		if (Array.isArray(field)) {
-			field.forEach(value => addValues(values, [value]));
-		} else if (typeof field !== "object") {
-			addValues(values, field);
-		}
-		if (filters.inline) {
-			const content = await app.vault.cachedRead(file);
-			addValues(values, [...InlineFieldParser.getFieldValues(content, fieldName, {
-				includeCodeBlocks: filters.inlineCodeBlocks,
-			})]);
-		}
-	});
+	return collectFromFiles(app, filters, (file, values) =>
+		collectFileFieldValues(app, file, fieldName, filters, values),
+	);
 }

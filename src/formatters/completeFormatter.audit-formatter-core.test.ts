@@ -88,6 +88,7 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: { Suggest: mocks.genericSuggesterSuggest },
 }));
 
+vi.mock("src/gui/FieldLinkSuggester/fieldLinkSuggester", () => ({ FieldLinkSuggester: {} }));
 vi.mock("src/gui/MultiSuggester/multiSuggester", () => ({
 	default: { Suggest: mocks.multiSuggesterSuggest },
 }));

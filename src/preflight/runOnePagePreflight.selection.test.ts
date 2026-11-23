@@ -26,6 +26,7 @@ const { modalOpenMock } = vi.hoisted(() => ({
 let modalResult: Record<string, string> = {};
 let modalFileSelections = new Map<string, string[]>();
 let modalMultiSelections = new Map<string, string[]>();
+let modalFieldLinkSelections = new Map<string, string[]>();
 let modalDiscoverySelections = new Map<string, TemplateNoteSelection>();
 
 vi.mock("./OnePageInputModal", () => ({
@@ -33,6 +34,7 @@ vi.mock("./OnePageInputModal", () => ({
 		waitForClose = Promise.resolve(modalResult);
 		fileSelections = modalFileSelections;
 		multiSelections = modalMultiSelections;
+		fieldLinkSelections = modalFieldLinkSelections;
 		discoverySelections = modalDiscoverySelections;
 		constructor(...args: unknown[]) {
 			modalOpenMock(...args);
@@ -112,6 +114,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 		modalResult = {};
 		modalFileSelections = new Map();
 		modalMultiSelections = new Map();
+		modalFieldLinkSelections = new Map();
 	});
 
 	it("prefills {{VALUE}} from selection when enabled", async () => {
@@ -307,6 +310,51 @@ describe("runOnePagePreflight template extension handling", () => {
 		expect(result).toBe(false);
 		expect(modalOpenMock).not.toHaveBeenCalled();
 		expect(executor.variables.has("FIELD:topic|multi")).toBe(false);
+	});
+
+	describe("link FIELDs (issue #2295)", () => {
+		const templateApp = (body: string) => {
+			const templateFile = Object.assign(new TFile(), {
+				path: "Templates/Book.md",
+				name: "Book.md",
+				basename: "Book",
+				extension: "md",
+			});
+			return {
+				workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) },
+				vault: {
+					getAbstractFileByPath: vi.fn((path: string) => (path === templateFile.path ? templateFile : null)),
+					cachedRead: vi.fn(async () => body),
+				},
+			} as unknown as App;
+		};
+		const body = "author: {{FIELD:author|link}}\ncategories: {{FIELD:categories|multi|link}}";
+
+		it("asks single and multi link FIELDs in the form and stores their picks as links", async () => {
+			modalResult = { "FIELD:author|link": "[[Ted Chiang]]", "FIELD:categories|multi|link": "[[Books]], [[A, B]]" };
+			modalFieldLinkSelections = new Map([
+				["FIELD:author|link", ["[[Ted Chiang]]"]],
+				["FIELD:categories|multi|link", ["[[Books]]", "[[A, B]]"]],
+			]);
+			const executor = createExecutor();
+
+			const result = await runOnePagePreflight(templateApp(body), createPreflightPlugin(), executor, createTemplateChoice("Templates/Book.md"));
+
+			expect(result).toBe(true);
+			expect(executor.variables.get("FIELD:author|link")).toBe("[[Ted Chiang]]");
+			expect(executor.variables.get("FIELD:categories|multi|link")).toEqual(["[[Books]]", "[[A, B]]"]);
+		});
+
+		it("leaves link FIELDs to the run's picker for a remote client", async () => {
+			const requestInputs = vi.fn(async () => ({}));
+			const executor = createExecutor();
+			(executor as IChoiceExecutor).promptProvider = { requestInputs } as unknown as IChoiceExecutor["promptProvider"];
+
+			const result = await runOnePagePreflight(templateApp(body), createPreflightPlugin(), executor, createTemplateChoice("Templates/Book.md"));
+
+			expect(result).toBe(false);
+			expect(requestInputs).not.toHaveBeenCalled();
+		});
 	});
 
 	it("collects multi FILE picks inline without parsing comma-bearing labels", async () => {

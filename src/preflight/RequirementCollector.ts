@@ -27,6 +27,11 @@ import {
 	unwrapQuotedValue,
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
+import {
+	isRelativeLinkTarget,
+	linkTargetOf,
+	resolveRelativeVaultPath,
+} from "src/utils/fieldLinkValues";
 import { FieldSuggestionParser } from "src/utils/FieldSuggestionParser";
 import { resolveActiveNoteFieldDefault } from "src/utils/activeNoteFieldDefault";
 import {
@@ -616,33 +621,51 @@ export class RequirementCollector extends Formatter {
 			(existing.type === "text" || existing.type === "textarea") &&
 			!this.hasOptionList(existing);
 		if (!existing || replacesTextInput) {
+			const deferredToRuntimeMulti = !parsed.link && parsed.multiSelect;
 			const requirement: FieldRequirement = {
 				id: key,
 				label: parsed.label ?? (parsed.fieldName || variableName),
 				type: "field-suggest",
 				source: "collected",
-				runtimeOnly: parsed.multiSelect,
+				runtimeOnly: deferredToRuntimeMulti,
 				fieldSpecifier: variableName,
+				...(parsed.link ? { fieldLink: { multiSelect: Boolean(parsed.multiSelect) } } : {}),
 			};
+			const activeFile = this.choiceExecutor?.triggerContext?.activeFile ?? null;
+			const resolveActiveDefault = () =>
+				resolveActiveNoteFieldDefault(this.app, activeFile, parsed.fieldName);
+			const encodeActiveLink = (value: string): string => {
+				if (!activeFile) return value;
+				const target = linkTargetOf(value);
+				const file = target
+					? this.app.metadataCache.getFirstLinkpathDest?.(target, activeFile.path)
+					: null;
+				if (file) return `${FILE_PICK_PREFIX}${file.path}`;
+				if (target && isRelativeLinkTarget(target)) {
+					return `[[${resolveRelativeVaultPath(target, activeFile.path)}]]`;
+				}
+				return value;
+			};
+			if (requirement.fieldLink?.multiSelect && parsed.filters.defaultFrom === "active") {
+				const resolved = resolveActiveDefault();
+				if (resolved !== null) {
+					requirement.fieldLink.defaultValues = [resolved].flat().map(encodeActiveLink);
+				}
+			}
 			// Single-select |default-from:active (issue #1429): resolve the active
 			// note's current value so the one-page form prefills it (OnePageInputModal
 			// reads req.defaultValue as the starting value). Gate strictly on "active".
-			// Multi FIELD is runtimeOnly — it bypasses the one-page form and preselects
-			// at runtime in the MultiSuggester instead, so it sets no defaultValue here.
 			if (!parsed.multiSelect && parsed.filters.defaultFrom === "active") {
-				const resolved = resolveActiveNoteFieldDefault(
-					this.app,
-					this.choiceExecutor?.triggerContext?.activeFile ?? null,
-					parsed.fieldName,
-				);
+				const resolved = resolveActiveDefault();
 				// The active value wins; when it resolves nothing (no active note,
 				// missing/empty property) fall back to the literal |default: so the
 				// one-page form matches the runtime path, which still prepends that
 				// default. `{{FIELD:x|default:Inbox|default-from:active}}` therefore
 				// prefills Inbox instead of an empty field.
-				const effectiveDefault =
-					(typeof resolved === "string" ? resolved : undefined) ??
-					parsed.filters.defaultValue;
+				const activeValue = typeof resolved === "string"
+					? (parsed.link ? encodeActiveLink(resolved) : resolved)
+					: undefined;
+				const effectiveDefault = activeValue ?? parsed.filters.defaultValue;
 				if (effectiveDefault !== undefined) {
 					requirement.defaultValue = effectiveDefault;
 				}

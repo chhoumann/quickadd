@@ -66,6 +66,47 @@ describe("shouldQuoteTextScalar", () => {
 		expect(check(`---\ntitle: x\n---\nSome ${TOKEN} prose`)).toBe(false);
 		expect(check(`No front matter here ${TOKEN}`)).toBe(false);
 	});
+
+	it("quotes a whole item of a flow sequence", () => {
+		expect(check(`---\ncategories: [${TOKEN}]\n---`)).toBe(true);
+		expect(check(`---\ncategories: [ "[[Books]]", ${TOKEN} ]\n---`)).toBe(true);
+		expect(check(`---\ncategories: [${TOKEN}, "[[Books]]"]\n---`)).toBe(true);
+		expect(check(`---\nnested:\n  - [${TOKEN}]\n---`)).toBe(true);
+		expect(check(`---\nrefs: [O'Brien, ${TOKEN}]\n---`)).toBe(true);
+		expect(check(`---\nrefs: [\n  "[[Books]]",\n  ${TOKEN}\n]\n---`)).toBe(true);
+		expect(check(`---\nrefs: [\n  "[[Books]]",\n  # comment with [bracket]\n  ${TOKEN} # trailing\n]\n---`)).toBe(true);
+		expect(check(`---\nrefs: [{{FIELD:a|link}}, ${TOKEN}]\n---`)).toBe(true);
+		expect(check(`---\nmap: { a: [${TOKEN}] }\n---`)).toBe(true);
+	});
+
+	it("does NOT quote brackets in plain prose, block scalars, or flow mappings", () => {
+		expect(check(`---\ncaption: see [${TOKEN}]\n---`)).toBe(false);
+		expect(check(`---\nsummary: folded line\n  [${TOKEN}]\n---`)).toBe(false);
+		expect(check(`---\nitems:\n  - folded item\n    [${TOKEN}]\n---`)).toBe(false);
+		expect(check(`---\nitems:\n  - name: First\n    refs: [${TOKEN}]\n---`)).toBe(true);
+		expect(check(`---\nsummary:\n  [${TOKEN}]\n---`)).toBe(true);
+		expect(check(`---\nnotes: |\n  [${TOKEN}]\n---`)).toBe(false);
+		expect(check(`---\nmap: { a: ${TOKEN} }\n---`)).toBe(false);
+		expect(check(`---\ntitle: {{VALUE:a}}\nrefs: [${TOKEN}]\n---`)).toBe(true);
+	});
+
+	it("does NOT quote a flow-sequence item the token only partly fills", () => {
+		expect(check(`---\ncategories: [a ${TOKEN}]\n---`)).toBe(false);
+		expect(check(`---\ncategories: [${TOKEN}s]\n---`)).toBe(false);
+	});
+
+	it("does NOT treat brackets inside a quoted string as a flow sequence", () => {
+		expect(check(`---\ntitle: "see [${TOKEN}]"\n---`)).toBe(false);
+		expect(check(`---\ntitle: 'a [${TOKEN}, b'\n---`)).toBe(false);
+	});
+
+	it("does NOT treat a closed sequence as open", () => {
+		expect(check(`---\nx: [a], ${TOKEN}]\n---`)).toBe(false);
+	});
+
+	it("does NOT quote an author-quoted flow-sequence item", () => {
+		expect(check(`---\ncategories: ["${TOKEN}"]\n---`)).toBe(false);
+	});
 });
 
 describe("escapeValueInsideQuotedYamlScalar", () => {
@@ -96,6 +137,11 @@ describe("escapeValueInsideQuotedYamlScalar", () => {
 
 	it("escapes inside a quoted list item", () => {
 		const input = `---\ntags:\n  - "${TOKEN}"\n---\nbody`;
+		expect(escape(input, 'say "hi"')).toBe('say \\"hi\\"');
+	});
+
+	it("escapes inside an author-quoted flow-sequence item", () => {
+		const input = `---\ncategories: ["${TOKEN}", '${TOKEN}']\n---\nbody`;
 		expect(escape(input, 'say "hi"')).toBe('say \\"hi\\"');
 	});
 

@@ -4,6 +4,7 @@ import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type { ChoiceChain } from "./engine/choiceChain";
 import { CompleteFormatter } from "./formatters/completeFormatter";
 import { restoreDateVariableFormats, snapshotDateVariableFormats } from "./formatters/helpers/dateTokens";
+import { restoreFieldLinkTargets, snapshotFieldLinkTargets } from "./utils/fieldLinkValues";
 import { applyTemplateToNote, isMarkdownTemplatePath } from "./engine/applyTemplateToActiveNote";
 import { isTemplateInsertMode, templateInsertModes, type TemplateInsertModeId } from "./engine/TemplateInsertEngine";
 import { getActiveEditorSelection, getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
@@ -28,6 +29,7 @@ function snapshotVariables(vars: Map<string, unknown>) {
 	return {
 		entries: Array.from(vars.entries()),
 		dateFormats: snapshotDateVariableFormats(vars),
+		fieldLinkTargets: snapshotFieldLinkTargets(vars),
 	};
 }
 
@@ -40,6 +42,7 @@ function restoreVariables(
 		vars.set(key, value);
 	}
 	restoreDateVariableFormats(vars, snapshot.dateFormats);
+	restoreFieldLinkTargets(vars, snapshot.fieldLinkTargets);
 }
 
 export class QuickAddApi {
@@ -137,6 +140,7 @@ export class QuickAddApi {
 			const abort = choiceExecutor.consumeAbortSignal?.();
 			choiceExecutor.variables.clear();
 			restoreDateVariableFormats(choiceExecutor.variables, new Map());
+			restoreFieldLinkTargets(choiceExecutor.variables, new Map());
 			if (abort) {
 				throw abort;
 			}

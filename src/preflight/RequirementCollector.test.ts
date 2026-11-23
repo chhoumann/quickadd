@@ -364,6 +364,42 @@ Body`);
         runtimeOnly: true,
       });
     });
+
+    it("asks a link FIELD in the form, single or multi (#2295)", async () => {
+      const rc = new RequirementCollector(makeApp(), makePlugin());
+      await rc.scanString("{{FIELD:author|link}} {{FIELD:categories|multi|link}}");
+
+      expect(rc.requirements.get("FIELD:author|link")).toMatchObject({
+        type: "field-suggest",
+        runtimeOnly: false,
+        fieldLink: { multiSelect: false },
+      });
+      expect(rc.requirements.get("FIELD:categories|multi|link")).toMatchObject({
+        type: "field-suggest",
+        runtimeOnly: false,
+        fieldLink: { multiSelect: true },
+      });
+    });
+
+    it("normalizes unresolved relative active-note link defaults against the active folder (#2295)", async () => {
+      const activeFile = { extension: "md", path: "East/Book.md" } as any;
+      const app = {
+        workspace: { getActiveFile: () => activeFile },
+        vault: { getAbstractFileByPath: () => null, cachedRead: async () => "" },
+        metadataCache: {
+          getFileCache: (f: any) => (f === activeFile ? { frontmatter: { draft: "[Draft](./Draft.md)" } } : null),
+          getFirstLinkpathDest: () => null,
+        },
+      } as any;
+      const executor = { variables: new Map<string, unknown>(), triggerContext: { activeFile } } as any;
+      const rc = new RequirementCollector(app, makePlugin(), executor);
+      await rc.scanString("{{FIELD:draft|link|default-from:active}} {{FIELD:draft|multi|link|default-from:active}}");
+
+      expect(rc.requirements.get("FIELD:draft|link|default-from:active")?.defaultValue).toBe("[[East/Draft]]");
+      expect(rc.requirements.get("FIELD:draft|multi|link|default-from:active")?.fieldLink?.defaultValues).toEqual([
+        "[[East/Draft]]",
+      ]);
+    });
   });
 
   // Issue #1429: a single-select |default-from:active FIELD prefills the one-page
@@ -424,6 +460,23 @@ Body`);
       const req = rc.requirements.get("FIELD:topics|multi|default-from:active");
       expect(req?.runtimeOnly).toBe(true);
       expect(req?.defaultValue).toBeUndefined();
+    });
+
+    it("prefills a link FIELD from the active note (#2295)", async () => {
+      const rc = new RequirementCollector(
+        appWithActive({ author: "[[Ted Chiang]]", categories: ["[[Books]]", "[[Reading]]"] }),
+        makePlugin(),
+        executorWithActive() as any,
+      );
+      await rc.scanString(
+        "{{FIELD:author|link|default-from:active}} {{FIELD:categories|multi|link|default-from:active}}",
+      );
+
+      expect(rc.requirements.get("FIELD:author|link|default-from:active")?.defaultValue).toBe("[[Ted Chiang]]");
+      expect(rc.requirements.get("FIELD:categories|multi|link|default-from:active")?.fieldLink).toEqual({
+        multiSelect: true,
+        defaultValues: ["[[Books]]", "[[Reading]]"],
+      });
     });
 
     it("leaves defaultValue undefined when no executor/trigger context is present", async () => {

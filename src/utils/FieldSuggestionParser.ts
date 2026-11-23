@@ -18,8 +18,8 @@ import {
  * Authoritative, not descriptive: {@link FieldSuggestionParser.parse} tests
  * membership here BEFORE dispatching, so a `case` added to the switch without an
  * entry here stops working rather than silently drifting away from what the
- * warning advertises and what the typo suggester matches against. (`multi` is
- * both a bare flag and a `multi:true` key, and is spelled once for both.)
+ * warning advertises and what the typo suggester matches against. (`multi` and
+ * `link` are both bare flags and `key:true` keys, and are spelled once for both.)
  */
 export const FIELD_FILTER_KEYS = [
 	"folder",
@@ -35,6 +35,7 @@ export const FIELD_FILTER_KEYS = [
 	"default-always",
 	"case-sensitive",
 	"multi",
+	"link",
 	"format",
 	"label",
 	"name",
@@ -175,6 +176,8 @@ export class FieldSuggestionParser {
 		label?: string;
 		/** The run variable the answer is read from and written to, as `{{VALUE:<name>}}` does. */
 		name?: string;
+		/** Values are notes: shown by name, written as links (`|link`, `|multi:linklist`). */
+		link?: boolean;
 	} {
 		const parts = splitPipeParts(input).map((p) => p.trim());
 		const fieldName = parts[0];
@@ -184,18 +187,24 @@ export class FieldSuggestionParser {
 		let multiFormatExplicit = false;
 		let label: string | undefined;
 		let name: string | undefined;
+		let link = false;
 
 		for (let i = 1; i < parts.length; i++) {
 			const filterPart = parts[i];
-			if (filterPart.toLowerCase() === "multi") {
+			const bareFlag = filterPart.toLowerCase();
+			if (bareFlag === "multi") {
 				multiSelect = true;
+				continue;
+			}
+			if (bareFlag === "link") {
+				link = true;
 				continue;
 			}
 
 			const parsed = parsePipeKeyValue(filterPart);
 			if (!parsed) {
-				// A pipe part with no colon. `multi` is the only legal bare flag and
-				// was consumed above, so anything left here does nothing at all and
+				// A pipe part with no colon. `multi` and `link` are the only legal bare
+				// flags and were consumed above, so anything left here does nothing at all and
 				// would otherwise vanish without a trace - `|mutli` quietly
 				// downgrades a multi-select prompt to a single-select one. A
 				// correctly spelled key is a different mistake (a missing value) and
@@ -244,7 +253,15 @@ export class FieldSuggestionParser {
 					}
 					break;
 				case "multi":
-					multiSelect = parseBooleanFlag(filterValue);
+					if (filterValue.toLowerCase() === "linklist") {
+						multiSelect = true;
+						link = true;
+					} else {
+						multiSelect = parseBooleanFlag(filterValue);
+					}
+					break;
+				case "link":
+					link = parseBooleanFlag(filterValue);
 					break;
 				case "format":
 					multiFormatExplicit = true;
@@ -338,6 +355,7 @@ export class FieldSuggestionParser {
 			...(multiFormat !== "auto" ? { multiFormat } : {}),
 			...(label ? { label } : {}),
 			...(name ? { name } : {}),
+			...(link ? { link } : {}),
 		};
 	}
 }
